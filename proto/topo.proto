@@ -1,0 +1,54 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/hfam/kne/proto/topo";
+
+package topo;
+
+// Build with protoc -I=proto --go_out=proto/topo proto/topo.proto
+
+
+// Topology message defines what nodes and links will be created inside the mesh.
+message Topology {
+  string name = 1; // Name of the topology - will be linked to the cluster name
+  repeated Node nodes = 2; // List of nodes in the topology
+  repeated Link links = 3; // connections between Nodes.
+}
+
+
+// Node is a single container inside the topology
+message Node {
+  enum Type {
+    Unknown = 0;
+    Host = 1;
+    AristaCEOS = 2;
+    JuniperCEVO = 3;
+    CiscoCXR = 4;
+  }
+
+  string name = 1;
+  Type type = 2;
+  string version = 3;
+  map<string,string> labels = 4;
+}
+
+// Link is single link between nodes in the topology.
+message Link {
+  string a_node = 1;
+  string a_int = 2;
+  string z_node = 3;
+  string z_int = 4; 
+}

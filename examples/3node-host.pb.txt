@@ -1,0 +1,31 @@
+name: "3node-host"
+nodes: {
+    name: "vm-1"
+    type: Host
+}
+nodes: {
+    name: "vm-2"
+    type: Host
+}
+nodes: {
+    name: "vm-3"
+    type: Host
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth0"
+    z_node: "vm-2"
+    z_int: "eth0"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth1"
+    z_node: "vm-3"
+    z_int: "eth0"
+}
+links: {
+    a_node: "vm-2"
+    a_int: "eth1"
+    z_node: "vm-3"
+    z_int: "eth1"
+}
