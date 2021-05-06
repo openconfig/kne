@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/hfam/kne/proto/topo";
+option go_package = "github.com/google/kne/proto/topo";
 
 package topo;
 
@@ -37,18 +37,48 @@ message Node {
     AristaCEOS = 2;
     JuniperCEVO = 3;
     CiscoCXR = 4;
+    Quagga = 5;
+    FRR = 6;
+    JuniperVMX = 7;
+    CiscoCSR = 8;
   }
 
-  string name = 1;
-  Type type = 2;
-  string version = 3;
-  map<string,string> labels = 4;
+  string name = 1; // Name of the node in the topology. Must be unique.
+  Type type = 2; // Type of node to create.
+  map<string,string> labels = 4; // Metadata labels describing the node.
+  Config config = 5; // Pod specfic configuration of the node.
+  map<uint32, Service> services = 6; // Map of services to enable on the node.
+  map<string, string> constraints = 7; // Any k8s constraints required by node.
 }
 
 // Link is single link between nodes in the topology.
+// Interfaces must start eth1 - eth0 is the default k8s interface.
 message Link {
   string a_node = 1;
   string a_int = 2;
   string z_node = 3;
   string z_int = 4; 
+}
+
+// Config is the k8s pod specific configuration for a node.
+message Config {
+  repeated string command = 1;  // Command to pass into pod.
+  repeated string args = 2;     // Command args to pass into the pod.
+  string image = 3;             // Docker image to use with pod.
+  map<string, string> env = 4;  // Map of environment variables to pass into the pod.
+  string entry_command = 5;     // Specific entry point command for accessing the pod.
+  string config_path = 6;       // Mount point for configuration inside the pod.
+  string config_file = 7;       // Default configuration file name for the pod.
+  uint32 sleep = 8;             // Sleeptime before starting the pod.
+  oneof config_data {
+     bytes data = 101;          // Byte data for the startup configuration file.
+     string file = 102;         // Local file to read for the configuration file.
+  }
+}
+
+// Service is k8s Service to expose to the cluster
+message Service {
+  string name = 1;  // Name of the service (optional)
+  uint32 inside = 2; // Inside port to map
+  uint32 outside = 3; // Outside port to map (0 = autoassign from cluster)
 }

@@ -73,9 +73,26 @@ meshnet   1         1         1       1            1           beta.kubernetes.i
 * Build for kne-topo
 
 ```
-bazel build kne-topo
+
+git clone https://github.com/networkop/meshnet-cni.git
+docker pull networkop/meshnet:latest
+kind load docker-image networkop/meshnet:latest --name=kne
+kubectl apply -f meshnet-cni/manifests/base/meshnet.yml
+
 ```
 
-* Install kne-topo service
+
 * Validate service is ready
+
+```
+kubectl get pods -A | grep k8s-topo
+default              k8s-topo-59fc575699-kr8ht                   1/1     Running   0          10d
+```
+
 * Create topology from CLI
+
+```
+kubectl exec -it deployment/k8s-topo -- k8s-topo --create examples/3node-host.yml
+kubectl get pods -A
+```
+

@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	topologyv1 "github.com/hfam/kne/api/types/v1beta1"
+	topologyv1 "github.com/google/kne/api/types/v1beta1"
 )
 
 // TopologyInterface provides access to the Topology CRD.
@@ -31,6 +31,7 @@ type TopologyInterface interface {
 	List(ctx context.Context, opts metav1.ListOptions) (*topologyv1.TopologyList, error)
 	Get(ctx context.Context, name string, options metav1.GetOptions) (*topologyv1.Topology, error)
 	Create(ctx context.Context, topology *topologyv1.Topology) (*topologyv1.Topology, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 }
 
@@ -117,9 +118,20 @@ func (t *topologyClient) Watch(ctx context.Context, opts metav1.ListOptions) (wa
 	return t.restClient.
 		Get().
 		Namespace(t.ns).
-		Resource("topology").
+		Resource("topologies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch(ctx)
+}
+
+func (t *topologyClient) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
+	return t.restClient.
+		Delete().
+		Namespace(t.ns).
+		Resource("topologies").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Name(name).
+		Do(ctx).
+		Error()
 }
 
 func init() {

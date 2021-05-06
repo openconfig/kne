@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/hfam/kne/topo"
+	"github.com/google/kne/topo"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/homedir"
 )
@@ -109,7 +109,17 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if dryrun {
 		return nil
 	}
-	return t.Push(cmd.Context())
+	if err := t.Push(cmd.Context()); err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Topology %q created", topopb.Name)
+	r, err := t.Resources(cmd.Context())
+	fmt.Fprintf(out, "Pods:\n")
+	for _, p := range r.Pods {
+		fmt.Fprintf(out, "%s\n", p.Name)
+	}
+
+	return nil
 }
 
 func deleteFn(cmd *cobra.Command, args []string) error {
@@ -129,7 +139,11 @@ func deleteFn(cmd *cobra.Command, args []string) error {
 	if dryrun {
 		return nil
 	}
-	return t.Delete(cmd.Context())
+	if err := t.Delete(cmd.Context()); err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Successfully deleted topology: %q", topopb.Name)
+	return nil
 }
 
 func showFn(cmd *cobra.Command, args []string) error {
@@ -141,5 +155,17 @@ func showFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	return t.Topology(cmd.Context())
+	if err := t.Load(cmd.Context()); err != nil {
+		return err
+	}
+	out := cmd.OutOrStdout()
+	r, err := t.Resources(cmd.Context())
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Pods:\n")
+	for _, p := range r.Pods {
+		fmt.Fprintf(out, "%s:%s IP:%s\n", topopb.Name, p.Name, p.Status.PodIP)
+	}
+	return nil
 }

@@ -17,7 +17,7 @@ package main
 import (
 	"context"
 
-	"github.com/hfam/kne/cmd"
+	"github.com/google/kne/cmd"
 )
 
 func main() {
