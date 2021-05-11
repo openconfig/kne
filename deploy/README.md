@@ -69,30 +69,83 @@ meshnet   1         1         1       1            1           beta.kubernetes.i
 
 ```
 
+* Add MetalLB (if you want to access pods outside of cluster)
+   * Get metallb Loadbalancer
 
-* Build for kne-topo
-
+```bash
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/master/manifests/namespace.yaml
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/master/manifests/metallb.yaml
 ```
 
-git clone https://github.com/networkop/meshnet-cni.git
-docker pull networkop/meshnet:latest
-kind load docker-image networkop/meshnet:latest --name=kne
-kubectl apply -f meshnet-cni/manifests/base/meshnet.yml
+   * Validate metallb is running
 
+```bash
+kubectl get pods -n metallb-system --watch
 ```
 
+   * Setup pool
 
-* Validate service is ready
-
-```
-kubectl get pods -A | grep k8s-topo
-default              k8s-topo-59fc575699-kr8ht                   1/1     Running   0          10d
+```bash
+docker network inspect -f '{{.IPAM.Config}}' kind
 ```
 
-* Create topology from CLI
+Will return something like:
 
 ```
-kubectl exec -it deployment/k8s-topo -- k8s-topo --create examples/3node-host.yml
-kubectl get pods -A
+[{192.168.18.0/24  192.168.18.1 map[]} {fc00:f853:ccd:e793::/64   map[]}]
+```
+
+   * Create ConfigMap for subnet
+
+Replace <address-range> with something like: "192.168.18.100 - 192.168.18.250"
+
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+   address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - <address-range>
+```
+
+Example:
+
+```
+cat > ./metallb-configmap.yaml << EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+   address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 192.168.18.100 - 192.168.18.250
+
+EOF
+kubectl apply -f ./metallb-configmap.yaml
+```
+
+* Build kne_cli
+
+```
+cd kne_cli
+go build
+```
+
+* Create Topology
+
+```
+kne_cli create ../examples/3node-host.pb.txt
 ```
 
