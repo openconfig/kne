@@ -243,7 +243,7 @@ func (n *Node) CreateService(ctx context.Context) error {
 			Selector: map[string]string{
 				"app": pb.Name,
 			},
-			Type: "NodePort",
+			Type: "LoadBalancer",
 		},
 	}
 	sS, err := n.kClient.CoreV1().Services(n.namespace).Create(ctx, s, metav1.CreateOptions{})
