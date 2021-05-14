@@ -10,10 +10,12 @@ import (
 )
 
 func New(pb *topopb.Node) (node.Interface, error) {
+	cfg := defaults(pb)
+	proto.Merge(cfg, pb)
+	node.FixServices(cfg)
 	return &Node{
-		pb: pb,
+		pb: cfg,
 	}, nil
-
 }
 
 type Node struct {
@@ -24,16 +26,15 @@ func (n *Node) Proto() *topopb.Node {
 	return n.pb
 }
 
-func defaults(pb *topopb.Node) error {
-	cfg := &topopb.Config{
-		Image:        "networkop/qrtr:latest",
-		EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name),
-		ConfigPath:   "/etc/quagga",
-		ConfigFile:   "Quagga.conf",
+func defaults(pb *topopb.Node) *topopb.Node {
+	return &topopb.Node{
+		Config: &topopb.Config{
+			Image:        "networkop/qrtr:latest",
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name),
+			ConfigPath:   "/etc/quagga",
+			ConfigFile:   "Quagga.conf",
+		},
 	}
-	proto.Merge(cfg, pb.Config)
-	pb.Config = cfg
-	return nil
 }
 
 func init() {

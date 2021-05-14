@@ -406,3 +406,11 @@ func GetNextPort() uint32 {
 	nextPort++
 	return p
 }
+
+func FixServices(pb *topopb.Node) {
+	for k := range pb.Services {
+		if pb.Services[k].Outside == 0 {
+			pb.Services[k].Outside = GetNextPort()
+		}
+	}
+}

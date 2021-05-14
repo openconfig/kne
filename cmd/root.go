@@ -142,7 +142,7 @@ func deleteFn(cmd *cobra.Command, args []string) error {
 	if err := t.Delete(cmd.Context()); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Successfully deleted topology: %q", topopb.Name)
+	fmt.Fprintf(out, "Successfully deleted topology: %q\n", topopb.Name)
 	return nil
 }
 

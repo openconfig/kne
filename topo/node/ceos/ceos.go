@@ -3,17 +3,18 @@ package ceos
 import (
 	"fmt"
 
+	"github.com/google/kne/proto/topo"
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	"google.golang.org/protobuf/proto"
 )
 
 func New(pb *topopb.Node) (node.Interface, error) {
-	if err := defaults(pb); err != nil {
-		return nil, err
-	}
+	cfg := defaults(pb)
+	proto.Merge(cfg, pb)
+	node.FixServices(cfg)
 	return &Node{
-		pb: pb,
+		pb: cfg,
 	}, nil
 }
 
@@ -25,8 +26,8 @@ func (n *Node) Proto() *topopb.Node {
 	return n.pb
 }
 
-func defaults(pb *topopb.Node) error {
-	cfg := &topopb.Node{
+func defaults(pb *topo.Node) *topopb.Node {
+	return &topopb.Node{
 		Constraints: map[string]string{
 			"cpu":    "0.5",
 			"memory": "1Gi",
@@ -35,6 +36,11 @@ func defaults(pb *topopb.Node) error {
 			443: &topopb.Service{
 				Name:    "ssl",
 				Inside:  443,
+				Outside: node.GetNextPort(),
+			},
+			22: &topopb.Service{
+				Name:    "ssh",
+				Inside:  22,
 				Outside: node.GetNextPort(),
 			},
 		},
@@ -65,13 +71,6 @@ func defaults(pb *topopb.Node) error {
 			ConfigFile:   "startup-config",
 		},
 	}
-	for _, v := range pb.Services {
-		if v.Outside == 0 {
-			v.Outside = node.GetNextPort()
-		}
-	}
-	proto.Merge(pb, cfg)
-	return nil
 }
 
 func init() {
