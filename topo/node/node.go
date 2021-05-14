@@ -204,6 +204,13 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				},
 			},
 		})
+		for i, c := range pod.Spec.Containers {
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
+				Name:      "startup-config-volume",
+				MountPath: pb.Config.ConfigPath,
+				ReadOnly:  true,
+			})
+		}
 	}
 	sPod, err := n.kClient.CoreV1().Pods(n.namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {

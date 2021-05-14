@@ -6,6 +6,8 @@ nodes: {
         image: "busybox:latest"
         command: "sleep"
         args: "36000"
+        file: "/tmp/foo"
+        config_path: "/etc/evil-config"
     }
 }
 nodes: {
