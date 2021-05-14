@@ -40,7 +40,6 @@ import (
 	_ "github.com/google/kne/topo/node/frr"
 	_ "github.com/google/kne/topo/node/host"
 	_ "github.com/google/kne/topo/node/quagga"
-	_ "github.com/google/kne/topo/node/srl"
 )
 
 var (
