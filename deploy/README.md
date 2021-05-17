@@ -149,3 +149,64 @@ go build
 kne_cli create ../examples/3node-host.pb.txt
 ```
 
+* See your pods
+
+```
+$ kubectl get pods -A
+NAMESPACE            NAME                                        READY   STATUS    RESTARTS   AGE
+3node-ceos           r1                                          1/1     Running   0          5d3h
+3node-ceos           r2                                          1/1     Running   0          5d3h
+3node-ceos           r3                                          1/1     Running   0          5d3h
+```
+
+* See your services
+
+```$ kubectl get services -A
+NAMESPACE     NAME         TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                      AGE
+3node-ceos    service-r1   LoadBalancer   10.96.218.147   192.168.18.100   443:30001/TCP,22:30003/TCP   5d3h
+3node-ceos    service-r2   LoadBalancer   10.96.182.229   192.168.18.101   443:30004/TCP,22:30006/TCP   5d3h
+3node-ceos    service-r3   LoadBalancer   10.96.222.220   192.168.18.102   443:30007/TCP,22:30009/TCP   5d3h
+```
+
+* Example how to ssh to a node
+
+   * Push base config to node
+
+```
+kubectl exec -it -n 3node-ceos r1 -- Cli
+enable
+config t
+username netops privilege 15 role root secret netops
+write
+```
+
+   * SSH to Pod based on external ip
+
+```
+ssh netops@<service ip>
+```
+   * Example
+
+```
+ssh netops@192.168.18.100
+(netops@192.168.18.100) Password: 
+r1>show ip route
+
+VRF: default
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - BGP, B I - iBGP, B E - eBGP,
+       R - RIP, I L1 - IS-IS level 1, I L2 - IS-IS level 2,
+       O3 - OSPFv3, A B - BGP Aggregate, A O - OSPF Summary,
+       NG - Nexthop Group Static Route, V - VXLAN Control Service,
+       DH - DHCP client installed default route, M - Martian,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       RC - Route Cache Route
+
+Gateway of last resort is not set
+
+
+! IP routing not enabled
+r1>
+```
