@@ -1,8 +1,8 @@
 # Installation
 
-* Create VM
+## Create VM
 
-* Install Docker
+## Install Docker
 
 ```bash
 $ sudo apt-get update
@@ -25,21 +25,21 @@ $ sudo add-apt-repository \
  $ sudo apt-get install docker-ce docker-ce-cli containerd.io
 ```
 
-* Install Kubernetes
+## Install Kubernetes
 
-* Install Kind
+## Install Kind
 
 ```bash
 GO111MODULE="on" go get sigs.k8s.io/kind@v0.10.0
 ```
 
-* Create Cluster
+## Create Cluster
 
 ```bash
 kind create cluster --name kne
 ```
 
-* Load images into local docker
+## Load images into local docker
 
 ```bash
 kind load docker-image networkop/meshnet:latest --name=kne
@@ -50,7 +50,9 @@ kind load docker-image evo:latest --name=kne
 kind load docker-image ios-xr:latest --name=kne
 ```
 
-* Add MeshNet
+## Add MeshNet
+
+### Clone repo
 
 ```bash
 
@@ -60,7 +62,7 @@ kubectl apply -k /manifests/base
 
 ```
 
-* Validate meshnet is running
+### Validate meshnet is running
 
 ```bash
 marcus@muerto:~/src/meshnet-cni/manifests/base$ kubectl get daemonset -n meshnet
@@ -69,8 +71,9 @@ meshnet   1         1         1       1            1           beta.kubernetes.i
 
 ```
 
-* Add MetalLB (if you want to access pods outside of cluster)
-   * Get metallb Loadbalancer
+## Add MetalLB (if you want to access pods outside of cluster)
+
+### Get metallb Loadbalancer
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/master/manifests/namespace.yaml
@@ -78,13 +81,13 @@ kubectl create secret generic -n metallb-system memberlist --from-literal=secret
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/master/manifests/metallb.yaml
 ```
 
-   * Validate metallb is running
+### Validate metallb is running
 
 ```bash
 kubectl get pods -n metallb-system --watch
 ```
 
-   * Setup pool
+### Setup pool
 
 ```bash
 docker network inspect -f '{{.IPAM.Config}}' kind
@@ -96,7 +99,7 @@ Will return something like:
 [{192.168.18.0/24  192.168.18.1 map[]} {fc00:f853:ccd:e793::/64   map[]}]
 ```
 
-   * Create ConfigMap for subnet
+### Create ConfigMap for subnet
 
 Replace <address-range> with something like: "192.168.18.100 - 192.168.18.250"
 
@@ -136,20 +139,20 @@ EOF
 kubectl apply -f ./metallb-configmap.yaml
 ```
 
-* Build kne_cli
+## Build kne_cli
 
 ```
 cd kne_cli
 go build
 ```
 
-* Create Topology
+## Create Topology
 
 ```
 kne_cli create ../examples/3node-host.pb.txt
 ```
 
-* See your pods
+## See your pods
 
 ```
 $ kubectl get pods -A
@@ -159,7 +162,7 @@ NAMESPACE            NAME                                        READY   STATUS 
 3node-ceos           r3                                          1/1     Running   0          5d3h
 ```
 
-* See your services
+## See your services
 
 ```$ kubectl get services -A
 NAMESPACE     NAME         TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                      AGE
@@ -168,9 +171,9 @@ NAMESPACE     NAME         TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(
 3node-ceos    service-r3   LoadBalancer   10.96.222.220   192.168.18.102   443:30007/TCP,22:30009/TCP   5d3h
 ```
 
-* Example how to ssh to a node
+## Example how to ssh to a node
 
-   * Push base config to node
+* Push base config to node
 
 ```
 kubectl exec -it -n 3node-ceos r1 -- Cli
@@ -180,12 +183,12 @@ username netops privilege 15 role root secret netops
 write
 ```
 
-   * SSH to Pod based on external ip
+* SSH to Pod based on external ip
 
 ```
 ssh netops@<service ip>
 ```
-   * Example
+* Example
 
 ```
 ssh netops@192.168.18.100
