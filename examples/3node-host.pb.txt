@@ -13,19 +13,19 @@ nodes: {
 }
 links: {
     a_node: "vm-1"
-    a_int: "eth0"
+    a_int: "eth1"
     z_node: "vm-2"
-    z_int: "eth0"
+    z_int: "eth1"
 }
 links: {
     a_node: "vm-1"
-    a_int: "eth1"
+    a_int: "eth2"
     z_node: "vm-3"
-    z_int: "eth0"
+    z_int: "eth1"
 }
 links: {
     a_node: "vm-2"
-    a_int: "eth1"
+    a_int: "eth2"
     z_node: "vm-3"
-    z_int: "eth1"
+    z_int: "eth2"
 }

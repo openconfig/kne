@@ -24,6 +24,16 @@ type TopologySpec struct {
 	Links           []Link `json:"links"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type TopologyStatus struct {
+  metav1.TypeMeta `json:",inline"`
+  metav1.ObjectMeta `json:"metadata,omitempty"`
+
+  Skipped []string `json:"skipped"`
+  SrcIp string     `json:"src_ip"`
+  NetNs string     `json:"net_ns"`
+}
+
 type Link struct {
 	LocalIntf string `json:"local_intf"`
 	LocalIP   string `json:"local_ip"`
@@ -38,6 +48,7 @@ type Topology struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	Status TopologyStatus `json:"status"`
 	Spec TopologySpec `json:"spec"`
 }
 

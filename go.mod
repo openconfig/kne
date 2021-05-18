@@ -6,6 +6,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.4.3
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/kr/pretty v0.2.0
 	github.com/sirupsen/logrus v1.8.0
 	github.com/spf13/cobra v1.1.3
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect

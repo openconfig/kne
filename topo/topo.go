@@ -129,6 +129,7 @@ func (m *Manager) Load(ctx context.Context) error {
 		dl.AInt, dl.ZInt = dl.ZInt, dl.AInt
 		dl.ANode, dl.ZNode = dl.ZNode, dl.ANode
 		dLink := &node.Link{
+			UID:   uid,
 			Proto: dl,
 		}
 		dNode.Interfaces[l.ZInt] = dLink
@@ -150,15 +151,12 @@ func (m *Manager) Pods(ctx context.Context) error {
 }
 
 // Topology gets the topology CRDs for the cluster.
-func (m *Manager) Topology(ctx context.Context) error {
+func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
 	topology, err := m.tClient.Topology(m.tpb.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get topology CRDs: %v", err)
+		return nil, fmt.Errorf("failed to get topology CRDs: %v", err)
 	}
-	for _, t := range topology.Items {
-		fmt.Printf("%+v\n", t)
-	}
-	return nil
+	return topology.Items, nil
 }
 
 // Push pushes the current topology to k8s.
@@ -284,6 +282,14 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 			return nil, err
 		}
 		r.Pods[p.Name] = p
+	}
+	tList, err := m.Topology(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tList {
+		v := t
+		r.Topologies[v.Name] = &v
 	}
 	return &r, nil
 }

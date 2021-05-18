@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/kne/topo"
+	"github.com/kr/pretty"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/homedir"
 )
@@ -166,6 +167,10 @@ func showFn(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(out, "Pods:\n")
 	for _, p := range r.Pods {
 		fmt.Fprintf(out, "%s:%s IP:%s\n", topopb.Name, p.Name, p.Status.PodIP)
+	}
+	fmt.Fprintf(out, "Topologies:\n")
+	for _, p := range r.Topologies {
+		fmt.Fprintf(out, "%s:%s\nSpec:\n%s\nStatus:\n%s\n", topopb.Name, p.Name, pretty.Sprint(p.Spec), pretty.Sprint(p.Status))
 	}
 	return nil
 }
