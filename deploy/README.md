@@ -43,6 +43,8 @@ kind create cluster --name kne
 
 ```bash
 kind load docker-image networkop/meshnet:latest --name=kne
+kind load docker-image networkop/init-wait:latest --name=kne
+kind load docker-image alpine:latest --name=kne
 kind load docker-image ubuntu:latest --name=kne
 kind load docker-image ceos:latest --name=kne
 kind load docker-image ixia:latest --name=kne
@@ -58,7 +60,7 @@ kind load docker-image ios-xr:latest --name=kne
 
 git clone git@github.com:networkop/meshnet-cni.git
 cd meshnet-cni
-kubectl apply -k /manifests/base
+kubectl apply -k manifests/base
 
 ```
 
