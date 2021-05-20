@@ -42,6 +42,7 @@ message Node {
     JuniperVMX = 7;
     CiscoCSR = 8;
     NokiaSRL = 9;
+    IxiaTG = 10;
   }
 
   string name = 1; // Name of the node in the topology. Must be unique.
