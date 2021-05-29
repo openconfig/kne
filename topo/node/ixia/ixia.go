@@ -42,6 +42,10 @@ func (n *Node) Proto() *topopb.Node {
 
 func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
 	log.Infof("Create IxiaTG node resource %s\n", n.pb.Name)
+	jsonConfig, err := json.Marshal(n.pb.Config)
+	if err != nil {
+		log.Fatal(err)
+	}
 	newIxia := &Ixia{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "network.keysight.com/v1alpha1",
@@ -52,7 +56,7 @@ func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interf
 			Namespace: ns,
 		},
 		Spec: IxiaSpec{
-			Config: n.pb.Config.String(),
+			Config: string(jsonConfig),
 		},
 	}
 	body, err := json.Marshal(newIxia)
