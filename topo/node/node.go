@@ -23,7 +23,9 @@ import (
 )
 
 type Interface interface {
-	Proto() *topopb.Node
+	Proto()									*topopb.Node
+	CreateNodeResource(context.Context, kubernetes.Interface, string)	error
+	DeleteNodeResource(context.Context, kubernetes.Interface, string)	error
 }
 
 type NewNodeFn func(*topopb.Node) (Interface, error)
@@ -137,6 +139,20 @@ var (
 	newTrue           = true
 	gracePeriod int64 = 0
 )
+
+// CreateResource creates the node specific resources.
+func (n *Node) CreateResource(ctx context.Context) error {
+	pb := n.impl.Proto()
+	log.Infof("Creating Resource for Pod:\n %+v", pb)
+	err := n.impl.CreateNodeResource(ctx, n.kClient, n.namespace)
+	if err == nil {
+		return nil
+		//return fmt.Errorf("failed to create pod resource for %q: %w", pb.Name, err)
+	}
+
+	// For nodes with no resource create support fall back on pod creation
+	return n.CreatePod(ctx)
+}
 
 // CreatePod creates the pod for the node.
 func (n *Node) CreatePod(ctx context.Context) error {
@@ -270,6 +286,23 @@ func (n *Node) DeleteService(ctx context.Context) error {
 		},
 		GracePeriodSeconds: &i,
 	})
+}
+
+// DeleteResource removes the resource definition for the Node.
+func (n *Node) DeleteResource(ctx context.Context) error {
+	pb := n.impl.Proto()
+	log.Infof("Deleting Resource for Pod:\n %+v", pb)
+	err := n.impl.DeleteNodeResource(ctx, n.kClient, n.namespace)
+	if err == nil {
+		return nil
+		//return fmt.Errorf("failed to delete pod resource for %q: %w", pb.Name, err)
+	}
+
+	// For nodes with no resource create support fall back on pod creation
+	if err = n.kClient.CoreV1().Pods(n.namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
+		log.Warnf("Error deleting pod %q: %v", n.Name(), err)
+	}
+	return nil
 }
 
 // Exec will make a connection via spdy transport to the Pod and execute the provided command.

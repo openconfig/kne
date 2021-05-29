@@ -113,11 +113,13 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err := t.Push(cmd.Context()); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Topology %q created", topopb.Name)
+	fmt.Fprintf(out, "Topology %q created\n", topopb.Name)
 	r, err := t.Resources(cmd.Context())
-	fmt.Fprintf(out, "Pods:\n")
-	for _, p := range r.Pods {
-		fmt.Fprintf(out, "%s\n", p.Name)
+	if r != nil {
+		fmt.Fprintf(out, "Pods:\n")
+		for _, p := range r.Pods {
+			fmt.Fprintf(out, "%s\n", p.Name)
+		}
 	}
 
 	return nil
