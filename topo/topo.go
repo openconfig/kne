@@ -43,14 +43,6 @@ import (
 	_ "github.com/google/kne/topo/node/quagga"
 )
 
-var (
-	meshNetCRD = map[string]string{
-		"group":   "networkop.co.uk",
-		"version": "v1beta1",
-		"plural":  "topologies",
-	}
-)
-
 // Manager is a topology instance manager for k8s cluster instance.
 type Manager struct {
 	kClient kubernetes.Interface
