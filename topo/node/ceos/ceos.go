@@ -43,6 +43,11 @@ func defaults(pb *topo.Node) *topopb.Node {
 				Inside:  22,
 				Outside: node.GetNextPort(),
 			},
+			6030: &topopb.Service{
+				Name:    "gnmi",
+				Inside:  6030,
+				Outside: node.GetNextPort(),
+			},
 		},
 		Labels: map[string]string{
 			"type": topopb.Node_AristaCEOS.String(),

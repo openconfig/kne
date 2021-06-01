@@ -20,9 +20,9 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
-
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -39,6 +39,7 @@ import (
 	_ "github.com/google/kne/topo/node/cxr"
 	_ "github.com/google/kne/topo/node/frr"
 	_ "github.com/google/kne/topo/node/host"
+	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/quagga"
 )
 
@@ -255,7 +256,7 @@ func Load(fName string) (*topopb.Topology, error) {
 		return nil, err
 	}
 	t := &topopb.Topology{}
-	if err := proto.UnmarshalText(string(b), t); err != nil {
+	if err := prototext.Unmarshal(b, t); err != nil {
 		return nil, err
 	}
 	return t, nil
