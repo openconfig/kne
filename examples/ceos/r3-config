@@ -1,0 +1,55 @@
+! Command: show running-config
+! device: r2 (cEOSLab, EOS-4.26.1F (engineering build))
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+agent Bfd shutdown
+agent PowerManager shutdown
+agent LedPolicy shutdown
+agent Thermostat shutdown
+agent PowerFuse shutdown
+agent StandbyCpld shutdown
+agent LicenseManager shutdown
+!
+hostname r3
+!
+spanning-tree mode mstp
+!
+no aaa root
+!
+username admin privilege 15 role network-admin secret sha512 $6$YDkKMqrZIRO65B7i$NfH7OT8ujV12S.5q2sH7c7l1AEqhYULt9OSf9/EKaC4S8cNLppS.otHhr0QlC9Kud9Xbt4OdxVOkZiwV/yBV/1
+!
+interface Ethernet1
+   no switchport
+   ip address 1.1.2.2/30
+   isis enable default
+!
+interface Ethernet2
+  no switchport
+  ip address 1.1.3.2/30
+  isis enable default
+!
+interface Loopback0
+   ip address 2.2.2.3/32
+   isis enable default
+!
+ip routing
+!
+router isis default
+   net 49.0001.1010.1040.1032.00
+   is-type level-2
+   !
+   address-family ipv4 unicast
+!
+management api gnmi
+   transport grpc default
+      ssl profile octa-ssl-profile
+   provider eos-native
+!
+management security
+   ssl profile octa-ssl-profile
+      certificate capi.pem key capikey.pem
+!
+end
