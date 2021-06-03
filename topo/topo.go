@@ -216,9 +216,6 @@ func (m *Manager) Push(ctx context.Context) error {
 			return err
 		}
 		log.Infof("Node %q resource created", k)
-		//if err := n.CreatePod(ctx); err != nil {
-		//	return err
-		//}
 	}
 	return nil
 }
@@ -236,10 +233,6 @@ func (m *Manager) Delete(ctx context.Context) error {
 		n.Delete(ctx)
 		// Delete Resource for node
 		n.DeleteResource(ctx)
-		// Delete Pod
-		//if err := m.kClient.CoreV1().Pods(m.tpb.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
-		//	log.Warnf("Error deleting pod %q: %v", n.Name(), err)
-		//}
 		// Delete Topology for node
 		if err := m.tClient.Topology(m.tpb.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
 			log.Warnf("Error deleting topology %q: %v", n.Name(), err)
