@@ -16,10 +16,14 @@ package v1beta1
 
 import (
 	"context"
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
@@ -33,6 +37,8 @@ type TopologyInterface interface {
 	Create(ctx context.Context, topology *topologyv1.Topology) (*topologyv1.Topology, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Unstructured(ctx context.Context, name string, opts metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error)
+	Update(ctx context.Context, obj *unstructured.Unstructured, opts metav1.UpdateOptions) (*topologyv1.Topology, error)
 }
 
 // Interface is the clientset interface for topology.
@@ -42,7 +48,14 @@ type Interface interface {
 
 // Clientset is a client for the topology crds.
 type Clientset struct {
+	dInterface dynamic.NamespaceableResourceInterface
 	restClient rest.Interface
+}
+
+var gvr = schema.GroupVersionResource{
+	Group:    "networkop.co.uk",
+	Version:  "v1beta1",
+	Resource: "topologies",
 }
 
 // NewForConfig returns a new Clientset based on c.
@@ -52,23 +65,31 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
-
-	client, err := rest.RESTClientFor(&config)
+	dClient, err := dynamic.NewForConfig(c)
 	if err != nil {
 		return nil, err
 	}
-
-	return &Clientset{restClient: client}, nil
+	dInterface := dClient.Resource(gvr)
+	rClient, err := rest.RESTClientFor(&config)
+	if err != nil {
+		return nil, err
+	}
+	return &Clientset{
+		dInterface: dInterface,
+		restClient: rClient,
+	}, nil
 }
 
 func (c *Clientset) Topology(namespace string) TopologyInterface {
 	return &topologyClient{
+		dInterface: c.dInterface,
 		restClient: c.restClient,
 		ns:         namespace,
 	}
 }
 
 type topologyClient struct {
+	dInterface dynamic.NamespaceableResourceInterface
 	restClient rest.Interface
 	ns         string
 }
@@ -132,6 +153,23 @@ func (t *topologyClient) Delete(ctx context.Context, name string, opts metav1.De
 		Name(name).
 		Do(ctx).
 		Error()
+}
+
+func (t *topologyClient) Update(ctx context.Context, obj *unstructured.Unstructured, opts metav1.UpdateOptions) (*topologyv1.Topology, error) {
+	result := topologyv1.Topology{}
+	obj, err := t.dInterface.Namespace(t.ns).UpdateStatus(ctx, obj, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to type assert return to topology")
+	}
+	return &result, nil
+}
+
+func (t *topologyClient) Unstructured(ctx context.Context, name string, opts metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return t.dInterface.Namespace(t.ns).Get(ctx, name, opts, subresources...)
 }
 
 func init() {

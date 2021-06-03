@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"sync"
 
+	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -285,6 +286,20 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		r.Topologies[v.Name] = &v
 	}
 	return &r, nil
+}
+
+func (m *Manager) Watch(ctx context.Context) error {
+	watcher, err := m.tClient.Topology(m.tpb.Name).Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	ch := watcher.ResultChan()
+	for e := range ch {
+		fmt.Println(e.Type)
+		pretty.Print(e.Object)
+		fmt.Println("")
+	}
+	return nil
 }
 
 var (

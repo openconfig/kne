@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/kne/cmd/topology"
 	"github.com/google/kne/topo"
 	"github.com/kr/pretty"
 	"github.com/spf13/cobra"
@@ -58,6 +59,7 @@ func init() {
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(showCmd)
+	rootCmd.AddCommand(topology.New())
 	//rootCmd.AddCommand(graphCmd)
 
 }
