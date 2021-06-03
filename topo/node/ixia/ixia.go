@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 
-	"k8s.io/client-go/kubernetes"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	log "github.com/sirupsen/logrus"
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type IxiaSpec struct {
@@ -99,8 +99,7 @@ func (n *Node) DeleteNodeResource(ctx context.Context, kClient kubernetes.Interf
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {
-	return &topopb.Node{
-	}
+	return &topopb.Node{}
 }
 
 func init() {

@@ -1,14 +1,16 @@
 package quagga
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 
-	"k8s.io/client-go/kubernetes"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/client-go/kubernetes"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func New(pb *topopb.Node) (node.Interface, error) {
@@ -29,11 +31,11 @@ func (n *Node) Proto() *topopb.Node {
 }
 
 func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
-	return fmt.Errorf("Not Implemented")
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func (n *Node) DeleteNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
-	return fmt.Errorf("Not Implemented")
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {

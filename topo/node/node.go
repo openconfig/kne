@@ -20,12 +20,14 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 
 	topopb "github.com/google/kne/proto/topo"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Interface interface {
-	Proto()									*topopb.Node
-	CreateNodeResource(context.Context, kubernetes.Interface, string)	error
-	DeleteNodeResource(context.Context, kubernetes.Interface, string)	error
+	Proto() *topopb.Node
+	CreateNodeResource(context.Context, kubernetes.Interface, string) error
+	DeleteNodeResource(context.Context, kubernetes.Interface, string) error
 }
 
 type NewNodeFn func(*topopb.Node) (Interface, error)
@@ -145,12 +147,13 @@ func (n *Node) CreateResource(ctx context.Context) error {
 	pb := n.impl.Proto()
 	log.Infof("Creating Resource for Pod:\n %+v", pb)
 	err := n.impl.CreateNodeResource(ctx, n.kClient, n.namespace)
-	if err == nil {
+	switch status.Code(err) {
+	case codes.OK:
 		return nil
-		//return fmt.Errorf("failed to create pod resource for %q: %w", pb.Name, err)
+	case codes.Unimplemented:
+	default:
+		return err
 	}
-
-	// For nodes with no resource create support fall back on pod creation
 	return n.CreatePod(ctx)
 }
 
@@ -293,16 +296,14 @@ func (n *Node) DeleteResource(ctx context.Context) error {
 	pb := n.impl.Proto()
 	log.Infof("Deleting Resource for Pod:\n %+v", pb)
 	err := n.impl.DeleteNodeResource(ctx, n.kClient, n.namespace)
-	if err == nil {
+	switch status.Code(err) {
+	case codes.OK:
 		return nil
-		//return fmt.Errorf("failed to delete pod resource for %q: %w", pb.Name, err)
+	case codes.Unimplemented:
+	default:
+		return err
 	}
-
-	// For nodes with no resource create support fall back on pod creation
-	if err = n.kClient.CoreV1().Pods(n.namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
-		log.Warnf("Error deleting pod %q: %v", n.Name(), err)
-	}
-	return nil
+	return n.kClient.CoreV1().Pods(n.namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 }
 
 // Exec will make a connection via spdy transport to the Pod and execute the provided command.
