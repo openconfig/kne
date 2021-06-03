@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +40,7 @@ import (
 	_ "github.com/google/kne/topo/node/cxr"
 	_ "github.com/google/kne/topo/node/frr"
 	_ "github.com/google/kne/topo/node/host"
+	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/quagga"
 )
 
@@ -292,6 +294,20 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		r.Topologies[v.Name] = &v
 	}
 	return &r, nil
+}
+
+func (m *Manager) Watch(ctx context.Context) error {
+	watcher, err := m.tClient.Topology(m.tpb.Name).Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	ch := watcher.ResultChan()
+	for e := range ch {
+		fmt.Println(e.Type)
+		pretty.Print(e.Object)
+		fmt.Println("")
+	}
+	return nil
 }
 
 var (
