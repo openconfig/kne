@@ -1,10 +1,15 @@
 package frr
 
 import (
+	"context"
+
 	"google.golang.org/protobuf/proto"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
 )
 
 func New(pb *topopb.Node) (node.Interface, error) {
@@ -22,6 +27,14 @@ type Node struct {
 
 func (n *Node) Proto() *topopb.Node {
 	return n.pb
+}
+
+func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
+func (n *Node) DeleteNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {

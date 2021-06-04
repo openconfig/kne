@@ -1,11 +1,16 @@
 package ceos
 
 import (
+	"context"
 	"fmt"
+
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/google/kne/proto/topo"
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -24,6 +29,14 @@ type Node struct {
 
 func (n *Node) Proto() *topopb.Node {
 	return n.pb
+}
+
+func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
+func (n *Node) DeleteNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func defaults(pb *topo.Node) *topopb.Node {

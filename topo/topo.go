@@ -42,6 +42,7 @@ import (
 	_ "github.com/google/kne/topo/node/host"
 	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/quagga"
+	_ "github.com/google/kne/topo/node/vmx"
 )
 
 // Manager is a topology instance manager for k8s cluster instance.
@@ -204,10 +205,10 @@ func (m *Manager) Push(ctx context.Context) error {
 		if err := n.CreateService(ctx); err != nil {
 			return err
 		}
-		if err := n.CreatePod(ctx); err != nil {
+		if err := n.CreateResource(ctx); err != nil {
 			return err
 		}
-		log.Infof("Node %q created", k)
+		log.Infof("Node %q resource created", k)
 	}
 	return nil
 }
@@ -223,10 +224,8 @@ func (m *Manager) Delete(ctx context.Context) error {
 		n.DeleteService(ctx)
 		// Delete config maps for node
 		n.Delete(ctx)
-		// Delete Pod
-		if err := m.kClient.CoreV1().Pods(m.tpb.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
-			log.Warnf("Error deleting pod %q: %v", n.Name(), err)
-		}
+		// Delete Resource for node
+		n.DeleteResource(ctx)
 		// Delete Topology for node
 		if err := m.tClient.Topology(m.tpb.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
 			log.Warnf("Error deleting topology %q: %v", n.Name(), err)

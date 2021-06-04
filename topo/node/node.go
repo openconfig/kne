@@ -20,10 +20,14 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 
 	topopb "github.com/google/kne/proto/topo"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Interface interface {
 	Proto() *topopb.Node
+	CreateNodeResource(context.Context, kubernetes.Interface, string) error
+	DeleteNodeResource(context.Context, kubernetes.Interface, string) error
 }
 
 type NewNodeFn func(*topopb.Node) (Interface, error)
@@ -137,6 +141,21 @@ var (
 	newTrue           = true
 	gracePeriod int64 = 0
 )
+
+// CreateResource creates the node specific resources.
+func (n *Node) CreateResource(ctx context.Context) error {
+	pb := n.impl.Proto()
+	log.Infof("Creating Resource for Pod:\n %+v", pb)
+	err := n.impl.CreateNodeResource(ctx, n.kClient, n.namespace)
+	switch status.Code(err) {
+	case codes.OK:
+		return nil
+	case codes.Unimplemented:
+	default:
+		return err
+	}
+	return n.CreatePod(ctx)
+}
 
 // CreatePod creates the pod for the node.
 func (n *Node) CreatePod(ctx context.Context) error {
@@ -270,6 +289,21 @@ func (n *Node) DeleteService(ctx context.Context) error {
 		},
 		GracePeriodSeconds: &i,
 	})
+}
+
+// DeleteResource removes the resource definition for the Node.
+func (n *Node) DeleteResource(ctx context.Context) error {
+	pb := n.impl.Proto()
+	log.Infof("Deleting Resource for Pod:\n %+v", pb)
+	err := n.impl.DeleteNodeResource(ctx, n.kClient, n.namespace)
+	switch status.Code(err) {
+	case codes.OK:
+		return nil
+	case codes.Unimplemented:
+	default:
+		return err
+	}
+	return n.kClient.CoreV1().Pods(n.namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 }
 
 // Exec will make a connection via spdy transport to the Pod and execute the provided command.
