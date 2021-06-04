@@ -218,14 +218,21 @@ func (m *Manager) Delete(ctx context.Context) error {
 	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.tpb.Name, metav1.GetOptions{}); err != nil {
 		return fmt.Errorf("topology %q does not exist in cluster", m.tpb.Name)
 	}
+
 	// Delete topology pods
 	for _, n := range m.nodes {
 		// Delete Service for node
-		n.DeleteService(ctx)
+		if err := n.DeleteService(ctx); err != nil {
+			log.Warnf("Error deleting service %q: %v", n.Name(), err)
+		}
 		// Delete config maps for node
-		n.Delete(ctx)
+		if err := n.Delete(ctx); err != nil {
+			log.Warnf("Error deleting configmaps %q: %v", n.Name(), err)
+		}
 		// Delete Resource for node
-		n.DeleteResource(ctx)
+		if err := n.DeleteResource(ctx); err != nil {
+			log.Warnf("Error deleting resource %q: %v", n.Name(), err)
+		}
 		// Delete Topology for node
 		if err := m.tClient.Topology(m.tpb.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
 			log.Warnf("Error deleting topology %q: %v", n.Name(), err)
