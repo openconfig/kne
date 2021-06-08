@@ -17,6 +17,7 @@ package topo
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"sync"
 
@@ -304,6 +305,32 @@ func (m *Manager) Watch(ctx context.Context) error {
 		fmt.Println(e.Type)
 		pretty.Print(e.Object)
 		fmt.Println("")
+	}
+	return nil
+}
+
+func (m *Manager) ConfigPush(ctx context.Context, deviceName string, r io.Reader) error {
+	d, ok := m.nodes[deviceName]
+	if !ok {
+		return fmt.Errorf("node %q not found", deviceName)
+	}
+	return d.ConfigPush(ctx, r)
+}
+
+func (m *Manager) EnableIPForwarding(ctx context.Context) error {
+	for _, d := range m.nodes {
+		if err := d.EnableIPForwarding(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Manager) EnableLLDP(ctx context.Context) error {
+	for _, d := range m.nodes {
+		if err := d.EnableLLDP(ctx); err != nil {
+			return err
+		}
 	}
 	return nil
 }

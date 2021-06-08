@@ -311,11 +311,12 @@ func (n *Node) DeleteResource(ctx context.Context) error {
 func (n *Node) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	req := n.kClient.CoreV1().RESTClient().Post().Resource("pods").Name(n.Name()).Namespace(n.namespace).SubResource("exec")
 	opts := &corev1.PodExecOptions{
-		Command: cmd,
-		Stdin:   true,
-		Stdout:  true,
-		Stderr:  true,
-		TTY:     true,
+		Command:   cmd,
+		Container: n.Name(),
+		Stdin:     true,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       true,
 	}
 	if stdin == nil {
 		opts.Stdin = false
@@ -329,6 +330,7 @@ func (n *Node) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 	if err != nil {
 		return err
 	}
+	log.Infof("Execing %s on %s", cmd, n.Name())
 	return exec.Stream(remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
@@ -418,6 +420,18 @@ func (n *Node) EnableIPForwarding(ctx context.Context) error {
 	}
 	log.Infof("stdout:\n%s\nstderr:\n%s", stdout.String(), stderr.String())
 	return nil
+}
+
+type ConfigPusher interface {
+	ConfigPush(context.Context, string, io.Reader) error
+}
+
+func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+	cp, ok := n.impl.(ConfigPusher)
+	if !ok {
+		return fmt.Errorf("%T is not a ConfigPusher", n.impl)
+	}
+	return cp.ConfigPush(ctx, n.namespace, r)
 }
 
 func getImpl(pb *topopb.Node) (Interface, error) {

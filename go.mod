@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/golang/protobuf v1.5.0
+	github.com/google/goexpect v0.0.0-20210430020637-ab937bf7fd6f
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/kr/pretty v0.2.0
 	github.com/sirupsen/logrus v1.8.0
