@@ -41,7 +41,8 @@ interface Ethernet2
 !
 interface Ethernet3
    no switchport
-   channel-group 1 mode active
+   ip address 1.2.0.6/30
+   isis enable default
 !
 interface Ethernet4
    no switchport
@@ -53,7 +54,8 @@ interface Ethernet5
 !
 interface Ethernet6
    no switchport
-   channel-group 2 mode active
+   ip address 1.2.0.10/30
+   isis enable default
 !
 
 interface Loopback0
