@@ -30,7 +30,7 @@ $ sudo add-apt-repository \
 ## Install Kind
 
 ```bash
-GO111MODULE="on" go get sigs.k8s.io/kind@v0.10.0
+GO111MODULE="on" go get sigs.k8s.io/kind
 ```
 
 ## Create Cluster
