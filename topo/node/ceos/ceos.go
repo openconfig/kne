@@ -11,6 +11,7 @@ import (
 	"github.com/google/kne/proto/topo"
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -35,7 +36,9 @@ func (n *Node) Proto() *topopb.Node {
 }
 
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
+	log.Infof("Pushing config to %s:%s", ns, n.pb.Name)
 	config, err := ioutil.ReadAll(r)
+	log.Debug(string(config))
 	if err != nil {
 		return err
 	}
@@ -69,6 +72,7 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
+	log.Info("Finshed config push")
 	return g.Close()
 }
 

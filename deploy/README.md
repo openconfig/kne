@@ -25,12 +25,18 @@ $ sudo add-apt-repository \
  $ sudo apt-get install docker-ce docker-ce-cli containerd.io
 ```
 
-## Install Kubernetes
+## [Install Kubernetes](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-kubectl-on-linux)
+
+```
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+mv $(GOPATH)/bin/kubectl
+```
 
 ## Install Kind
 
 ```bash
-GO111MODULE="on" go get sigs.k8s.io/kind@v0.10.0
+GO111MODULE="on" go get sigs.k8s.io/kind
 ```
 
 ## Create Cluster
