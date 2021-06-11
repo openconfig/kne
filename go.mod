@@ -6,6 +6,7 @@ require (
 	github.com/golang/protobuf v1.5.0
 	github.com/google/goexpect v0.0.0-20210430020637-ab937bf7fd6f
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/h-fam/errdiff v1.0.2
 	github.com/kr/pretty v0.2.0
 	github.com/sirupsen/logrus v1.8.0
 	github.com/spf13/cobra v1.1.3

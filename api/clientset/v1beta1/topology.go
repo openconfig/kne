@@ -58,10 +58,17 @@ var gvr = schema.GroupVersionResource{
 	Resource: "topologies",
 }
 
+var (
+	groupVersion = &schema.GroupVersion{
+		Group:   topologyv1.GroupName,
+		Version: topologyv1.GroupVersion,
+	}
+)
+
 // NewForConfig returns a new Clientset based on c.
 func NewForConfig(c *rest.Config) (*Clientset, error) {
 	config := *c
-	config.ContentConfig.GroupVersion = &schema.GroupVersion{Group: topologyv1.GroupName, Version: topologyv1.GroupVersion}
+	config.ContentConfig.GroupVersion = groupVersion
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()

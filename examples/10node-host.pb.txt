@@ -1,7 +1,8 @@
-name: "3node-host"
+name: "10node-host"
 nodes: {
     name: "vm-1"
     type: Host
+    image: ubuntu:latest
 }
 nodes: {
     name: "vm-2"
