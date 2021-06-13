@@ -1,0 +1,179 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: neo4j-data
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 2Gi
+  hostPath:
+    path: /data
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: neo4j-logs
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /logs
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: neo4j-import
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /import
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: neo4j-plugins
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /plugins
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-data
+spec:
+  volumeName: neo4j-data
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-logs
+spec:
+  volumeName: neo4j-logs
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-import
+spec:
+  volumeName: neo4j-import
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-plugins
+spec:
+  volumeName: neo4j-plugins
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j-service
+spec:
+  selector:
+    app: neo4j
+  ports:
+    - name: gui
+      protocol: TCP
+      port: 7474
+      targetPort: 7474
+    - name: boltdb
+      protocol: TCP
+      port: 7687
+      targetPort: 7687
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neo4j-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+    spec:
+      containers:
+      - name: neo4j
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1024Mi"
+            cpu: "500m"
+        image: neo4j:latest
+        ports:
+        - containerPort: 7474
+        - containerPort: 7687
+        env:
+        - name: SIMPLE_SERVICE_VERSION
+          value: "0.9"
+        - name: NEO4J_AUTH
+          value: neo4j/test
+        - name: NEO4J_dbms_connector_https_advertised__address
+          value: "localhost:7473"
+        - name: NEO4J_dbms_connector_http_advertised__address
+          value: "localhost:7474"
+        - name: NEO4J_dbms_connector_bolt_advertised__address
+          value: "localhost:7687"
+        volumeMounts:
+        - name: neo4j-data
+          mountPath: /data
+        - name: neo4j-logs
+          mountPath: /logs        
+        - name: neo4j-plugins
+          mountPath: /plugins
+        - name: neo4j-import
+          mountPath: /var/lib/neo4j/import
+      volumes:
+      - name: neo4j-data
+        persistentVolumeClaim:
+          claimName: neo4j-data
+      - name: neo4j-logs
+        persistentVolumeClaim:
+          claimName: neo4j-logs
+      - name: neo4j-plugins
+        persistentVolumeClaim:
+          claimName: neo4j-plugins
+      - name: neo4j-import
+        persistentVolumeClaim:
+          claimName: neo4j-import
