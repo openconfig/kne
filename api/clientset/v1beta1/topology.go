@@ -124,7 +124,6 @@ func (t *topologyClient) Get(ctx context.Context, name string, opts metav1.GetOp
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do(ctx).
 		Into(&result)
-
 	return &result, err
 }
 
