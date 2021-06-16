@@ -1,5 +1,5 @@
 ! Command: show running-config
-! device: r2 (cEOSLab, EOS-4.26.1F-21878657.googleb4ph1rel (engineering build))
+! device: r2 (cEOSLab, EOS-4.26.1F (engineering build))
 !
 transceiver qsfp default-mode 4x10G
 !

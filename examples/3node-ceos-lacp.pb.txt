@@ -1,15 +1,15 @@
 name: "3node-ceos"
 nodes: {
     name: "r1"
-    type: AristaCEOS
+    type: ARISTA_CEOS
 }
 nodes: {
     name: "r2"
-    type: AristaCEOS
+    type: ARISTA_CEOS
 }
 nodes: {
     name: "r3"
-    type: AristaCEOS
+    type: ARISTA_CEOS
 }
 links: {
     a_node: "r1"

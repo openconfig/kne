@@ -56,5 +56,5 @@ func defaults(pb *topopb.Node) *topopb.Node {
 }
 
 func init() {
-	node.Register(topopb.Node_CiscoCSR, New)
+	node.Register(topopb.Node_CISCO_CSR, New)
 }

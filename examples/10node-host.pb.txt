@@ -1,44 +1,43 @@
-name: "10node-host"
+name: "10node-HOST"
 nodes: {
     name: "vm-1"
-    type: Host
-    image: ubuntu:latest
+    type: HOST
 }
 nodes: {
     name: "vm-2"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-3"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-4"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-5"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-6"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-7"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-8"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-9"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-10"
-    type: Host
+    type: HOST
 }
 links: {
     a_node: "vm-1"

@@ -11,17 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 syntax = "proto3";
+
+package topo;
 
 option go_package = "github.com/google/kne/proto/topo";
 
-package topo;
 
 // Build with protoc -I=proto --go_out=proto/topo proto/topo.proto
 
 
-// Topology message defines what nodes and links will be created inside the mesh.
+// Topology message defines what nodes and links will be created
+// inside the mesh.
 message Topology {
   string name = 1; // Name of the topology - will be linked to the cluster name
   repeated Node nodes = 2; // List of nodes in the topology
@@ -32,17 +33,17 @@ message Topology {
 // Node is a single container inside the topology
 message Node {
   enum Type {
-    Unknown = 0;
-    Host = 1;
-    AristaCEOS = 2;
-    JuniperCEVO = 3;
-    CiscoCXR = 4;
-    Quagga = 5;
+    UNKNOWN = 0;
+    HOST = 1;
+    ARISTA_CEOS = 2;
+    JUNIPER_CEVO = 3;
+    CISCO_CXR = 4;
+    QUAGGA = 5;
     FRR = 6;
-    JuniperVMX = 7;
-    CiscoCSR = 8;
-    NokiaSRL = 9;
-    IxiaTG = 10;
+    JUNIPER_VMX = 7;
+    CISCO_CSR = 8;
+    NOKIA_SRL = 9;
+    IXIA_TG = 10;
   }
 
   string name = 1; // Name of the node in the topology. Must be unique.
@@ -67,20 +68,31 @@ message Config {
   repeated string command = 1;  // Command to pass into pod.
   repeated string args = 2;     // Command args to pass into the pod.
   string image = 3;             // Docker image to use with pod.
-  map<string, string> env = 4;  // Map of environment variables to pass into the pod.
-  string entry_command = 5;     // Specific entry point command for accessing the pod.
-  string config_path = 6;       // Mount point for configuration inside the pod.
-  string config_file = 7;       // Default configuration file name for the pod.
+  // Map of environment variables to pass into the pod.
+  map<string, string> env = 4; 
+  // Specific entry point command for accessing the pod. 
+  string entry_command = 5;
+  // Mount point for configuration inside the pod.
+  string config_path = 6;
+  // Default configuration file name for the pod.       
+  string config_file = 7;       
   uint32 sleep = 8;             // Sleeptime before starting the pod.
   oneof config_data {
-     bytes data = 101;          // Byte data for the startup configuration file.
-     string file = 102;         // Local file to read for the configuration file.
+    // Byte data for the startup configuration file.
+    bytes data = 101;
+    // Local file to read for the configuration file.          
+    string file = 102;
   }
 }
 
-// Service is k8s Service to expose to the cluster
+// Service is k8s Service to exposed to the cluster. The initial input can be
+// provided by the user for which services they would like exposed. Once the
+// service is created KNE will fill in the outside information for the user to
+// access the services.
 message Service {
   string name = 1;  // Name of the service (optional)
   uint32 inside = 2; // Inside port to map
   uint32 outside = 3; // Outside port to map (0 = autoassign from cluster)
+  string inside_ip = 4;  // Assigned by KNE.
+  string outside_ip = 5; // Assigned by KNE.
 }
