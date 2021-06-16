@@ -263,6 +263,9 @@ func (n *Node) CreateService(ctx context.Context) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("service-%s", pb.Name),
+			Labels: map[string]string{
+				"pod": pb.Name,
+			},
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: servicePorts,
