@@ -247,8 +247,12 @@ func (n *Node) CreateService(ctx context.Context) error {
 		return nil
 	}
 	for k, v := range pb.Services {
+		name := v.Name
+		if name == "" {
+			name = fmt.Sprintf("port-%d", k)
+		}
 		sp := corev1.ServicePort{
-			Name:       fmt.Sprintf("port-%d", k),
+			Name:       name,
 			Protocol:   "TCP",
 			Port:       int32(v.Inside),
 			TargetPort: intstr.FromInt(int(v.Inside)),

@@ -16,10 +16,13 @@ package main
 
 import (
 	"context"
+	"os"
 
 	"github.com/google/kne/cmd"
 )
 
 func main() {
-	cmd.ExecuteContext(context.Background())
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		os.Exit(1)
+	}
 }
