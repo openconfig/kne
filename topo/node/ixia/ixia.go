@@ -103,5 +103,5 @@ func defaults(pb *topopb.Node) *topopb.Node {
 }
 
 func init() {
-	node.Register(topopb.Node_IxiaTG, New)
+	node.Register(topopb.Node_IXIA_TG, New)
 }

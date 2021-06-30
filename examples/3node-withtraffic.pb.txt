@@ -1,0 +1,122 @@
+name: "3node-traffic"
+nodes: {
+    name: "r1"
+    type: ARISTA_CEOS
+}
+nodes: {
+    name: "r2"
+    type: ARISTA_CEOS
+}
+nodes: {
+    name: "r3"
+    type: ARISTA_CEOS
+}
+nodes: {
+    name: "ate1"
+    type: IXIA_TG
+    config: {
+        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/ixia-c-traffic-engine:1.2.0.15,us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/packages_rustic/l23_protocols:0.0.0.11"
+    }
+    services: {
+        key: 5555
+        value: {
+            inside: 5555
+            outside: 0
+        }
+    }
+    services: {
+        key: 50071
+        value: {
+            inside: 50071
+            outside: 0
+        }
+    }
+}
+nodes: {
+    name: "ate2"
+    type: IXIA_TG
+    config: {
+        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/ixia-c-traffic-engine:1.2.0.15,us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/packages_rustic/l23_protocols:0.0.0.11"
+    }
+    services: {
+        key: 5555
+        value: {
+            inside: 5555
+            outside: 0
+        }
+    }
+    services: {
+        key: 50071
+        value: {
+            inside: 50071
+            outside: 0
+        }
+    }
+
+}
+links: {
+    a_node: "r1"
+    a_int: "eth1"
+    z_node: "r2"
+    z_int: "eth1"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth2"
+    z_node: "r2"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth3"
+    z_node: "r2"
+    z_int: "eth3"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth4"
+    z_node: "r3"
+    z_int: "eth1"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth5"
+    z_node: "r3"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth6"
+    z_node: "r3"
+    z_int: "eth3"
+}
+links: {
+    a_node: "r2"
+    a_int: "eth4"
+    z_node: "r3"
+    z_int: "eth4"
+}
+links: {
+    a_node: "r2"
+    a_int: "eth5"
+    z_node: "r3"
+    z_int: "eth5"
+}
+links: {
+    a_node: "r2"
+    a_int: "eth6"
+    z_node: "r3"
+    z_int: "eth6"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth9"
+    z_node: "ate1"
+    z_int: "eth1"
+}
+links: {
+    a_node: "r3"
+    a_int: "eth9"
+    z_node: "ate2"
+    z_int: "eth1"
+}

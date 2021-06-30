@@ -247,8 +247,12 @@ func (n *Node) CreateService(ctx context.Context) error {
 		return nil
 	}
 	for k, v := range pb.Services {
+		name := v.Name
+		if name == "" {
+			name = fmt.Sprintf("port-%d", k)
+		}
 		sp := corev1.ServicePort{
-			Name:       fmt.Sprintf("port-%d", k),
+			Name:       name,
 			Protocol:   "TCP",
 			Port:       int32(v.Inside),
 			TargetPort: intstr.FromInt(int(v.Inside)),
@@ -263,6 +267,9 @@ func (n *Node) CreateService(ctx context.Context) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("service-%s", pb.Name),
+			Labels: map[string]string{
+				"pod": pb.Name,
+			},
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: servicePorts,

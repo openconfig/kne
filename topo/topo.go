@@ -280,6 +280,14 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		v := t
 		r.Topologies[v.Name] = &v
 	}
+	sList, err := m.kClient.CoreV1().Services(m.tpb.Name).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range sList.Items {
+		sLocal := s
+		r.Services[sLocal.Name] = &sLocal
+	}
 	return &r, nil
 }
 

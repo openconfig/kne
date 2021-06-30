@@ -1,15 +1,15 @@
-name: "3node-host"
+name: "3node-HOST"
 nodes: {
     name: "vm-1"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-2"
-    type: Host
+    type: HOST
 }
 nodes: {
     name: "vm-3"
-    type: Host
+    type: HOST
 }
 links: {
     a_node: "vm-1"

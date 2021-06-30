@@ -193,6 +193,10 @@ func showFn(cmd *cobra.Command, args []string) error {
 	for _, p := range r.Topologies {
 		fmt.Fprintf(out, "%s:%s\nSpec:\n%s\nStatus:\n%s\n", topopb.Name, p.Name, pretty.Sprint(p.Spec), pretty.Sprint(p.Status))
 	}
+	fmt.Fprintf(out, "Services:\n")
+	for _, s := range r.Services {
+		fmt.Fprintf(out, "%s:%s\nSpec:\n%s\nStatus:\n%s\n", topopb.Name, s.Name, pretty.Sprint(s.Spec), pretty.Sprint(s.Status))
+	}
 	return nil
 }
 

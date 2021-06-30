@@ -1,7 +1,7 @@
 name: "3node-ceos"
 nodes: {
     name: "r1"
-    type: AristaCEOS
+    type: ARISTA_CEOS
     services:{
         key: 22
         value: {
@@ -19,7 +19,7 @@ nodes: {
 }
 nodes: {
     name: "r2"
-    type: AristaCEOS
+    type: ARISTA_CEOS
     services:{
         key: 22
         value: {
@@ -30,7 +30,7 @@ nodes: {
 }
 nodes: {
     name: "r3"
-    type: AristaCEOS
+    type: ARISTA_CEOS
     services:{
         key: 22
         value: {

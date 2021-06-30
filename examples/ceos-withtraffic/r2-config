@@ -1,5 +1,5 @@
 ! Command: show running-config
-! device: r2 (cEOSLab, EOS-4.26.1F (engineering build))
+! device: r2 (cEOSLab, EOS-4.26.1F-21878657.googleb4ph1rel (engineering build))
 !
 transceiver qsfp default-mode 4x10G
 !
@@ -22,7 +22,6 @@ no aaa root
 username admin privilege 15 role network-admin secret sha512 $6$YDkKMqrZIRO65B7i$NfH7OT8ujV12S.5q2sH7c7l1AEqhYULt9OSf9/EKaC4S8cNLppS.otHhr0QlC9Kud9Xbt4OdxVOkZiwV/yBV/1
 !
 interface Port-Channel1
-   mtu 1450
    no switchport
    ip address 10.0.0.2/30
    isis enable default
@@ -44,7 +43,6 @@ interface Ethernet2
    channel-group 1 mode active
 !
 interface Ethernet3
-   mtu 1450
    no switchport
    ip address 1.2.0.2/30
    isis enable default
@@ -60,7 +58,6 @@ interface Ethernet5
    channel-group 2 mode active
 !
 interface Ethernet6
-   mtu 1450
    no switchport
    ip address 1.2.0.9/30
    isis enable default
@@ -74,9 +71,12 @@ ip routing
 router bgp 1
    neighbor 1.2.0.1 remote-as 1
    neighbor 1.2.0.10 remote-as 1
+   network 2.2.2.2/32
 !
 router isis default
+   no hello padding
    net 49.0001.1010.1040.1031.00
+   router-id ipv4 2.2.2.2
    is-type level-2
    !
    address-family ipv4 unicast

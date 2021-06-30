@@ -108,7 +108,7 @@ func defaults(pb *topo.Node) *topopb.Node {
 			},
 		},
 		Labels: map[string]string{
-			"type": topopb.Node_AristaCEOS.String(),
+			"type": topopb.Node_ARISTA_CEOS.String(),
 		},
 		Config: &topopb.Config{
 			Image: "ceos:latest",
@@ -137,5 +137,5 @@ func defaults(pb *topo.Node) *topopb.Node {
 }
 
 func init() {
-	node.Register(topopb.Node_AristaCEOS, New)
+	node.Register(topopb.Node_ARISTA_CEOS, New)
 }

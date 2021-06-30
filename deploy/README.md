@@ -64,7 +64,7 @@ kind load docker-image ios-xr:latest --name=kne
 
 ```bash
 
-git clone git@github.com:networkop/meshnet-cni.git
+git clone git@github.com:h-fam/meshnet-cni.git
 cd meshnet-cni
 kubectl apply -k manifests/base
 
