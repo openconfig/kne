@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: neo4j
+commonLabels:
+  app: neo4j
+resources:
+- namespace.yaml
+- serviceaccount.yaml
+- neo4j.yaml
+

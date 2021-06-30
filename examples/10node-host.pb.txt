@@ -74,17 +74,20 @@ links: {
     a_int: "eth6"
     z_node: "vm-7"
     z_int: "eth1"
-}links: {
+}
+links: {
     a_node: "vm-1"
     a_int: "eth7"
     z_node: "vm-8"
     z_int: "eth1"
-}links: {
+}
+links: {
     a_node: "vm-1"
     a_int: "eth8"
     z_node: "vm-9"
     z_int: "eth1"
-}links: {
+}
+links: {
     a_node: "vm-1"
     a_int: "eth9"
     z_node: "vm-10"

@@ -35,7 +35,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&Topology{},
 		&TopologyList{},
 	)
-
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

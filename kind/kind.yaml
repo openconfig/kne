@@ -1,0 +1,16 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+  extraMounts:
+  - hostPath: /home/marcus/neo4j/data
+    containerPath: /data
+  - hostPath: /home/marcus/neo4j/import
+    containerPath: /import    
+  - hostPath: /home/marcus/neo4j/logs
+    containerPath: /logs
+  - hostPath: /home/marcus/neo4j/plugins
+    containerPath: /plugins
+- role: worker
+- role: worker

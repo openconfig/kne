@@ -134,18 +134,6 @@ func (m *Manager) Load(ctx context.Context) error {
 	return nil
 }
 
-// Pods gets all pods in the managed k8s cluster.
-func (m *Manager) Pods(ctx context.Context) error {
-	pods, err := m.kClient.CoreV1().Pods(m.tpb.Name).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, p := range pods.Items {
-		fmt.Println(p.Namespace, p.Name)
-	}
-	return nil
-}
-
 // Topology gets the topology CRDs for the cluster.
 func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
 	topology, err := m.tClient.Topology(m.tpb.Name).List(ctx, metav1.ListOptions{})
