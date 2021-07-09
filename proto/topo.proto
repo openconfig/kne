@@ -80,7 +80,12 @@ message Config {
   oneof config_data {
     // Byte data for the startup configuration file.
     bytes data = 101;
-    // Local file to read for the configuration file.          
+    // Local file to read for the configuration file.
+    // if prefixed with:
+    //   '/': it will be an absolute path
+    //   '.': it will path relative to kne_cli call
+    //   no prefix: it will be relative to the directory that the topology
+    //              was read from.        
     string file = 102;
   }
 }

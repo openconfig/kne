@@ -2,14 +2,29 @@ name: "3node-traffic"
 nodes: {
     name: "r1"
     type: ARISTA_CEOS
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config" 
+        file: "../examples/ceos-withtraffic/r1-config"
+    }
 }
 nodes: {
     name: "r2"
     type: ARISTA_CEOS
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config" 
+        file: "../examples/ceos-withtraffic/r2-config"
+    }
 }
 nodes: {
     name: "r3"
     type: ARISTA_CEOS
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config" 
+        file: "../examples/ceos-withtraffic/r3-config"
+    }
 }
 nodes: {
     name: "ate1"
