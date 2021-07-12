@@ -226,7 +226,8 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		for i, c := range pod.Spec.Containers {
 			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
 				Name:      "startup-config-volume",
-				MountPath: pb.Config.ConfigPath,
+				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+				SubPath:   pb.Config.ConfigFile,
 				ReadOnly:  true,
 			})
 		}
