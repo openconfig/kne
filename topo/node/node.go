@@ -387,7 +387,7 @@ func enableLLDP(b string) []string {
 	return []string{
 		"bin/sh",
 		"-c",
-		fmt.Sprintf("echo 16384 > /sys/class/net/%s/bridge/group_fwd_mask", b),
+		fmt.Sprintf("echo 16396 > /sys/class/net/%s/bridge/group_fwd_mask", b),
 	}
 }
 
