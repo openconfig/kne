@@ -40,7 +40,7 @@ func (n *Node) Proto() *topopb.Node {
 }
 
 func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Create IxiaTG node resource %s", n.pb.Name)
+	log.Infof("Creating IxiaTG node resource %s", n.pb.Name)
 	jsonConfig, err := json.Marshal(n.pb.Config)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 }
 
 func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Delete IxiaTG node resource %s", n.pb.Name)
+	log.Infof("Deleting IxiaTG node resource %s", n.pb.Name)
 	err := ni.KubeClient().CoreV1().RESTClient().
 		Delete().
 		AbsPath("/apis/network.keysight.com/v1alpha1").
