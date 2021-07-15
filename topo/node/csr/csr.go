@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
-	"k8s.io/client-go/kubernetes"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
@@ -13,7 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func New(pb *topopb.Node) (node.Interface, error) {
+func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
 	proto.Merge(cfg, pb)
 	node.FixServices(cfg)
@@ -30,11 +29,11 @@ func (n *Node) Proto() *topopb.Node {
 	return n.pb
 }
 
-func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
+func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (n *Node) DeleteNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
+func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 

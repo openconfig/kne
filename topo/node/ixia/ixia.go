@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type IxiaSpec struct {
@@ -23,7 +22,7 @@ type Ixia struct {
 	Spec IxiaSpec `json:"spec,omitempty"`
 }
 
-func New(pb *topopb.Node) (node.Interface, error) {
+func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
 	proto.Merge(cfg, pb)
 	node.FixServices(cfg)
@@ -40,11 +39,11 @@ func (n *Node) Proto() *topopb.Node {
 	return n.pb
 }
 
-func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
-	log.Infof("Create IxiaTG node resource %s\n", n.pb.Name)
+func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
+	log.Infof("Create IxiaTG node resource %s", n.pb.Name)
 	jsonConfig, err := json.Marshal(n.pb.Config)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	newIxia := &Ixia{
 		TypeMeta: metav1.TypeMeta{
@@ -53,7 +52,7 @@ func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interf
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      n.pb.Name,
-			Namespace: ns,
+			Namespace: ni.Namespace(),
 		},
 		Spec: IxiaSpec{
 			Config: string(jsonConfig),
@@ -61,40 +60,40 @@ func (n *Node) CreateNodeResource(ctx context.Context, kClient kubernetes.Interf
 	}
 	body, err := json.Marshal(newIxia)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	err = kClient.CoreV1().RESTClient().
+	err = ni.KubeClient().CoreV1().RESTClient().
 		Post().
 		AbsPath("/apis/network.keysight.com/v1alpha1").
-		Namespace(ns).
+		Namespace(ni.Namespace()).
 		Resource("Ixiatgs").
 		Body(body).
 		Do(ctx).
 		Error()
 	if err != nil {
 		log.Error(err)
-		return nil
+		return err
 	}
-	log.Info("Success")
+	log.Infof("Created custom resource: %s", n.pb.Name)
 	return nil
 }
 
-func (n *Node) DeleteNodeResource(ctx context.Context, kClient kubernetes.Interface, ns string) error {
-	log.Infof("Delete IxiaTG node resource %s\n", n.pb.Name)
-	err := kClient.CoreV1().RESTClient().
+func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
+	log.Infof("Delete IxiaTG node resource %s", n.pb.Name)
+	err := ni.KubeClient().CoreV1().RESTClient().
 		Delete().
 		AbsPath("/apis/network.keysight.com/v1alpha1").
-		Namespace(ns).
+		Namespace(ni.Namespace()).
 		Resource("Ixiatgs").
 		Name(n.pb.Name).
 		Do(ctx).
 		Error()
 	if err != nil {
 		log.Error(err)
-		return nil
+		return err
 	}
-	log.Info("Success")
+	log.Infof("Deleted custom resource: %s", n.pb.Name)
 	return nil
 }
 

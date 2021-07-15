@@ -110,17 +110,17 @@ func (m *Manager) Load(ctx context.Context) error {
 		if !ok {
 			return fmt.Errorf("invalid topology: missing node %q", l.ZNode)
 		}
-		if _, ok := sNode.Interfaces[l.AInt]; ok {
+		if _, ok := sNode.Interfaces()[l.AInt]; ok {
 			return fmt.Errorf("interface %s:%s already connected", l.ANode, l.AInt)
 		}
-		if _, ok := dNode.Interfaces[l.ZInt]; ok {
+		if _, ok := dNode.Interfaces()[l.ZInt]; ok {
 			return fmt.Errorf("interface %s:%s already connected", l.ZNode, l.ZInt)
 		}
 		link := &node.Link{
 			UID:   uid,
 			Proto: l,
 		}
-		sNode.Interfaces[l.AInt] = link
+		sNode.Interfaces()[l.AInt] = link
 		dl := proto.Clone(l).(*topopb.Link)
 		dl.AInt, dl.ZInt = dl.ZInt, dl.AInt
 		dl.ANode, dl.ZNode = dl.ZNode, dl.ANode
@@ -128,7 +128,7 @@ func (m *Manager) Load(ctx context.Context) error {
 			UID:   uid,
 			Proto: dl,
 		}
-		dNode.Interfaces[l.ZInt] = dLink
+		dNode.Interfaces()[l.ZInt] = dLink
 		uid++
 	}
 	return nil
@@ -168,7 +168,7 @@ func (m *Manager) Push(ctx context.Context) error {
 			Spec: topologyv1.TopologySpec{},
 		}
 		var links []topologyv1.Link
-		for _, intf := range n.Interfaces {
+		for _, intf := range n.Interfaces() {
 			link := topologyv1.Link{
 				LocalIntf: intf.Proto.AInt,
 				LocalIP:   "",

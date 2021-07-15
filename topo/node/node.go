@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,19 +20,28 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/utils/pointer"
 
 	topopb "github.com/google/kne/proto/topo"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Interface interface {
-	Proto() *topopb.Node
-	CreateNodeResource(context.Context, kubernetes.Interface, string) error
-	DeleteNodeResource(context.Context, kubernetes.Interface, string) error
+	KubeClient() kubernetes.Interface
+	Interfaces() map[string]*Link
+	Namespace() string
 }
 
-type NewNodeFn func(*topopb.Node) (Interface, error)
+type Implementation interface {
+	Proto() *topopb.Node
+	// CreateNodeResource provides a custom implementation of pod creation
+	// for a node type. Requires context, Kubernetes client interface and namespace.
+	CreateNodeResource(context.Context, Interface) error
+	// CreateNodeResource provides a custom implementation of pod creation
+	// for a node type. Requires context, Kubernetes client interface and namespace.
+	DeleteNodeResource(context.Context, Interface) error
+}
+
+type NewNodeFn func(*topopb.Node) (Implementation, error)
 
 var (
 	mu        sync.Mutex
@@ -48,12 +59,26 @@ func Register(t topopb.Node_Type, fn NewNodeFn) {
 
 // Node is a topology node in the cluster.
 type Node struct {
-	impl       Interface
-	id         int
+	impl       Implementation
 	namespace  string
 	kClient    kubernetes.Interface
 	rCfg       *rest.Config
-	Interfaces map[string]*Link
+	interfaces map[string]*Link
+}
+
+// Interfaces returns the node's map of interfaces.
+func (n *Node) Interfaces() map[string]*Link {
+	return n.interfaces
+}
+
+// KubeClient returns the node's kubeclient.
+func (n *Node) KubeClient() kubernetes.Interface {
+	return n.kClient
+}
+
+// Namespace returns the node's namespace.
+func (n *Node) Namespace() string {
+	return n.namespace
 }
 
 // New creates a new node for use in the k8s cluster.  Configure will push the node to
@@ -68,7 +93,7 @@ func New(namespace string, pb *topopb.Node, kClient kubernetes.Interface, rCfg *
 		impl:       impl,
 		rCfg:       rCfg,
 		kClient:    kClient,
-		Interfaces: map[string]*Link{},
+		interfaces: map[string]*Link{},
 	}, nil
 }
 
@@ -110,10 +135,10 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 const (
-	initContainerName = "networkop/init-wait:latest"
+	InitContainerName = "networkop/init-wait:latest"
 )
 
-func toEnvVar(kv map[string]string) []corev1.EnvVar {
+func ToEnvVar(kv map[string]string) []corev1.EnvVar {
 	var envVar []corev1.EnvVar
 	for k, v := range kv {
 		envVar = append(envVar, corev1.EnvVar{
@@ -124,7 +149,7 @@ func toEnvVar(kv map[string]string) []corev1.EnvVar {
 	return envVar
 }
 
-func toResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
+func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 	r := corev1.ResourceRequirements{
 		Requests: map[corev1.ResourceName]resource.Quantity{},
 	}
@@ -137,16 +162,11 @@ func toResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 	return r
 }
 
-var (
-	newTrue           = true
-	gracePeriod int64 = 0
-)
-
 // CreateResource creates the node specific resources.
 func (n *Node) CreateResource(ctx context.Context) error {
 	pb := n.impl.Proto()
 	log.Infof("Creating Resource for Pod:\n %+v", pb)
-	err := n.impl.CreateNodeResource(ctx, n.kClient, n.namespace)
+	err := n.impl.CreateNodeResource(ctx, n)
 	switch status.Code(err) {
 	case codes.OK:
 		return nil
@@ -172,9 +192,9 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		Spec: corev1.PodSpec{
 			InitContainers: []corev1.Container{{
 				Name:  fmt.Sprintf("init-%s", pb.Name),
-				Image: initContainerName,
+				Image: InitContainerName,
 				Args: []string{
-					fmt.Sprintf("%d", len(n.Interfaces)+1),
+					fmt.Sprintf("%d", len(n.Interfaces())+1),
 					fmt.Sprintf("%d", pb.Config.Sleep),
 				},
 				ImagePullPolicy: "IfNotPresent",
@@ -184,14 +204,14 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				Image:           pb.Config.Image,
 				Command:         pb.Config.Command,
 				Args:            pb.Config.Args,
-				Env:             toEnvVar(pb.Config.Env),
-				Resources:       toResourceRequirements(pb.Constraints),
+				Env:             ToEnvVar(pb.Config.Env),
+				Resources:       ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
 				SecurityContext: &corev1.SecurityContext{
-					Privileged: &newTrue,
+					Privileged: pointer.Bool(true),
 				},
 			}},
-			TerminationGracePeriodSeconds: &gracePeriod,
+			TerminationGracePeriodSeconds: pointer.Int64(0),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
 				PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -303,7 +323,7 @@ func (n *Node) DeleteService(ctx context.Context) error {
 func (n *Node) DeleteResource(ctx context.Context) error {
 	pb := n.impl.Proto()
 	log.Infof("Deleting Resource for Pod:\n %+v", pb)
-	err := n.impl.DeleteNodeResource(ctx, n.kClient, n.namespace)
+	err := n.impl.DeleteNodeResource(ctx, n)
 	switch status.Code(err) {
 	case codes.OK:
 		return nil
@@ -442,7 +462,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	return cp.ConfigPush(ctx, n.namespace, r)
 }
 
-func getImpl(pb *topopb.Node) (Interface, error) {
+func getImpl(pb *topopb.Node) (Implementation, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	fn, ok := nodeTypes[pb.Type]
