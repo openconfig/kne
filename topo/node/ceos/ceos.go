@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"regexp"
+	"time"
 
 	expect "github.com/google/goexpect"
 	"github.com/google/kne/proto/topo"
@@ -15,6 +16,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 func New(pb *topopb.Node) (node.Implementation, error) {
@@ -34,6 +38,88 @@ func (n *Node) Proto() *topopb.Node {
 	return n.pb
 }
 
+var (
+	spawner = defaultSpawner
+)
+
+func defaultSpawner(command string, timeout time.Duration, opts ...expect.Option) (expect.Expecter, <-chan error, error) {
+	return expect.Spawn(command, timeout, opts...)
+}
+
+func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
+	selfSigned := n.pb.GetConfig().GetCert().GetSelfSigned()
+	if selfSigned == nil {
+		log.Infof("%s - no cert config", n.pb.Name)
+		return nil
+	}
+	log.Infof("%s - generating self signed certs", n.pb.Name)
+	log.Infof("%s - Waiting for pod to be running", n.pb.Name)
+	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.pb.Name}).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for e := range w.ResultChan() {
+		p := e.Object.(*corev1.Pod)
+		if p.Status.Phase == corev1.PodRunning {
+			break
+		}
+	}
+	log.Infof("%s - pod running.", n.pb.Name)
+	done := false
+	var g expect.Expecter
+	waitTime := 0 * time.Second
+	log.Info("%s - waiting on container to be ready", n.pb.Name)
+	for !done {
+		time.Sleep(waitTime)
+		cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
+		var err error
+		g, _, err = spawner(cmd, -1)
+		// This could be set per error case but probably not worth it.
+		waitTime = 10 * time.Second
+		if err != nil {
+			log.Debugf("%s - process not ready - waiting.", n.pb.Name)
+			continue
+		}
+		_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
+		if err != nil {
+			log.Debugf("%s - os not ready - waiting.", n.pb.Name)
+			continue
+		}
+		log.Debug("captured prompt")
+		if err := g.Send("enable\n"); err != nil {
+			return err
+		}
+		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*time.Second)
+		if err != nil {
+			log.Debugf("%s - auth not ready - waiting.")
+			continue
+		}
+		done = true
+	}
+	cmd := fmt.Sprintf("security pki key generate rsa %d %s\n", selfSigned.KeySize, selfSigned.KeyName)
+	log.Debugf("enabled - sending %q", cmd)
+	if err := g.Send(cmd); err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`#`), 30*time.Second)
+	if err != nil {
+		return err
+	}
+	cmd = fmt.Sprintf("security pki certificate generate self-signed %s key %s parameters common-name %s\n", selfSigned.CertName, selfSigned.KeyName, n.pb.Name)
+	log.Debugf("key generated - sending %q", cmd)
+	if err := g.Send(cmd); err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`(.*)#`), 30*time.Second)
+	if err != nil {
+		return err
+	}
+	log.Info("%s finshed cert generation", n.pb.Name)
+	return g.Close()
+}
+
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	log.Infof("Pushing config to %s:%s", ns, n.pb.Name)
 	config, err := ioutil.ReadAll(r)
@@ -42,7 +128,7 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 		return err
 	}
 	cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ns, n.pb.Name)
-	g, _, err := expect.Spawn(cmd, -1)
+	g, _, err := spawner(cmd, -1)
 	if err != nil {
 		return err
 	}
