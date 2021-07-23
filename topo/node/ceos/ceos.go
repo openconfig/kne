@@ -9,7 +9,6 @@ import (
 	"time"
 
 	expect "github.com/google/goexpect"
-	"github.com/google/kne/proto/topo"
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	log "github.com/sirupsen/logrus"
@@ -169,7 +168,7 @@ func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func defaults(pb *topo.Node) *topopb.Node {
+func defaults(pb *topopb.Node) *topopb.Node {
 	return &topopb.Node{
 		Constraints: map[string]string{
 			"cpu":    "0.5",
