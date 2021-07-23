@@ -21,8 +21,11 @@ import (
 	"io/ioutil"
 	"sync"
 
+	"github.com/google/kne/topo/node"
 	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +37,6 @@ import (
 	topologyclientv1 "github.com/google/kne/api/clientset/v1beta1"
 	topologyv1 "github.com/google/kne/api/types/v1beta1"
 	topopb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
 
 	_ "github.com/google/kne/topo/node/ceos"
 	_ "github.com/google/kne/topo/node/csr"
@@ -143,6 +145,11 @@ func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
 	return topology.Items, nil
 }
 
+// Certer provides an interface for working with certs on nodes.
+type Certer interface {
+	GenerateSelfSigned(context.Context, node.Interface) error
+}
+
 // Push pushes the current topology to k8s.
 func (m *Manager) Push(ctx context.Context) error {
 	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.tpb.Name, metav1.GetOptions{}); err != nil {
@@ -199,7 +206,30 @@ func (m *Manager) Push(ctx context.Context) error {
 		}
 		log.Infof("Node %q resource created", k)
 	}
+	for _, n := range m.nodes {
+		err := GenerateSelfSigned(ctx, n)
+		switch {
+		default:
+			return fmt.Errorf("failed to generate cert for node %s: %w", n.Name(), err)
+		case err == nil, status.Code(err) == codes.Unimplemented:
+		}
+	}
 	return nil
+}
+
+// GenerateSelfSigned will try to create self signed certs on the provided node. If the node
+// doesn't have cert info then it is a noop. If the node doesn't fulfil Certer then
+// status.Unimplmented will be returned.
+func GenerateSelfSigned(ctx context.Context, n *node.Node) error {
+	if n.Impl().Proto().GetConfig().GetCert() == nil {
+		log.Debugf("No cert info for %s", n.Name())
+		return nil
+	}
+	nCert, ok := n.Impl().(Certer)
+	if !ok {
+		return status.Errorf(codes.Unimplemented, "node %s does not implement Certer interface", n.Name())
+	}
+	return nCert.GenerateSelfSigned(ctx, n)
 }
 
 // Delete deletes the topology from k8s.
@@ -311,6 +341,14 @@ func (m *Manager) ConfigPush(ctx context.Context, deviceName string, r io.Reader
 		return fmt.Errorf("node %q not found", deviceName)
 	}
 	return d.ConfigPush(ctx, r)
+}
+
+func (m *Manager) Node(nodeName string) (*node.Node, error) {
+	n, ok := m.nodes[nodeName]
+	if !ok {
+		return nil, fmt.Errorf("node %q not found", nodeName)
+	}
+	return n, nil
 }
 
 func (m *Manager) EnableIPForwarding(ctx context.Context) error {

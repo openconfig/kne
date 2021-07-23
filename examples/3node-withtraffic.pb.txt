@@ -6,6 +6,14 @@ nodes: {
         config_path: "/mnt/flash"
         config_file: "startup-config" 
         file: "../examples/ceos-withtraffic/r1-config"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+                profile_name: "gnmi_ssl",
+            }
+        }
     }
 }
 nodes: {
@@ -15,6 +23,14 @@ nodes: {
         config_path: "/mnt/flash"
         config_file: "startup-config" 
         file: "../examples/ceos-withtraffic/r2-config"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+                profile_name: "gnmi_ssl",
+            }
+        }
     }
 }
 nodes: {
@@ -24,6 +40,14 @@ nodes: {
         config_path: "/mnt/flash"
         config_file: "startup-config" 
         file: "../examples/ceos-withtraffic/r3-config"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+                profile_name: "gnmi_ssl",
+            }
+        }
     }
 }
 nodes: {
