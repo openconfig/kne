@@ -81,6 +81,11 @@ func (n *Node) Namespace() string {
 	return n.namespace
 }
 
+// Impl returns the node implementation.
+func (n *Node) Impl() Implementation {
+	return n.impl
+}
+
 // New creates a new node for use in the k8s cluster.  Configure will push the node to
 // the cluster.
 func New(namespace string, pb *topopb.Node, kClient kubernetes.Interface, rCfg *rest.Config) (*Node, error) {

@@ -16,9 +16,10 @@ func New() *cobra.Command {
 		Use:   "topology",
 		Short: "Topology commands.",
 	}
+	topoCmd.AddCommand(certCmd)
 	topoCmd.AddCommand(pushCmd)
-	topoCmd.AddCommand(watchCmd)
 	topoCmd.AddCommand(serviceCmd)
+	topoCmd.AddCommand(watchCmd)
 	return topoCmd
 }
 
@@ -37,6 +38,11 @@ var (
 		Use:   "service <topology>",
 		Short: "service returns the current topology with service endpoints defined.",
 		RunE:  serviceFn,
+	}
+	certCmd = &cobra.Command{
+		Use:   "cert <topology> <device>",
+		Short: "push or generate certs for nodes in topology",
+		RunE:  certFn,
 	}
 )
 
@@ -88,6 +94,33 @@ func watchFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	return nil
+}
+
+func certFn(cmd *cobra.Command, args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("%s: missing args", cmd.Use)
+	}
+	topopb, err := topo.Load(args[0])
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	s, err := cmd.Flags().GetString("kubecfg")
+	if err != nil {
+		return err
+	}
+	t, err := topo.New(s, topopb)
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	t.Load(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	n, err := t.Node(args[1])
+	if err != nil {
+		return err
+	}
+	return topo.GenerateSelfSigned(cmd.Context(), n)
 }
 
 func serviceFn(cmd *cobra.Command, args []string) error {

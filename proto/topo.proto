@@ -77,6 +77,8 @@ message Config {
   // Default configuration file name for the pod.       
   string config_file = 7;       
   uint32 sleep = 8;             // Sleeptime before starting the pod.
+  // Certificate configuration
+  CertificateCfg cert = 9;
   oneof config_data {
     // Byte data for the startup configuration file.
     bytes data = 101;
@@ -88,6 +90,26 @@ message Config {
     //              was read from.        
     string file = 102;
   }
+}
+
+message CertificateCfg {
+  oneof config {
+    // self_signed will generate local certificates on the node.
+    SelfSignedCertCfg self_signed = 1;
+    // Additional options will be for loading pregenerated certs.
+    // Also support for CSR and generation workflow.
+  }
+}
+
+message SelfSignedCertCfg {
+  // Certificate name on the node.
+  string cert_name = 1;
+  // Key name on the node.
+  string key_name = 2;
+  // RSA keysize to use for key generation.
+  uint32 key_size = 3;
+  // Common name to set in the cert.
+  string common_name = 4;
 }
 
 // Service is k8s Service to exposed to the cluster. The initial input can be
