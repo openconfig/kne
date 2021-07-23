@@ -102,11 +102,14 @@ message CertificateCfg {
 }
 
 message SelfSignedCertCfg {
+  // Certificate name on the node.
   string cert_name = 1;
+  // Key name on the node.
   string key_name = 2;
+  // RSA keysize to use for key generation.
   uint32 key_size = 3;
+  // Common name to set in the cert.
   string common_name = 4;
-  string profile_name = 5;
 }
 
 // Service is k8s Service to exposed to the cluster. The initial input can be
