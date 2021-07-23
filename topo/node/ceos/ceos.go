@@ -69,7 +69,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	done := false
 	var g expect.Expecter
 	waitTime := 0 * time.Second
-	log.Info("%s - waiting on container to be ready", n.pb.Name)
+	log.Infof("%s - waiting on container to be ready", n.pb.Name)
 	for !done {
 		time.Sleep(waitTime)
 		cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
@@ -86,19 +86,19 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 			log.Debugf("%s - os not ready - waiting.", n.pb.Name)
 			continue
 		}
-		log.Debug("captured prompt")
+		log.Debug("%s - captured prompt", n.pb.Name)
 		if err := g.Send("enable\n"); err != nil {
 			return err
 		}
 		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*time.Second)
 		if err != nil {
-			log.Debugf("%s - auth not ready - waiting.")
+			log.Debugf("%s - auth not ready - waiting.", n.pb.Name)
 			continue
 		}
 		done = true
 	}
 	cmd := fmt.Sprintf("security pki key generate rsa %d %s\n", selfSigned.KeySize, selfSigned.KeyName)
-	log.Debugf("enabled - sending %q", cmd)
+	log.Debugf("%s - enabled - sending %q", n.pb.Name, cmd)
 	if err := g.Send(cmd); err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	if err != nil {
 		return err
 	}
-	log.Info("%s finshed cert generation", n.pb.Name)
+	log.Infof("%s finshed cert generation", n.pb.Name)
 	return g.Close()
 }
 
