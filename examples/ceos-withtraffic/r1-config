@@ -95,15 +95,12 @@ management api gnmi
    provider eos-native
 !
 management security
-   ssl profile default
-      tls versions 1.2
-   !
    ssl profile eapi
       tls versions 1.2
       cipher-list EECDH+AESGCM:EDH+AESGCM
-      certificate capi.pem key capikey.pem
+      certificate gnmiCert.pem key gnmiCertKey.pem
    !
    ssl profile octa-ssl-profile
-      certificate capi.pem key capikey.pem
+      certificate gnmiCertKey.pem key gnmiCertKey.pem
 !
 end
