@@ -86,7 +86,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 			log.Debugf("%s - os not ready - waiting.", n.pb.Name)
 			continue
 		}
-		log.Debug("%s - captured prompt", n.pb.Name)
+		log.Debugf("%s - captured prompt", n.pb.Name)
 		if err := g.Send("enable\n"); err != nil {
 			return err
 		}
