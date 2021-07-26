@@ -100,6 +100,8 @@ management security
       certificate gnmiCert.pem key gnmiCertKey.pem
    !
    ssl profile octa-ssl-profile
-      certificate gnmiCertKey.pem key gnmiCertKey.pem
+      certificate gnmiCert.pem key gnmiCertKey.pem
+!
+aaa authorization exec default local
 !
 end

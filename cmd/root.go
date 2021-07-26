@@ -53,7 +53,6 @@ func rootFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.SetLevel(l)
-	fmt.Println(log.GetLevel(), l)
 	return nil
 }
 

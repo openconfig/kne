@@ -17,8 +17,6 @@ hostname r1
 !
 spanning-tree mode mstp
 !
-aaa authorization exec default local
-!
 no aaa root
 !
 username admin privilege 15 role network-admin secret sha512 $6$YDkKMqrZIRO65B7i$NfH7OT8ujV12S.5q2sH7c7l1AEqhYULt9OSf9/EKaC4S8cNLppS.otHhr0QlC9Kud9Xbt4OdxVOkZiwV/yBV/1
@@ -101,6 +99,8 @@ management security
       certificate gnmiCert.pem key gnmiCertKey.pem
    !
    ssl profile octa-ssl-profile
-      certificate gnmiCertKey.pem key gnmiCertKey.pem
+      certificate gnmiCert.pem key gnmiCertKey.pem
+!
+aaa authorization exec default local
 !
 end

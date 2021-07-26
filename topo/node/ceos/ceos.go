@@ -52,7 +52,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 		return nil
 	}
 	log.Infof("%s - generating self signed certs", n.pb.Name)
-	log.Infof("%s - Waiting for pod to be running", n.pb.Name)
+	log.Infof("%s - waiting for pod to be running", n.pb.Name)
 	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.pb.Name}).String(),
 	})
@@ -115,7 +115,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	if err != nil {
 		return err
 	}
-	log.Infof("%s finshed cert generation", n.pb.Name)
+	log.Infof("%s - finshed cert generation", n.pb.Name)
 	return g.Close()
 }
 
@@ -169,6 +169,11 @@ func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {
+	if pb == nil {
+		pb = &topopb.Node{
+			Name: "default_ceos_node",
+		}
+	}
 	return &topopb.Node{
 		Constraints: map[string]string{
 			"cpu":    "0.5",
