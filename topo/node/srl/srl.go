@@ -83,12 +83,6 @@ func defaults(pb *topopb.Node) *topopb.Node {
 		},
 		Config: &topopb.Config{
 			Image: "srlinux:latest",
-			// Command: []string{
-			// 	"sudo",
-			// 	"/bin/bash",
-			// 	"-c",
-			// 	"touch /.dockerenv && /opt/srlinux/bin/sr_linux",
-			// },
 			Command: []string{
 				"/tini",
 			},
