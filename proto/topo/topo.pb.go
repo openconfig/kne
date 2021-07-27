@@ -644,7 +644,7 @@ func (x *SelfSignedCertCfg) GetCommonName() string {
 // provided by the user for which services they would like exposed. Once the
 // service is created KNE will fill in the outside information for the user to
 // access the services.
-// The user should specific inside port for this is the port the container will
+// The user should specify inside port for this is the port the container will
 // listen on. The outside port if provided will be the load balanced advertised
 // port.  If no outsideport is provided the inside port will be used.
 type Service struct {
