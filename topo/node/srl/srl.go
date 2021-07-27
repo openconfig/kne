@@ -58,14 +58,14 @@ func defaults(pb *topopb.Node) *topopb.Node {
 				Outside: node.GetNextPort(),
 			},
 			22: {
-				Name:    "ssh",
-				Inside:  22,
-				Outside: node.GetNextPort(),
+				Name:     "ssh",
+				Inside:   22,
+				NodePort: node.GetNextPort(),
 			},
 			57400: {
-				Name:    "gnmi",
-				Inside:  57400,
-				Outside: node.GetNextPort(),
+				Name:     "gnmi",
+				Inside:   57400,
+				NodePort: node.GetNextPort(),
 			},
 		},
 		Labels: map[string]string{

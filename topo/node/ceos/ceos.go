@@ -181,19 +181,19 @@ func defaults(pb *topopb.Node) *topopb.Node {
 		},
 		Services: map[uint32]*topopb.Service{
 			443: &topopb.Service{
-				Name:    "ssl",
-				Inside:  443,
-				Outside: node.GetNextPort(),
+				Name:     "ssl",
+				Inside:   443,
+				NodePort: node.GetNextPort(),
 			},
 			22: &topopb.Service{
-				Name:    "ssh",
-				Inside:  22,
-				Outside: node.GetNextPort(),
+				Name:     "ssh",
+				Inside:   22,
+				NodePort: node.GetNextPort(),
 			},
 			6030: &topopb.Service{
-				Name:    "gnmi",
-				Inside:  6030,
-				Outside: node.GetNextPort(),
+				Name:     "gnmi",
+				Inside:   6030,
+				NodePort: node.GetNextPort(),
 			},
 		},
 		Labels: map[string]string{
