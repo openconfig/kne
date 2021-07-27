@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
 
-	expect "github.com/google/goexpect"
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	"google.golang.org/grpc/codes"
@@ -29,14 +27,6 @@ type Node struct {
 
 func (n *Node) Proto() *topopb.Node {
 	return n.pb
-}
-
-var (
-	spawner = defaultSpawner
-)
-
-func defaultSpawner(command string, timeout time.Duration, opts ...expect.Option) (expect.Expecter, <-chan error, error) {
-	return expect.Spawn(command, timeout, opts...)
 }
 
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
