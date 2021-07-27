@@ -1,4 +1,4 @@
-name: "3node-ceos"
+name: "3node-mixed"
 nodes: {
     name: "r1"
     type: ARISTA_CEOS
