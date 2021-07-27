@@ -45,6 +45,7 @@ import (
 	_ "github.com/google/kne/topo/node/host"
 	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/quagga"
+	_ "github.com/google/kne/topo/node/srl"
 	_ "github.com/google/kne/topo/node/vmx"
 )
 

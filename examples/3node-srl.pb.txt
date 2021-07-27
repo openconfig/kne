@@ -1,0 +1,59 @@
+name: "3node-srlinux"
+nodes: {
+    name: "r1"
+    type: NOKIA_SRL
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 57400
+        value: {
+            name: "gnmi"
+            inside: 57400
+        }
+    }
+}
+nodes: {
+    name: "r2"
+    type: NOKIA_SRL
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+nodes: {
+    name: "r3"
+    type: NOKIA_SRL
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+links: {
+    a_node: "r1"
+    a_int: "e1-1"
+    z_node: "r2"
+    z_int: "e1-1"
+}
+links: {
+    a_node: "r1"
+    a_int: "e1-2"
+    z_node: "r3"
+    z_int: "e1-1"
+}
+links: {
+    a_node: "r2"
+    a_int: "e1-2"
+    z_node: "r3"
+    z_int: "e1-2"
+}
