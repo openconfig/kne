@@ -281,8 +281,11 @@ func (n *Node) CreateService(ctx context.Context) error {
 			Name:       name,
 			Protocol:   "TCP",
 			Port:       int32(v.Inside),
+			NodePort:   int32(v.NodePort),
 			TargetPort: intstr.FromInt(int(v.Inside)),
-			NodePort:   int32(v.Outside),
+		}
+		if v.Outside != 0 {
+			sp.TargetPort = intstr.FromInt(int(v.Outside))
 		}
 		servicePorts = append(servicePorts, sp)
 	}
@@ -497,8 +500,8 @@ func GetNextPort() uint32 {
 
 func FixServices(pb *topopb.Node) {
 	for k := range pb.Services {
-		if pb.Services[k].Outside == 0 {
-			pb.Services[k].Outside = GetNextPort()
+		if pb.Services[k].NodePort == 0 {
+			pb.Services[k].NodePort = GetNextPort()
 		}
 	}
 }

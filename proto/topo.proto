@@ -116,10 +116,14 @@ message SelfSignedCertCfg {
 // provided by the user for which services they would like exposed. Once the
 // service is created KNE will fill in the outside information for the user to
 // access the services.
+// The user should specify inside port for this is the port the container will
+// listen on. The outside port if provided will be the load balanced advertised
+// port.  If no outsideport is provided the inside port will be used.
 message Service {
   string name = 1;  // Name of the service (optional)
-  uint32 inside = 2; // Inside port to map
-  uint32 outside = 3; // Outside port to map (0 = autoassign from cluster)
+  uint32 inside = 2; // Inside port to map Node (container listening port)
+  uint32 outside = 3; // Outside port to map (target port on loadbalancer)
   string inside_ip = 4;  // Assigned by KNE.
   string outside_ip = 5; // Assigned by KNE.
+  uint32 node_port = 6; // Assigned by KNE.
 }

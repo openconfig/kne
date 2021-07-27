@@ -57,14 +57,12 @@ nodes: {
         key: 5555
         value: {
             inside: 5555
-            outside: 0
         }
     }
     services: {
         key: 50071
         value: {
             inside: 50071
-            outside: 0
         }
     }
 }
@@ -78,14 +76,12 @@ nodes: {
         key: 5555
         value: {
             inside: 5555
-            outside: 0
         }
     }
     services: {
         key: 50071
         value: {
             inside: 50071
-            outside: 0
         }
     }
 
