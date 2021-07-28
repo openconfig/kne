@@ -45,6 +45,10 @@ func defaultSpawner(command string, timeout time.Duration, opts ...expect.Option
 	return expect.Spawn(command, timeout, opts...)
 }
 
+var (
+	mySecond = time.Second
+)
+
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
 	selfSigned := n.pb.GetConfig().GetCert().GetSelfSigned()
 	if selfSigned == nil {
@@ -68,15 +72,15 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	log.Infof("%s - pod running.", n.pb.Name)
 	done := false
 	var g expect.Expecter
-	waitTime := 0 * time.Second
 	log.Infof("%s - waiting on container to be ready", n.pb.Name)
+	waitTime := 0 * mySecond
 	for !done {
 		time.Sleep(waitTime)
 		cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
 		var err error
 		g, _, err = spawner(cmd, -1)
 		// This could be set per error case but probably not worth it.
-		waitTime = 10 * time.Second
+		waitTime = 10 * mySecond
 		if err != nil {
 			log.Debugf("%s - process not ready - waiting.", n.pb.Name)
 			continue
@@ -90,7 +94,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 		if err := g.Send("enable\n"); err != nil {
 			return err
 		}
-		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*time.Second)
+		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*mySecond)
 		if err != nil {
 			log.Debugf("%s - auth not ready - waiting.", n.pb.Name)
 			continue
@@ -102,7 +106,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	if err := g.Send(cmd); err != nil {
 		return err
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), 30*time.Second)
+	_, _, err = g.Expect(regexp.MustCompile(`#`), 30*mySecond)
 	if err != nil {
 		return err
 	}
@@ -111,7 +115,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	if err := g.Send(cmd); err != nil {
 		return err
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`(.*)#`), 30*time.Second)
+	_, _, err = g.Expect(regexp.MustCompile(`(.*)#`), 30*mySecond)
 	if err != nil {
 		return err
 	}
