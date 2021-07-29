@@ -151,7 +151,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 	ki.PrependWatchReactor("*", reaction)
 	tests := []struct {
 		desc    string
-		wantErr bool
+		wantErr string
 		ni      node.Interface
 		pb      *topopb.Node
 		spawner func(string, time.Duration, ...expect.Option) (expect.Expecter, <-chan error, error)
@@ -242,15 +242,15 @@ func TestGenerateSelfSigned(t *testing.T) {
 			},
 			closeErr: fmt.Errorf("close err"),
 		}),
-		wantErr: true,
+		wantErr: "close err",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			spawner = tt.spawner
-			mySecond = 0
+			timeSecond = 0
 			defer func() {
 				spawner = defaultSpawner
-				mySecond = time.Second
+				timeSecond = time.Second
 			}()
 			nImpl, _ := New(tt.pb)
 			n := nImpl.(*Node)
@@ -259,7 +259,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 			if s := errdiff.Check(err, tt.wantErr); s != "" {
 				t.Fatalf("GenerateSelfSigned unexpected error: %s", s)
 			}
-			if tt.wantErr {
+			if tt.wantErr != "" {
 				return
 			}
 		})

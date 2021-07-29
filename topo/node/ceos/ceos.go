@@ -46,7 +46,7 @@ func defaultSpawner(command string, timeout time.Duration, opts ...expect.Option
 }
 
 var (
-	mySecond = time.Second
+	timeSecond = time.Second
 )
 
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
@@ -73,14 +73,14 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	done := false
 	var g expect.Expecter
 	log.Infof("%s - waiting on container to be ready", n.pb.Name)
-	waitTime := 0 * mySecond
+	waitTime := 0 * timeSecond
 	for !done {
 		time.Sleep(waitTime)
 		cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
 		var err error
 		g, _, err = spawner(cmd, -1)
 		// This could be set per error case but probably not worth it.
-		waitTime = 10 * mySecond
+		waitTime = 10 * timeSecond
 		if err != nil {
 			log.Debugf("%s - process not ready - waiting.", n.pb.Name)
 			continue
@@ -94,7 +94,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 		if err := g.Send("enable\n"); err != nil {
 			return err
 		}
-		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*mySecond)
+		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*timeSecond)
 		if err != nil {
 			log.Debugf("%s - auth not ready - waiting.", n.pb.Name)
 			continue
@@ -106,7 +106,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	if err := g.Send(cmd); err != nil {
 		return err
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), 30*mySecond)
+	_, _, err = g.Expect(regexp.MustCompile(`#`), 30*timeSecond)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	if err := g.Send(cmd); err != nil {
 		return err
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`(.*)#`), 30*mySecond)
+	_, _, err = g.Expect(regexp.MustCompile(`(.*)#`), 30*timeSecond)
 	if err != nil {
 		return err
 	}
