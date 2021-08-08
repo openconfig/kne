@@ -9,6 +9,7 @@ import (
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	log "github.com/sirupsen/logrus"
+	srl "github.com/srl-labs/kne-controller/api/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -53,24 +54,27 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 
 func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
 	log.Infof("Creating Srlinux node resource %s", n.pb.Name)
-	jsonConfig, err := json.Marshal(n.pb.Config)
-	if err != nil {
-		return err
-	}
-	newSrlinux := &Srlinux{
+
+	srl := srl.Srlinux{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "kne.srlinux.dev/v1alpha1",
 			Kind:       "Srlinux",
+			APIVersion: "kne.srlinux.dev/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.pb.Name,
-			Namespace: ni.Namespace(),
+			Name: n.pb.Name,
+			Labels: map[string]string{
+				"app":  n.pb.Name,
+				"topo": ni.Namespace(),
+			},
 		},
-		Spec: SrlinuxSpec{
-			Config: string(jsonConfig),
+		Spec: srl.SrlinuxSpec{
+			NumInterfaces: len(ni.Interfaces()),
+			Config: &srl.NodeConfig{
+				Sleep: 0,
+			},
 		},
 	}
-	body, err := json.Marshal(newSrlinux)
+	body, err := json.Marshal(srl)
 	if err != nil {
 		return err
 	}
