@@ -2,15 +2,29 @@ package srl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type SrlinuxSpec struct {
+	Config string `json:"config,omitempty"`
+}
+
+type Srlinux struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec SrlinuxSpec `json:"spec,omitempty"`
+}
 
 func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
@@ -37,12 +51,62 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
+func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
+	log.Infof("Creating Srlinux node resource %s", n.pb.Name)
+	jsonConfig, err := json.Marshal(n.pb.Config)
+	if err != nil {
+		return err
+	}
+	newSrlinux := &Srlinux{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "kne.srlinux.dev/v1alpha1",
+			Kind:       "Srlinux",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.pb.Name,
+			Namespace: ni.Namespace(),
+		},
+		Spec: SrlinuxSpec{
+			Config: string(jsonConfig),
+		},
+	}
+	body, err := json.Marshal(newSrlinux)
+	if err != nil {
+		return err
+	}
+
+	err = ni.KubeClient().CoreV1().RESTClient().
+		Post().
+		AbsPath("/apis/kne.srlinux.dev/v1alpha1").
+		Namespace(ni.Namespace()).
+		Resource("Srlinuxes").
+		Body(body).
+		Do(ctx).
+		Error()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	log.Infof("Created custom resource: %s", n.pb.Name)
+	return nil
 }
 
-func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
+func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
+	log.Infof("Deleting Srlinux node resource %s", n.pb.Name)
+	err := ni.KubeClient().CoreV1().RESTClient().
+		Delete().
+		AbsPath("/apis/kne.srlinux.dev/v1alpha1").
+		Namespace(ni.Namespace()).
+		Resource("Srlinuxes").
+		Name(n.pb.Name).
+		Do(ctx).
+		Error()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	log.Infof("Deleted custom resource: %s", n.pb.Name)
+	return nil
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {
