@@ -16,17 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type SrlinuxSpec struct {
-	Config string `json:"config,omitempty"`
-}
-
-type Srlinux struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec SrlinuxSpec `json:"spec,omitempty"`
-}
-
 func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
 	proto.Merge(cfg, pb)
