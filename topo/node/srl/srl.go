@@ -2,14 +2,14 @@ package srl
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	log "github.com/sirupsen/logrus"
-	srl "github.com/srl-labs/kne-controller/api/v1alpha1"
+	srlclient "github.com/srl-labs/kne-controller/api/clientset/v1alpha1"
+	srltypes "github.com/srl-labs/kne-controller/api/types/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -44,7 +44,7 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
 	log.Infof("Creating Srlinux node resource %s", n.pb.Name)
 
-	srl := srl.Srlinux{
+	srl := &srltypes.Srlinux{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Srlinux",
 			APIVersion: "kne.srlinux.dev/v1alpha1",
@@ -56,49 +56,44 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 				"topo": ni.Namespace(),
 			},
 		},
-		Spec: srl.SrlinuxSpec{
+		Spec: srltypes.SrlinuxSpec{
 			NumInterfaces: len(ni.Interfaces()),
-			Config: &srl.NodeConfig{
+			Config: &srltypes.NodeConfig{
 				Sleep: 0,
 			},
 		},
 	}
-	body, err := json.Marshal(srl)
+
+	c, err := srlclient.NewForConfig(ni.RESTConfig())
 	if err != nil {
 		return err
 	}
 
-	err = ni.KubeClient().CoreV1().RESTClient().
-		Post().
-		AbsPath("/apis/kne.srlinux.dev/v1alpha1").
-		Namespace(ni.Namespace()).
-		Resource("Srlinuxes").
-		Body(body).
-		Do(ctx).
-		Error()
+	_, err = c.Srlinux(ni.Namespace()).Create(ctx, srl)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
-	log.Infof("Created custom resource: %s", n.pb.Name)
+
+	log.Infof("Created Srlinux resource: %s", n.pb.Name)
+
 	return nil
 }
 
 func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
 	log.Infof("Deleting Srlinux node resource %s", n.pb.Name)
-	err := ni.KubeClient().CoreV1().RESTClient().
-		Delete().
-		AbsPath("/apis/kne.srlinux.dev/v1alpha1").
-		Namespace(ni.Namespace()).
-		Resource("Srlinuxes").
-		Name(n.pb.Name).
-		Do(ctx).
-		Error()
+
+	c, err := srlclient.NewForConfig(ni.RESTConfig())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
+
+	err = c.Srlinux(ni.Namespace()).Delete(ctx, n.pb.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
 	log.Infof("Deleted custom resource: %s", n.pb.Name)
+
 	return nil
 }
 
