@@ -27,6 +27,7 @@ import (
 
 type Interface interface {
 	KubeClient() kubernetes.Interface
+	RESTConfig() *rest.Config
 	Interfaces() map[string]*Link
 	Namespace() string
 }
@@ -74,6 +75,11 @@ func (n *Node) Interfaces() map[string]*Link {
 // KubeClient returns the node's kubeclient.
 func (n *Node) KubeClient() kubernetes.Interface {
 	return n.kClient
+}
+
+// RESTConfig returns the node's REST configuration.
+func (n *Node) RESTConfig() *rest.Config {
+	return n.rCfg
 }
 
 // Namespace returns the node's namespace.
