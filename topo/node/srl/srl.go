@@ -13,7 +13,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 func New(pb *topopb.Node) (node.Implementation, error) {
@@ -72,6 +74,20 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 	_, err = c.Srlinux(ni.Namespace()).Create(ctx, srl)
 	if err != nil {
 		return err
+	}
+
+	// wait till srlinux pods are created in the cluster
+	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.pb.Name}).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for e := range w.ResultChan() {
+		p := e.Object.(*corev1.Pod)
+		if p.Status.Phase == corev1.PodPending {
+			break
+		}
 	}
 
 	log.Infof("Created Srlinux resource: %s", n.pb.Name)
