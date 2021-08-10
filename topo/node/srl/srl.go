@@ -7,9 +7,15 @@ import (
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	log "github.com/sirupsen/logrus"
+	srlclient "github.com/srl-labs/kne-controller/api/clientset/v1alpha1"
+	srltypes "github.com/srl-labs/kne-controller/api/types/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 func New(pb *topopb.Node) (node.Implementation, error) {
@@ -37,12 +43,74 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
+func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
+	log.Infof("Creating Srlinux node resource %s", n.pb.Name)
+
+	srl := &srltypes.Srlinux{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Srlinux",
+			APIVersion: "kne.srlinux.dev/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: n.pb.Name,
+			Labels: map[string]string{
+				"app":  n.pb.Name,
+				"topo": ni.Namespace(),
+			},
+		},
+		Spec: srltypes.SrlinuxSpec{
+			NumInterfaces: len(ni.Interfaces()),
+			Config: &srltypes.NodeConfig{
+				Sleep: 0,
+			},
+		},
+	}
+
+	c, err := srlclient.NewForConfig(ni.RESTConfig())
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Srlinux(ni.Namespace()).Create(ctx, srl)
+	if err != nil {
+		return err
+	}
+
+	// wait till srlinux pods are created in the cluster
+	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.pb.Name}).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for e := range w.ResultChan() {
+		p := e.Object.(*corev1.Pod)
+		if p.Status.Phase == corev1.PodPending {
+			break
+		}
+	}
+
+	log.Infof("Created Srlinux resource: %s", n.pb.Name)
+
+	return nil
 }
 
-func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
+func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
+	log.Infof("Deleting Srlinux node resource %s", n.pb.Name)
+
+	c, err := srlclient.NewForConfig(ni.RESTConfig())
+	if err != nil {
+		return err
+	}
+
+	err = c.Srlinux(ni.Namespace()).Delete(ctx, n.pb.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Deleted custom resource: %s", n.pb.Name)
+
+	return nil
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {

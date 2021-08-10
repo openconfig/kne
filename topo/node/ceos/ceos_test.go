@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
 )
 
@@ -80,10 +81,15 @@ type fakeNode struct {
 	kClient    kubernetes.Interface
 	namespace  string
 	interfaces map[string]*node.Link
+	rCfg       *rest.Config
 }
 
 func (f *fakeNode) KubeClient() kubernetes.Interface {
 	return f.kClient
+}
+
+func (f *fakeNode) RESTConfig() *rest.Config {
+	return f.rCfg
 }
 
 func (f *fakeNode) Interfaces() map[string]*node.Link {
