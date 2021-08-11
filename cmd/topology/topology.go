@@ -160,13 +160,13 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 			service, ok := n.Services[k]
 			if !ok {
 				service = &tpb.Service{
-					Name:     p.Name,
-					Inside:   uint32(p.Port),
-					NodePort: uint32(p.NodePort),
-					Outside:  uint32(p.TargetPort.IntVal),
+					Name:   p.Name,
+					Inside: uint32(p.Port),
 				}
 				n.Services[k] = service
 			}
+			service.Outside = uint32(p.TargetPort.IntVal)
+			service.NodePort = uint32(p.NodePort)
 			service.InsideIp = s.Spec.ClusterIP
 			service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
 		}
