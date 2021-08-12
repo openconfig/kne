@@ -1,0 +1,36 @@
+groups {
+    global {
+        system {
+            host-name cptx;
+        }
+    }
+}
+system {
+    root-authentication {
+        encrypted-password "$6$vzoltcG6$ZC37XYCfK1rqCh44hxHZb3YG4GhsjFQRI3oPVckXeu.s48qpGVA1j07LiX3C0pr13lcea0vxgEGHKTmKZuU/D1"; ## SECRET-DATA
+    }
+    services {
+        ssh {
+            root-login allow;
+        }
+    }
+    syslog {
+        file interactive-commands {
+            interactive-commands any;
+        }
+        file messages {                 
+            any notice;
+            authorization info;
+        }
+    }
+}
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet {
+                address FXP0ADDR;
+            }
+        }
+    }
+}
+

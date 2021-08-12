@@ -1,0 +1,60 @@
+name: "cptx-host"
+nodes: {
+    name: "vm-1"
+    type: HOST
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+nodes: {
+    name: "cptx"
+    type: JUNIPER_CEVO
+    config: {
+      image: "cptx:latest"
+      config_path: "/home/evo/configdisk"
+      config_file: "juniper.conf"
+      file: "../examples/cptx/cptx-config" 
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
+    }
+}
+nodes: {
+    name: "vm-2"
+    type: HOST
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+
+links: {
+    a_node: "vm-1"
+    a_int: "eth1"
+    z_node: "cptx"
+    z_int: "eth4"
+}
+links: {
+    a_node: "vm-2"
+    a_int: "eth1"
+    z_node: "cptx"
+    z_int: "eth5"
+}
