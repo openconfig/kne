@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/kne/cmd/deploy"
 	"github.com/google/kne/cmd/topology"
 	"github.com/google/kne/topo"
 	"github.com/kr/pretty"
@@ -75,6 +76,7 @@ func init() {
 	rootCmd.AddCommand(enableForwardingCmd)
 	rootCmd.AddCommand(enableLLDPCmd)
 	rootCmd.AddCommand(topology.New())
+	rootCmd.AddCommand(deploy.New())
 	//rootCmd.AddCommand(graphCmd)
 }
 

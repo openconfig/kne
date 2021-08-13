@@ -15,28 +15,41 @@
 package main
 
 import (
-	"log"
-	"net"
+	"path/filepath"
 
-	"google.golang.org/grpc"
+	"github.com/google/kne/server/topology"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"k8s.io/client-go/util/homedir"
 )
 
-type Server struct{}
-
-const (
-	port = ":50051"
+var (
+	defaultKubeCfg = ""
+	kubecfg        = ""
+	logLevel       = "info"
 )
 
-type server struct {
+func Init() {
+	if home := homedir.HomeDir(); home != "" {
+		defaultKubeCfg = filepath.Join(home, ".kube", "config")
+	}
+	pflag.StringVar(&kubecfg, "kubecfg", defaultKubeCfg, "Kubecfg to use")
+	pflag.StringVarP(&logLevel, "verbosity", "v", logLevel, "log level")
+	l, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.Errorf("failed to set log level: %v", err)
+		return
+	}
+	log.SetLevel(l)
 }
 
 func main() {
-	lis, err := net.Listen("tcp", port)
+	Init()
+	tService, err := topology.New(kubecfg)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("failed to create service: %v", err)
 	}
-	s := grpc.NewServer()
-	if err := s.Serve(lis); err != nil {
+	if err := tService.Serve(); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }

@@ -1,0 +1,17 @@
+cluster:
+  kind: Kind
+  spec: 
+    name: kne1
+    version: 0.11.1
+    image: kindest/node:v1.22.0
+egress:
+  kind: MetalLB
+  spec:
+    manifests: manifests/metallb
+    use_docker: True
+cni:
+  kind: Meshnet
+  spec:
+    manifests: manifests/meshnet
+    
+    
