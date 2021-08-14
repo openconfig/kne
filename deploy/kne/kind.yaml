@@ -1,7 +1,7 @@
 cluster:
   kind: Kind
   spec: 
-    name: kne1
+    name: kne
     recycle: True
     version: 0.11.1
     image: kindest/node:v1.22.0

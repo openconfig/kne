@@ -1,5 +1,29 @@
 # Installation
 
+## Use kne_cli deploy with configuration yaml
+
+```bash
+kne_cli deploy deploy/kne/kind.yaml
+```
+
+The new deployment command will perform all the below operations in a single call based on a yaml file you can customize.
+
+* Deploy kind cluster
+  * name will be the name of the kind cluster
+  * recycle will allow an existing cluster to be deployed on
+  * version is the kind version
+  * image is the node image to pull
+* Install Metallb
+  * Based on manifests/metallb checked in configurations
+  * Read docker configuration and generate proper configuration file
+  * Wait for deployment to complete
+* Install Meshnet
+  * Based on manifests/meshnet check in configurations
+  * Wait for pods to be healthy
+
+From start to finish this will take ~1 min to bring up the cluster ready for you to deploy a topology to.
+This will stil need images for the devices you wish to use in the topology loaded into the cluster.
+
 ## Create VM
 
 ## Install Docker
