@@ -2,16 +2,17 @@ cluster:
   kind: Kind
   spec: 
     name: kne1
+    recycle: True
     version: 0.11.1
     image: kindest/node:v1.22.0
-egress:
+ingress:
   kind: MetalLB
   spec:
-    manifests: manifests/metallb
-    use_docker: True
+    manifests: ../../manifests/metallb
+    ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: manifests/meshnet
+    manifests: ../../manifests/meshnet
     
     

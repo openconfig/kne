@@ -17,7 +17,6 @@ package main
 import (
 	"path/filepath"
 
-	"github.com/google/kne/server/topology"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/util/homedir"
@@ -45,11 +44,4 @@ func Init() {
 
 func main() {
 	Init()
-	tService, err := topology.New(kubecfg)
-	if err != nil {
-		log.Fatalf("failed to create service: %v", err)
-	}
-	if err := tService.Serve(); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
 }
