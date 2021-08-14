@@ -21,8 +21,16 @@ The new deployment command will perform all the below operations in a single cal
   * Based on manifests/meshnet check in configurations
   * Wait for pods to be healthy
 
-From start to finish this will take ~1 min to bring up the cluster ready for you to deploy a topology to.
-This will stil need images for the devices you wish to use in the topology loaded into the cluster.
+* From start to finish this will take ~1 min to bring up the cluster.
+* After the deployment is finished additional steps might be required:
+  * Import container images to the cluster image store (unless an image is available for pulling)
+  * Install controllers for nodes which are managed externally
+
+* Once you hvae loaded any specific controllers or images your topology requires
+
+```bash
+kne_cli create <topology file>
+```
 
 ## Create VM
 
@@ -51,7 +59,7 @@ $ sudo add-apt-repository \
 
 ## [Install Kubernetes](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-kubectl-on-linux)
 
-```
+```bash
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 chmod +x kubectl
 mv $(GOPATH)/bin/kubectl
@@ -87,11 +95,9 @@ kind load docker-image ios-xr:latest --name=kne
 ### Clone repo
 
 ```bash
-
 git clone git@github.com:h-fam/meshnet-cni.git
 cd meshnet-cni
 kubectl apply -k manifests/base
-
 ```
 
 ### Validate meshnet is running
@@ -100,7 +106,6 @@ kubectl apply -k manifests/base
 marcus@muerto:~/src/meshnet-cni/manifests/base$ kubectl get daemonset -n meshnet
 NAME      DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                   AGE
 meshnet   1         1         1       1            1           beta.kubernetes.io/arch=amd64   3h2m
-
 ```
 
 ## Add MetalLB (if you want to access pods outside of cluster)
@@ -207,7 +212,7 @@ NAMESPACE     NAME         TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(
 
 * Push base config to node
 
-```
+```bash
 kubectl exec -it -n 3node-ceos r1 -- Cli
 enable
 config t
@@ -217,12 +222,13 @@ write
 
 * SSH to Pod based on external ip
 
-```
+```bash
 ssh netops@<service ip>
 ```
+
 * Example
 
-```
+```bash
 ssh netops@192.168.18.100
 (netops@192.168.18.100) Password: 
 r1>show ip route

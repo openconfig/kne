@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -407,7 +408,9 @@ func deploymentFromArg(p string) (*DeploymentConfig, string, error) {
 	}
 	deploymentBasePath = filepath.Dir(deploymentBasePath)
 	dCfg := &DeploymentConfig{}
-	if err := yaml.Unmarshal(b, dCfg); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewBuffer(b))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(dCfg); err != nil {
 		return nil, "", err
 	}
 	return dCfg, deploymentBasePath, nil
