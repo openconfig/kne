@@ -1,10 +1,14 @@
 package deploy
 
 import (
+	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/google/kne/cmd/deploy/mocks"
 	"github.com/h-fam/errdiff"
 )
 
@@ -117,9 +121,66 @@ func TestNewDeployment(t *testing.T) {
 			t.Log(d)
 		})
 	}
-
 }
 
 func TestKindSpec(t *testing.T) {
-
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	tests := []struct {
+		desc        string
+		k           *KindSpec
+		wantErr     string
+		mockExpects func(m *mocks.Mockprovider)
+	}{{
+		desc: "create cluster",
+		k: &KindSpec{
+			Name:    "testCluster",
+			Recycle: false,
+		},
+		mockExpects: func(m *mocks.Mockprovider) {
+			m.EXPECT().Create("testCluster", gomock.Any()).Return(nil)
+		},
+	}, {
+		desc: "create cluster with recycle",
+		k: &KindSpec{
+			Name:    "testCluster",
+			Recycle: true,
+		},
+		mockExpects: func(m *mocks.Mockprovider) {
+			m.EXPECT().Create("testCluster", gomock.Any()).Return(nil)
+			m.EXPECT().List().Return([]string{"test1"}, nil)
+		},
+	}, {
+		desc: "exists cluster with recycle",
+		k: &KindSpec{
+			Name:    "testCluster",
+			Recycle: true,
+		},
+		mockExpects: func(m *mocks.Mockprovider) {
+			m.EXPECT().List().Return([]string{"testCluster"}, nil)
+		},
+	}, {
+		desc: "create fail",
+		k: &KindSpec{
+			Name:    "testCluster",
+			Recycle: false,
+		},
+		mockExpects: func(m *mocks.Mockprovider) {
+			m.EXPECT().Create("testCluster", gomock.Any()).Return(fmt.Errorf("create failed"))
+		},
+		wantErr: "failed to create cluster",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			m := mocks.NewMockprovider(mockCtrl)
+			tt.mockExpects(m)
+			newProvider = func() provider {
+				return m
+			}
+			err := tt.k.Deploy(context.Background())
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
 }
