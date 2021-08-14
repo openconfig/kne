@@ -19,6 +19,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -176,9 +177,8 @@ func execCmd(cmd string, args ...string) error {
 }
 
 func (m *MetalLBSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploying metallb")
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
-	fmt.Println(deploymentBasePath, mPath)
+	log.Infof("Deploying metallb from: %s", mPath)
 	if err := execCmd("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
 		return err
 	}
@@ -280,8 +280,52 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 }
 
 type MeshnetSpec struct {
-	Image     string `yaml:"image"`
-	Manifests string `yaml:"manifests"`
+	Image       string `yaml:"image"`
+	ManifestDir string `yaml:"manifests"`
+	kClient     kubernetes.Interface
+}
+
+func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
+	m.kClient = c
+}
+
+func (m *MeshnetSpec) Deploy(ctx context.Context) error {
+	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
+	log.Infof("Deploying Meshnet from: %s", mPath)
+	if err := execCmd("kubectl", "apply", "-k", mPath); err != nil {
+		return err
+	}
+	log.Infof("Meshnet Deployed")
+	return nil
+}
+
+func (m *MeshnetSpec) Healthy(ctx context.Context) error {
+	log.Infof("Waiting on Metallb to be Healthy")
+	w, err := m.kClient.AppsV1().DaemonSets("meshnet").Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: "meshnet"}).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context canceled before healthy")
+		case e, ok := <-w.ResultChan():
+			if !ok {
+				return fmt.Errorf("watch channel closed before healthy")
+			}
+			d, ok := e.Object.(*appsv1.DaemonSet)
+			if !ok {
+				return fmt.Errorf("invalid object type: %T", d)
+			}
+			if d.Status.CurrentNumberScheduled == d.Status.CurrentNumberScheduled &&
+				d.Status.NumberUnavailable == 0 {
+				log.Infof("Meshnet Healthy")
+				return nil
+			}
+		}
+	}
 }
 
 type Cluster interface {
@@ -294,7 +338,11 @@ type Ingress interface {
 	Healthy(context.Context) error
 }
 
-type CNI interface{}
+type CNI interface {
+	Deploy(context.Context) error
+	SetKClient(kubernetes.Interface)
+	Healthy(context.Context) error
+}
 
 type Deployment struct {
 	Cluster Cluster
@@ -396,10 +444,15 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	if err := d.Ingress.Healthy(ctx); err != nil {
 		return err
 	}
-	log.Infof("Deploying meshnet")
-	log.Infof("Validing meshnet health")
-	log.Infof("Deploying topology manager")
-	log.Infof("Validating topology manager health")
+	if err := d.CNI.Deploy(cmd.Context()); err != nil {
+		return err
+	}
+	d.CNI.SetKClient(kClient)
+	ctx, cancel = context.WithTimeout(cmd.Context(), 1*time.Minute)
+	defer cancel()
+	if err := d.CNI.Healthy(ctx); err != nil {
+		return err
+	}
 	log.Infof("Ready for topology")
 	return nil
 }

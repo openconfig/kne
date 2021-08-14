@@ -26,7 +26,7 @@ spec:
       - name: meshnet
         securityContext:
           privileged: true
-        image: hfam/meshnet:latest
+        image: networkop/meshnet:latest
         imagePullPolicy: IfNotPresent
         resources:
           limits:
