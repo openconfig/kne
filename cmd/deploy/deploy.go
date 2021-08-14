@@ -319,7 +319,7 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 			if !ok {
 				return fmt.Errorf("invalid object type: %T", d)
 			}
-			if d.Status.CurrentNumberScheduled == d.Status.CurrentNumberScheduled &&
+			if d.Status.NumberReady == d.Status.DesiredNumberScheduled &&
 				d.Status.NumberUnavailable == 0 {
 				log.Infof("Meshnet Healthy")
 				return nil
@@ -396,24 +396,32 @@ var (
 	deploymentBasePath string
 )
 
+func deploymentFromArg(p string) (*DeploymentConfig, string, error) {
+	deploymentBasePath, err := filepath.Abs(p)
+	if err != nil {
+		return nil, "", err
+	}
+	b, err := ioutil.ReadFile(deploymentBasePath)
+	if err != nil {
+		return nil, "", err
+	}
+	deploymentBasePath = filepath.Dir(deploymentBasePath)
+	dCfg := &DeploymentConfig{}
+	if err := yaml.Unmarshal(b, dCfg); err != nil {
+		return nil, "", err
+	}
+	return dCfg, deploymentBasePath, nil
+}
+
 func deployFn(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("%s: missing args", cmd.Use)
 	}
-	var err error
-	deploymentBasePath, err = filepath.Abs(args[0])
+	dCfg, bp, err := deploymentFromArg(args[0])
 	if err != nil {
 		return err
 	}
-	deploymentBasePath = filepath.Dir(deploymentBasePath)
-	b, err := ioutil.ReadFile(args[0])
-	if err != nil {
-		return err
-	}
-	dCfg := &DeploymentConfig{}
-	if err := yaml.Unmarshal(b, dCfg); err != nil {
-		return err
-	}
+	deploymentBasePath = bp
 	d, err := NewDeployment(dCfg)
 	if err != nil {
 		return err
