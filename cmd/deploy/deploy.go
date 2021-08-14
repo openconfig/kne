@@ -16,8 +16,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/kind/pkg/cluster"
@@ -247,6 +249,36 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	return nil
 }
 
+func (m *MetalLBSpec) Healthy(ctx context.Context) error {
+	log.Infof("Waiting on Metallb to be Healthy")
+	w, err := m.kClient.AppsV1().Deployments("metallb-system").Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context canceled before healthy")
+		case e, ok := <-w.ResultChan():
+			if !ok {
+				return fmt.Errorf("watch channel closed before healthy")
+			}
+			d, ok := e.Object.(*appsv1.Deployment)
+			if !ok {
+				return fmt.Errorf("invalid object type: %T", d)
+			}
+			if d.Status.AvailableReplicas == 1 &&
+				d.Status.ReadyReplicas == 1 &&
+				d.Status.UnavailableReplicas == 0 &&
+				d.Status.Replicas == 1 &&
+				d.Status.UpdatedReplicas == 1 {
+				log.Infof("Metallb Healthy")
+				return nil
+			}
+		}
+	}
+}
+
 type MeshnetSpec struct {
 	Image     string `yaml:"image"`
 	Manifests string `yaml:"manifests"`
@@ -259,6 +291,7 @@ type Cluster interface {
 type Ingress interface {
 	Deploy(context.Context) error
 	SetKClient(kubernetes.Interface)
+	Healthy(context.Context) error
 }
 
 type CNI interface{}
@@ -358,7 +391,11 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	if err := d.Ingress.Deploy(cmd.Context()); err != nil {
 		return err
 	}
-	log.Infof("Validating metallb")
+	ctx, cancel := context.WithTimeout(cmd.Context(), 1*time.Minute)
+	defer cancel()
+	if err := d.Ingress.Healthy(ctx); err != nil {
+		return err
+	}
 	log.Infof("Deploying meshnet")
 	log.Infof("Validing meshnet health")
 	log.Infof("Deploying topology manager")
