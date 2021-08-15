@@ -79,6 +79,13 @@ cni:
     manifests: ../../manifests/meshnet/base`
 )
 
+func TestNew(t *testing.T) {
+	c := New()
+	if !strings.HasPrefix(c.Use, "deploy") {
+		t.Fatalf("unexpected command object: got %q, want \"deploy\"", c.Use)
+	}
+}
+
 func TestNewDeployment(t *testing.T) {
 	tests := []struct {
 		desc    string
