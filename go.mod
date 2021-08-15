@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/h-fam/errdiff v1.0.2
 	github.com/kr/pretty v0.2.1
+	github.com/kylelemons/godebug v1.1.0
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1

@@ -12,6 +12,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/kne/cmd/deploy/mocks"
 	"github.com/h-fam/errdiff"
+	"github.com/kylelemons/godebug/diff"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -245,7 +246,10 @@ func TestMetalbSpec(t *testing.T) {
 		IPAM: network.IPAM{
 			Config: []network.IPAMConfig{{
 				Subnet: "172.18.0.0/16",
-			}}},
+			}, {
+				Subnet: "127::0/64",
+			}},
+		},
 	}, {
 		Name: "docker",
 		IPAM: network.IPAM{
@@ -266,12 +270,13 @@ func TestMetalbSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		m           *MetalLBSpec
+		wantCM      string
 		dErr        string
 		hErr        string
 		ctx         context.Context
 		mockExpects func(*mocks.MockNetworkAPIClient)
 	}{{
-		desc: "create cluster",
+		desc: "namespace error",
 		m: &MetalLBSpec{
 			IPCount: 20,
 			execer:  makeExecer("namespace error"),
@@ -318,6 +323,12 @@ func TestMetalbSpec(t *testing.T) {
 			IPCount: 20,
 			execer:  makeExecer("", "", ""),
 		},
+		wantCM: `address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+        - 172.18.0.50 - 172.18.0.70
+`,
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
 		},
@@ -379,6 +390,18 @@ func TestMetalbSpec(t *testing.T) {
 			err = tt.m.Healthy(tt.ctx)
 			if s := errdiff.Substring(err, tt.hErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			cm, err := tt.m.kClient.CoreV1().ConfigMaps("metallb-system").Get(context.Background(), "config", metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("failed to get config-map: %v", err)
+			}
+			cText := cm.Data["config"]
+			diff := diff.Diff(cText, tt.wantCM)
+			if diff != "" {
+				t.Fatalf("invalid configmap data: \n%s", diff)
 			}
 		})
 	}

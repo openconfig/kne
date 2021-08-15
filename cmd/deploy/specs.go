@@ -134,7 +134,21 @@ func execCmd(cmd string, args ...string) error {
 	}
 	return nil
 }
-
+func makeConfig(n *net.IPNet, count int) metalLBConfig {
+	start := make(net.IP, len(n.IP))
+	copy(start, n.IP)
+	inc(start, 50)
+	end := make(net.IP, len(start))
+	copy(end, start)
+	inc(end, count)
+	return metalLBConfig{
+		AddressPools: []pool{{
+			Name:      "default",
+			Protocol:  "layer2",
+			Addresses: []string{fmt.Sprintf("%s - %s", start, end)},
+		}},
+	}
+}
 func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if m.execer == nil {
 		m.execer = execCmd
@@ -183,19 +197,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if n == nil {
 		return fmt.Errorf("failed to find kind ipv4 docker net")
 	}
-	start := make(net.IP, len(n.IP))
-	copy(start, n.IP)
-	inc(start, 50)
-	end := make(net.IP, len(start))
-	copy(end, start)
-	inc(end, m.IPCount)
-	config := metalLBConfig{
-		AddressPools: []pool{{
-			Name:      "default",
-			Protocol:  "layer2",
-			Addresses: []string{fmt.Sprintf("%s - %s", start, end)},
-		}},
-	}
+	config := makeConfig(n, m.IPCount)
 	b, err := yaml.Marshal(config)
 	if err != nil {
 		return err
