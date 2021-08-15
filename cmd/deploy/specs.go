@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -46,7 +45,7 @@ type KindSpec struct {
 	Kubecfg string `yaml:"kubecfg"`
 }
 
-//go:generate mockgen -source=specs.go -destination=mocks/mocks.go -package=mocks provider
+//go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
 type provider interface {
 	List() ([]string, error)
 	Create(name string, options ...cluster.CreateOption) error
@@ -95,6 +94,8 @@ type MetalLBSpec struct {
 	IPCount     int    `yaml:"ip_count"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
+	execer      func(string, ...string) error
+	dClient     dclient.NetworkAPIClient
 }
 
 func (m *MetalLBSpec) SetKClient(c kubernetes.Interface) {
@@ -125,8 +126,8 @@ type metalLBConfig struct {
 
 func execCmd(cmd string, args ...string) error {
 	c := exec.Command(cmd, args...)
-	c.Stderr = os.Stderr
-	c.Stdout = os.Stdout
+	c.Stderr = log.StandardLogger().Out
+	c.Stdout = log.StandardLogger().Out
 	log.Info(c.String())
 	if err := c.Run(); err != nil {
 		return fmt.Errorf("%q failed: %v", c.String(), err)
@@ -135,22 +136,29 @@ func execCmd(cmd string, args ...string) error {
 }
 
 func (m *MetalLBSpec) Deploy(ctx context.Context) error {
+	if m.execer == nil {
+		m.execer = execCmd
+	}
+	if m.dClient == nil {
+		var err error
+		m.dClient, err = dclient.NewClientWithOpts(dclient.FromEnv)
+		if err != nil {
+			return err
+		}
+	}
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
 	log.Infof("Deploying metallb from: %s", mPath)
-	if err := execCmd("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
+	if err := m.execer("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
 		return err
 	}
-	if err := execCmd("kubectl", "create", "secret", "generic", "-n", "metallb-system", "memberlist", "--from-literal=secretkey=\"$(openssl rand -base64 128)\""); err != nil {
+	if err := m.execer("kubectl", "create", "secret", "generic", "-n", "metallb-system", "memberlist", "--from-literal=secretkey=\"$(openssl rand -base64 128)\""); err != nil {
 		return err
 	}
-	if err := execCmd("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
+	if err := m.execer("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
 		return err
 	}
-	c, err := dclient.NewClientWithOpts(dclient.FromEnv)
-	if err != nil {
-		return err
-	}
-	nr, err := c.NetworkList(ctx, dtypes.NetworkListOptions{})
+	// Get Network information from docker.
+	nr, err := m.dClient.NetworkList(ctx, dtypes.NetworkListOptions{})
 	if err != nil {
 		return err
 	}
@@ -213,11 +221,12 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	ch := w.ResultChan()
 	for {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("context canceled before healthy")
-		case e, ok := <-w.ResultChan():
+		case e, ok := <-ch:
 			if !ok {
 				return fmt.Errorf("watch channel closed before healthy")
 			}
@@ -241,6 +250,7 @@ type MeshnetSpec struct {
 	Image       string `yaml:"image"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
+	execer      func(string, ...string) error
 }
 
 func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
@@ -248,9 +258,12 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 }
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
+	if m.execer == nil {
+		m.execer = execCmd
+	}
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
 	log.Infof("Deploying Meshnet from: %s", mPath)
-	if err := execCmd("kubectl", "apply", "-k", mPath); err != nil {
+	if err := m.execer("kubectl", "apply", "-k", mPath); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")

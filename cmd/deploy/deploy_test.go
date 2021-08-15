@@ -7,9 +7,16 @@ import (
 	"os"
 	"testing"
 
+	dtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
 	"github.com/google/kne/cmd/deploy/mocks"
 	"github.com/h-fam/errdiff"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes/fake"
+	ktest "k8s.io/client-go/testing"
 )
 
 var (
@@ -179,6 +186,195 @@ func TestKindSpec(t *testing.T) {
 			}
 			err := tt.k.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func makeExecer(resp ...string) func(string, ...string) error {
+	r := resp
+	return func(_ string, _ ...string) error {
+		resp := r[0]
+		r = r[1:]
+		if resp == "" {
+			return nil
+		}
+		return fmt.Errorf(resp)
+	}
+}
+
+type fakeWatch struct {
+	e    []watch.Event
+	ch   chan watch.Event
+	done chan struct{}
+}
+
+func newFakeWatch(e []watch.Event) *fakeWatch {
+	f := &fakeWatch{
+		e:    e,
+		ch:   make(chan watch.Event, 1),
+		done: make(chan struct{}),
+	}
+	go func() {
+		for len(f.e) != 0 {
+			e := f.e[0]
+			f.e = f.e[1:]
+			select {
+			case f.ch <- e:
+			case <-f.done:
+				return
+			}
+		}
+	}()
+	return f
+}
+func (f *fakeWatch) Stop() {
+	close(f.done)
+}
+
+func (f *fakeWatch) ResultChan() <-chan watch.Event {
+	return f.ch
+}
+
+//go:generate mockgen -destination=mocks/mock_dnetwork.go -package=mocks github.com/docker/docker/client  NetworkAPIClient
+
+func TestMetalbSpec(t *testing.T) {
+	nl := []dtypes.NetworkResource{{
+		Name: "kind",
+		IPAM: network.IPAM{
+			Config: []network.IPAMConfig{{
+				Subnet: "172.18.0.0/16",
+			}}},
+	}, {
+		Name: "docker",
+		IPAM: network.IPAM{
+			Config: []network.IPAMConfig{{
+				Subnet: "1.1.1.1/16",
+			}}},
+	}}
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	d := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "metallb-system",
+		},
+	}
+	tests := []struct {
+		desc        string
+		m           *MetalLBSpec
+		dErr        string
+		hErr        string
+		ctx         context.Context
+		mockExpects func(*mocks.MockNetworkAPIClient)
+	}{{
+		desc: "create cluster",
+		m: &MetalLBSpec{
+			IPCount: 20,
+			execer:  makeExecer("namespace error"),
+		},
+		dErr: "namespace error",
+	}, {
+		desc: "secret error",
+		m: &MetalLBSpec{
+			IPCount: 20,
+			execer:  makeExecer("", "secret error"),
+		},
+		dErr: "secret error",
+	}, {
+		desc: "metallb error",
+		m: &MetalLBSpec{
+			IPCount: 20,
+			execer:  makeExecer("", "", "metallb error"),
+		},
+		dErr: "metallb error",
+	}, {
+		desc: "canceled ctx",
+		m: &MetalLBSpec{
+			IPCount: 20,
+			execer:  makeExecer("", "", ""),
+		},
+		ctx:  canceledCtx,
+		hErr: "context canceled",
+	}, {
+		desc: "dclient error",
+		m: &MetalLBSpec{
+			IPCount: 20,
+			execer:  makeExecer("", "", ""),
+		},
+		mockExpects: func(m *mocks.MockNetworkAPIClient) {
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("dclient error"))
+		},
+		dErr: "dclient error",
+	}, {
+		desc: "valid deployment",
+		m: &MetalLBSpec{
+			IPCount: 20,
+			execer:  makeExecer("", "", ""),
+		},
+		mockExpects: func(m *mocks.MockNetworkAPIClient) {
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset(d)
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			ki.PrependWatchReactor("deployments", reaction)
+			tt.m.SetKClient(ki)
+			if tt.mockExpects != nil {
+				m := mocks.NewMockNetworkAPIClient(mockCtrl)
+				tt.mockExpects(m)
+				tt.m.dClient = m
+			}
+			err := tt.m.Deploy(context.Background())
+			if s := errdiff.Substring(err, tt.dErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			if tt.ctx == nil {
+				tt.ctx = context.Background()
+			}
+			err = tt.m.Healthy(tt.ctx)
+			if s := errdiff.Substring(err, tt.hErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
 		})
