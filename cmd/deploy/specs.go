@@ -271,7 +271,7 @@ func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 }
 
 func (m *MeshnetSpec) Healthy(ctx context.Context) error {
-	log.Infof("Waiting on Metallb to be Healthy")
+	log.Infof("Waiting on Meshnet to be Healthy")
 	w, err := m.kClient.AppsV1().DaemonSets("meshnet").Watch(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: "meshnet"}).String(),
 	})

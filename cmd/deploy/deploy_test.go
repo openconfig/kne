@@ -383,3 +383,90 @@ func TestMetalbSpec(t *testing.T) {
 		})
 	}
 }
+
+func TestMeshnet(t *testing.T) {
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	d := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "meshnet",
+			Namespace: "meshnet",
+		},
+	}
+	tests := []struct {
+		desc string
+		m    *MeshnetSpec
+		dErr string
+		hErr string
+		ctx  context.Context
+	}{{
+		desc: "apply error cluster",
+		m: &MeshnetSpec{
+			execer: makeExecer("apply error"),
+		},
+		dErr: "apply error",
+	}, {
+		desc: "canceled ctx",
+		m: &MeshnetSpec{
+			execer: makeExecer(""),
+		},
+		ctx:  canceledCtx,
+		hErr: "context canceled",
+	}, {
+		desc: "valid deployment",
+		m: &MeshnetSpec{
+			execer: makeExecer(""),
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset(d)
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.DaemonSet{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "meshnet",
+							Namespace: "meshnet",
+						},
+						Status: appsv1.DaemonSetStatus{
+							NumberReady:            0,
+							DesiredNumberScheduled: 1,
+							NumberUnavailable:      1,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.DaemonSet{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "meshnet",
+							Namespace: "meshnet",
+						},
+						Status: appsv1.DaemonSetStatus{
+							NumberReady:            1,
+							DesiredNumberScheduled: 1,
+							NumberUnavailable:      0,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			ki.PrependWatchReactor("daemonsets", reaction)
+			tt.m.SetKClient(ki)
+			err := tt.m.Deploy(context.Background())
+			if s := errdiff.Substring(err, tt.dErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			if tt.ctx == nil {
+				tt.ctx = context.Background()
+			}
+			err = tt.m.Healthy(tt.ctx)
+			if s := errdiff.Substring(err, tt.hErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
