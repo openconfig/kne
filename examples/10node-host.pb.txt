@@ -1,4 +1,4 @@
-name: "10node-HOST"
+name: "10node-host"
 nodes: {
     name: "vm-1"
     type: HOST
