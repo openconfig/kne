@@ -297,6 +297,9 @@ func TestMetalbSpec(t *testing.T) {
 			IPCount: 20,
 			execer:  makeExecer("", "", ""),
 		},
+		mockExpects: func(m *mocks.MockNetworkAPIClient) {
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+		},
 		ctx:  canceledCtx,
 		hErr: "context canceled",
 	}, {
