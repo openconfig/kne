@@ -1,5 +1,15 @@
 # Installation
 
+## What do you need to run KNE
+
+* Linux kernel supporting docker
+* Docker
+* Kind
+* Kubectl
+* github.com/google/kne cloned repo to build kne_cli
+
+Once you have installed these you can  move to the next step of installing kne
+
 ## Use kne_cli deploy with configuration yaml
 
 ```bash
@@ -32,7 +42,6 @@ The new deployment command will perform all the below operations in a single cal
 kne_cli create <topology file>
 ```
 
-## Create VM
 
 ## Install Docker
 
