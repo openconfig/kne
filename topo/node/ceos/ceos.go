@@ -11,6 +11,9 @@ import (
 	expect "github.com/google/goexpect"
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	scraplibase "github.com/scrapli/scrapligo/driver/base"
+	scraplicore "github.com/scrapli/scrapligo/driver/core"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -70,57 +73,47 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 		}
 	}
 	log.Infof("%s - pod running.", n.pb.Name)
-	done := false
-	var g expect.Expecter
-	log.Infof("%s - waiting on container to be ready", n.pb.Name)
-	waitTime := 0 * timeSecond
-	for !done {
-		time.Sleep(waitTime)
-		cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
-		var err error
-		g, _, err = spawner(cmd, -1)
-		// This could be set per error case but probably not worth it.
-		waitTime = 10 * timeSecond
-		if err != nil {
-			log.Debugf("%s - process not ready - waiting.", n.pb.Name)
-			continue
-		}
-		_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
-		if err != nil {
-			log.Debugf("%s - os not ready - waiting.", n.pb.Name)
-			continue
-		}
-		log.Debugf("%s - captured prompt", n.pb.Name)
-		if err := g.Send("enable\n"); err != nil {
-			return err
-		}
-		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*timeSecond)
-		if err != nil {
-			log.Debugf("%s - auth not ready - waiting.", n.pb.Name)
-			continue
-		}
-		done = true
-	}
-	cmd := fmt.Sprintf("security pki key generate rsa %d %s\n", selfSigned.KeySize, selfSigned.KeyName)
-	log.Debugf("%s - enabled - sending %q", n.pb.Name, cmd)
-	if err := g.Send(cmd); err != nil {
-		return err
-	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), 30*timeSecond)
+
+	d, err := scraplicore.NewCoreDriver(
+		n.pb.Name,
+		"arista_eos",
+		scraplibase.WithAuthBypass(true),
+		scraplibase.WithTimeoutOps(time.Second*30),
+	)
 	if err != nil {
 		return err
 	}
-	cmd = fmt.Sprintf("security pki certificate generate self-signed %s key %s parameters common-name %s\n", selfSigned.CertName, selfSigned.KeyName, n.pb.Name)
-	log.Debugf("key generated - sending %q", cmd)
-	if err := g.Send(cmd); err != nil {
-		return err
+	// set kubectl exec command for scrapli transport
+	transport, _ := d.Transport.(*scraplitransport.System)
+	transport.ExecCmd = "kubectl"
+	transport.OpenCmd = []string{"exec", "-it", "-n", ni.Namespace(), n.pb.Name, "--", "Cli"}
+
+	transportReady := false
+	for !transportReady {
+		if err := d.Open(); err != nil {
+			log.Debugf("%s - Cli not ready - waiting.", n.pb.Name)
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		transportReady = true
+		log.Debugf("%s - Cli ready, starting certificate provisioning.", n.pb.Name)
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`(.*)#`), 30*timeSecond)
+
+	defer d.Close()
+
+	cmds := []string{
+		fmt.Sprintf("security pki key generate rsa %d %s\n", selfSigned.KeySize, selfSigned.KeyName),
+		fmt.Sprintf("security pki certificate generate self-signed %s key %s parameters common-name %s\n", selfSigned.CertName, selfSigned.KeyName, n.pb.Name),
+	}
+
+	_, err = d.SendCommands(cmds)
 	if err != nil {
 		return err
 	}
+
 	log.Infof("%s - finshed cert generation", n.pb.Name)
-	return g.Close()
+
+	return err
 }
 
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {

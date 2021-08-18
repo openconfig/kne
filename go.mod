@@ -15,6 +15,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
+	github.com/scrapli/scrapligo v0.0.0-20210817142910-450c14e8d113
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
