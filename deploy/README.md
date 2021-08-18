@@ -248,7 +248,6 @@ Codes: C - connected, S - static, K - kernel,
 
 Gateway of last resort is not set
 
-
 ! IP routing not enabled
 r1>
 ```
