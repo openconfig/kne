@@ -17,9 +17,12 @@ import (
 	"github.com/kylelemons/godebug/diff"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
+	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
 	ktest "k8s.io/client-go/testing"
 )
 
@@ -285,6 +288,8 @@ func TestMetalbSpec(t *testing.T) {
 		hErr        string
 		ctx         context.Context
 		mockExpects func(*mocks.MockNetworkAPIClient)
+		mockKClient func(*fake.Clientset)
+		k8sObjects  []runtime.Object
 	}{{
 		desc: "namespace error",
 		m: &MetalLBSpec{
@@ -293,24 +298,48 @@ func TestMetalbSpec(t *testing.T) {
 		},
 		dErr: "namespace error",
 	}, {
-		desc: "secret error",
+		desc: "secret create",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "secret error"),
+			execer:  makeExecer("", ""),
+		},
+		mockKClient: func(k *fake.Clientset) {
+			k.CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("get", "secrets", func(action ktest.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, fmt.Errorf("get secret error")
+			})
+			k.CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("create", "secrets", func(action ktest.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, fmt.Errorf("create secret error")
+			})
 		},
 		dErr: "secret error",
 	}, {
 		desc: "metallb error",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "", "metallb error"),
+			execer:  makeExecer("", "metallb error"),
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "metallb-system",
+					Name:      "memberlist",
+				},
+			},
 		},
 		dErr: "metallb error",
 	}, {
 		desc: "canceled ctx",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "", ""),
+			execer:  makeExecer("", ""),
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "metallb-system",
+					Name:      "memberlist",
+				},
+			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
@@ -342,10 +371,7 @@ func TestMetalbSpec(t *testing.T) {
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
 		},
-	}}
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			ki := fake.NewSimpleClientset(d)
+		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
 					Type: watch.Added,
@@ -380,7 +406,16 @@ func TestMetalbSpec(t *testing.T) {
 				}})
 				return true, f, nil
 			}
-			ki.PrependWatchReactor("deployments", reaction)
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			tt.k8sObjects = append(tt.k8sObjects, d)
+			ki := fake.NewSimpleClientset(tt.k8sObjects...)
+			if tt.mockKClient != nil {
+				tt.mockKClient(ki)
+			}
 			tt.m.SetKClient(ki)
 			if tt.mockExpects != nil {
 				m := mocks.NewMockNetworkAPIClient(mockCtrl)

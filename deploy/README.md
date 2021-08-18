@@ -2,6 +2,12 @@
 
 ## Use kne_cli deploy with configuration yaml
 
+You will still need the following installed see below:
+
+* docker
+* kubectl
+* kind
+
 ```bash
 kne_cli deploy deploy/kne/kind.yaml
 ```
@@ -31,8 +37,6 @@ The new deployment command will perform all the below operations in a single cal
 ```bash
 kne_cli create <topology file>
 ```
-
-## Create VM
 
 ## Install Docker
 
@@ -138,7 +142,7 @@ Will return something like:
 
 ### Create ConfigMap for subnet
 
-Replace <address-range> with something like: "192.168.18.100 - 192.168.18.250"
+Replace \<address-range\> with something like: "192.168.18.100 - 192.168.18.250"
 
 ```
 apiVersion: v1
