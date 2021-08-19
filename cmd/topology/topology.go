@@ -18,6 +18,7 @@ import (
 	"os"
 
 	"github.com/google/kne/topo"
+	"github.com/google/kne/topo/node"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
 
@@ -33,6 +34,8 @@ func New() *cobra.Command {
 	topoCmd.AddCommand(pushCmd)
 	topoCmd.AddCommand(serviceCmd)
 	topoCmd.AddCommand(watchCmd)
+	resetCfgCmd.Flags().BoolVar(&skipReset, "skip", skipReset, "skip nodes if they are not resetable")
+	topoCmd.AddCommand(resetCfgCmd)
 	return topoCmd
 }
 
@@ -57,7 +60,63 @@ var (
 		Short: "push or generate certs for nodes in topology",
 		RunE:  certFn,
 	}
+	resetCfgCmd = &cobra.Command{
+		Use:   "reset -skip <topology> <device>",
+		Short: "reset configuration of device (if device not provide reset all nodes)",
+		RunE:  resetCfgFn,
+	}
 )
+
+var (
+	skipReset bool
+)
+
+func resetCfgFn(cmd *cobra.Command, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("%s: missing args", cmd.Use)
+	}
+	topopb, err := topo.Load(args[0])
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	s, err := cmd.Flags().GetString("kubecfg")
+	if err != nil {
+		return err
+	}
+	t, err := topo.New(s, topopb)
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	ctx := cmd.Context()
+	t.Load(ctx)
+	var nodes []*node.Node
+	if len(args) == 1 {
+		nodes = t.Nodes()
+	} else {
+		n, err := t.Node(args[1])
+		if err != nil {
+			return err
+		}
+		nodes = append(nodes, n)
+	}
+	var resetable []node.Reseter
+	for _, n := range nodes {
+		r, ok := n.Impl().(node.Reseter)
+		if !ok {
+			if skipReset {
+				continue
+			}
+			return fmt.Errorf("node %s is not resetable and --skip not set", n.Name())
+		}
+		resetable = append(resetable, r)
+	}
+	for _, r := range resetable {
+		if err := r.ResetCfg(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func pushFn(cmd *cobra.Command, args []string) error {
 	if len(args) != 3 {

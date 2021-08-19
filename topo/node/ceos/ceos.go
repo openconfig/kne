@@ -177,6 +177,35 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	return g.Close()
 }
 
+func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
+	log.Infof("Resetting config on %s:%s", ni.Namespace(), n.pb.Name)
+	cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
+	g, _, err := spawner(cmd, -1)
+	if err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
+	if err != nil {
+		return err
+	}
+	if err := g.Send("enable\n"); err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
+	if err != nil {
+		return err
+	}
+	if err := g.Send("configure replace clean-config\n"); err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
+	if err != nil {
+		return err
+	}
+	log.Info("Configuration reset")
+	return g.Close()
+}
+
 func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
