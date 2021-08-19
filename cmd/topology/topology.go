@@ -72,8 +72,8 @@ var (
 )
 
 func resetCfgFn(cmd *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("%s: missing args", cmd.Use)
+	if len(args) < 1 || len(args) > 2 {
+		return fmt.Errorf("%s: invalid args", cmd.Use)
 	}
 	topopb, err := topo.Load(args[0])
 	if err != nil {
@@ -99,18 +99,18 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		}
 		nodes = append(nodes, n)
 	}
-	var resetable []node.Reseter
+	var resettable []node.Resetter
 	for _, n := range nodes {
-		r, ok := n.Impl().(node.Reseter)
+		r, ok := n.Impl().(node.Resetter)
 		if !ok {
 			if skipReset {
 				continue
 			}
-			return fmt.Errorf("node %s is not resetable and --skip not set", n.Name())
+			return fmt.Errorf("node %s is not resettable and --skip not set", n.Name())
 		}
-		resetable = append(resetable, r)
+		resettable = append(resettable, r)
 	}
-	for _, r := range resetable {
+	for _, r := range resettable {
 		if err := r.ResetCfg(ctx); err != nil {
 			return err
 		}
