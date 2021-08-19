@@ -89,10 +89,8 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 	}
 	ctx := cmd.Context()
 	t.Load(ctx)
-	var nodes []*node.Node
-	if len(args) == 1 {
-		nodes = t.Nodes()
-	} else {
+	nodes := t.Nodes()
+	if len(args) > 1 {
 		n, err := t.Node(args[1])
 		if err != nil {
 			return err
