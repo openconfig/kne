@@ -95,7 +95,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		nodes = append(nodes, n)
+		nodes = []*node.Node{n}
 	}
 	var resettable []node.Resetter
 	for _, n := range nodes {
