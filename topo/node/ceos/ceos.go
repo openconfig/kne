@@ -1,3 +1,16 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package ceos
 
 import (
@@ -161,6 +174,35 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 		return err
 	}
 	log.Info("Finshed config push")
+	return g.Close()
+}
+
+func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
+	log.Infof("Resetting config on %s:%s", ni.Namespace(), n.pb.Name)
+	cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
+	g, _, err := spawner(cmd, -1)
+	if err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
+	if err != nil {
+		return err
+	}
+	if err := g.Send("enable\n"); err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
+	if err != nil {
+		return err
+	}
+	if err := g.Send("configure replace clean-config\n"); err != nil {
+		return err
+	}
+	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
+	if err != nil {
+		return err
+	}
+	log.Info("Configuration reset")
 	return g.Close()
 }
 

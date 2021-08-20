@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sort"
 	"sync"
 
 	"github.com/google/kne/topo/node"
@@ -286,6 +287,20 @@ type Resources struct {
 	Pods       map[string]*corev1.Pod
 	ConfigMaps map[string]*corev1.ConfigMap
 	Topologies map[string]*topologyv1.Topology
+}
+
+// Nodes returns all nodes in the current topology.
+func (m *Manager) Nodes() []*node.Node {
+	var keys []string
+	for k := range m.nodes {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var n []*node.Node
+	for _, k := range keys {
+		n = append(n, m.nodes[k])
+	}
+	return n
 }
 
 // Resources gets the currently configured resources from the topology.
