@@ -32,14 +32,14 @@ message Topology {
 // Vendor of the node. Topology manager uses this enum dispatch the node to
 // the correct controller. 
 enum Vendor {
-    UNKNOWN = 0;
-    HOST = 1;
-    ARISTA = 2;
-    CISCO = 3;
-    JUNIPER = 4;
-    KEYSIGHT = 5;
-    FRR = 6;
-    QUAGGA = 7;
+  UNKNOWN = 0;
+  HOST = 1;
+  ARISTA = 2;
+  CISCO = 3;
+  JUNIPER = 4;
+  KEYSIGHT = 5;
+  FRR = 6;
+  QUAGGA = 7;
 }
 
 
