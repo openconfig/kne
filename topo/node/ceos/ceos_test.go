@@ -87,8 +87,8 @@ func TestGenerateSelfSigned(t *testing.T) {
 		namespace: "test",
 	}
 
-	pb := &topopb.Node{
-		Name: "testEosNode",
+	validPb := &topopb.Node{
+		Name: "pod1",
 		Type: 2,
 		Config: &topopb.Config{
 			Cert: &topopb.CertificateCfg{
@@ -103,7 +103,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 		},
 	}
 
-	tests := []struct{
+	tests := []struct {
 		desc     string
 		wantErr  bool
 		ni       node.Interface
@@ -115,7 +115,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			pb:       pb,
+			pb:       validPb,
 			testFile: "generate_certificate_success",
 		},
 		{
@@ -123,20 +123,20 @@ func TestGenerateSelfSigned(t *testing.T) {
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			pb:       pb,
+			pb:       validPb,
 			testFile: "generate_certificate_failure",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			n, err := New(pb)
+			nImpl, err := New(tt.pb)
 
 			if err != nil {
 				t.Fatalf("failed creating kne arista node")
 			}
 
-			nImpl, _ := n.(*Node)
+			n, _ := nImpl.(*Node)
 
 			oldNewCoreDriver := scraplicore.NewCoreDriver
 			defer func() { scraplicore.NewCoreDriver = oldNewCoreDriver }()
@@ -144,14 +144,14 @@ func TestGenerateSelfSigned(t *testing.T) {
 				return scraplicore.NewEOSDriver(
 					host,
 					scraplibase.WithAuthBypass(true),
-					scraplibase.WithTimeoutOps(1 * time.Second),
+					scraplibase.WithTimeoutOps(1*time.Second),
 					scraplitest.WithPatchedTransport(tt.testFile),
 				)
 			}
 
 			ctx := context.Background()
 
-			err = nImpl.GenerateSelfSigned(ctx, ni)
+			err = n.GenerateSelfSigned(ctx, ni)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
 			}
