@@ -1,0 +1,27 @@
+spine1>enable
+spine1#
+spine1#terminal length 0
+Pagination disabled.
+spine1#terminal width 32767
+Width set to 32767 columns.
+spine1#
+spine1#configure replace clean-config
+Aug 21 18:37:16 localhost Launcher: %LAUNCHER-6-PROCESS_STOP: Configuring process 'CapiApp' to stop in role 'ActiveSupervisor'
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-STABLE_CHANGE: Stp state is now not stable
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet11 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet19 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet6 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet13 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet10 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet7 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet8 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet12 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet2 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet20 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet18 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet17 has been added to instance MST0
+Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet9 has been added to instance MST0
+% Invalid Input
+spine1#
+spine1#
+spine1#

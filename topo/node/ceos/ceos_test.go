@@ -173,83 +173,88 @@ func TestGenerateSelfSigned(t *testing.T) {
 }
 
 func TestResetCfg(t *testing.T) {
+	ki := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod1",
+		},
+	})
+
+	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+		f := &fakeWatch{
+			e: []watch.Event{{
+				Object: &corev1.Pod{
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				},
+			}},
+		}
+		return true, f, nil
+	}
+	ki.PrependWatchReactor("*", reaction)
+
+	ni := &fakeNode{
+		kClient:   ki,
+		namespace: "test",
+	}
+
+	validPb := &topopb.Node{
+		Name:   "pod1",
+		Type:   2,
+		Config: &topopb.Config{},
+	}
+
 	tests := []struct {
-		desc    string
-		wantErr string
-		ni      node.Interface
-		pb      *topopb.Node
-		spawner func(string, time.Duration, ...expect.Option) (expect.Expecter, <-chan error, error)
-	}{{
-		desc: "valid Reset",
-		pb:   validPb,
-		ni: &fakeNode{
-			namespace: "test",
+		desc     string
+		wantErr  bool
+		ni       node.Interface
+		pb       *topopb.Node
+		testFile string
+	}{
+		{
+			// successfully configure certificate
+			desc:     "success",
+			wantErr:  false,
+			ni:       ni,
+			pb:       validPb,
+			testFile: "reset_config_success",
 		},
-		spawner: fakeSpawner(&fakeExpect{
-			expects: []expects{
-				{resp: "some stuff>"}, // base
-				{resp: "prompt#"},     // enable
-				{resp: "prompt#"},     // reset
-			},
-			sends: []sends{
-				{err: nil}, // enable
-				{err: nil}, // reset
-			},
-		}),
-	}, {
-		desc: "failed send",
-		pb:   validPb,
-		ni: &fakeNode{
-			namespace: "test",
+		{
+			// device returns "% Invalid Input" -- we expect to fail
+			desc:     "failure",
+			wantErr:  true,
+			ni:       ni,
+			pb:       validPb,
+			testFile: "reset_config_failure",
 		},
-		spawner: fakeSpawner(&fakeExpect{
-			expects: []expects{
-				{resp: "some stuff>"}, // base
-				{resp: "prompt#"},     // enable
-				{resp: "prompt#"},     // reset
-			},
-			sends: []sends{
-				{err: fmt.Errorf("send error")}, // enable
-				{err: nil},                      // reset
-			},
-		}),
-		wantErr: "send error",
-	}, {
-		desc: "failed config send",
-		pb:   validPb,
-		ni: &fakeNode{
-			namespace: "test",
-		},
-		spawner: fakeSpawner(&fakeExpect{
-			expects: []expects{
-				{resp: "some stuff>"}, // base
-				{resp: "prompt#"},     // enable
-				{resp: "prompt#"},     // reset
-			},
-			sends: []sends{
-				{err: nil},                      // enable
-				{err: fmt.Errorf("send error")}, // reset
-			},
-		}),
-		wantErr: "send error",
-	}}
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			spawner = tt.spawner
-			timeSecond = 0
-			defer func() {
-				spawner = defaultSpawner
-				timeSecond = time.Second
-			}()
-			nImpl, _ := New(tt.pb)
-			n := nImpl.(*Node)
-			ctx := context.Background()
-			err := n.ResetCfg(ctx, tt.ni)
-			if s := errdiff.Check(err, tt.wantErr); s != "" {
-				t.Fatalf("ResetCfg unexpected error: %s", s)
+			nImpl, err := New(tt.pb)
+
+			if err != nil {
+				t.Fatalf("failed creating kne arista node")
 			}
-			if tt.wantErr != "" {
-				return
+
+			n, _ := nImpl.(*Node)
+
+			oldNewCoreDriver := scraplicore.NewCoreDriver
+			defer func() { scraplicore.NewCoreDriver = oldNewCoreDriver }()
+			scraplicore.NewCoreDriver = func(host, platform string, options ...scraplibase.Option) (*scraplinetwork.Driver, error) {
+				return scraplicore.NewEOSDriver(
+					host,
+					scraplibase.WithAuthBypass(true),
+					scraplibase.WithTimeoutOps(1*time.Second),
+					scraplitest.WithPatchedTransport(tt.testFile),
+				)
+			}
+
+			ctx := context.Background()
+
+			err = n.ResetCfg(ctx, ni)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("resetting config failed, error: %+v\n", err)
 			}
 		})
 	}

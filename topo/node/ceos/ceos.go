@@ -19,14 +19,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"reflect"
 	"time"
+
+	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -79,24 +81,16 @@ func (n *Node) WaitCLIReady() error {
 
 // PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
 func (n *Node) PatchCLIConnOpen(ns string) error {
-	tIntf := reflect.ValueOf(n.cliConn.Transport)
-
-	if tIntf.Type().Kind() != reflect.Ptr {
-		tIntf = reflect.New(reflect.TypeOf(n.cliConn.Transport))
-	}
-
-	execCmd := tIntf.Elem().FieldByName("ExecCmd")
-	openCmd := tIntf.Elem().FieldByName("OpenCmd")
-
-	if !execCmd.IsValid() || !openCmd.IsValid() {
-		// this *shouldn't* happen ever, but it is possible an invalid scrapli transport type gets set.
+	switch t := n.cliConn.Transport.(type) {
+	case *scraplitest.TestingTransport:
+		t.ExecCmd = "kubectl"
+		t.OpenCmd = []string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"}
+	case *scraplitransport.System:
+		t.ExecCmd = "kubectl"
+		t.OpenCmd = []string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"}
+	default:
 		return ErrIncompatibleCliConn
 	}
-
-	execCmd.SetString("kubectl")
-	openCmd.Set(
-		reflect.ValueOf([]string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"}),
-	)
 
 	return nil
 }
@@ -108,6 +102,8 @@ func (n *Node) SpawnCLIConn(ns string) error {
 		n.pb.Name,
 		"arista_eos",
 		scraplibase.WithAuthBypass(true),
+		// disable transport timeout
+		scraplibase.WithTimeoutTransport(0),
 	)
 	if err != nil {
 		return err
@@ -219,32 +215,29 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 }
 
 func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
-	log.Infof("Resetting config on %s:%s", ni.Namespace(), n.pb.Name)
-	cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
-	g, _, err := spawner(cmd, -1)
+	log.Infof("%s resetting config", n.pb.Name)
+
+	err := n.SpawnCLIConn(ni.Namespace())
 	if err != nil {
 		return err
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
+
+	defer n.cliConn.Close()
+
+	// this takes a long time sometimes, so we crank timeouts up
+	resp, err := n.cliConn.SendCommand(
+		"configure replace clean-config",
+		scraplibase.WithSendTimeoutOps(300*time.Second),
+	)
 	if err != nil {
 		return err
+	} else if resp.Failed {
+		return ErrCliOperationFailed
 	}
-	if err := g.Send("enable\n"); err != nil {
-		return err
-	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
-	if err != nil {
-		return err
-	}
-	if err := g.Send("configure replace clean-config\n"); err != nil {
-		return err
-	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
-	if err != nil {
-		return err
-	}
-	log.Info("Configuration reset")
-	return g.Close()
+
+	log.Infof("%s - finshed resetting config", n.pb.Name)
+
+	return nil
 }
 
 func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
