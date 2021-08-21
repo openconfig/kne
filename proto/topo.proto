@@ -29,7 +29,7 @@ message Topology {
   repeated Link links = 3; // connections between Nodes.
 }
 
-// Vendor of the node. Topology manager uses this enum dispatch the node to
+// Vendor of the node. Topology manager uses this enum to dispatch the node to
 // the correct controller. 
 enum Vendor {
   UNKNOWN = 0;
