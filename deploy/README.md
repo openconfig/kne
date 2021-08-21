@@ -2,6 +2,12 @@
 
 ## Use kne_cli deploy with configuration yaml
 
+You will still need the following installed see below:
+
+* docker
+* kubectl
+* kind
+
 ```bash
 kne_cli deploy deploy/kne/kind.yaml
 ```
@@ -26,13 +32,11 @@ The new deployment command will perform all the below operations in a single cal
   * Import container images to the cluster image store (unless an image is available for pulling)
   * Install controllers for nodes which are managed externally
 
-* Once you hvae loaded any specific controllers or images your topology requires
+* Once you have loaded any specific controllers or images your topology requires
 
 ```bash
 kne_cli create <topology file>
 ```
-
-## Create VM
 
 ## Install Docker
 
@@ -138,7 +142,7 @@ Will return something like:
 
 ### Create ConfigMap for subnet
 
-Replace <address-range> with something like: "192.168.18.100 - 192.168.18.250"
+Replace \<address-range\> with something like: "192.168.18.100 - 192.168.18.250"
 
 ```
 apiVersion: v1
@@ -201,7 +205,8 @@ NAMESPACE            NAME                                        READY   STATUS 
 
 ## See your services
 
-```$ kubectl get services -A
+```
+$ kubectl get services -A
 NAMESPACE     NAME         TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                      AGE
 3node-ceos    service-r1   LoadBalancer   10.96.218.147   192.168.18.100   443:30001/TCP,22:30003/TCP   5d3h
 3node-ceos    service-r2   LoadBalancer   10.96.182.229   192.168.18.101   443:30004/TCP,22:30006/TCP   5d3h

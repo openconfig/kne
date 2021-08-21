@@ -44,6 +44,19 @@ type Implementation interface {
 
 type NewNodeFn func(*topopb.Node) (Implementation, error)
 
+// Resetter provides Reset interface to nodes.
+type Resetter interface {
+	ResetCfg(context.Context) error
+}
+
+func (n *Node) ResetCfg(ctx context.Context) error {
+	r, ok := n.impl.(Resetter)
+	if !ok {
+		return fmt.Errorf("%T is not a Resetter", n.impl)
+	}
+	return r.ResetCfg(ctx)
+}
+
 var (
 	mu        sync.Mutex
 	nodeTypes = map[topopb.Node_Type]NewNodeFn{}

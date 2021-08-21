@@ -1,7 +1,22 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package deploy
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"os/exec"
@@ -162,57 +177,78 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	}
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
 	log.Infof("Deploying metallb from: %s", mPath)
+	log.Infof("Creating metallb namespace")
 	if err := m.execer("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
 		return err
 	}
-	if err := m.execer("kubectl", "create", "secret", "generic", "-n", "metallb-system", "memberlist", "--from-literal=secretkey=\"$(openssl rand -base64 128)\""); err != nil {
-		return err
-	}
-	if err := m.execer("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
-		return err
-	}
-	// Get Network information from docker.
-	nr, err := m.dClient.NetworkList(ctx, dtypes.NetworkListOptions{})
+	_, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{})
 	if err != nil {
-		return err
-	}
-	var network dtypes.NetworkResource
-	for _, v := range nr {
-		if v.Name == "kind" {
-			network = v
-			break
+		log.Infof("Creating metallb secret")
+		d := make([]byte, 16)
+		rand.Read(d)
+		s := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "memberlist",
+			},
+			StringData: map[string]string{
+				"secretkey": base64.StdEncoding.EncodeToString(d),
+			},
 		}
-	}
-	var n *net.IPNet
-	for _, ipRange := range network.IPAM.Config {
-		_, ipNet, err := net.ParseCIDR(ipRange.Subnet)
+		_, err := m.kClient.CoreV1().Secrets("metallb-system").Create(ctx, s, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
-		if ipNet.IP.To4() != nil {
-			n = ipNet
-			break
+	}
+	log.Infof("Applying metallb pods")
+	if err := m.execer("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
+		return err
+	}
+	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Get(ctx, "config", metav1.GetOptions{})
+	if err != nil {
+		log.Infof("Applying metallb ingress config")
+		// Get Network information from docker.
+		nr, err := m.dClient.NetworkList(ctx, dtypes.NetworkListOptions{})
+		if err != nil {
+			return err
 		}
-	}
-	if n == nil {
-		return fmt.Errorf("failed to find kind ipv4 docker net")
-	}
-	config := makeConfig(n, m.IPCount)
-	b, err := yaml.Marshal(config)
-	if err != nil {
-		return err
-	}
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "config",
-		},
-		Data: map[string]string{
-			"config": string(b),
-		},
-	}
-	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Create(ctx, cm, metav1.CreateOptions{})
-	if err != nil {
-		return err
+		var network dtypes.NetworkResource
+		for _, v := range nr {
+			if v.Name == "kind" {
+				network = v
+				break
+			}
+		}
+		var n *net.IPNet
+		for _, ipRange := range network.IPAM.Config {
+			_, ipNet, err := net.ParseCIDR(ipRange.Subnet)
+			if err != nil {
+				return err
+			}
+			if ipNet.IP.To4() != nil {
+				n = ipNet
+				break
+			}
+		}
+		if n == nil {
+			return fmt.Errorf("failed to find kind ipv4 docker net")
+		}
+		config := makeConfig(n, m.IPCount)
+		b, err := yaml.Marshal(config)
+		if err != nil {
+			return err
+		}
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "config",
+			},
+			Data: map[string]string{
+				"config": string(b),
+			},
+		}
+		_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Create(ctx, cm, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

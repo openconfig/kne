@@ -1,3 +1,16 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package ceos
 
 import (
@@ -154,6 +167,89 @@ func TestGenerateSelfSigned(t *testing.T) {
 			err = n.GenerateSelfSigned(ctx, ni)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestResetCfg(t *testing.T) {
+	tests := []struct {
+		desc    string
+		wantErr string
+		ni      node.Interface
+		pb      *topopb.Node
+		spawner func(string, time.Duration, ...expect.Option) (expect.Expecter, <-chan error, error)
+	}{{
+		desc: "valid Reset",
+		pb:   validPb,
+		ni: &fakeNode{
+			namespace: "test",
+		},
+		spawner: fakeSpawner(&fakeExpect{
+			expects: []expects{
+				{resp: "some stuff>"}, // base
+				{resp: "prompt#"},     // enable
+				{resp: "prompt#"},     // reset
+			},
+			sends: []sends{
+				{err: nil}, // enable
+				{err: nil}, // reset
+			},
+		}),
+	}, {
+		desc: "failed send",
+		pb:   validPb,
+		ni: &fakeNode{
+			namespace: "test",
+		},
+		spawner: fakeSpawner(&fakeExpect{
+			expects: []expects{
+				{resp: "some stuff>"}, // base
+				{resp: "prompt#"},     // enable
+				{resp: "prompt#"},     // reset
+			},
+			sends: []sends{
+				{err: fmt.Errorf("send error")}, // enable
+				{err: nil},                      // reset
+			},
+		}),
+		wantErr: "send error",
+	}, {
+		desc: "failed config send",
+		pb:   validPb,
+		ni: &fakeNode{
+			namespace: "test",
+		},
+		spawner: fakeSpawner(&fakeExpect{
+			expects: []expects{
+				{resp: "some stuff>"}, // base
+				{resp: "prompt#"},     // enable
+				{resp: "prompt#"},     // reset
+			},
+			sends: []sends{
+				{err: nil},                      // enable
+				{err: fmt.Errorf("send error")}, // reset
+			},
+		}),
+		wantErr: "send error",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			spawner = tt.spawner
+			timeSecond = 0
+			defer func() {
+				spawner = defaultSpawner
+				timeSecond = time.Second
+			}()
+			nImpl, _ := New(tt.pb)
+			n := nImpl.(*Node)
+			ctx := context.Background()
+			err := n.ResetCfg(ctx, tt.ni)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Fatalf("ResetCfg unexpected error: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
 			}
 		})
 	}
