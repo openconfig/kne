@@ -47,7 +47,9 @@ func (n *Node) Proto() *topopb.Node {
 	return n.pb
 }
 
-func (n *Node) WaitCliReady() error {
+// WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
+// for a given platform. Retries indefinitely till success.
+func (n *Node) WaitCLIReady() error {
 	transportReady := false
 	for !transportReady {
 		if err := n.cliConn.Open(); err != nil {
@@ -62,7 +64,8 @@ func (n *Node) WaitCliReady() error {
 	return nil
 }
 
-func (n *Node) PatchCliConnOpen(ns string) error {
+// PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
+func (n *Node) PatchCLIConnOpen(ns string) error {
 	tIntf := reflect.ValueOf(n.cliConn.Transport)
 
 	if tIntf.Type().Kind() != reflect.Ptr {
@@ -73,7 +76,7 @@ func (n *Node) PatchCliConnOpen(ns string) error {
 	openCmd := tIntf.Elem().FieldByName("OpenCmd")
 
 	if !execCmd.IsValid() || !openCmd.IsValid() {
-		// this *shouldnt* happen ever, but it is possible an invalid scrapli transport type gets set.
+		// this *shouldn't* happen ever, but it is possible an invalid scrapli transport type gets set.
 		return ErrIncompatibleCliConn
 	}
 
@@ -85,7 +88,9 @@ func (n *Node) PatchCliConnOpen(ns string) error {
 	return nil
 }
 
-func (n *Node) SpawnCliConn(ns string) error {
+// SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
+// to accept inputs.
+func (n *Node) SpawnCLIConn(ns string) error {
 	d, err := scraplicore.NewCoreDriver(
 		n.pb.Name,
 		"arista_eos",
@@ -97,14 +102,14 @@ func (n *Node) SpawnCliConn(ns string) error {
 
 	n.cliConn = d
 
-	err = n.PatchCliConnOpen(ns)
+	err = n.PatchCLIConnOpen(ns)
 	if err != nil {
 		n.cliConn = nil
 
 		return err
 	}
 
-	err = n.WaitCliReady()
+	err = n.WaitCLIReady()
 	if err != nil {
 		return err
 	}
@@ -136,7 +141,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	}
 	log.Infof("%s - pod running.", n.pb.Name)
 
-	err = n.SpawnCliConn(ni.Namespace())
+	err = n.SpawnCLIConn(ni.Namespace())
 	if err != nil {
 		return err
 	}
@@ -181,7 +186,7 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 		return err
 	}
 
-	err = n.SpawnCliConn(ns)
+	err = n.SpawnCLIConn(ns)
 	if err != nil {
 		return err
 	}
