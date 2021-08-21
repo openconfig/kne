@@ -1,0 +1,16 @@
+spine1>enable
+spine1#
+spine1#terminal length 0
+Pagination disabled.
+spine1#terminal width 32767
+Width set to 32767 columns.
+spine1#
+spine1#configure terminal
+spine1(config)#
+spine1(config)#security pki key generate rsa 2048 my_key
+spine1(config)#security pki certificate generate self-signed my_cert key my_key parameters common-name testEosNode
+% Invalid Input
+spine1(config)#
+spine1(config)#end
+spine1#
+spine1#
