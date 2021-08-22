@@ -174,7 +174,9 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	r, err := n.cliConn.SendConfigs(cfgs)
 	if err != nil {
 		return err
-	} else if r.Failed() {
+	}
+
+	if r.Failed() {
 		return ErrCliOperationFailed
 	}
 
@@ -205,7 +207,9 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	resp, err := n.cliConn.SendConfig(cfgs)
 	if err != nil {
 		return err
-	} else if resp.Failed {
+	}
+
+	if resp.Failed {
 		return ErrCliOperationFailed
 	}
 
@@ -231,7 +235,9 @@ func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
 	)
 	if err != nil {
 		return err
-	} else if resp.Failed {
+	}
+
+	if resp.Failed {
 		return ErrCliOperationFailed
 	}
 
