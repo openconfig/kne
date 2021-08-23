@@ -46,7 +46,7 @@ type NewNodeFn func(*topopb.Node) (Implementation, error)
 
 // Resetter provides Reset interface to nodes.
 type Resetter interface {
-	ResetCfg(context.Context) error
+	ResetCfg(ctx context.Context, ni Interface) error
 }
 
 func (n *Node) ResetCfg(ctx context.Context) error {
@@ -54,7 +54,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("%T is not a Resetter", n.impl)
 	}
-	return r.ResetCfg(ctx)
+	return r.ResetCfg(ctx, n)
 }
 
 var (

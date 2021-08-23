@@ -97,16 +97,15 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		}
 		nodes = []*node.Node{n}
 	}
-	var resettable []node.Resetter
+	var resettable []*node.Node
 	for _, n := range nodes {
-		r, ok := n.Impl().(node.Resetter)
-		if !ok {
+		if _, ok := n.Impl().(node.Resetter); !ok {
 			if skipReset {
 				continue
 			}
 			return fmt.Errorf("node %s is not resettable and --skip not set", n.Name())
 		}
-		resettable = append(resettable, r)
+		resettable = append(resettable, n)
 	}
 	for _, r := range resettable {
 		if err := r.ResetCfg(ctx); err != nil {
