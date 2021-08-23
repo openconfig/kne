@@ -48,6 +48,7 @@ import (
 	_ "github.com/google/kne/topo/node/quagga"
 	_ "github.com/google/kne/topo/node/srl"
 	_ "github.com/google/kne/topo/node/vmx"
+	_ "github.com/google/kne/topo/node/cptx"
 )
 
 // Manager is a topology instance manager for k8s cluster instance.
