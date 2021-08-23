@@ -15,15 +15,20 @@ package ceos
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"regexp"
 	"time"
 
-	expect "github.com/google/goexpect"
+	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
+
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	scraplibase "github.com/scrapli/scrapligo/driver/base"
+	scraplicore "github.com/scrapli/scrapligo/driver/core"
+	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,6 +37,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 )
+
+// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
+var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
+
+// ErrCliOperationFailed raised when scrapligo reports failure in some cli operation.
+var ErrCliOperationFailed = errors.New("cli operation failed")
 
 func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
@@ -43,24 +54,77 @@ func New(pb *topopb.Node) (node.Implementation, error) {
 }
 
 type Node struct {
-	pb *topopb.Node
+	pb      *topopb.Node
+	cliConn *scraplinetwork.Driver
 }
 
 func (n *Node) Proto() *topopb.Node {
 	return n.pb
 }
 
-var (
-	spawner = defaultSpawner
-)
+// WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
+// for a given platform. Retries indefinitely till success.
+func (n *Node) WaitCLIReady() error {
+	transportReady := false
+	for !transportReady {
+		if err := n.cliConn.Open(); err != nil {
+			log.Debugf("%s - Cli not ready - waiting.", n.pb.Name)
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		transportReady = true
+		log.Debugf("%s - Cli ready.", n.pb.Name)
+	}
 
-func defaultSpawner(command string, timeout time.Duration, opts ...expect.Option) (expect.Expecter, <-chan error, error) {
-	return expect.Spawn(command, timeout, opts...)
+	return nil
 }
 
-var (
-	timeSecond = time.Second
-)
+// PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
+func (n *Node) PatchCLIConnOpen(ns string) error {
+	switch t := n.cliConn.Transport.(type) {
+	case *scraplitest.TestingTransport:
+		t.ExecCmd = "kubectl"
+		t.OpenCmd = []string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"}
+	case *scraplitransport.System:
+		t.ExecCmd = "kubectl"
+		t.OpenCmd = []string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"}
+	default:
+		return ErrIncompatibleCliConn
+	}
+
+	return nil
+}
+
+// SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
+// to accept inputs.
+func (n *Node) SpawnCLIConn(ns string) error {
+	d, err := scraplicore.NewCoreDriver(
+		n.pb.Name,
+		"arista_eos",
+		scraplibase.WithAuthBypass(true),
+		// disable transport timeout
+		scraplibase.WithTimeoutTransport(0),
+	)
+	if err != nil {
+		return err
+	}
+
+	n.cliConn = d
+
+	err = n.PatchCLIConnOpen(ns)
+	if err != nil {
+		n.cliConn = nil
+
+		return err
+	}
+
+	err = n.WaitCLIReady()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
 	selfSigned := n.pb.GetConfig().GetCert().GetSelfSigned()
@@ -71,7 +135,9 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	log.Infof("%s - generating self signed certs", n.pb.Name)
 	log.Infof("%s - waiting for pod to be running", n.pb.Name)
 	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.pb.Name}).String(),
+		FieldSelector: fields.SelectorFromSet(
+			fields.Set{metav1.ObjectNameField: n.pb.Name},
+		).String(),
 	})
 	if err != nil {
 		return err
@@ -83,127 +149,101 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 		}
 	}
 	log.Infof("%s - pod running.", n.pb.Name)
-	done := false
-	var g expect.Expecter
-	log.Infof("%s - waiting on container to be ready", n.pb.Name)
-	waitTime := 0 * timeSecond
-	for !done {
-		time.Sleep(waitTime)
-		cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
-		var err error
-		g, _, err = spawner(cmd, -1)
-		// This could be set per error case but probably not worth it.
-		waitTime = 10 * timeSecond
-		if err != nil {
-			log.Debugf("%s - process not ready - waiting.", n.pb.Name)
-			continue
-		}
-		_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
-		if err != nil {
-			log.Debugf("%s - os not ready - waiting.", n.pb.Name)
-			continue
-		}
-		log.Debugf("%s - captured prompt", n.pb.Name)
-		if err := g.Send("enable\n"); err != nil {
-			return err
-		}
-		_, _, err = g.Expect(regexp.MustCompile(`#`), 5*timeSecond)
-		if err != nil {
-			log.Debugf("%s - auth not ready - waiting.", n.pb.Name)
-			continue
-		}
-		done = true
-	}
-	cmd := fmt.Sprintf("security pki key generate rsa %d %s\n", selfSigned.KeySize, selfSigned.KeyName)
-	log.Debugf("%s - enabled - sending %q", n.pb.Name, cmd)
-	if err := g.Send(cmd); err != nil {
-		return err
-	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), 30*timeSecond)
+
+	err = n.SpawnCLIConn(ni.Namespace())
 	if err != nil {
 		return err
 	}
-	cmd = fmt.Sprintf("security pki certificate generate self-signed %s key %s parameters common-name %s\n", selfSigned.CertName, selfSigned.KeyName, n.pb.Name)
-	log.Debugf("key generated - sending %q", cmd)
-	if err := g.Send(cmd); err != nil {
-		return err
+
+	defer n.cliConn.Close()
+
+	cfgs := []string{
+		fmt.Sprintf(
+			"security pki key generate rsa %d %s\n",
+			selfSigned.KeySize,
+			selfSigned.KeyName,
+		),
+		fmt.Sprintf(
+			"security pki certificate generate self-signed %s key %s parameters common-name %s\n",
+			selfSigned.CertName,
+			selfSigned.KeyName,
+			n.pb.Name,
+		),
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`(.*)#`), 30*timeSecond)
+
+	r, err := n.cliConn.SendConfigs(cfgs)
 	if err != nil {
 		return err
 	}
+
+	if r.Failed() {
+		return ErrCliOperationFailed
+	}
+
 	log.Infof("%s - finshed cert generation", n.pb.Name)
-	return g.Close()
+
+	return err
 }
 
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
-	log.Infof("Pushing config to %s:%s", ns, n.pb.Name)
-	config, err := ioutil.ReadAll(r)
-	log.Debug(string(config))
+	log.Infof("%s - pushing config", n.pb.Name)
+
+	cfg, err := ioutil.ReadAll(r)
+	cfgs := string(cfg)
+
+	log.Debug(cfgs)
+
 	if err != nil {
 		return err
 	}
-	cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ns, n.pb.Name)
-	g, _, err := spawner(cmd, -1)
+
+	err = n.SpawnCLIConn(ns)
 	if err != nil {
 		return err
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
+
+	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendConfig(cfgs)
 	if err != nil {
 		return err
 	}
-	if err := g.Send("enable\n"); err != nil {
-		return err
+
+	if resp.Failed {
+		return ErrCliOperationFailed
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
-	if err != nil {
-		return err
-	}
-	if err := g.Send("configure terminal\n"); err != nil {
-		return err
-	}
-	_, _, err = g.Expect(regexp.MustCompile(`\(config\)#`), -1)
-	if err != nil {
-		return err
-	}
-	if err := g.Send(string(config)); err != nil {
-		return err
-	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
-	if err != nil {
-		return err
-	}
-	log.Info("Finshed config push")
-	return g.Close()
+
+	log.Infof("%s - finshed config push", n.pb.Name)
+
+	return nil
 }
 
 func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
-	log.Infof("Resetting config on %s:%s", ni.Namespace(), n.pb.Name)
-	cmd := fmt.Sprintf("kubectl exec -it -n %s %s -- Cli", ni.Namespace(), n.pb.Name)
-	g, _, err := spawner(cmd, -1)
+	log.Infof("%s resetting config", n.pb.Name)
+
+	err := n.SpawnCLIConn(ni.Namespace())
 	if err != nil {
 		return err
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`>`), -1)
+
+	defer n.cliConn.Close()
+
+	// this takes a long time sometimes, so we crank timeouts up
+	resp, err := n.cliConn.SendCommand(
+		"configure replace clean-config",
+		scraplibase.WithSendTimeoutOps(300*time.Second),
+	)
 	if err != nil {
 		return err
 	}
-	if err := g.Send("enable\n"); err != nil {
-		return err
+
+	if resp.Failed {
+		return ErrCliOperationFailed
 	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
-	if err != nil {
-		return err
-	}
-	if err := g.Send("configure replace clean-config\n"); err != nil {
-		return err
-	}
-	_, _, err = g.Expect(regexp.MustCompile(`#`), -1)
-	if err != nil {
-		return err
-	}
-	log.Info("Configuration reset")
-	return g.Close()
+
+	log.Infof("%s - finshed resetting config", n.pb.Name)
+
+	return nil
 }
 
 func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
@@ -226,17 +266,17 @@ func defaults(pb *topopb.Node) *topopb.Node {
 			"memory": "1Gi",
 		},
 		Services: map[uint32]*topopb.Service{
-			443: &topopb.Service{
+			443: {
 				Name:     "ssl",
 				Inside:   443,
 				NodePort: node.GetNextPort(),
 			},
-			22: &topopb.Service{
+			22: {
 				Name:     "ssh",
 				Inside:   22,
 				NodePort: node.GetNextPort(),
 			},
-			6030: &topopb.Service{
+			6030: {
 				Name:     "gnmi",
 				Inside:   6030,
 				NodePort: node.GetNextPort(),
