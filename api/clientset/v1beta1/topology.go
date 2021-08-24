@@ -58,12 +58,20 @@ var gvr = schema.GroupVersionResource{
 	Resource: "topologies",
 }
 
+func GVR() schema.GroupVersionResource {
+	return gvr
+}
+
 var (
 	groupVersion = &schema.GroupVersion{
 		Group:   topologyv1.GroupName,
 		Version: topologyv1.GroupVersion,
 	}
 )
+
+func GV() *schema.GroupVersion {
+	return groupVersion
+}
 
 // NewForConfig returns a new Clientset based on c.
 func NewForConfig(c *rest.Config) (*Clientset, error) {
@@ -85,6 +93,14 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 		dInterface: dInterface,
 		restClient: rClient,
 	}, nil
+}
+
+func (c *Clientset) SetDynamicClient(d dynamic.NamespaceableResourceInterface) {
+	c.dInterface = d
+}
+
+func (c *Clientset) SetRestClient(r rest.Interface) {
+	c.restClient = r
 }
 
 func (c *Clientset) Topology(namespace string) TopologyInterface {
