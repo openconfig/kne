@@ -159,11 +159,9 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		case *tpb.Config_Data:
 			b = v.Data
 		case *tpb.Config_File:
-			var cPath string
-			if strings.HasPrefix(v.File, "/") {
-				cPath = v.File
-			} else {
-				cPath = filepath.Join(bp, v.File)
+			cPath := v.File
+			if !strings.HasPrefix(cPath, "/") {
+				cPath = filepath.Join(bp, cPath)
 			}
 			log.Infof("Pushing configuration %q to %q", cPath, n.Name())
 			var err error
