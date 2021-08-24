@@ -14,11 +14,17 @@
 package topology
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/google/kne/topo"
 	"github.com/google/kne/topo/node"
+	"github.com/openconfig/gnmi/errlist"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
 
@@ -35,6 +41,7 @@ func New() *cobra.Command {
 	topoCmd.AddCommand(serviceCmd)
 	topoCmd.AddCommand(watchCmd)
 	resetCfgCmd.Flags().BoolVar(&skipReset, "skip", skipReset, "skip nodes if they are not resetable")
+	resetCfgCmd.Flags().BoolVar(&pushConfig, "push", pushConfig, "additionally push orginal topology configuration")
 	topoCmd.AddCommand(resetCfgCmd)
 	return topoCmd
 }
@@ -62,14 +69,23 @@ var (
 	}
 	resetCfgCmd = &cobra.Command{
 		Use:   "reset -skip <topology> <device>",
-		Short: "reset configuration of device (if device not provide reset all nodes)",
+		Short: "reset configuration of device to vendor default (if device not provide reset all nodes)",
 		RunE:  resetCfgFn,
 	}
 )
 
 var (
-	skipReset bool
+	skipReset  bool
+	pushConfig bool
 )
+
+func fileRelative(p string) (string, error) {
+	bp, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(bp), nil
+}
 
 func resetCfgFn(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || len(args) > 2 {
@@ -112,7 +128,39 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	return nil
+	if !pushConfig {
+		log.Infof("Finished reseting resetable nodes to vendor default configuration")
+		return nil
+	}
+	log.Infof("Trying to repush devices configs: %q", args[0])
+	bp, err := fileRelative(args[0])
+	if err != nil {
+		return fmt.Errorf("failed to find relative path for topology: %v", err)
+	}
+	var errList errlist.List
+	for _, n := range resettable {
+		fName := n.Impl().Proto().GetConfig().GetFile()
+		if fName == "" {
+			log.Infof("Skipping node %q no config provided", n.Name())
+			continue
+		}
+		_, ok := n.Impl().(node.ConfigPusher)
+		if !ok {
+			log.Infof("Skipping node %q not a ConfigPusher", n.Name())
+			continue
+		}
+		cPath := filepath.Join(bp, fName)
+		log.Infof("Pushing configuration %q to %q", cPath, n.Name())
+		b, err := ioutil.ReadFile(cPath)
+		if err != nil {
+			errList.Add(err)
+			continue
+		}
+		if err := n.ConfigPush(context.Background(), bytes.NewBuffer(b)); err != nil {
+			errList.Add(err)
+		}
+	}
+	return errList.Err()
 }
 
 func pushFn(cmd *cobra.Command, args []string) error {

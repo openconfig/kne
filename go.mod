@@ -13,6 +13,7 @@ require (
 	github.com/kr/pretty v0.2.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/openconfig/gnmi v0.0.0-20210707145734-c69a5df04b53
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v0.0.0-20210822185345-c949ba367b79
 	github.com/sirupsen/logrus v1.8.1
