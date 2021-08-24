@@ -213,6 +213,13 @@ func TestReset(t *testing.T) {
 		desc:    "valid topology push with config DNE",
 		args:    []string{"reset", fConfigDNE.Name(), "--skip", "--push"},
 		wantErr: "no such file or directory",
+	}, {
+		desc: "valid topology push with config DNE single device",
+		args: []string{"reset", fConfigDNE.Name(), "--skip", "--push", "resettable1"},
+	}, {
+		desc:    "valid topology push with config DNE single device invalid",
+		args:    []string{"reset", fConfigDNE.Name(), "--skip", "--push", "dne"},
+		wantErr: "not found",
 	}}
 
 	rCmd := New()
