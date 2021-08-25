@@ -222,12 +222,11 @@ func TestReset(t *testing.T) {
 	}}
 
 	rCmd := New()
-	var s string
-	origOpts := opts
 	tf, err := tfake.NewSimpleClientset()
 	if err != nil {
 		t.Fatalf("cannot create fake topology clientset")
 	}
+	origOpts := opts
 	opts = []topo.Option{
 		topo.WithClusterConfig(&rest.Config{}),
 		topo.WithKubeClient(kfake.NewSimpleClientset()),
