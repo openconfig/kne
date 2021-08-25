@@ -222,11 +222,11 @@ func TestReset(t *testing.T) {
 	}}
 
 	rCmd := New()
+	origOpts := opts
 	tf, err := tfake.NewSimpleClientset()
 	if err != nil {
 		t.Fatalf("cannot create fake topology clientset")
 	}
-	origOpts := opts
 	opts = []topo.Option{
 		topo.WithClusterConfig(&rest.Config{}),
 		topo.WithKubeClient(kfake.NewSimpleClientset()),
@@ -235,7 +235,7 @@ func TestReset(t *testing.T) {
 	defer func() {
 		opts = origOpts
 	}()
-	rCmd.PersistentFlags().StringVar(&s, "kubecfg", "", "")
+	rCmd.PersistentFlags().String("kubecfg", "", "")
 	buf := bytes.NewBuffer([]byte{})
 	rCmd.SetOut(buf)
 	for _, tt := range tests {
