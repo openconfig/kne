@@ -24,27 +24,27 @@ import (
 )
 
 func NewNR(pb *topopb.Node) (node.Implementation, error) {
-	return &notResetable{pb: pb}, nil
+	return &notResettable{pb: pb}, nil
 }
 
-type notResetable struct {
+type notResettable struct {
 	pb            *topopb.Node
 	configPushErr error
 }
 
-func (nr *notResetable) Proto() *topopb.Node {
+func (nr *notResettable) Proto() *topopb.Node {
 	return nr.pb
 }
 
-func (nr *notResetable) CreateNodeResource(_ context.Context, _ node.Interface) error {
+func (nr *notResettable) CreateNodeResource(_ context.Context, _ node.Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (nr *notResetable) DeleteNodeResource(_ context.Context, _ node.Interface) error {
+func (nr *notResettable) DeleteNodeResource(_ context.Context, _ node.Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (nr *notResetable) ConfigPush(_ context.Context, s string, r io.Reader) error {
+func (nr *notResettable) ConfigPush(_ context.Context, s string, r io.Reader) error {
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
@@ -55,17 +55,17 @@ func (nr *notResetable) ConfigPush(_ context.Context, s string, r io.Reader) err
 	return nr.configPushErr
 }
 
-type resetable struct {
-	*notResetable
+type resettable struct {
+	*notResettable
 	resetErr error
 }
 
-func (r *resetable) ResetCfg(ctx context.Context, ni node.Interface) error {
+func (r *resettable) ResetCfg(ctx context.Context, ni node.Interface) error {
 	return r.resetErr
 }
 
 func NewR(pb *topopb.Node) (node.Implementation, error) {
-	return &resetable{&notResetable{pb: pb}, nil}, nil
+	return &resettable{&notResettable{pb: pb}, nil}, nil
 }
 
 func writeTopology(t *testing.T, topo *topopb.Topology) (*os.File, func()) {
@@ -74,7 +74,6 @@ func writeTopology(t *testing.T, topo *topopb.Topology) (*os.File, func()) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer os.Remove(t.Name())
 	b, err := prototext.Marshal(topo)
 	if err != nil {
 		t.Fatalf("failed to marshal topology")
