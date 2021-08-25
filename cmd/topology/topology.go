@@ -68,7 +68,7 @@ var (
 		RunE:  certFn,
 	}
 	resetCfgCmd = &cobra.Command{
-		Use:   "reset -skip <topology> <device>",
+		Use:   "reset <topology> <device>",
 		Short: "reset configuration of device to vendor default (if device not provide reset all nodes)",
 		RunE:  resetCfgFn,
 	}
@@ -87,6 +87,10 @@ func fileRelative(p string) (string, error) {
 	return filepath.Dir(bp), nil
 }
 
+var (
+	opts []topo.Option
+)
+
 func resetCfgFn(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || len(args) > 2 {
 		return fmt.Errorf("%s: invalid args", cmd.Use)
@@ -99,7 +103,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	t, err := topo.New(s, topopb)
+	t, err := topo.New(s, topopb, opts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -139,8 +143,8 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 	}
 	var errList errlist.List
 	for _, n := range resettable {
-		fName := n.Impl().Proto().GetConfig().GetFile()
-		if fName == "" {
+		cd := n.Impl().Proto().GetConfig().GetConfigData()
+		if cd == nil {
 			log.Infof("Skipping node %q no config provided", n.Name())
 			continue
 		}
@@ -149,12 +153,22 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 			log.Infof("Skipping node %q not a ConfigPusher", n.Name())
 			continue
 		}
-		cPath := filepath.Join(bp, fName)
-		log.Infof("Pushing configuration %q to %q", cPath, n.Name())
-		b, err := ioutil.ReadFile(cPath)
-		if err != nil {
-			errList.Add(err)
-			continue
+		var b []byte
+		switch v := cd.(type) {
+		case *tpb.Config_Data:
+			b = v.Data
+		case *tpb.Config_File:
+			cPath := v.File
+			if !filepath.IsAbs(cPath) {
+				cPath = filepath.Join(bp, cPath)
+			}
+			log.Infof("Pushing configuration %q to %q", cPath, n.Name())
+			var err error
+			b, err = ioutil.ReadFile(cPath)
+			if err != nil {
+				errList.Add(err)
+				continue
+			}
 		}
 		if err := n.ConfigPush(context.Background(), bytes.NewBuffer(b)); err != nil {
 			errList.Add(err)

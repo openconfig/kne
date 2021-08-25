@@ -125,12 +125,16 @@ func validateTopology(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+var (
+	topoNew = topo.New
+)
+
 func createFn(cmd *cobra.Command, args []string) error {
 	topopb, err := topo.Load(args[0])
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	t, err := topo.New(kubecfg, topopb)
+	t, err := topoNew(kubecfg, topopb)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

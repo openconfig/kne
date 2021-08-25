@@ -40,6 +40,7 @@ import (
 	topopb "github.com/google/kne/proto/topo"
 
 	_ "github.com/google/kne/topo/node/ceos"
+	_ "github.com/google/kne/topo/node/cptx"
 	_ "github.com/google/kne/topo/node/csr"
 	_ "github.com/google/kne/topo/node/cxr"
 	_ "github.com/google/kne/topo/node/frr"
@@ -48,7 +49,6 @@ import (
 	_ "github.com/google/kne/topo/node/quagga"
 	_ "github.com/google/kne/topo/node/srl"
 	_ "github.com/google/kne/topo/node/vmx"
-	_ "github.com/google/kne/topo/node/cptx"
 )
 
 // Manager is a topology instance manager for k8s cluster instance.
@@ -61,37 +61,65 @@ type Manager struct {
 	links   map[string]*node.Link
 }
 
+type Option func(m *Manager)
+
+func WithKubeClient(c kubernetes.Interface) Option {
+	return func(m *Manager) {
+		m.kClient = c
+	}
+}
+
+func WithTopoClient(c topologyclientv1.Interface) Option {
+	return func(m *Manager) {
+		m.tClient = c
+	}
+}
+
+func WithClusterConfig(r *rest.Config) Option {
+	return func(m *Manager) {
+		m.rCfg = r
+	}
+}
+
 // New creates a new topology manager based on the provided kubecfg and topology.
-func New(kubecfg string, tpb *topopb.Topology) (*Manager, error) {
+func New(kubecfg string, tpb *topopb.Topology, opts ...Option) (*Manager, error) {
 	log.Infof("Creating manager for: %s", tpb.Name)
-	// use the current context in kubeconfig try in-cluster first if not fallback to kubeconfig
-	log.Infof("Trying in-cluster configuration")
-	rCfg, err := rest.InClusterConfig()
-	if err != nil {
-		log.Infof("Falling back to kubeconfig: %q", kubecfg)
-		rCfg, err = clientcmd.BuildConfigFromFlags("", kubecfg)
+	m := &Manager{
+		tpb:   tpb,
+		nodes: map[string]*node.Node{},
+		links: map[string]*node.Link{},
+	}
+	for _, o := range opts {
+		o(m)
+	}
+	if m.rCfg == nil {
+		// use the current context in kubeconfig try in-cluster first if not fallback to kubeconfig
+		log.Infof("Trying in-cluster configuration")
+		rCfg, err := rest.InClusterConfig()
+		if err != nil {
+			log.Infof("Falling back to kubeconfig: %q", kubecfg)
+			rCfg, err = clientcmd.BuildConfigFromFlags("", kubecfg)
+			if err != nil {
+				return nil, err
+			}
+		}
+		m.rCfg = rCfg
+	}
+	if m.kClient == nil {
+		kClient, err := kubernetes.NewForConfig(m.rCfg)
 		if err != nil {
 			return nil, err
 		}
+		m.kClient = kClient
 	}
-	// create the clientset
-	kClient, err := kubernetes.NewForConfig(rCfg)
-	if err != nil {
-		return nil, err
+	if m.tClient == nil {
+		tClient, err := topologyclientv1.NewForConfig(m.rCfg)
+		if err != nil {
+			return nil, err
+		}
+		m.tClient = tClient
 	}
-	tClient, err := topologyclientv1.NewForConfig(rCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Manager{
-		kClient: kClient,
-		tClient: tClient,
-		rCfg:    rCfg,
-		tpb:     tpb,
-		nodes:   map[string]*node.Node{},
-		links:   map[string]*node.Link{},
-	}, nil
+	return m, nil
 }
 
 // Load creates an instance of the managed topology.
