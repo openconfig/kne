@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/kne/topo"
 	"github.com/google/kne/topo/node"
@@ -160,7 +159,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 			b = v.Data
 		case *tpb.Config_File:
 			cPath := v.File
-			if !strings.HasPrefix(cPath, "/") {
+			if !filepath.IsAbs(cPath) {
 				cPath = filepath.Join(bp, cPath)
 			}
 			log.Infof("Pushing configuration %q to %q", cPath, n.Name())
