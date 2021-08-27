@@ -21,8 +21,6 @@ import (
 	"io/ioutil"
 	"time"
 
-	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
-
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
@@ -40,9 +38,6 @@ import (
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
-
-// ErrCliOperationFailed raised when scrapligo reports failure in some cli operation.
-var ErrCliOperationFailed = errors.New("cli operation failed")
 
 func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
@@ -81,16 +76,13 @@ func (n *Node) WaitCLIReady() error {
 
 // PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
 func (n *Node) PatchCLIConnOpen(ns string) error {
-	switch t := n.cliConn.Transport.(type) {
-	case *scraplitest.TestingTransport:
-		t.ExecCmd = "kubectl"
-		t.OpenCmd = []string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"}
-	case *scraplitransport.System:
-		t.ExecCmd = "kubectl"
-		t.OpenCmd = []string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"}
-	default:
+	t, ok := interface{}(n.cliConn.Transport.Impl).(scraplitransport.SystemTransport)
+	if !ok {
 		return ErrIncompatibleCliConn
 	}
+
+	t.SetExecCmd("kubectl")
+	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"})
 
 	return nil
 }
@@ -171,18 +163,14 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 		),
 	}
 
-	r, err := n.cliConn.SendConfigs(cfgs)
+	resp, err := n.cliConn.SendConfigs(cfgs)
 	if err != nil {
 		return err
 	}
 
-	if r.Failed() {
-		return ErrCliOperationFailed
-	}
-
 	log.Infof("%s - finshed cert generation", n.pb.Name)
 
-	return err
+	return resp.Failed
 }
 
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
@@ -209,13 +197,9 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 		return err
 	}
 
-	if resp.Failed {
-		return ErrCliOperationFailed
-	}
-
 	log.Infof("%s - finshed config push", n.pb.Name)
 
-	return nil
+	return resp.Failed
 }
 
 func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
@@ -237,13 +221,9 @@ func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
 		return err
 	}
 
-	if resp.Failed {
-		return ErrCliOperationFailed
-	}
-
 	log.Infof("%s - finshed resetting config", n.pb.Name)
 
-	return nil
+	return resp.Failed
 }
 
 func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {

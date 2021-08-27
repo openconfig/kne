@@ -15,7 +15,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/openconfig/gnmi v0.0.0-20210707145734-c69a5df04b53
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v0.0.0-20210822185345-c949ba367b79
+	github.com/scrapli/scrapligo v0.0.0-20210827224924-fcc0f67ff2a9
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
