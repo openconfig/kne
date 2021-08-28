@@ -76,7 +76,7 @@ func (n *Node) WaitCLIReady() error {
 
 // PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
 func (n *Node) PatchCLIConnOpen(ns string) error {
-	t, ok := interface{}(n.cliConn.Transport.Impl).(scraplitransport.SystemTransport)
+	t, ok := n.cliConn.Transport.Impl.(scraplitransport.SystemTransport)
 	if !ok {
 		return ErrIncompatibleCliConn
 	}
