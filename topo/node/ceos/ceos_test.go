@@ -132,7 +132,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 			testFile: "generate_certificate_success",
 		},
 		{
-			// device returns "% Invalid Input" -- we expect to fail
+			// device returns "% Invalid input" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
@@ -220,7 +220,7 @@ func TestResetCfg(t *testing.T) {
 			testFile: "reset_config_success",
 		},
 		{
-			// device returns "% Invalid Input" -- we expect to fail
+			// device returns "% Invalid input" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,

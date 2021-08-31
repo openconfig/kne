@@ -168,7 +168,9 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 		return err
 	}
 
-	log.Infof("%s - finshed cert generation", n.pb.Name)
+	if resp.Failed == nil {
+		log.Infof("%s - finshed cert generation", n.pb.Name)
+	}
 
 	return resp.Failed
 }
@@ -197,7 +199,9 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 		return err
 	}
 
-	log.Infof("%s - finshed config push", n.pb.Name)
+	if resp.Failed == nil {
+		log.Infof("%s - finshed config push", n.pb.Name)
+	}
 
 	return resp.Failed
 }
@@ -221,7 +225,9 @@ func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
 		return err
 	}
 
-	log.Infof("%s - finshed resetting config", n.pb.Name)
+	if resp.Failed == nil {
+		log.Infof("%s - finshed resetting config", n.pb.Name)
+	}
 
 	return resp.Failed
 }
