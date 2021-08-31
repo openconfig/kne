@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -115,6 +116,9 @@ func deploymentFromArg(p string) (*DeploymentConfig, string, error) {
 func deployFn(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("%s: missing args", cmd.Use)
+	}
+	if _, err := os.Stat("/usr/local/bin/kubectl"); err != nil {
+		return fmt.Errorf("install kubectl before running deploy: %v", err)
 	}
 	dCfg, bp, err := deploymentFromArg(args[0])
 	if err != nil {
