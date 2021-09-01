@@ -16,6 +16,7 @@ package deploy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -43,7 +44,7 @@ var (
 	invalidCluster = `
 cluster:
   kind: InvalidCluster
-  spec: 
+  spec:
     name: kne
     recycle: True
     version: 0.11.1
@@ -61,7 +62,7 @@ cni:
 	invalidIngress = `
 cluster:
   kind: Kind
-  spec: 
+  spec:
     name: kne
     recycle: True
     version: 0.11.1
@@ -79,7 +80,7 @@ cni:
 	invalidCNI = `
 cluster:
   kind: Kind
-  spec: 
+  spec:
     name: kne
     recycle: True
     version: 0.11.1
@@ -158,60 +159,103 @@ func TestNewDeployment(t *testing.T) {
 }
 
 func TestKindSpec(t *testing.T) {
+	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
+
 	tests := []struct {
 		desc        string
 		k           *KindSpec
+		execPathErr bool
 		wantErr     string
 		mockExpects func(m *mocks.Mockprovider)
 	}{{
-		desc: "create cluster",
+		desc: "create cluster with cli",
 		k: &KindSpec{
-			Name:    "testCluster",
-			Recycle: false,
+			Name:   "test",
+			execer: makeExecer(""),
+		},
+	}, {
+		desc: "create cluster with client",
+		k: &KindSpec{
+			Name:             "test",
+			DeployWithClient: true,
 		},
 		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().Create("testCluster", gomock.Any()).Return(nil)
+			m.EXPECT().Create("test", gomock.Any()).Return(nil)
 		},
 	}, {
 		desc: "create cluster with recycle",
 		k: &KindSpec{
-			Name:    "testCluster",
+			Name:    "test",
 			Recycle: true,
+			execer:  makeExecer(""),
 		},
 		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().Create("testCluster", gomock.Any()).Return(nil)
+			m.EXPECT().List().Return([]string{"test1"}, nil)
+		},
+	}, {
+		desc: "create cluster with recycle with client",
+		k: &KindSpec{
+			Name:             "test",
+			Recycle:          true,
+			DeployWithClient: true,
+		},
+		mockExpects: func(m *mocks.Mockprovider) {
+			m.EXPECT().Create("test", gomock.Any()).Return(nil)
 			m.EXPECT().List().Return([]string{"test1"}, nil)
 		},
 	}, {
 		desc: "exists cluster with recycle",
 		k: &KindSpec{
-			Name:    "testCluster",
+			Name:    "test",
 			Recycle: true,
 		},
 		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().List().Return([]string{"testCluster"}, nil)
+			m.EXPECT().List().Return([]string{"test"}, nil)
 		},
 	}, {
-		desc: "create fail",
+		desc: "unable to find kind cli",
 		k: &KindSpec{
-			Name:    "testCluster",
-			Recycle: false,
+			Name:   "test",
+			execer: makeExecer(""),
+		},
+		execPathErr: true,
+		wantErr:     "install kind cli to deploy",
+	}, {
+		desc: "create cluster with cli fail",
+		k: &KindSpec{
+			Name:   "test",
+			execer: makeExecer("cmd failed"),
+		},
+		wantErr: "failed to create cluster using cli",
+	}, {
+		desc: "create cluster with client fail",
+		k: &KindSpec{
+			Name:             "test",
+			DeployWithClient: true,
 		},
 		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().Create("testCluster", gomock.Any()).Return(fmt.Errorf("create failed"))
+			m.EXPECT().Create("test", gomock.Any()).Return(fmt.Errorf("create failed"))
 		},
-		wantErr: "failed to create cluster",
+		wantErr: "failed to create cluster using kind client",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			m := mocks.NewMockprovider(mockCtrl)
-			tt.mockExpects(m)
+			if tt.mockExpects != nil {
+				tt.mockExpects(m)
+			}
 			newProvider = func() provider {
 				return m
 			}
-			err := tt.k.Deploy(context.Background())
+			execLookPath = func(_ string) (string, error) {
+				if tt.execPathErr {
+					return "", errors.New("unable to find on path")
+				}
+				return "fakePath", nil
+			}
+			err := tt.k.Deploy(ctx)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}

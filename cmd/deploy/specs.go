@@ -51,13 +51,15 @@ type CNISpec struct {
 }
 
 type KindSpec struct {
-	Name    string `yaml:"name"`
-	Recycle bool   `yaml:"recycle"`
-	Version string `yaml:"version"`
-	Image   string `yaml:"image"`
-	Retain  bool   `yaml:"retain"`
-	Wait    time.Duration
-	Kubecfg string `yaml:"kubecfg"`
+	Name             string        `yaml:"name"`
+	Recycle          bool          `yaml:"recycle"`
+	Version          string        `yaml:"version"`
+	Image            string        `yaml:"image"`
+	Retain           bool          `yaml:"retain"`
+	Wait             time.Duration `yaml:"wait"`
+	Kubecfg          string        `yaml:"kubecfg"`
+	DeployWithClient bool          `yaml:"deployWithClient"`
+	execer           func(string, ...string) error
 }
 
 //go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
@@ -69,6 +71,8 @@ type provider interface {
 var (
 	// newProvider is the kind provider that is replacable for testing.
 	newProvider = defaultProvider
+
+	execLookPath = exec.LookPath
 )
 
 func defaultProvider() provider {
@@ -84,23 +88,52 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		}
 		for _, v := range clusters {
 			if k.Name == v {
-				log.Infof("recycling existing cluster: %s", v)
+				log.Infof("Recycling existing cluster: %s", v)
 				return nil
 			}
 		}
 	}
-	if err := provider.Create(
-		k.Name,
-		cluster.CreateWithNodeImage(k.Image),
-		cluster.CreateWithRetain(k.Retain),
-		cluster.CreateWithWaitForReady(k.Wait),
-		cluster.CreateWithKubeconfigPath(k.Kubecfg),
-		cluster.CreateWithDisplayUsage(true),
-		cluster.CreateWithDisplaySalutation(true),
-	); err != nil {
-		return errors.Wrap(err, "failed to create cluster")
+	if k.DeployWithClient {
+		if err := provider.Create(
+			k.Name,
+			cluster.CreateWithNodeImage(k.Image),
+			cluster.CreateWithRetain(k.Retain),
+			cluster.CreateWithWaitForReady(k.Wait),
+			cluster.CreateWithKubeconfigPath(k.Kubecfg),
+			cluster.CreateWithDisplayUsage(true),
+			cluster.CreateWithDisplaySalutation(true),
+		); err != nil {
+			return errors.Wrap(err, "failed to create cluster using kind client")
+		}
+		log.Infof("Deployed kind cluster using kind client: %s", k.Name)
+		return nil
 	}
-	log.Infof("Deployed Kind cluster: %s", k.Name)
+	if k.execer == nil {
+		k.execer = execCmd
+	}
+	if _, err := execLookPath("kind"); err != nil {
+		return errors.Wrap(err, "install kind cli to deploy, or set the deployWithClient field")
+	}
+	args := []string{"create", "cluster"}
+	if k.Name != "" {
+		args = append(args, "--name", k.Name)
+	}
+	if k.Image != "" {
+		args = append(args, "--image", k.Image)
+	}
+	if k.Retain {
+		args = append(args, "--retain")
+	}
+	if k.Wait != 0 {
+		args = append(args, "--wait", k.Wait.String())
+	}
+	if k.Kubecfg != "" {
+		args = append(args, "--kubeconfig", k.Kubecfg)
+	}
+	if err := k.execer("kind", args...); err != nil {
+		return errors.Wrap(err, "failed to create cluster using cli")
+	}
+	log.Infof("Deployed kind cluster: %s", k.Name)
 	return nil
 }
 
