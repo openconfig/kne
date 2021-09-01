@@ -21,7 +21,7 @@ Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet20 h
 Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet18 has been added to instance MST0
 Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet17 has been added to instance MST0
 Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet9 has been added to instance MST0
-% Invalid Input
+% Invalid input
 spine1#
 spine1#
 spine1#
