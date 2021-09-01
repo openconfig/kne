@@ -1,6 +1,6 @@
 cluster:
   kind: Kind
-  spec: 
+  spec:
     name: kne
     recycle: True
     version: 0.11.1
@@ -14,5 +14,3 @@ cni:
   kind: Meshnet
   spec:
     manifests: ../../manifests/meshnet/base
-    
-    
