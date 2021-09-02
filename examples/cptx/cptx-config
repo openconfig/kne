@@ -1,13 +1,6 @@
-groups {
-    global {
-        system {
-            host-name cptx;
-        }
-    }
-}
 system {
     root-authentication {
-        encrypted-password "$6$vzoltcG6$ZC37XYCfK1rqCh44hxHZb3YG4GhsjFQRI3oPVckXeu.s48qpGVA1j07LiX3C0pr13lcea0vxgEGHKTmKZuU/D1"; ## SECRET-DATA
+        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"; ## SECRET-DATA
     }
     services {
         ssh {
@@ -18,19 +11,9 @@ system {
         file interactive-commands {
             interactive-commands any;
         }
-        file messages {                 
+        file messages {
             any notice;
             authorization info;
         }
     }
 }
-interfaces {
-    re0:mgmt-0 {
-        unit 0 {
-            family inet {
-                address FXP0ADDR;
-            }
-        }
-    }
-}
-
