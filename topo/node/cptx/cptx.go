@@ -5,15 +5,27 @@ package cptx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"time"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	scraplibase "github.com/scrapli/scrapligo/driver/base"
+	scraplicore "github.com/scrapli/scrapligo/driver/core"
+	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scraplicfg "github.com/scrapli/scrapligo/cfg"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
+
+// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
+var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
 func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
@@ -26,10 +38,72 @@ func New(pb *topopb.Node) (node.Implementation, error) {
 
 type Node struct {
 	pb *topopb.Node
+	cliConn *scraplinetwork.Driver
 }
 
 func (n *Node) Proto() *topopb.Node {
 	return n.pb
+}
+
+// WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
+// for a given platform. Retries indefinitely till success.
+func (n *Node) WaitCLIReady() error {
+	transportReady := false
+	for !transportReady {
+		if err := n.cliConn.Open(); err != nil {
+			log.Debugf("%s - cli not ready - waiting.", n.pb.Name)
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		transportReady = true
+		log.Debugf("%s - cli ready.", n.pb.Name)
+	}
+
+	return nil
+}
+
+// PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
+func (n *Node) PatchCLIConnOpen(ns string) error {
+	t, ok := n.cliConn.Transport.Impl.(scraplitransport.SystemTransport)
+	if !ok {
+		return ErrIncompatibleCliConn
+	}
+
+	t.SetExecCmd("kubectl")
+	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.pb.Name, "--", "cli", "-c"})
+
+	return nil
+}
+
+// SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
+// to accept inputs.
+func (n *Node) SpawnCLIConn(ns string) error {
+	d, err := scraplicore.NewCoreDriver(
+		n.pb.Name,
+		"juniper_junos",
+		scraplibase.WithAuthBypass(true),
+		// disable transport timeout
+		scraplibase.WithTimeoutTransport(0),
+	)
+	if err != nil {
+		return err
+	}
+
+	n.cliConn = d
+
+	err = n.PatchCLIConnOpen(ns)
+	if err != nil {
+		n.cliConn = nil
+
+		return err
+	}
+
+	err = n.WaitCLIReady()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
@@ -37,7 +111,59 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 }
 
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
-        return status.Errorf(codes.Unimplemented, "Unimplemented")
+	log.Infof("%s - pushing config", n.pb.Name)
+
+	cfg, err := ioutil.ReadAll(r)
+	cfgs := string(cfg)
+
+	log.Debug(cfgs)
+
+	if err != nil {
+		return err
+	}
+
+	err = n.SpawnCLIConn(ns)
+	if err != nil {
+		return err
+	}
+
+	defer n.cliConn.Close()
+
+	c, err := scraplicfg.NewCfgDriver(
+		n.cliConn,
+		"juniper_junos",
+	)
+	if err != nil {
+		return err
+	}
+
+	err = c.Prepare()
+	if err != nil {
+		return err
+	}
+
+    resp, err := c.LoadConfig(
+		cfgs,
+		true, //load replace
+	)
+	if err != nil {
+		return err
+	}
+	if resp.Failed != nil {
+        return resp.Failed
+	}
+
+    resp, err = c.CommitConfig()
+	if err != nil {
+		return err
+	}
+	if resp.Failed != nil {
+        return resp.Failed
+	}
+
+	log.Infof("%s - finshed config push", n.pb.Name)
+
+	return nil
 }
 
 func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
@@ -82,7 +208,7 @@ func defaults(pb *topopb.Node) *topopb.Node {
 			Env: map[string]string{
 			     "CPTX": "1",
 			},
-			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name),
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- cli -c", pb.Name),
 			ConfigPath:   "/home/evo/configdisk",
 			ConfigFile:   "juniper.conf",
 		},
