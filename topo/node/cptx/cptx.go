@@ -26,6 +26,7 @@ import (
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
+const max_retries = 10
 
 func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
@@ -46,20 +47,22 @@ func (n *Node) Proto() *topopb.Node {
 }
 
 // WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
-// for a given platform. Retries indefinitely till success.
-func (n *Node) WaitCLIReady() error {
-	transportReady := false
-	for !transportReady {
-		if err := n.cliConn.Open(); err != nil {
+// for a given platform. Retries with exponential backoff.
+func (n *Node) WaitCLIReady(sleep time.Duration, attempts int) error {
+    var err error = nil
+    for i := 0; i < attempts; i++ {
+        if i > 0 {
 			log.Debugf("%s - cli not ready - waiting.", n.pb.Name)
-			time.Sleep(time.Second * 2)
-			continue
+            time.Sleep(sleep)
+            sleep *= 2
+        }
+		err = n.cliConn.Open()
+        if err == nil {
+		    log.Debugf("%s - cli ready.", n.pb.Name)
+	        return nil
 		}
-		transportReady = true
-		log.Debugf("%s - cli ready.", n.pb.Name)
 	}
-
-	return nil
+    return err
 }
 
 // PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
@@ -98,7 +101,7 @@ func (n *Node) SpawnCLIConn(ns string) error {
 		return err
 	}
 
-	err = n.WaitCLIReady()
+	err = n.WaitCLIReady(1, max_retries)
 	if err != nil {
 		return err
 	}
