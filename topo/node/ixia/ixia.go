@@ -13,6 +13,7 @@ import (
 
 type IxiaSpec struct {
 	Config string `json:"config,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 type Ixia struct {
@@ -55,7 +56,8 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 			Namespace: ni.Namespace(),
 		},
 		Spec: IxiaSpec{
-			Config: string(jsonConfig),
+			Config:  string(jsonConfig),
+			Version: n.pb.Version,
 		},
 	}
 	body, err := json.Marshal(newIxia)
