@@ -49,6 +49,8 @@ type Resetter interface {
 	ResetCfg(ctx context.Context, ni Interface) error
 }
 
+var UsedNodePortMap map[int32]bool
+
 func (n *Node) ResetCfg(ctx context.Context) error {
 	r, ok := n.impl.(Resetter)
 	if !ok {
@@ -512,8 +514,13 @@ var (
 func GetNextPort() uint32 {
 	muPort.Lock()
 	defer muPort.Unlock()
-	p := nextPort
-	nextPort++
+	ok := true
+	var p uint32
+	for ok {
+		p = nextPort
+		nextPort++
+		_, ok = UsedNodePortMap[int32(p)]
+	}
 	return p
 }
 
