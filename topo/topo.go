@@ -124,18 +124,6 @@ func New(kubecfg string, tpb *topopb.Topology, opts ...Option) (*Manager, error)
 
 // Load creates an instance of the managed topology.
 func (m *Manager) Load(ctx context.Context) error {
-	node.UsedNodePortMap = make(map[int32]bool)
-        sl, err := m.kClient.CoreV1().Services("").List(ctx, metav1.ListOptions{})
-        if err != nil {
-		return fmt.Errorf("Failed to get service list: %v", err)
-        }
-        for _, s := range sl.Items {
-                if s.Spec.Type == "LoadBalancer" {
-                        for _, p := range s.Spec.Ports {
-				node.UsedNodePortMap[p.NodePort] = true
-                        }
-                }
-        }
 	for _, n := range m.tpb.Nodes {
 		log.Infof("Adding Node: %s:%s", n.Name, n.Type)
 		nn, err := node.New(m.tpb.Name, n, m.kClient, m.rCfg)
