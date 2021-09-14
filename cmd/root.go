@@ -129,12 +129,25 @@ var (
 	topoNew = topo.New
 )
 
+func fileRelative(p string) (string, error) {
+	bp, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(bp), nil
+}
+
 func createFn(cmd *cobra.Command, args []string) error {
 	topopb, err := topo.Load(args[0])
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	t, err := topoNew(kubecfg, topopb)
+	bp, err := fileRelative(args[0])
+	if err != nil {
+		return err
+	}
+	fmt.Println(bp)
+	t, err := topoNew(kubecfg, topopb, topo.WithBasePath(bp))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

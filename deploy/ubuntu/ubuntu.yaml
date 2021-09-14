@@ -10,7 +10,7 @@ spec:
   - args:
     - sleep
     - "90000"
-    image: ubuntu:base
+    image: hfam/ubuntu:latest
     imagePullPolicy: IfNotPresent
     name: foo
     resources: {}
@@ -23,25 +23,8 @@ spec:
     - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
       name: kube-api-access-m6mv6
       readOnly: true
-  dnsPolicy: ClusterFirst
-  enableServiceLinks: true
-  nodeName: kne-control-plane
-  preemptionPolicy: PreemptLowerPriority
-  priority: 0
   restartPolicy: Never
-  schedulerName: default-scheduler
-  securityContext: {}
   serviceAccountName: podrunner
-  terminationGracePeriodSeconds: 30
-  tolerations:
-  - effect: NoExecute
-    key: node.kubernetes.io/not-ready
-    operator: Exists
-    tolerationSeconds: 300
-  - effect: NoExecute
-    key: node.kubernetes.io/unreachable
-    operator: Exists
-    tolerationSeconds: 300
   volumes:
   - name: kube-api-access-m6mv6
     projected:

@@ -2,6 +2,9 @@ name: "2node-host"
 nodes: {
     name: "vm-1"
     type: HOST
+    config: {
+        image: "hfam/ubuntu:latest"
+    }
 }
 nodes: {
     name: "vm-2"

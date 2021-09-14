@@ -1,0 +1,53 @@
+name: "2node-gobgp"
+nodes: {
+    name: "r1"
+    type: GOBGP
+    config: {
+        config_path: "/"
+        config_file: "gobgp.conf"
+        file: "r1.yaml"
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 6030 
+        value: {
+            name: "gnmi"
+            inside: 6030
+        }
+    }
+}
+nodes: {
+    name: "r2"
+    type: GOBGP
+    config: {
+        config_path: "/"
+        config_file: "gobgp.conf"
+        file: "r2.yaml"
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 6030 
+        value: {
+            name: "gnmi"
+            inside: 6030
+        }
+    }
+}
+links: {
+    a_node: "r1"
+    a_int: "eth1"
+    z_node: "r2"
+    z_int: "eth1"
+}
