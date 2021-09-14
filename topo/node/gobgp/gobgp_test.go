@@ -18,7 +18,7 @@ func TestNode(t *testing.T) {
 		desc:   "no pb",
 		wantPB: defaults(nil),
 	}, {
-		desc: "no pb",
+		desc: "valid pb",
 		pb: &topopb.Node{
 			Name: "test_node",
 		},
