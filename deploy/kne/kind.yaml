@@ -4,7 +4,7 @@ cluster:
     name: kne
     recycle: True
     version: 0.11.1
-    image: kindest/node:v1.22.0
+    image: kindest/node:v1.22.1
 ingress:
   kind: MetalLB
   spec:
