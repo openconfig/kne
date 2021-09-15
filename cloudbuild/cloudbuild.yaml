@@ -30,4 +30,4 @@ steps:
 
         - id: packer_build
           name: "gcr.io/gep-kne/packer"
-          args: ["cloudbuild/debian.pkr.hcl"]
+          args: ["build", "cloudbuild/debian.pkr.hcl"]
