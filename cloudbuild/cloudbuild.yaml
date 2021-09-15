@@ -3,7 +3,15 @@ steps:
           name: golang
           args: ["go", "version"]
 
-        - id: go_build_cli
+        - id: ls
+          name: golang
+          entrypoint: /bin/bash
+          args:
+                  - -c
+                  - |
+                          pwd
+
+        - id: ls
           name: golang
           entrypoint: /bin/bash
           args:
