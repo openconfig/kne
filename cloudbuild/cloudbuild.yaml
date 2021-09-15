@@ -3,7 +3,7 @@ steps:
           name: golang
           args: ["go", "version"]
 
-        - id: ls
+        - id: pwd
           name: golang
           entrypoint: /bin/bash
           args:
