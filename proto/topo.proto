@@ -40,6 +40,7 @@ enum Vendor {
   KEYSIGHT = 5;
   FRR = 6;
   QUAGGA = 7;
+  GOBGP = 8;
 }
 
 
@@ -57,6 +58,7 @@ message Node {
     CISCO_CSR = 8;
     NOKIA_SRL = 9;
     IXIA_TG = 10;
+    GOBGP = 11;
   }
 
 
@@ -123,12 +125,7 @@ message Config {
   oneof config_data {
     // Byte data for the startup configuration file.
     bytes data = 101;
-    // Local file to read for the configuration file.
-    // if prefixed with:
-    //   '/': it will be an absolute path
-    //   '.': it will path relative to kne_cli call
-    //   no prefix: it will be relative to the directory that the topology
-    //              was read from.        
+    // File is always relative to the topology configuration file.    
     string file = 102;
   }
 }

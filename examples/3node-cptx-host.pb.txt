@@ -17,7 +17,7 @@ nodes: {
       image: "cptx:latest"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
-      file: "../examples/cptx/cptx-config" 
+      file: "cptx/cptx-config" 
     }
     services:{
         key: 22

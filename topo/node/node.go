@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -122,13 +123,13 @@ func New(namespace string, pb *topopb.Node, kClient kubernetes.Interface, rCfg *
 }
 
 // Configure creates the node on the k8s cluster.
-func (n *Node) Configure(ctx context.Context) error {
+func (n *Node) Configure(ctx context.Context, bp string) error {
 	pb := n.impl.Proto()
 	var data []byte
 	switch v := pb.Config.GetConfigData().(type) {
 	case *topopb.Config_File:
 		var err error
-		data, err = ioutil.ReadFile(v.File)
+		data, err = ioutil.ReadFile(filepath.Join(bp, v.File))
 		if err != nil {
 			return err
 		}

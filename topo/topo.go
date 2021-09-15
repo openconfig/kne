@@ -44,6 +44,7 @@ import (
 	_ "github.com/google/kne/topo/node/csr"
 	_ "github.com/google/kne/topo/node/cxr"
 	_ "github.com/google/kne/topo/node/frr"
+	_ "github.com/google/kne/topo/node/gobgp"
 	_ "github.com/google/kne/topo/node/host"
 	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/quagga"
@@ -53,12 +54,13 @@ import (
 
 // Manager is a topology instance manager for k8s cluster instance.
 type Manager struct {
-	kClient kubernetes.Interface
-	tClient topologyclientv1.Interface
-	rCfg    *rest.Config
-	tpb     *topopb.Topology
-	nodes   map[string]*node.Node
-	links   map[string]*node.Link
+	BasePath string
+	kClient  kubernetes.Interface
+	tClient  topologyclientv1.Interface
+	rCfg     *rest.Config
+	tpb      *topopb.Topology
+	nodes    map[string]*node.Node
+	links    map[string]*node.Link
 }
 
 type Option func(m *Manager)
@@ -78,6 +80,12 @@ func WithTopoClient(c topologyclientv1.Interface) Option {
 func WithClusterConfig(r *rest.Config) Option {
 	return func(m *Manager) {
 		m.rCfg = r
+	}
+}
+
+func WithBasePath(s string) Option {
+	return func(m *Manager) {
+		m.BasePath = s
 	}
 }
 
@@ -226,7 +234,7 @@ func (m *Manager) Push(ctx context.Context) error {
 	}
 	log.Infof("Creating Node Pods")
 	for k, n := range m.nodes {
-		if err := n.Configure(ctx); err != nil {
+		if err := n.Configure(ctx, m.BasePath); err != nil {
 			return err
 		}
 		if err := n.CreateService(ctx); err != nil {
