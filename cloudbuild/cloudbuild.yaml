@@ -3,11 +3,6 @@ steps:
           name: golang
           args: ["go", "version"]
 
-        - id: go_build_kne_cli
-          name: golang
-          dir: "../kne_cli"
-          args: ["go", "build", "-v", "main.go"]
-
         - id: go_test_all
           name: golang
           dir: ".."
