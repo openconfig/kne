@@ -6,7 +6,7 @@ steps:
         - id: go_build_kne_cli
           name: golang
           dir: "../kne_cli"
-          args: ["build", "-v", "main.go"]
+          args: ["go", "build", "-v", "main.go"]
 
         - id: go_test_all
           name: golang
