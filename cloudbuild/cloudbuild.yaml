@@ -1,13 +1,17 @@
 steps:
         - id: go_version
-          name: "gcr.io/cloud-builders/go"
-          args: ["version"]
-          env: ['GO111MODULE=on']
+          name: golang
+          args: ["go", "version"]
 
-        - id: go_test
-          name: "gcr.io/cloud-builders/go"
-          args: ["test","-v",".././..."]
-          env: ['GO111MODULE=on']
+        - id: go_build_kne_cli
+          name: golang
+          dir: "../kne_cli"
+          args: ["build", "-v", "main.go"]
+
+        - id: go_test_all
+          name: golang
+          dir: ".."
+          args: ["go", "test", "-v", "./..."]
 
         - id: packer_build
           name: "gcr.io/gep-kne/packer"
