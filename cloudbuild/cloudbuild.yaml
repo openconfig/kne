@@ -15,3 +15,5 @@ steps:
         - id: packer_build
           name: "gcr.io/gep-kne/packer"
           args: ["build", "cloudbuild/debian.pkr.hcl"]
+
+timeout: 3600s
