@@ -4,8 +4,8 @@ nodes: {
     type: ARISTA_CEOS
     config: {
         config_path: "/mnt/flash"
-        config_file: "startup-config" 
-        file: "ceos-withtraffic/r1-config"
+        config_file: "startup-config"
+        file: "../examples/ceos-withtraffic/r1-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -20,8 +20,8 @@ nodes: {
     type: ARISTA_CEOS
     config: {
         config_path: "/mnt/flash"
-        config_file: "startup-config" 
-        file: "ceos-withtraffic/r2-config"
+        config_file: "startup-config"
+        file: "../examples/ceos-withtraffic/r2-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -36,8 +36,8 @@ nodes: {
     type: ARISTA_CEOS
     config: {
         config_path: "/mnt/flash"
-        config_file: "startup-config" 
-        file: "ceos-withtraffic/r3-config"
+        config_file: "startup-config"
+        file: "../examples/ceos-withtraffic/r3-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -50,9 +50,7 @@ nodes: {
 nodes: {
     name: "ate1"
     type: IXIA_TG
-    config: {
-        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/ixia-c-traffic-engine:1.2.0.15,us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/packages_rustic/l23_protocols:0.0.0.11"
-    }
+    version: "0.0.1-9999"
     services: {
         key: 5555
         value: {
@@ -69,9 +67,7 @@ nodes: {
 nodes: {
     name: "ate2"
     type: IXIA_TG
-    config: {
-        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/ixia-c-traffic-engine:1.2.0.15,us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/athena/packages_rustic/l23_protocols:0.0.0.11"
-    }
+    version: "0.0.1-9999"
     services: {
         key: 5555
         value: {
@@ -84,7 +80,6 @@ nodes: {
             inside: 50071
         }
     }
-
 }
 links: {
     a_node: "r1"
