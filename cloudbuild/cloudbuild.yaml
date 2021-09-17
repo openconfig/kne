@@ -17,3 +17,7 @@ steps:
           args: ["build", "cloudbuild/debian.pkr.hcl"]
 
 timeout: 3600s
+
+options:
+        pool:
+                name: 'projects/gep-kne/locations/us-central1/workerPools/kne-cloudbuild-pool'
