@@ -1,23 +1,23 @@
 steps:
-        - id: go_version
-          name: golang
-          args: ["go", "version"]
+  - id: go_version
+    name: golang
+    args: ["go", "version"]
 
-        - id: go_build_cli
-          name: golang
-          dir: "kne_cli"
-          args: ["go", "build", "main.go"]
+  - id: go_build_cli
+    name: golang
+    dir: "kne_cli"
+    args: ["go", "build", "main.go"]
 
-        - id: go_test_all
-          name: golang
-          args: ["go", "test", "-v", "./..."]
+  - id: go_test
+    name: golang
+    args: ["go", "test", "-v", "./..."]
 
-        - id: packer_build
-          name: "gcr.io/gep-kne/packer"
-          args: ["build", "cloudbuild/debian.pkr.hcl"]
+  - id: packer_build
+    name: "gcr.io/gep-kne/packer"
+    args: ["build", "cloudbuild/debian.pkr.hcl"]
 
-timeout: 3600s
+timeout: 1800s
 
 options:
-        pool:
-                name: 'projects/gep-kne/locations/us-central1/workerPools/kne-cloudbuild-pool'
+  pool:
+    name: "projects/gep-kne/locations/us-central1/workerPools/kne-cloudbuild-pool"

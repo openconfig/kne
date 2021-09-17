@@ -11,7 +11,6 @@ source "googlecompute" "kne-image" {
   zone                  = "us-central1-a"
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
-  ssh_timeout           = "10m"
 }
 
 build {
