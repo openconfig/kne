@@ -1,3 +1,8 @@
+[![Actions Status](https://github.com/google/kne/workflows/Go/badge.svg)](https://github.com/google/kne/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/google/kne)](https://goreportcard.com/report/github.com/google/kne)
+[![GoDoc](https://godoc.org/istio.io/istio?status.svg)](https://pkg.go.dev/github.com/google/kne)
+[![License: BSD](https://img.shields.io/badge/license-Apache%202-blue)](https://opensource.org/licenses/Apache-2.0)
+
 # Kubernetes based network emulation
 
 **This is not an officially supported Google product**
