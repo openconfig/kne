@@ -5,7 +5,7 @@ nodes: {
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "../examples/ceos-withtraffic/r1-config"
+        file: "ceos-withtraffic/r1-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -21,7 +21,7 @@ nodes: {
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "../examples/ceos-withtraffic/r2-config"
+        file: "ceos-withtraffic/r2-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -37,7 +37,7 @@ nodes: {
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "../examples/ceos-withtraffic/r3-config"
+        file: "ceos-withtraffic/r3-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
