@@ -39,7 +39,7 @@ build {
       "sudo apt-get install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "sudo docker pull kindest/node",
+      "sudo docker pull kindest/node:v1.22.1",
       "sudo docker pull networkop/init-wait",
       "sudo docker pull networkop/meshnet",
       "gcloud auth configure-docker -q",
