@@ -59,6 +59,7 @@ type KindSpec struct {
 	Wait             time.Duration `yaml:"wait"`
 	Kubecfg          string        `yaml:"kubecfg"`
 	DeployWithClient bool          `yaml:"deployWithClient"`
+	Load bool `yaml:"load"`
 	execer           func(string, ...string) error
 }
 
@@ -134,6 +135,16 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create cluster using cli")
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
+	if !k.Load {
+		return nil
+	}
+	loadArgs := []string{"load", "docker-image", "quay.io/metallb/controller:main", "quay.io/metallb/speaker:main", "networkop/meshnet", "networkop/init-wait"}
+	if k.Name != "" {
+		loadArgs = append(loadArgs, "--name", k.Name)
+	}
+	if err := k.execer("kind", loadArgs...); err != nil {
+		return errors.Wrap(err, "failed to load docker images in cluster using cli")
+	}
 	return nil
 }
 

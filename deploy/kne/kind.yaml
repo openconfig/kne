@@ -5,6 +5,7 @@ cluster:
     recycle: True
     version: 0.11.1
     image: kindest/node:v1.22.1
+    load: True
 ingress:
   kind: MetalLB
   spec:
