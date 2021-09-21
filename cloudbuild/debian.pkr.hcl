@@ -1,10 +1,15 @@
 source "googlecompute" "kne-image" {
-  project_id            = "gep-kne"
-  source_image          = "debian-11-bullseye-v20210817"
-  disk_size             = 50
-  image_name            = "kne-{{timestamp}}"
-  image_family          = "kne"
-  image_labels          = { "tested" : "false" }
+  project_id   = "gep-kne"
+  source_image = "debian-11-bullseye-v20210817"
+  disk_size    = 50
+  image_name   = "kne-{{timestamp}}"
+  image_family = "kne"
+  image_labels = {
+    "tested" : "false",
+    "kne_gh_commit_sha" : "$SHORT_SHA",
+    "kne_gh_branch_name" : "$BRANCH_NAME",
+    "cloud_build_id" : "$BUILD_ID",
+  }
   image_description     = "Debian based linux VM image with KNE and all dependencies installed."
   ssh_username          = "user"
   machine_type          = "e2-standard-4"
@@ -66,10 +71,13 @@ build {
   }
 
   provisioner "shell" {
+    environment_vars = [
+      "BRANCH_NAME=$BRANCH_NAME",
+    ]
     inline = [
       "echo Cloning google/kne...",
       "sudo apt-get install git -y",
-      "git clone https://github.com/google/kne.git",
+      "git clone -b $BRANCH_NAME https://github.com/google/kne.git",
       "cd kne/kne_cli",
       "/usr/local/go/bin/go build -v",
     ]
