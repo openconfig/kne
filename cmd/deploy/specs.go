@@ -138,12 +138,15 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if !k.Load {
 		return nil
 	}
-	loadArgs := []string{"load", "docker-image", "quay.io/metallb/controller:main", "quay.io/metallb/speaker:main", "hfam/meshnet", "networkop/meshnet", "networkop/init-wait"}
-	if k.Name != "" {
-		loadArgs = append(loadArgs, "--name", k.Name)
-	}
-	if err := k.execer("kind", loadArgs...); err != nil {
-		return errors.Wrap(err, "failed to load docker images in cluster using cli")
+	images := []string{"quay.io/metallb/controller:main", "quay.io/metallb/speaker:main", "hfam/meshnet", "networkop/meshnet", "networkop/init-wait"}
+	for _, im := range images {
+		loadArgs := []string{"load", "docker-image", im}
+		if k.Name != "" {
+			loadArgs = append(loadArgs, "--name", k.Name)
+		}
+		if err := k.execer("kind", loadArgs...); err != nil {
+			return fmt.Errorf("failed to load docker image %q in cluster: %v", im, err)
+		}
 	}
 	return nil
 }
