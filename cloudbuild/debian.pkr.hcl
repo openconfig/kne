@@ -42,6 +42,8 @@ build {
       "sudo docker pull kindest/node:v1.22.1",
       "sudo docker pull networkop/init-wait",
       "sudo docker pull networkop/meshnet",
+      "sudo docker pull quay.io/metallb/speaker:main",
+      "sudo docker pull quay.io/metallb/controller:main",
       "gcloud auth configure-docker -q",
     ]
   }
