@@ -22,6 +22,7 @@ import (
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
+    scraplitest "github.com/scrapli/scrapligo/util/testhelper"
 )
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
@@ -50,7 +51,7 @@ func (n *Node) Proto() *topopb.Node {
 // WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
 // for a given platform. Retries with exponential backoff.
 func (n *Node) WaitCLIReady(ctx context.Context) error {
-    var err error = nil
+    var err error
     var sleep time.Duration = 1
     for {
         select {
@@ -140,9 +141,25 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 
     defer n.cliConn.Close()
 
+
+    // use a static candidate file name for test transport
+    var candidateConfigFile string
+    switch interface{}(n.cliConn.Transport.Impl).(type) {
+    case *scraplitest.TestingTransport:
+        candidateConfigFile = "scrapli_cfg_testing"
+    default:
+        // non testing transport
+        candidateConfigFile = ""
+    }
+
+    //delete this assignment after scrapligo related fixes are in
+    _ = candidateConfigFile
+
     c, err := scraplicfg.NewCfgDriver(
         n.cliConn,
         "juniper_junos",
+        //uncomment this after scrapligo related fixes are in
+        //scraplicfg.WithCandidateConfigFilename(candidateConfigFile),
     )
     if err != nil {
         return err
