@@ -1,0 +1,97 @@
+root@cptx2>
+
+root@cptx2> set cli screen-length 0
+Screen length set to 0
+
+root@cptx2> set cli screen-width 511
+Screen width set to 511
+
+root@cptx2> set cli complete-on-space off
+Disabling complete-on-space
+
+root@cptx2> show version
+Hostname: cptx2
+Model: ptx55555-55xy
+Junos: 55.5R5.55-EVO
+Yocto: 5.5.5
+Linux Kernel: 5.5.55-XY5.5.5_standard-abcdefg
+JUNOS-EVO OS 64-bit [junos-evo-install-ptx-platform-x86-64-55.5R5.55-EVO]
+
+root@cptx2> start shell user root
+[vrf:none] root@cptx2:~# 
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing 'system {'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '    root-authentication {'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"; ## SECRET-DATA'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '    }'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '    services {'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '        ssh {'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '            root-login allow;'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '        }'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '    }'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '    syslog {'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '        file interactive-commands {'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '            interactive-commands any;'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '        }'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '        file messages {'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '            any notice;'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '            authorization info;'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '        }'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '    }'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '}'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing ''
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# exit
+logout
+
+root@cptx2>
+root@cptx2> configure
+Entering configuration mode
+Users currently editing the configuration:
+  root terminal pts/0 (pid 3573) on since 2021-09-04 13:28:39 UTC, idle 2w1d 16:24
+      [edit]
+  root terminal pts/4 (pid 30447) on since 2021-09-06 04:22:13 UTC, idle 2w0d 01:28
+      [edit]
+
+[edit]
+root@cptx2#
+root@cptx2# load override /config/scrapli_cfg_testing
+load complete
+
+[edit]
+root@cptx2#
+root@cptx2# commit
+commit complete
+
+[edit]
+root@cptx2#
+root@cptx2# exit configuration-mode
+Exiting configuration mode
+
+root@cptx2>
+root@cptx2> start shell user root
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# rm /config/scrapli_cfg_testing
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# exit
+logout
+
+cptx2>
