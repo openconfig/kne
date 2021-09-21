@@ -15,7 +15,7 @@ steps:
   - id: packer_build
     name: "gcr.io/gep-kne/packer"
     args: ["build", "cloudbuild/debian.pkr.hcl"]
-    env: ["BUILD_ID=$BUILD_ID", "SHORT_SHA=$SHORT_SHA", "BRANCH_NAME=$BRANCH_NAME"]
+    env: ["PKR_VAR_build_id=$BUILD_ID", "PKR_VAR_short_sha=$SHORT_SHA", "PKR_VAR_branch_name=$BRANCH_NAME"]
 
 timeout: 1800s
 
