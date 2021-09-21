@@ -138,7 +138,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if !k.Load {
 		return nil
 	}
-	loadArgs := []string{"load", "docker-image", "quay.io/metallb/controller:main", "quay.io/metallb/speaker:main", "networkop/meshnet", "networkop/init-wait"}
+	loadArgs := []string{"load", "docker-image", "quay.io/metallb/controller:main", "quay.io/metallb/speaker:main", "hfam/meshnet", "networkop/meshnet", "networkop/init-wait"}
 	if k.Name != "" {
 		loadArgs = append(loadArgs, "--name", k.Name)
 	}
