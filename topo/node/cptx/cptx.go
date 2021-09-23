@@ -152,14 +152,10 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
         candidateConfigFile = ""
     }
 
-    //delete this assignment after scrapligo related fixes are in
-    _ = candidateConfigFile
-
     c, err := scraplicfg.NewCfgDriver(
         n.cliConn,
         "juniper_junos",
-        //uncomment this after scrapligo related fixes are in
-        //scraplicfg.WithCandidateConfigFilename(candidateConfigFile),
+        scraplicfg.WithCandidateConfigFilename(candidateConfigFile),
     )
     if err != nil {
         return err
