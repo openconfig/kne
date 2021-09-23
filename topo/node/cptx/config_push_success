@@ -17,7 +17,9 @@ Yocto: 5.5.5
 Linux Kernel: 5.5.55-XY5.5.5_standard-abcdefg
 JUNOS-EVO OS 64-bit [junos-evo-install-ptx-platform-x86-64-55.5R5.55-EVO]
 
+root@cptx2>
 root@cptx2> start shell user root
+[vrf:none] root@cptx2:~# 
 [vrf:none] root@cptx2:~# 
 [vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing 'system {'
 [vrf:none] root@cptx2:~#
@@ -88,6 +90,7 @@ Exiting configuration mode
 
 root@cptx2>
 root@cptx2> start shell user root
+[vrf:none] root@cptx2:~#
 [vrf:none] root@cptx2:~#
 [vrf:none] root@cptx2:~# rm /config/scrapli_cfg_testing
 [vrf:none] root@cptx2:~#
