@@ -30,7 +30,7 @@ message Topology {
 }
 
 // Vendor of the node. Topology manager uses this enum to dispatch the node to
-// the correct controller. 
+// the correct controller.
 enum Vendor {
   UNKNOWN = 0;
   HOST = 1;
@@ -65,7 +65,7 @@ message Node {
   string name = 1; // Name of the node in the topology. Must be unique.
   // Type of node to create. (Will be deprecated).
   // If type is set vendor / model / version will not be evaluated.
-  Type type = 2; 
+  Type type = 2;
   map<string,string> labels = 4; // Metadata labels describing the node.
   Config config = 5; // Pod specfic configuration of the node.
   map<uint32, Service> services = 6; // Map of services to enable on the node.
