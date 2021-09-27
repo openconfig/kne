@@ -89,7 +89,7 @@ message Interface {
   string name = 1;
   // Internal device name. This name matches the key in the Node interface map.
   // It will be returned by the operator. Assigned by KNE.
-  string int_name = 2; 
+  string int_name = 2;
   uint32 mtu = 3; // Desired MTU for the interface.
   // Peer node name. Assigned by KNE.
   string peer_name = 4;
@@ -103,7 +103,7 @@ message Link {
   string a_node = 1;
   string a_int = 2;
   string z_node = 3;
-  string z_int = 4; 
+  string z_int = 4;
 }
 
 // Config is the k8s pod specific configuration for a node.
@@ -112,20 +112,20 @@ message Config {
   repeated string args = 2;     // Command args to pass into the pod.
   string image = 3;             // Docker image to use with pod.
   // Map of environment variables to pass into the pod.
-  map<string, string> env = 4; 
-  // Specific entry point command for accessing the pod. 
+  map<string, string> env = 4;
+  // Specific entry point command for accessing the pod.
   string entry_command = 5;
   // Mount point for configuration inside the pod.
   string config_path = 6;
-  // Default configuration file name for the pod.       
-  string config_file = 7;       
+  // Default configuration file name for the pod.
+  string config_file = 7;
   uint32 sleep = 8;             // Sleeptime before starting the pod.
   // Certificate configuration
   CertificateCfg cert = 9;
   oneof config_data {
     // Byte data for the startup configuration file.
     bytes data = 101;
-    // File is always relative to the topology configuration file.    
+    // File is always relative to the topology configuration file.
     string file = 102;
   }
 }
