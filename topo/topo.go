@@ -258,7 +258,7 @@ func (m *Manager) Push(ctx context.Context) error {
 
 // GenerateSelfSigned will try to create self signed certs on the provided node. If the node
 // doesn't have cert info then it is a noop. If the node doesn't fulfil Certer then
-// status.Unimplmented will be returned.
+// status.Unimplemented will be returned.
 func GenerateSelfSigned(ctx context.Context, n *node.Node) error {
 	if n.Impl().Proto().GetConfig().GetCert() == nil {
 		log.Debugf("No cert info for %s", n.Name())
