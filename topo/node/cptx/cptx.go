@@ -52,22 +52,23 @@ func (n *Node) Proto() *topopb.Node {
 // for a given platform. Retries with exponential backoff.
 func (n *Node) WaitCLIReady(ctx context.Context) error {
     var err error
-    var sleep time.Duration = 1
+    sleep := 1 * time.Second
     for {
         select {
         case <-ctx.Done():
             log.Debugf("%s - Timed out - cli still not ready.", n.pb.Name)
-            return err
+            return fmt.Errorf("context cancelled for target %q with cli not ready: %w", n.pb.Name, err)
         default:
-            err = n.cliConn.Open()
-            if err == nil {
-                log.Debugf("%s - cli ready.", n.pb.Name)
-                return nil
-            }
-            log.Debugf("%s - cli not ready - waiting %d seconds.", n.pb.Name, sleep)
-            time.Sleep(sleep * time.Second)
-            sleep *= 2
         }
+
+        err = n.cliConn.Open()
+        if err == nil {
+            log.Debugf("%s - cli ready.", n.pb.Name)
+            return nil
+        }
+        log.Debugf("%s - cli not ready - waiting %d seconds.", n.pb.Name, sleep)
+        time.Sleep(sleep)
+        sleep *= 2
     }
     return err
 }
