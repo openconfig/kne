@@ -64,7 +64,7 @@ func (n *Node) WaitCLIReady() error {
 	for !transportReady {
 		if err := n.cliConn.Open(); err != nil {
 			log.Debugf("%s - Cli not ready - waiting.", n.pb.Name)
-			time.Sleep(time.Second * 2)
+			time.Sleep(2 * time.Second)
 			continue
 		}
 		transportReady = true
@@ -142,8 +142,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	}
 	log.Infof("%s - pod running.", n.pb.Name)
 
-	err = n.SpawnCLIConn(ni.Namespace())
-	if err != nil {
+	if err = n.SpawnCLIConn(ni.Namespace()); err != nil {
 		return err
 	}
 
