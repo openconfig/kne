@@ -96,6 +96,7 @@ github.com/buger/jsonparser v0.0.0-20180808090653-f4dd9f5a6b44/go.mod h1:bbYlZJ7
 github.com/bugsnag/bugsnag-go v0.0.0-20141110184014-b1d153021fcd/go.mod h1:2oa8nejYd4cQ/b0hMIopN0lCRxU0bueqREvZLWFrtK8=
 github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b/go.mod h1:obH5gd0BsqsP2LwDJ9aOkm/6J86V6lyAXCoQWGw3K50=
 github.com/bugsnag/panicwrap v0.0.0-20151223152923-e2c28503fcd0/go.mod h1:D/8v3kj0zr8ZAKg1AQ6crr+5VwKN5eIywRkfhyM/+dE=
+github.com/carlmontanari/difflibgo v0.0.0-20210718170140-424f52054f94 h1:NGwk1xS2VoCNj8Y7RSVM/oEI6p7yUihghKjNbY5QRDs=
 github.com/carlmontanari/difflibgo v0.0.0-20210718170140-424f52054f94/go.mod h1:+3MuSIeC3qmdSesR12cTLeb47R/Vvo+bHdB6hC5HShk=
 github.com/cenkalti/backoff/v4 v4.1.0/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
@@ -636,6 +637,8 @@ github.com/safchain/ethtool v0.0.0-20190326074333-42ed695e3de8/go.mod h1:Z0q5wiB
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/scrapli/scrapligo v0.1.0 h1:6bAtdQY9Phnacy811lf8kgoWqIMYAM/E3b5N07wVbyU=
 github.com/scrapli/scrapligo v0.1.0/go.mod h1:0tHMgiCiTuWOvSceFU7klaYThXvRZNvc7k+fmQrtH54=
+github.com/scrapli/scrapligo v0.1.1 h1:kSRgH81a4Ec0qM3VK1AHp3/C0mvPclVteQMaW7vTXS0=
+github.com/scrapli/scrapligo v0.1.1/go.mod h1:0tHMgiCiTuWOvSceFU7klaYThXvRZNvc7k+fmQrtH54=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/seccomp/libseccomp-golang v0.9.1/go.mod h1:GbW5+tmTXfcxTToHLXlScSlAvWlF4P2Ca7zGrPiEpWo=
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=
