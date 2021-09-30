@@ -20,7 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
-	github.com/srl-labs/kne-controller v0.0.0-alpha5
+	github.com/srl-labs/kne-controller v0.1.0
 	github.com/srl-labs/srlinux-scrapli v0.4.0
 	golang.org/x/net v0.0.0-20210913180222-943fd674d43e // indirect
 	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
