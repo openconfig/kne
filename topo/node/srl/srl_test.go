@@ -133,14 +133,14 @@ func TestGenerateSelfSigned(t *testing.T) {
 			pb:       validPb,
 			testFile: "generate_certificate_success",
 		},
-		// {
-		// 	// device returns "% Invalid input" -- we expect to fail
-		// 	desc:     "failure",
-		// 	wantErr:  true,
-		// 	ni:       ni,
-		// 	pb:       validPb,
-		// 	testFile: "generate_certificate_failure",
-		// },
+		{
+			// device returns "Error: something bad happened" -- we expect to fail
+			desc:     "failure",
+			wantErr:  true,
+			ni:       ni,
+			pb:       validPb,
+			testFile: "generate_certificate_failure",
+		},
 	}
 	logging.SetDebugLogger(log.Print)
 	for _, tt := range tests {
