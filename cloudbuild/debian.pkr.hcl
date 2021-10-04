@@ -56,13 +56,14 @@ build {
       "sudo apt-get install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "gcloud auth configure-docker -q",
+      "gcloud auth configure-docker us-west1-docker.pkg.dev -q",
       "sudo docker pull kindest/node:v1.22.1",
       "sudo docker pull networkop/init-wait",
       "sudo docker pull networkop/meshnet",
       "sudo docker pull hfam/meshnet",
       "sudo docker pull quay.io/metallb/speaker:main",
       "sudo docker pull quay.io/metallb/controller:main",
+      "sudo docker pull gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
     ]
   }
 
@@ -90,6 +91,13 @@ build {
       "git clone -b ${var.branch_name} https://github.com/google/kne.git",
       "cd kne/kne_cli",
       "/usr/local/go/bin/go build -v",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "sudo mkdir /sys/fs/cgroup/systemd",
+      "sudo mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd",
     ]
   }
 }
