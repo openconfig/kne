@@ -12,7 +12,7 @@ import (
 )
 
 type IxiaSpec struct {
-	Config string `json:"config,omitempty"`
+	Config  string `json:"config,omitempty"`
 	Version string `json:"version,omitempty"`
 }
 

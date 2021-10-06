@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	topologyclientv1 "github.com/google/kne/api/clientset/v1beta1"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,27 +24,34 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/pointer"
 
-	topopb "github.com/google/kne/proto/topo"
+	tpb "github.com/google/kne/proto/topo"
 )
 
 type Interface interface {
+	Name() string
 	KubeClient() kubernetes.Interface
+	TopoClient() topologyclientv1.Interface
 	RESTConfig() *rest.Config
-	Interfaces() map[string]*Link
+	Links() map[string]*Link
 	Namespace() string
+	Proto() *tpb.Node
 }
 
 type Implementation interface {
-	Proto() *topopb.Node
-	// CreateNodeResource provides a custom implementation of pod creation
+	// Create provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
-	CreateNodeResource(context.Context, Interface) error
-	// CreateNodeResource provides a custom implementation of pod creation
+	Create(context.Context) error
+	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
-	DeleteNodeResource(context.Context, Interface) error
+	Delete(context.Context) error
 }
 
-type NewNodeFn func(*topopb.Node) (Implementation, error)
+type Node interface {
+	Interface
+	Implementation
+}
+
+type NewNodeFn func(n *Impl) (Node, error)
 
 // Resetter provides Reset interface to nodes.
 type Resetter interface {
@@ -60,10 +68,10 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 
 var (
 	mu        sync.Mutex
-	nodeTypes = map[topopb.Node_Type]NewNodeFn{}
+	nodeTypes = map[tpb.Node_Type]NewNodeFn{}
 )
 
-func Register(t topopb.Node_Type, fn NewNodeFn) {
+func Register(t tpb.Node_Type, fn NewNodeFn) {
 	mu.Lock()
 	if _, ok := nodeTypes[t]; ok {
 		panic(fmt.Sprintf("duplicate registration for %T", t))
@@ -72,13 +80,14 @@ func Register(t topopb.Node_Type, fn NewNodeFn) {
 	mu.Unlock()
 }
 
-// Node is a topology node in the cluster.
-type Node struct {
-	impl       Implementation
-	namespace  string
-	kClient    kubernetes.Interface
-	rCfg       *rest.Config
-	interfaces map[string]*Link
+// Impl is a topology node in the cluster.
+type Impl struct {
+	Namespace  string
+	KClient    kubernetes.Interface
+	RCfg       *rest.Config
+	Interfaces map[string]*Link
+	Proto      *tpb.Node
+	BasePath   string
 }
 
 // Interfaces returns the node's map of interfaces.
@@ -101,39 +110,30 @@ func (n *Node) Namespace() string {
 	return n.namespace
 }
 
-// Impl returns the node implementation.
-func (n *Node) Impl() Implementation {
-	return n.impl
-}
-
 // New creates a new node for use in the k8s cluster.  Configure will push the node to
 // the cluster.
-func New(namespace string, pb *topopb.Node, kClient kubernetes.Interface, rCfg *rest.Config) (*Node, error) {
-	impl, err := getImpl(pb)
-	if err != nil {
-		return nil, err
-	}
-	return &Node{
-		namespace:  namespace,
-		impl:       impl,
-		rCfg:       rCfg,
-		kClient:    kClient,
-		interfaces: map[string]*Link{},
-	}, nil
+func New(namespace string, pb *tpb.Node, kClient kubernetes.Interface, rCfg *rest.Config, bp string) (*Node, error) {
+	return getImpl(&Impl{
+		Namespace: namespace,
+		Proto:     pb,
+		KClient:   kClient,
+		RCfg:      rCfg,
+		BasePath:  bp,
+	})
 }
 
-// Configure creates the node on the k8s cluster.
-func (n *Node) Configure(ctx context.Context, bp string) error {
-	pb := n.impl.Proto()
+// CreateConfig creates the node base configmap on the k8s cluster.
+func (n *Impl) CreateConfig(ctx context.Context, bp string) error {
+	pb := n.Proto
 	var data []byte
 	switch v := pb.Config.GetConfigData().(type) {
-	case *topopb.Config_File:
+	case *tpb.Config_File:
 		var err error
 		data, err = ioutil.ReadFile(filepath.Join(bp, v.File))
 		if err != nil {
 			return err
 		}
-	case *topopb.Config_Data:
+	case *tpb.Config_Data:
 		data = v.Data
 	}
 	if data != nil {
@@ -154,8 +154,8 @@ func (n *Node) Configure(ctx context.Context, bp string) error {
 	return nil
 }
 
-// Delete removes the Node from the cluster.
-func (n *Node) Delete(ctx context.Context) error {
+// Delete removes the node configmap from the cluster.
+func (n *Impl) DeleteConfig(ctx context.Context) error {
 	return n.kClient.CoreV1().ConfigMaps(n.namespace).Delete(ctx, fmt.Sprintf("%s-config", n.Name()), metav1.DeleteOptions{})
 }
 
@@ -185,21 +185,6 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 		r.Requests["memory"] = resource.MustParse(v)
 	}
 	return r
-}
-
-// CreateResource creates the node specific resources.
-func (n *Node) CreateResource(ctx context.Context) error {
-	pb := n.impl.Proto()
-	log.Infof("Creating Resource for Pod:\n %+v", pb)
-	err := n.impl.CreateNodeResource(ctx, n)
-	switch status.Code(err) {
-	case codes.OK:
-		return nil
-	case codes.Unimplemented:
-	default:
-		return err
-	}
-	return n.CreatePod(ctx)
 }
 
 // CreatePod creates the pod for the node.
@@ -440,7 +425,7 @@ func enableLLDP(b string) []string {
 }
 
 // EnableLLDP enables LLDP on the pod.
-func (n *Node) EnableLLDP(ctx context.Context) error {
+func (n *Impl) EnableLLDP(ctx context.Context) error {
 	log.Infof("Enabling LLDP on node: %s", n.Name())
 	stdout := bytes.NewBuffer([]byte{})
 	stderr := bytes.NewBuffer([]byte{})
@@ -467,7 +452,7 @@ func (n *Node) EnableLLDP(ctx context.Context) error {
 }
 
 // EnableIPForwarding enables IP forwarding on the pod.
-func (n *Node) EnableIPForwarding(ctx context.Context) error {
+func (n *Impl) EnableIPForwarding(ctx context.Context) error {
 	log.Infof("Enabling IP forwarding for node: %s", n.Name())
 	stdout := bytes.NewBuffer([]byte{})
 	stderr := bytes.NewBuffer([]byte{})
@@ -482,15 +467,15 @@ type ConfigPusher interface {
 	ConfigPush(context.Context, string, io.Reader) error
 }
 
-func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+func (n *Impl) ConfigPush(ctx context.Context, r io.Reader) error {
 	cp, ok := n.impl.(ConfigPusher)
 	if !ok {
 		return fmt.Errorf("%T is not a ConfigPusher", n.impl)
 	}
-	return cp.ConfigPush(ctx, n.namespace, r)
+	return cp.ConfigPush(ctx, n.Namespace, r)
 }
 
-func getImpl(pb *topopb.Node) (Implementation, error) {
+func getImpl(pb *tpb.Node) (Implementation, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	fn, ok := nodeTypes[pb.Type]
@@ -502,7 +487,7 @@ func getImpl(pb *topopb.Node) (Implementation, error) {
 
 type Link struct {
 	UID   int
-	Proto *topopb.Link
+	Proto *tpb.Link
 }
 
 var (
@@ -518,7 +503,7 @@ func GetNextPort() uint32 {
 	return p
 }
 
-func FixServices(pb *topopb.Node) {
+func FixServices(pb *tpb.Node) {
 	for k := range pb.Services {
 		if pb.Services[k].NodePort == 0 {
 			pb.Services[k].NodePort = GetNextPort()

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	topopb "github.com/google/kne/proto/topo"
@@ -43,9 +44,11 @@ func New(pb *topopb.Node) (node.Implementation, error) {
 	cfg := defaults(pb)
 	proto.Merge(cfg, pb)
 	node.FixServices(cfg)
-	return &Node{
+	n := &Node{
 		pb: cfg,
-	}, nil
+	}
+	n.FixInterfaces()
+	return n, nil
 }
 
 type Node struct {
@@ -70,7 +73,6 @@ func (n *Node) WaitCLIReady() error {
 		transportReady = true
 		log.Debugf("%s - Cli ready.", n.pb.Name)
 	}
-
 	return nil
 }
 
@@ -294,6 +296,17 @@ func defaults(pb *topopb.Node) *topopb.Node {
 			ConfigPath:   "/mnt/flash",
 			ConfigFile:   "startup-config",
 		},
+	}
+}
+
+func (n *Node) FixInterfaces() {
+	for k, v := range n.pb.Interfaces {
+		if !strings.HasPrefix(k, "eth") {
+			continue
+		}
+		if v.Name != "" {
+			n.pb.Interfaces[k].Name = fmt.Sprintf("Ethernet%s", strings.TrimPrefix(k, "eth"))
+		}
 	}
 }
 

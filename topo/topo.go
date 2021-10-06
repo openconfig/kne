@@ -234,13 +234,7 @@ func (m *Manager) Push(ctx context.Context) error {
 	}
 	log.Infof("Creating Node Pods")
 	for k, n := range m.nodes {
-		if err := n.Configure(ctx, m.BasePath); err != nil {
-			return err
-		}
-		if err := n.CreateService(ctx); err != nil {
-			return err
-		}
-		if err := n.CreateResource(ctx); err != nil {
+		if err := n.Create(ctx); err != nil {
 			return err
 		}
 		log.Infof("Node %q resource created", k)
