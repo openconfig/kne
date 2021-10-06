@@ -39,6 +39,10 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
+func (n *Node) GetNodeResourceStatus(_ context.Context, _ node.Interface) (node.NodeStatus, error) {
+	return node.NodeStatus{}, status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }

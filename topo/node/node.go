@@ -38,6 +38,9 @@ type Implementation interface {
 	// CreateNodeResource provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	CreateNodeResource(context.Context, Interface) error
+	// GetNodeResource provides a custom implementation of accessing vendor node status.
+	// Requires context, Kubernetes client interface and namespace.
+	GetNodeResourceStatus(context.Context, Interface) (NodeStatus, error)
 	// CreateNodeResource provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	DeleteNodeResource(context.Context, Interface) error
@@ -70,6 +73,11 @@ func Register(t topopb.Node_Type, fn NewNodeFn) {
 	}
 	nodeTypes[t] = fn
 	mu.Unlock()
+}
+
+type NodeStatus struct {
+	Status string
+	Reason string
 }
 
 // Node is a topology node in the cluster.
