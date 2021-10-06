@@ -12,7 +12,7 @@ variable "build_id" {
 
 source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
-  source_image = "debian-11-bullseye-v20210817"
+  source_image = "ubuntu-2004-focal-v20210927"
   disk_size    = 50
   image_name   = "kne-{{timestamp}}"
   image_family = "kne"
@@ -22,9 +22,9 @@ source "googlecompute" "kne-image" {
     "kne_gh_branch_name" : "${var.branch_name}",
     "cloud_build_id" : "${var.build_id}",
   }
-  image_description     = "Debian based linux VM image with KNE and all dependencies installed."
+  image_description     = "Ubuntu based linux VM image with KNE and all dependencies installed."
   ssh_username          = "user"
-  machine_type          = "e2-standard-4"
+  machine_type          = "n2-standard-8"
   zone                  = "us-central1-a"
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
@@ -91,13 +91,6 @@ build {
       "git clone -b ${var.branch_name} https://github.com/google/kne.git",
       "cd kne/kne_cli",
       "/usr/local/go/bin/go build -v",
-    ]
-  }
-
-  provisioner "shell" {
-    inline = [
-      "sudo mkdir /sys/fs/cgroup/systemd",
-      "sudo mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd",
     ]
   }
 }
