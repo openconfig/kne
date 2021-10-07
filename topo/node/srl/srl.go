@@ -69,16 +69,13 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	}
 	log.Infof("%s - pod running.", n.pb.Name)
 
-	err = n.SpawnCLIConn(ni.Namespace())
-	if err != nil {
+	if err := n.SpawnCLIConn(ni.Namespace()); err != nil {
 		return err
 	}
 
 	defer n.cliConn.Close()
 
-	err = srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false)
-
-	if err == nil {
+	if err := srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false); err == nil {
 		log.Infof("%s - finshed cert generation", n.pb.Name)
 	}
 
@@ -227,15 +224,13 @@ func (n *Node) SpawnCLIConn(ns string) error {
 
 	n.cliConn = d
 
-	err = n.PatchCLIConnOpen(ns)
-	if err != nil {
+	if err := n.PatchCLIConnOpen(ns); err != nil {
 		n.cliConn = nil
 
 		return err
 	}
 
-	err = n.WaitCLIReady()
-	if err != nil {
+	if err := n.WaitCLIReady(); err != nil {
 		return err
 	}
 
