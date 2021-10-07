@@ -162,6 +162,9 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err := t.Push(cmd.Context()); err != nil {
 		return err
 	}
+	if err := t.CheckNodeStatus(cmd.Context()); err != nil {
+		return err
+	}
 	fmt.Fprintf(out, "Topology %q created\n", topopb.Name)
 	r, err := t.Resources(cmd.Context())
 	if err != nil {

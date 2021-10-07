@@ -25,6 +25,10 @@ func (nr *notResetable) CreateNodeResource(_ context.Context, _ Interface) error
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
+func (nr *notResetable) GetNodeResourceStatus(_ context.Context, _ Interface) (NodeStatus, error) {
+	return NodeStatus{}, status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
 func (nr *notResetable) DeleteNodeResource(_ context.Context, _ Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }

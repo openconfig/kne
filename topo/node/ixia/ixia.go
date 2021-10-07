@@ -12,7 +12,7 @@ import (
 )
 
 type IxiaSpec struct {
-	Config string `json:"config,omitempty"`
+	Config  string `json:"config,omitempty"`
 	Version string `json:"version,omitempty"`
 }
 
@@ -20,7 +20,9 @@ type Ixia struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec IxiaSpec `json:"spec,omitempty"`
+	Spec   IxiaSpec        `json:"spec,omitempty"`
+	// This is a temporary fix until Ixia operator is made public and IxiaTG type can be referenced
+	Status node.NodeStatus `json:"status,omitempty"`
 }
 
 func New(pb *topopb.Node) (node.Implementation, error) {
@@ -79,6 +81,31 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 	}
 	log.Infof("Created custom resource: %s", n.pb.Name)
 	return nil
+}
+
+func (n *Node) GetNodeResourceStatus(ctx context.Context, ni node.Interface) (node.NodeStatus, error) {
+	ixiaNode := Ixia{}
+	err := error(nil)
+	res := ni.KubeClient().CoreV1().RESTClient().
+		Get().
+		AbsPath("/apis/network.keysight.com/v1alpha1").
+		Namespace(ni.Namespace()).
+		Resource("Ixiatgs").
+		Name(n.pb.Name).
+		Do(ctx)
+
+	if err = res.Error(); err == nil {
+		if resraw, err := res.Raw(); err == nil {
+			err = json.Unmarshal(resraw, &ixiaNode)
+		}
+	}
+
+	if err != nil {
+		log.Error(err)
+		return node.NodeStatus{}, err
+	}
+
+	return ixiaNode.Status, nil
 }
 
 func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {

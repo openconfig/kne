@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"sort"
 	"sync"
+	"time"
+	"errors"
 
 	"github.com/google/kne/topo/node"
 	"github.com/kr/pretty"
@@ -252,6 +254,55 @@ func (m *Manager) Push(ctx context.Context) error {
 			return fmt.Errorf("failed to generate cert for node %s: %w", n.Name(), err)
 		case err == nil, status.Code(err) == codes.Unimplemented:
 		}
+	}
+	return nil
+}
+
+// CheckNodeStatus reports node status, ignores for unimplemented nodes.
+func (m *Manager) CheckNodeStatus(ctx context.Context) error {
+	foundAll := false
+	failed := false
+	nodes := make(map[string]*node.Node)
+	for k, n := range m.nodes {
+		nodes[k] = n
+	}
+
+	// Check until end state or 3 sec expired
+	for i := 0; i < 30 && !foundAll; i++ {
+		foundAll = true
+		for name, n := range nodes {
+			if n == nil {
+				continue
+			}
+
+			s, err := n.Impl().GetNodeResourceStatus(ctx, n)
+			switch status.Code(err) {
+			case codes.OK:
+				switch s.Status {
+				case "":
+					foundAll = false
+					continue
+				case "Success":
+					log.Infof("Node %q: Status %s", name, s.Status)
+				default:
+					log.Errorf("Node %q: Status %s Reason %s", name, s.Status, s.Reason)
+					failed = true
+				}
+				nodes[name] = nil
+			case codes.Unimplemented:
+				nodes[name] = nil
+			default:
+				log.Errorf("Node %q: failed to get status - %s", name, err)
+				nodes[name] = nil
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !foundAll {
+		log.Warn("Failed to determine status of some node resources in time")
+	}
+	if failed {
+		return errors.New("Deployment status failed for some nodes")
 	}
 	return nil
 }
