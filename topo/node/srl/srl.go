@@ -95,8 +95,8 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 	return nil
 }
 
-func (n *Node) GetNodeResourceStatus(_ context.Context, _ node.Interface) (node.NodeStatus, error) {
-	return node.NodeStatus{}, status.Errorf(codes.Unimplemented, "Unimplemented")
+func (n *Node) GetNodeResourceStatus(_ context.Context, _ node.Interface) (*node.NodeStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {

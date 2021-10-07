@@ -33,8 +33,8 @@ func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (n *Node) GetNodeResourceStatus(_ context.Context, _ node.Interface) (node.NodeStatus, error) {
-	return node.NodeStatus{}, status.Errorf(codes.Unimplemented, "Unimplemented")
+func (n *Node) GetNodeResourceStatus(_ context.Context, _ node.Interface) (*node.NodeStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {

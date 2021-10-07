@@ -83,7 +83,7 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 	return nil
 }
 
-func (n *Node) GetNodeResourceStatus(ctx context.Context, ni node.Interface) (node.NodeStatus, error) {
+func (n *Node) GetNodeResourceStatus(ctx context.Context, ni node.Interface) (*node.NodeStatus, error) {
 	ixiaNode := Ixia{}
 	err := error(nil)
 	res := ni.KubeClient().CoreV1().RESTClient().
@@ -102,10 +102,10 @@ func (n *Node) GetNodeResourceStatus(ctx context.Context, ni node.Interface) (no
 
 	if err != nil {
 		log.Error(err)
-		return node.NodeStatus{}, err
+		return nil, err
 	}
 
-	return ixiaNode.Status, nil
+	return &ixiaNode.Status, nil
 }
 
 func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
