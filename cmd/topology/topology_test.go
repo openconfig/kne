@@ -15,8 +15,6 @@ import (
 	"github.com/google/kne/topo"
 	"github.com/google/kne/topo/node"
 	"github.com/h-fam/errdiff"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
@@ -27,28 +25,16 @@ import (
 	tpb "github.com/google/kne/proto/topo"
 )
 
-func NewNR(pb *tpb.Node) (node.Implementation, error) {
-	return &notResettable{pb: pb}, nil
+func NewNR(impl *node.Impl) (node.Node, error) {
+	return &notResettable{Impl: impl}, nil
 }
 
 type notResettable struct {
-	pb            *tpb.Node
+	*node.Impl
 	configPushErr error
 }
 
-func (nr *notResettable) Proto() *tpb.Node {
-	return nr.pb
-}
-
-func (nr *notResettable) CreateNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func (nr *notResettable) DeleteNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func (nr *notResettable) ConfigPush(_ context.Context, s string, r io.Reader) error {
+func (nr *notResettable) ConfigPush(_ context.Context, r io.Reader) error {
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
@@ -61,15 +47,14 @@ func (nr *notResettable) ConfigPush(_ context.Context, s string, r io.Reader) er
 
 type resettable struct {
 	*notResettable
-	resetErr error
 }
 
-func (r *resettable) ResetCfg(ctx context.Context, ni node.Interface) error {
-	return r.resetErr
+func (r *resettable) ResetCfg(ctx context.Context) error {
+	return nil
 }
 
-func NewR(pb *tpb.Node) (node.Implementation, error) {
-	return &resettable{&notResettable{pb: pb}, nil}, nil
+func NewR(impl *node.Impl) (node.Node, error) {
+	return &resettable{&notResettable{Impl: impl}}, nil
 }
 
 func writeTopology(t *testing.T, topo *tpb.Topology) (*os.File, func()) {
@@ -259,6 +244,11 @@ func TestReset(t *testing.T) {
 type fakeTopology struct {
 	resources *topo.Resources
 	rErr      error
+	lErr      error
+}
+
+func (f *fakeTopology) Load(context.Context) error {
+	return f.lErr
 }
 
 func (f *fakeTopology) Resources(context.Context) (*topo.Resources, error) {
@@ -375,6 +365,16 @@ func TestService(t *testing.T) {
 		args:    []string{"service", "testdata/valid_topo.pb.txt"},
 		topoNew: func(string, *tpb.Topology, ...topo.Option) (resourcer, error) {
 			return &fakeTopology{
+				resources: &topo.Resources{},
+			}, nil
+		},
+	}, {
+		desc:    "Load fail",
+		wantErr: "load failed",
+		args:    []string{"service", "testdata/valid_topo.pb.txt"},
+		topoNew: func(string, *tpb.Topology, ...topo.Option) (resourcer, error) {
+			return &fakeTopology{
+				lErr:      fmt.Errorf("load failed"),
 				resources: &topo.Resources{},
 			}, nil
 		},

@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 
-	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	tpb "github.com/google/kne/proto/topo"
 )
 
 type IxiaSpec struct {
-	Config string `json:"config,omitempty"`
+	Config  string `json:"config,omitempty"`
 	Version string `json:"version,omitempty"`
 }
 
@@ -23,26 +24,24 @@ type Ixia struct {
 	Spec IxiaSpec `json:"spec,omitempty"`
 }
 
-func New(pb *topopb.Node) (node.Implementation, error) {
-	cfg := defaults(pb)
-	proto.Merge(cfg, pb)
+func New(nodeImpl *node.Impl) (node.Node, error) {
+	cfg := defaults(nodeImpl.Proto)
+	proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
-	return &Node{
-		pb: cfg,
-	}, nil
+	n := &Node{
+		Impl: nodeImpl,
+	}
+	proto.Merge(n.Impl.Proto, cfg)
+	return n, nil
 }
 
 type Node struct {
-	pb *topopb.Node
+	*node.Impl
 }
 
-func (n *Node) Proto() *topopb.Node {
-	return n.pb
-}
-
-func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Creating IxiaTG node resource %s", n.pb.Name)
-	jsonConfig, err := json.Marshal(n.pb.Config)
+func (n *Node) Create(ctx context.Context) error {
+	log.Infof("Creating IxiaTG node resource %s", n.Name())
+	jsonConfig, err := json.Marshal(n.Proto.Config)
 	if err != nil {
 		return err
 	}
@@ -52,12 +51,12 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 			Kind:       "IxiaTG",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.pb.Name,
-			Namespace: ni.Namespace(),
+			Name:      n.Name(),
+			Namespace: n.Namespace,
 		},
 		Spec: IxiaSpec{
 			Config:  string(jsonConfig),
-			Version: n.pb.Version,
+			Version: n.Proto.Version,
 		},
 	}
 	body, err := json.Marshal(newIxia)
@@ -65,10 +64,10 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 		return err
 	}
 
-	err = ni.KubeClient().CoreV1().RESTClient().
+	err = n.KubeClient.CoreV1().RESTClient().
 		Post().
 		AbsPath("/apis/network.keysight.com/v1alpha1").
-		Namespace(ni.Namespace()).
+		Namespace(n.Namespace).
 		Resource("Ixiatgs").
 		Body(body).
 		Do(ctx).
@@ -77,32 +76,39 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 		log.Error(err)
 		return err
 	}
-	log.Infof("Created custom resource: %s", n.pb.Name)
+	log.Infof("Created custom resource: %s", n.Name())
+	if err := n.CreateService(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Deleting IxiaTG node resource %s", n.pb.Name)
-	err := ni.KubeClient().CoreV1().RESTClient().
+func (n *Node) Delete(ctx context.Context) error {
+	log.Infof("Deleting IxiaTG node resource %s", n.Name())
+	err := n.KubeClient.CoreV1().RESTClient().
 		Delete().
 		AbsPath("/apis/network.keysight.com/v1alpha1").
-		Namespace(ni.Namespace()).
+		Namespace(n.Namespace).
 		Resource("Ixiatgs").
-		Name(n.pb.Name).
+		Name(n.Name()).
 		Do(ctx).
 		Error()
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	log.Infof("Deleted custom resource: %s", n.pb.Name)
+	log.Infof("Deleted custom resource: %s", n.Name())
+	if err := n.DeleteService(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
-func defaults(pb *topopb.Node) *topopb.Node {
-	return &topopb.Node{}
+func defaults(pb *tpb.Node) *tpb.Node {
+	return &tpb.Node{}
 }
 
 func init() {
-	node.Register(topopb.Node_IXIA_TG, New)
+	node.Register(tpb.Node_IXIA_TG, New)
+	node.Vendor(tpb.Vendor_KEYSIGHT, New)
 }

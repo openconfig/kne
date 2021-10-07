@@ -27,35 +27,33 @@ import (
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
-func New(pb *topopb.Node) (node.Implementation, error) {
-	cfg := defaults(pb)
-	proto.Merge(cfg, pb)
+func New(nodeImpl *node.Impl) (node.Node, error) {
+	cfg := defaults(nodeImpl.Proto)
+	proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
-	return &Node{
-		pb: cfg,
-	}, nil
+	n := &Node{
+		Impl: nodeImpl,
+	}
+	proto.Merge(n.Impl.Proto, cfg)
+	return n, nil
 }
 
 type Node struct {
-	pb      *topopb.Node
+	*node.Impl
 	cliConn *scraplinetwork.Driver
 }
 
-func (n *Node) Proto() *topopb.Node {
-	return n.pb
-}
-
-func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
-	selfSigned := n.pb.GetConfig().GetCert().GetSelfSigned()
+func (n *Node) GenerateSelfSigned(ctx context.Context) error {
+	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
 	if selfSigned == nil {
-		log.Infof("%s - no cert config", n.pb.Name)
+		log.Infof("%s - no cert config", n.Name())
 		return nil
 	}
-	log.Infof("%s - generating self signed certs", n.pb.Name)
-	log.Infof("%s - waiting for pod to be running", n.pb.Name)
-	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
+	log.Infof("%s - generating self signed certs", n.Name())
+	log.Infof("%s - waiting for pod to be running", n.Name())
+	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(
-			fields.Set{metav1.ObjectNameField: n.pb.Name},
+			fields.Set{metav1.ObjectNameField: n.Name()},
 		).String(),
 	})
 	if err != nil {
@@ -67,16 +65,16 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 			break
 		}
 	}
-	log.Infof("%s - pod running.", n.pb.Name)
+	log.Infof("%s - pod running.", n.Name())
 
-	if err := n.SpawnCLIConn(ni.Namespace()); err != nil {
+	if err := n.SpawnCLIConn(n.Namespace); err != nil {
 		return err
 	}
 
 	defer n.cliConn.Close()
 
 	if err := srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false); err == nil {
-		log.Infof("%s - finshed cert generation", n.pb.Name)
+		log.Infof("%s - finshed cert generation", n.Name())
 	}
 
 	return err
@@ -86,8 +84,8 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Creating Srlinux node resource %s", n.pb.Name)
+func (n *Node) Create(ctx context.Context) error {
+	log.Infof("Creating Srlinux node resource %s", n.Name())
 
 	srl := &srltypes.Srlinux{
 		TypeMeta: metav1.TypeMeta{
@@ -95,33 +93,33 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 			APIVersion: "kne.srlinux.dev/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: n.pb.Name,
+			Name: n.Name(),
 			Labels: map[string]string{
-				"app":  n.pb.Name,
-				"topo": ni.Namespace(),
+				"app":  n.Name(),
+				"topo": n.Namespace,
 			},
 		},
 		Spec: srltypes.SrlinuxSpec{
-			NumInterfaces: len(ni.Interfaces()),
+			NumInterfaces: len(n.Proto.Interfaces),
 			Config: &srltypes.NodeConfig{
 				Sleep: 0,
 			},
 		},
 	}
 
-	c, err := srlclient.NewForConfig(ni.RESTConfig())
+	c, err := srlclient.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.Srlinux(ni.Namespace()).Create(ctx, srl)
+	_, err = c.Srlinux(n.Namespace).Create(ctx, srl)
 	if err != nil {
 		return err
 	}
 
 	// wait till srlinux pods are created in the cluster
-	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.pb.Name}).String(),
+	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.Name()}).String(),
 	})
 	if err != nil {
 		return err
@@ -133,26 +131,28 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 		}
 	}
 
-	log.Infof("Created Srlinux resource: %s", n.pb.Name)
+	log.Infof("Created Srlinux resource: %s", n.Name())
 
 	return nil
 }
 
-func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Deleting Srlinux node resource %s", n.pb.Name)
-
-	c, err := srlclient.NewForConfig(ni.RESTConfig())
+func (n *Node) Delete(ctx context.Context) error {
+	c, err := srlclient.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
-
-	err = c.Srlinux(ni.Namespace()).Delete(ctx, n.pb.Name, metav1.DeleteOptions{})
+	err = c.Srlinux(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
-
-	log.Infof("Deleted custom resource: %s", n.pb.Name)
-
+	log.Infof("Deleted custom resource: %s", n.Name())
+	if err := n.DeleteService(ctx); err != nil {
+		return err
+	}
+	if err := n.DeleteConfig(ctx); err != nil {
+		return err
+	}
+	log.Infof("Deleted Srlinux node resource %s", n.Name())
 	return nil
 }
 
@@ -211,7 +211,7 @@ func defaults(pb *topopb.Node) *topopb.Node {
 // to accept inputs.
 func (n *Node) SpawnCLIConn(ns string) error {
 	d, err := srlinux.NewSRLinuxDriver(
-		n.pb.Name,
+		n.Name(),
 		scraplibase.WithAuthStrictKey(false),
 		scraplibase.WithAuthBypass(true),
 	)
@@ -245,7 +245,7 @@ func (n *Node) PatchCLIConnOpen(ns string) error {
 	}
 
 	t.SetExecCmd("kubectl")
-	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.pb.Name, "--", "sr_cli", "-d"})
+	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.Name(), "--", "sr_cli", "-d"})
 
 	return nil
 }
@@ -256,12 +256,12 @@ func (n *Node) WaitCLIReady() error {
 	transportReady := false
 	for !transportReady {
 		if err := n.cliConn.Open(); err != nil {
-			log.Debugf("%s - Cli not ready - waiting.", n.pb.Name)
+			log.Debugf("%s - Cli not ready - waiting.", n.Name())
 			time.Sleep(time.Second * 2)
 			continue
 		}
 		transportReady = true
-		log.Debugf("%s - Cli ready.", n.pb.Name)
+		log.Debugf("%s - Cli ready.", n.Name())
 	}
 
 	// wait till srlinux management server is ready to accept configs

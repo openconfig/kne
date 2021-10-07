@@ -6,21 +6,21 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	topopb "github.com/google/kne/proto/topo"
+	"github.com/google/kne/topo/node"
 )
 
 func TestNode(t *testing.T) {
 	tests := []struct {
 		desc    string
-		pb      *topopb.Node
+		ni      *node.Impl
 		wantPB  *topopb.Node
 		wantErr string
 	}{{
-		desc:   "no pb",
-		wantPB: defaults(nil),
-	}, {
 		desc: "valid pb",
-		pb: &topopb.Node{
-			Name: "test_node",
+		ni: &node.Impl{
+			Proto: &topopb.Node{
+				Name: "test_node",
+			},
 		},
 		wantPB: &topopb.Node{
 			Name: "test_node",
@@ -34,10 +34,9 @@ func TestNode(t *testing.T) {
 		},
 	}}
 	for _, tt := range tests {
-		impl, _ := New(tt.pb)
-		n := impl.(*Node)
-		if !proto.Equal(tt.wantPB, n.pb) {
-			t.Fatalf("invalid proto: got:\n%+v\nwant:\n%+v", n.pb, tt.wantPB)
+		impl, _ := New(tt.ni)
+		if !proto.Equal(tt.wantPB, impl.GetProto()) {
+			t.Fatalf("invalid proto: got:\n%+v\nwant:\n%+v", impl.GetProto(), tt.wantPB)
 		}
 	}
 }

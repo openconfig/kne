@@ -29,34 +29,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
 )
-
-type fakeNode struct {
-	kClient    kubernetes.Interface
-	namespace  string
-	interfaces map[string]*node.Link
-	rCfg       *rest.Config
-}
-
-func (f *fakeNode) KubeClient() kubernetes.Interface {
-	return f.kClient
-}
-
-func (f *fakeNode) RESTConfig() *rest.Config {
-	return f.rCfg
-}
-
-func (f *fakeNode) Interfaces() map[string]*node.Link {
-	return f.interfaces
-}
-
-func (f *fakeNode) Namespace() string {
-	return f.namespace
-}
 
 type fakeWatch struct {
 	e []watch.Event
@@ -97,21 +72,20 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}
 	ki.PrependWatchReactor("*", reaction)
 
-	ni := &fakeNode{
-		kClient:   ki,
-		namespace: "test",
-	}
-
-	validPb := &topopb.Node{
-		Name: "pod1",
-		Type: 2,
-		Config: &topopb.Config{
-			Cert: &topopb.CertificateCfg{
-				Config: &topopb.CertificateCfg_SelfSigned{
-					SelfSigned: &topopb.SelfSignedCertCfg{
-						CertName: "test",
-						KeyName:  "my_key",
-						KeySize:  2048,
+	ni := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &topopb.Node{
+			Name: "pod1",
+			Type: 2,
+			Config: &topopb.Config{
+				Cert: &topopb.CertificateCfg{
+					Config: &topopb.CertificateCfg_SelfSigned{
+						SelfSigned: &topopb.SelfSignedCertCfg{
+							CertName: "test",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
 					},
 				},
 			},
@@ -121,8 +95,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 	tests := []struct {
 		desc     string
 		wantErr  bool
-		ni       node.Interface
-		pb       *topopb.Node
+		ni       *node.Impl
 		testFile string
 	}{
 		{
@@ -130,7 +103,6 @@ func TestGenerateSelfSigned(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			pb:       validPb,
 			testFile: "generate_certificate_success",
 		},
 		{
@@ -138,14 +110,13 @@ func TestGenerateSelfSigned(t *testing.T) {
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			pb:       validPb,
 			testFile: "generate_certificate_failure",
 		},
 	}
 	logging.SetDebugLogger(log.Print)
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			nImpl, err := New(tt.pb)
+			nImpl, err := New(tt.ni)
 
 			if err != nil {
 				t.Fatalf("failed creating kne srlinux node")
@@ -167,7 +138,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 
 			ctx := context.Background()
 
-			err = n.GenerateSelfSigned(ctx, ni)
+			err = n.GenerateSelfSigned(ctx)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
 			}
