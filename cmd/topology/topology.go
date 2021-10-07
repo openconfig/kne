@@ -27,11 +27,37 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
+	corev1 "k8s.io/api/core/v1"
 
 	tpb "github.com/google/kne/proto/topo"
 )
 
 func New() *cobra.Command {
+	pushCmd := &cobra.Command{
+		Use:   "push <topology> <device> <config file>",
+		Short: "push config to device",
+		RunE:  pushFn,
+	}
+	watchCmd := &cobra.Command{
+		Use:   "watch <topology>",
+		Short: "watch will watch the current topologies",
+		RunE:  watchFn,
+	}
+	serviceCmd := &cobra.Command{
+		Use:   "service <topology>",
+		Short: "service returns the current topology with service endpoints defined.",
+		RunE:  serviceFn,
+	}
+	certCmd := &cobra.Command{
+		Use:   "cert <topology> <device>",
+		Short: "push or generate certs for nodes in topology",
+		RunE:  certFn,
+	}
+	resetCfgCmd := &cobra.Command{
+		Use:   "reset <topology> <device>",
+		Short: "reset configuration of device to vendor default (if device not provide reset all nodes)",
+		RunE:  resetCfgFn,
+	}
 	topoCmd := &cobra.Command{
 		Use:   "topology",
 		Short: "Topology commands.",
@@ -45,34 +71,6 @@ func New() *cobra.Command {
 	topoCmd.AddCommand(resetCfgCmd)
 	return topoCmd
 }
-
-var (
-	pushCmd = &cobra.Command{
-		Use:   "push <topology> <device> <config file>",
-		Short: "push config to device",
-		RunE:  pushFn,
-	}
-	watchCmd = &cobra.Command{
-		Use:   "watch <topology>",
-		Short: "watch will watch the current topologies",
-		RunE:  watchFn,
-	}
-	serviceCmd = &cobra.Command{
-		Use:   "service <topology>",
-		Short: "service returns the current topology with service endpoints defined.",
-		RunE:  serviceFn,
-	}
-	certCmd = &cobra.Command{
-		Use:   "cert <topology> <device>",
-		Short: "push or generate certs for nodes in topology",
-		RunE:  certFn,
-	}
-	resetCfgCmd = &cobra.Command{
-		Use:   "reset <topology> <device>",
-		Short: "reset configuration of device to vendor default (if device not provide reset all nodes)",
-		RunE:  resetCfgFn,
-	}
-)
 
 var (
 	skipReset  bool
@@ -254,6 +252,46 @@ func certFn(cmd *cobra.Command, args []string) error {
 	return topo.GenerateSelfSigned(cmd.Context(), n)
 }
 
+func serviceToProto(s *corev1.Service, m map[uint32]*tpb.Service) error {
+	if s == nil || m == nil {
+		return fmt.Errorf("service and map must not be nil")
+	}
+	if len(s.Status.LoadBalancer.Ingress) == 0 {
+		return fmt.Errorf("service %s has no external loadbalancer configured", s.Name)
+	}
+	for _, p := range s.Spec.Ports {
+		k := uint32(p.Port)
+		service, ok := m[k]
+		if !ok {
+			service = &tpb.Service{
+				Name:   p.Name,
+				Inside: k,
+			}
+			m[k] = service
+		}
+		if service.Name == "" {
+			service.Name = p.Name
+		}
+		service.Outside = uint32(p.TargetPort.IntVal)
+		service.NodePort = uint32(p.NodePort)
+		service.InsideIp = s.Spec.ClusterIP
+		service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
+	}
+	return nil
+}
+
+var (
+	topoNew = defaultNewTopo
+)
+
+type resourcer interface {
+	Resources(context.Context) (*topo.Resources, error)
+}
+
+func defaultNewTopo(kubeCfg string, t *tpb.Topology, opts ...topo.Option) (resourcer, error) {
+	return topo.New(kubeCfg, t, opts...)
+}
+
 func serviceFn(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("%s: missing topology", cmd.Use)
@@ -262,11 +300,11 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	s, err := cmd.Flags().GetString("kubecfg")
+	kubeCfg, err := cmd.Flags().GetString("kubecfg")
 	if err != nil {
 		return err
 	}
-	t, err := topo.New(s, topopb)
+	t, err := topoNew(kubeCfg, topopb, opts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -275,37 +313,28 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	for _, n := range topopb.Nodes {
+		if len(n.Services) == 0 {
+			n.Services = map[uint32]*tpb.Service{}
+		}
+		// (TODO:hines): Remove type once deprecated
+		if n.Vendor == tpb.Vendor_KEYSIGHT || n.Type == tpb.Node_IXIA_TG {
+			// Add Keysight gnmi and grpc global services until
+			// they have a better registration mechanism for global
+			// services
+			if gnmiService, ok := r.Services["gnmi-service"]; ok {
+				serviceToProto(gnmiService, n.Services)
+			}
+			if grpcService, ok := r.Services["grpc-service"]; ok {
+				serviceToProto(grpcService, n.Services)
+			}
+		}
 		sName := fmt.Sprintf("service-%s", n.Name)
 		s, ok := r.Services[sName]
 		if !ok {
 			return fmt.Errorf("service %s not found", sName)
 		}
-		if len(s.Status.LoadBalancer.Ingress) == 0 {
-			return fmt.Errorf("service %s has no external loadbalancer configured", sName)
-		}
-		if n.Services == nil {
-			n.Services = map[uint32]*tpb.Service{}
-		}
-		for _, p := range s.Spec.Ports {
-			k := uint32(p.Port)
-			service, ok := n.Services[k]
-			if !ok {
-				service = &tpb.Service{
-					Name:   p.Name,
-					Inside: uint32(p.Port),
-				}
-				n.Services[k] = service
-			}
-			service.Outside = uint32(p.TargetPort.IntVal)
-			service.NodePort = uint32(p.NodePort)
-			service.InsideIp = s.Spec.ClusterIP
-			service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
-		}
+		serviceToProto(s, n.Services)
 	}
-	b, err := prototext.Marshal(topopb)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(cmd.OutOrStdout(), string(b))
+	fmt.Fprintln(cmd.OutOrStdout(), prototext.Format(topopb))
 	return nil
 }
