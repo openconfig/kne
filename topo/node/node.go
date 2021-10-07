@@ -1,19 +1,14 @@
 package node
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"sync"
 
-	topologyclientv1 "github.com/google/kne/api/clientset/v1beta1"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,12 +24,8 @@ import (
 
 type Interface interface {
 	Name() string
-	KubeClient() kubernetes.Interface
-	TopoClient() topologyclientv1.Interface
-	RESTConfig() *rest.Config
-	Links() map[string]*Link
-	Namespace() string
-	Proto() *tpb.Node
+	GetNamespace() string
+	GetProto() *tpb.Node
 }
 
 type Implementation interface {
@@ -44,8 +35,26 @@ type Implementation interface {
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
+	Pod(context.Context) (*corev1.Pod, error)
+	Service(context.Context) (*corev1.Service, error)
 }
 
+// Certer provides an interface for working with certs on nodes.
+type Certer interface {
+	GenerateSelfSigned(context.Context) error
+}
+
+// ConfigPusher provides an interface for performing config pushes to the node.
+type ConfigPusher interface {
+	ConfigPush(context.Context, io.Reader) error
+}
+
+// Resetter provides Reset interface to nodes.
+type Resetter interface {
+	ResetCfg(ctx context.Context) error
+}
+
+// Node is the base interface for all node implementations in KNE.
 type Node interface {
 	Interface
 	Implementation
@@ -53,24 +62,13 @@ type Node interface {
 
 type NewNodeFn func(n *Impl) (Node, error)
 
-// Resetter provides Reset interface to nodes.
-type Resetter interface {
-	ResetCfg(ctx context.Context, ni Interface) error
-}
-
-func (n *Node) ResetCfg(ctx context.Context) error {
-	r, ok := n.impl.(Resetter)
-	if !ok {
-		return fmt.Errorf("%T is not a Resetter", n.impl)
-	}
-	return r.ResetCfg(ctx, n)
-}
-
 var (
-	mu        sync.Mutex
-	nodeTypes = map[tpb.Node_Type]NewNodeFn{}
+	mu          sync.Mutex
+	nodeTypes   = map[tpb.Node_Type]NewNodeFn{}
+	vendorTypes = map[tpb.Vendor]NewNodeFn{}
 )
 
+// Register registers the node type with the topology manager.
 func Register(t tpb.Node_Type, fn NewNodeFn) {
 	mu.Lock()
 	if _, ok := nodeTypes[t]; ok {
@@ -80,83 +78,43 @@ func Register(t tpb.Node_Type, fn NewNodeFn) {
 	mu.Unlock()
 }
 
+// Vendor registers the vendor type with the topology manager.
+func Vendor(v tpb.Vendor, fn NewNodeFn) {
+	mu.Lock()
+	if _, ok := vendorTypes[v]; ok {
+		panic(fmt.Sprintf("duplicate registration for %T", v))
+	}
+	vendorTypes[v] = fn
+	mu.Unlock()
+}
+
 // Impl is a topology node in the cluster.
 type Impl struct {
 	Namespace  string
-	KClient    kubernetes.Interface
-	RCfg       *rest.Config
-	Interfaces map[string]*Link
+	KubeClient kubernetes.Interface
+	RestConfig *rest.Config
 	Proto      *tpb.Node
 	BasePath   string
 }
 
-// Interfaces returns the node's map of interfaces.
-func (n *Node) Interfaces() map[string]*Link {
-	return n.interfaces
-}
-
-// KubeClient returns the node's kubeclient.
-func (n *Node) KubeClient() kubernetes.Interface {
-	return n.kClient
-}
-
-// RESTConfig returns the node's REST configuration.
-func (n *Node) RESTConfig() *rest.Config {
-	return n.rCfg
-}
-
-// Namespace returns the node's namespace.
-func (n *Node) Namespace() string {
-	return n.namespace
-}
-
 // New creates a new node for use in the k8s cluster.  Configure will push the node to
 // the cluster.
-func New(namespace string, pb *tpb.Node, kClient kubernetes.Interface, rCfg *rest.Config, bp string) (*Node, error) {
+func New(namespace string, pb *tpb.Node, kClient kubernetes.Interface, rCfg *rest.Config, bp string) (Node, error) {
 	return getImpl(&Impl{
-		Namespace: namespace,
-		Proto:     pb,
-		KClient:   kClient,
-		RCfg:      rCfg,
-		BasePath:  bp,
+		Namespace:  namespace,
+		Proto:      pb,
+		KubeClient: kClient,
+		RestConfig: rCfg,
+		BasePath:   bp,
 	})
 }
 
-// CreateConfig creates the node base configmap on the k8s cluster.
-func (n *Impl) CreateConfig(ctx context.Context, bp string) error {
-	pb := n.Proto
-	var data []byte
-	switch v := pb.Config.GetConfigData().(type) {
-	case *tpb.Config_File:
-		var err error
-		data, err = ioutil.ReadFile(filepath.Join(bp, v.File))
-		if err != nil {
-			return err
-		}
-	case *tpb.Config_Data:
-		data = v.Data
-	}
-	if data != nil {
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-config", pb.Name),
-			},
-			Data: map[string]string{
-				pb.Config.ConfigFile: string(data),
-			},
-		}
-		sCM, err := n.kClient.CoreV1().ConfigMaps(n.namespace).Create(ctx, cm, metav1.CreateOptions{})
-		if err != nil {
-			return err
-		}
-		log.Infof("Server Config Map:\n%v\n", sCM)
-	}
-	return nil
+func (n *Impl) GetProto() *tpb.Node {
+	return n.Proto
 }
 
-// Delete removes the node configmap from the cluster.
-func (n *Impl) DeleteConfig(ctx context.Context) error {
-	return n.kClient.CoreV1().ConfigMaps(n.namespace).Delete(ctx, fmt.Sprintf("%s-config", n.Name()), metav1.DeleteOptions{})
+func (n *Impl) GetNamespace() string {
+	return n.Namespace
 }
 
 const (
@@ -187,16 +145,63 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 	return r
 }
 
-// CreatePod creates the pod for the node.
-func (n *Node) CreatePod(ctx context.Context) error {
-	pb := n.impl.Proto()
+// Create will create the node in the k8s cluster with all services and config
+// maps.
+func (n *Impl) Create(ctx context.Context) error {
+	if err := n.CreateConfig(ctx); err != nil {
+		return err
+	}
+	if err := n.CreatePod(ctx); err != nil {
+		return err
+	}
+	if err := n.CreateService(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateConfig creates a boot config for the node based on the underlying proto.
+func (n *Impl) CreateConfig(ctx context.Context) error {
+	pb := n.Proto
+	var data []byte
+	switch v := pb.Config.GetConfigData().(type) {
+	case *tpb.Config_File:
+		var err error
+		data, err = ioutil.ReadFile(filepath.Join(n.BasePath, v.File))
+		if err != nil {
+			return err
+		}
+	case *tpb.Config_Data:
+		data = v.Data
+	}
+	if data != nil {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("%s-config", pb.Name),
+			},
+			Data: map[string]string{
+				pb.Config.ConfigFile: string(data),
+			},
+		}
+		sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+		log.Infof("Server Config Map:\n%v\n", sCM)
+	}
+	return nil
+}
+
+// CreatePod creates a Pod for the Node based on the underlying proto.
+func (n *Impl) CreatePod(ctx context.Context) error {
+	pb := n.Proto
 	log.Infof("Creating Pod:\n %+v", pb)
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pb.Name,
 			Labels: map[string]string{
 				"app":  pb.Name,
-				"topo": n.namespace,
+				"topo": n.Namespace,
 			},
 		},
 		Spec: corev1.PodSpec{
@@ -204,7 +209,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				Name:  fmt.Sprintf("init-%s", pb.Name),
 				Image: InitContainerName,
 				Args: []string{
-					fmt.Sprintf("%d", len(n.Interfaces())+1),
+					fmt.Sprintf("%d", len(n.Proto.Interfaces)+1),
 					fmt.Sprintf("%d", pb.Config.Sleep),
 				},
 				ImagePullPolicy: "IfNotPresent",
@@ -262,7 +267,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			})
 		}
 	}
-	sPod, err := n.kClient.CoreV1().Pods(n.namespace).Create(ctx, pod, metav1.CreateOptions{})
+	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create pod for %q: %w", pb.Name, err)
 	}
@@ -270,14 +275,13 @@ func (n *Node) CreatePod(ctx context.Context) error {
 	return nil
 }
 
-// CreateService add the service definition for the Node.
-func (n *Node) CreateService(ctx context.Context) error {
-	pb := n.impl.Proto()
+// CreateService creates services for the node based on the underlying proto.
+func (n *Impl) CreateService(ctx context.Context) error {
 	var servicePorts []corev1.ServicePort
-	if len(pb.Services) == 0 {
+	if len(n.Proto.Services) == 0 {
 		return nil
 	}
-	for k, v := range pb.Services {
+	for k, v := range n.Proto.Services {
 		name := v.Name
 		if name == "" {
 			name = fmt.Sprintf("port-%d", k)
@@ -300,20 +304,20 @@ func (n *Node) CreateService(ctx context.Context) error {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("service-%s", pb.Name),
+			Name: fmt.Sprintf("service-%s", n.Name()),
 			Labels: map[string]string{
-				"pod": pb.Name,
+				"pod": n.Name(),
 			},
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: servicePorts,
 			Selector: map[string]string{
-				"app": pb.Name,
+				"app": n.Name(),
 			},
 			Type: "LoadBalancer",
 		},
 	}
-	sS, err := n.kClient.CoreV1().Services(n.namespace).Create(ctx, s, metav1.CreateOptions{})
+	sS, err := n.KubeClient.CoreV1().Services(n.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -321,36 +325,47 @@ func (n *Node) CreateService(ctx context.Context) error {
 	return nil
 }
 
+// Delete remove the node from the cluster.
+func (n *Impl) Delete(ctx context.Context) error {
+	// Delete config maps for node
+	if err := n.DeleteConfig(ctx); err != nil {
+		log.Warnf("Error deleting config-map %q: %v", n.Name(), err)
+	}
+	if err := n.DeleteService(ctx); err != nil {
+		log.Warnf("Error deleting service %q: %v", n.Name(), err)
+	}
+	// Delete Resource for node
+	if err := n.DeleteResource(ctx); err != nil {
+		log.Warnf("Error deleting resource %q: %v", n.Name(), err)
+	}
+	return nil
+}
+
+// DeleteConfig removes the node configmap from the cluster.
+func (n *Impl) DeleteConfig(ctx context.Context) error {
+	return n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, fmt.Sprintf("%s-config", n.Name()), metav1.DeleteOptions{})
+}
+
 // DeleteService removes the service definition for the Node.
-func (n *Node) DeleteService(ctx context.Context) error {
-	i := int64(0)
-	return n.kClient.CoreV1().Services(n.namespace).Delete(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.DeleteOptions{
+func (n *Impl) DeleteService(ctx context.Context) error {
+	return n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.DeleteOptions{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 		},
-		GracePeriodSeconds: &i,
+		GracePeriodSeconds: pointer.Int64(0),
 	})
 }
 
 // DeleteResource removes the resource definition for the Node.
-func (n *Node) DeleteResource(ctx context.Context) error {
-	pb := n.impl.Proto()
-	log.Infof("Deleting Resource for Pod:\n %+v", pb)
-	err := n.impl.DeleteNodeResource(ctx, n)
-	switch status.Code(err) {
-	case codes.OK:
-		return nil
-	case codes.Unimplemented:
-	default:
-		return err
-	}
-	return n.kClient.CoreV1().Pods(n.namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
+func (n *Impl) DeleteResource(ctx context.Context) error {
+	log.Infof("Deleting Resource for Pod:%s", n.Name())
+	return n.KubeClient.CoreV1().Pods(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 }
 
 // Exec will make a connection via spdy transport to the Pod and execute the provided command.
 // It will wire up stdin, stdout, stderr to provided io channels.
-func (n *Node) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	req := n.kClient.CoreV1().RESTClient().Post().Resource("pods").Name(n.Name()).Namespace(n.namespace).SubResource("exec")
+func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	req := n.KubeClient.CoreV1().RESTClient().Post().Resource("pods").Name(n.Name()).Namespace(n.Namespace).SubResource("exec")
 	opts := &corev1.PodExecOptions{
 		Command:   cmd,
 		Container: n.Name(),
@@ -367,7 +382,7 @@ func (n *Node) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 		scheme.ParameterCodec,
 	)
 
-	exec, err := remotecommand.NewSPDYExecutor(n.rCfg, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(n.RestConfig, "POST", req.URL())
 	if err != nil {
 		return err
 	}
@@ -380,7 +395,7 @@ func (n *Node) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 }
 
 // Status returns the current pod state for Node.
-func (n *Node) Status(ctx context.Context) (corev1.PodPhase, error) {
+func (n *Impl) Status(ctx context.Context) (corev1.PodPhase, error) {
 	p, err := n.Pod(ctx)
 	if err != nil {
 		return corev1.PodUnknown, err
@@ -389,105 +404,39 @@ func (n *Node) Status(ctx context.Context) (corev1.PodPhase, error) {
 }
 
 // Name returns the name of the node.
-func (n *Node) Name() string {
-	return n.impl.Proto().Name
+func (n *Impl) Name() string {
+	return n.Proto.Name
 }
 
 // Pod returns the pod definition for the node.
-func (n *Node) Pod(ctx context.Context) (*corev1.Pod, error) {
-	return n.kClient.CoreV1().Pods(n.namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+func (n *Impl) Pod(ctx context.Context) (*corev1.Pod, error) {
+	return n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
 }
 
-var (
-	remountSys = []string{
-		"bin/sh",
-		"-c",
-		"mount -o ro,remount /sys; mount -o rw,remount /sys",
-	}
-	getBridge = []string{
-		"bin/sh",
-		"-c",
-		"ls /sys/class/net/ | grep br-",
-	}
-	enableIPForwarding = []string{
-		"bin/sh",
-		"-c",
-		"sysctl -w net.ipv4.ip_forward=1",
-	}
-)
-
-func enableLLDP(b string) []string {
-	return []string{
-		"bin/sh",
-		"-c",
-		fmt.Sprintf("echo 16396 > /sys/class/net/%s/bridge/group_fwd_mask", b),
-	}
+// Service returns the service definition for the node.
+func (n *Impl) Service(ctx context.Context) (*corev1.Service, error) {
+	return n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
 }
 
-// EnableLLDP enables LLDP on the pod.
-func (n *Impl) EnableLLDP(ctx context.Context) error {
-	log.Infof("Enabling LLDP on node: %s", n.Name())
-	stdout := bytes.NewBuffer([]byte{})
-	stderr := bytes.NewBuffer([]byte{})
-	if err := n.Exec(ctx, remountSys, nil, stdout, stderr); err != nil {
-		return err
-	}
-	log.Infof("stdout:\n%s\nstderr:\n%s", stdout.String(), stderr.String())
-	stdout.Reset()
-	stderr.Reset()
-	if err := n.Exec(ctx, getBridge, nil, stdout, stderr); err != nil {
-		return err
-	}
-	bridges := strings.Split(stdout.String(), "\n")
-	for _, b := range bridges {
-		stdout.Reset()
-		stderr.Reset()
-		cmd := enableLLDP(b)
-		if err := n.Exec(ctx, cmd, nil, stdout, stderr); err != nil {
-			return err
-		}
-		log.Infof("stdout:\n%s\nstderr:\n%s", stdout.String(), stderr.String())
-	}
-	return nil
-}
-
-// EnableIPForwarding enables IP forwarding on the pod.
-func (n *Impl) EnableIPForwarding(ctx context.Context) error {
-	log.Infof("Enabling IP forwarding for node: %s", n.Name())
-	stdout := bytes.NewBuffer([]byte{})
-	stderr := bytes.NewBuffer([]byte{})
-	if err := n.Exec(ctx, enableIPForwarding, nil, stdout, stderr); err != nil {
-		return err
-	}
-	log.Infof("stdout:\n%s\nstderr:\n%s", stdout.String(), stderr.String())
-	return nil
-}
-
-type ConfigPusher interface {
-	ConfigPush(context.Context, string, io.Reader) error
-}
-
-func (n *Impl) ConfigPush(ctx context.Context, r io.Reader) error {
-	cp, ok := n.impl.(ConfigPusher)
-	if !ok {
-		return fmt.Errorf("%T is not a ConfigPusher", n.impl)
-	}
-	return cp.ConfigPush(ctx, n.Namespace, r)
-}
-
-func getImpl(pb *tpb.Node) (Implementation, error) {
+func getImpl(impl *Impl) (Node, error) {
 	mu.Lock()
 	defer mu.Unlock()
-	fn, ok := nodeTypes[pb.Type]
-	if !ok {
-		return nil, fmt.Errorf("impl not found: %v", pb.Type)
+	if impl == nil {
+		return nil, fmt.Errorf("impl cannot be nil")
 	}
-	return fn(pb)
-}
-
-type Link struct {
-	UID   int
-	Proto *tpb.Link
+	if impl.Proto == nil {
+		return nil, fmt.Errorf("impl.Proto cannot be nil")
+	}
+	fn, ok := vendorTypes[impl.Proto.Vendor]
+	if ok {
+		return fn(impl)
+	}
+	// TODO(hines): Remove once type is deprecated.
+	fn, ok = nodeTypes[impl.Proto.Type]
+	if !ok {
+		return nil, fmt.Errorf("impl not found: %v", impl.Proto.Type)
+	}
+	return fn(impl)
 }
 
 var (

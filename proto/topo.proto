@@ -41,6 +41,7 @@ enum Vendor {
   FRR = 6;
   QUAGGA = 7;
   GOBGP = 8;
+  NOKIA = 9;
 }
 
 
@@ -95,6 +96,8 @@ message Interface {
   string peer_name = 4;
   // Peer interface name. Assigned by KNE.
   string peer_int_name = 5;
+  // Uid is the internal link identifier used by Meshnet.
+  int64 uid = 6;
 }
 
 // Link is single link between nodes in the topology.

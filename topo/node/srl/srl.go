@@ -18,21 +18,19 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 )
 
-func New(pb *topopb.Node) (node.Implementation, error) {
-	cfg := defaults(pb)
-	proto.Merge(cfg, pb)
+func New(nodeImpl *node.Impl) (node.Node, error) {
+	cfg := defaults(nodeImpl.Proto)
+	proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
-	return &Node{
-		pb: cfg,
-	}, nil
+	n := &Node{
+		Impl: nodeImpl,
+	}
+	proto.Merge(n.Impl.Proto, cfg)
+	return n, nil
 }
 
 type Node struct {
-	pb *topopb.Node
-}
-
-func (n *Node) Proto() *topopb.Node {
-	return n.pb
+	*node.Impl
 }
 
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
@@ -43,8 +41,8 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Creating Srlinux node resource %s", n.pb.Name)
+func (n *Node) Create(ctx context.Context) error {
+	log.Infof("Creating Srlinux node resource %s", n.Name())
 
 	srl := &srltypes.Srlinux{
 		TypeMeta: metav1.TypeMeta{
@@ -52,33 +50,33 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 			APIVersion: "kne.srlinux.dev/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: n.pb.Name,
+			Name: n.Name(),
 			Labels: map[string]string{
-				"app":  n.pb.Name,
-				"topo": ni.Namespace(),
+				"app":  n.Name(),
+				"topo": n.Namespace,
 			},
 		},
 		Spec: srltypes.SrlinuxSpec{
-			NumInterfaces: len(ni.Interfaces()),
+			NumInterfaces: len(n.Proto.Interfaces),
 			Config: &srltypes.NodeConfig{
 				Sleep: 0,
 			},
 		},
 	}
 
-	c, err := srlclient.NewForConfig(ni.RESTConfig())
+	c, err := srlclient.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.Srlinux(ni.Namespace()).Create(ctx, srl)
+	_, err = c.Srlinux(n.Namespace).Create(ctx, srl)
 	if err != nil {
 		return err
 	}
 
 	// wait till srlinux pods are created in the cluster
-	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.pb.Name}).String(),
+	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.Name()}).String(),
 	})
 	if err != nil {
 		return err
@@ -90,25 +88,25 @@ func (n *Node) CreateNodeResource(ctx context.Context, ni node.Interface) error 
 		}
 	}
 
-	log.Infof("Created Srlinux resource: %s", n.pb.Name)
+	log.Infof("Created Srlinux resource: %s", n.Name())
 
 	return nil
 }
 
 func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
-	log.Infof("Deleting Srlinux node resource %s", n.pb.Name)
+	log.Infof("Deleting Srlinux node resource %s", n.Name())
 
-	c, err := srlclient.NewForConfig(ni.RESTConfig())
+	c, err := srlclient.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
 
-	err = c.Srlinux(ni.Namespace()).Delete(ctx, n.pb.Name, metav1.DeleteOptions{})
+	err = c.Srlinux(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Deleted custom resource: %s", n.pb.Name)
+	log.Infof("Deleted custom resource: %s", n.Name())
 
 	return nil
 }
