@@ -2,14 +2,20 @@ package srl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	scraplibase "github.com/scrapli/scrapligo/driver/base"
+	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
 	srlclient "github.com/srl-labs/kne-controller/api/clientset/v1alpha1"
 	srltypes "github.com/srl-labs/kne-controller/api/types/v1alpha1"
+	srlinux "github.com/srl-labs/srlinux-scrapli"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -17,6 +23,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 )
+
+// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
+var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	cfg := defaults(nodeImpl.Proto)
@@ -31,10 +40,44 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 
 type Node struct {
 	*node.Impl
+	cliConn *scraplinetwork.Driver
 }
 
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
+	selfSigned := n.pb.GetConfig().GetCert().GetSelfSigned()
+	if selfSigned == nil {
+		log.Infof("%s - no cert config", n.pb.Name)
+		return nil
+	}
+	log.Infof("%s - generating self signed certs", n.pb.Name)
+	log.Infof("%s - waiting for pod to be running", n.pb.Name)
+	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(
+			fields.Set{metav1.ObjectNameField: n.pb.Name},
+		).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for e := range w.ResultChan() {
+		p := e.Object.(*corev1.Pod)
+		if p.Status.Phase == corev1.PodRunning {
+			break
+		}
+	}
+	log.Infof("%s - pod running.", n.pb.Name)
+
+	if err := n.SpawnCLIConn(ni.Namespace()); err != nil {
+		return err
+	}
+
+	defer n.cliConn.Close()
+
+	if err := srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false); err == nil {
+		log.Infof("%s - finshed cert generation", n.pb.Name)
+	}
+
+	return err
 }
 
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
@@ -165,6 +208,67 @@ func defaults(pb *topopb.Node) *topopb.Node {
 			ConfigFile:   "config.json",
 		},
 	}
+}
+
+// SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
+// to accept inputs.
+func (n *Node) SpawnCLIConn(ns string) error {
+	d, err := srlinux.NewSRLinuxDriver(
+		n.pb.Name,
+		scraplibase.WithAuthStrictKey(false),
+		scraplibase.WithAuthBypass(true),
+	)
+	if err != nil {
+		return err
+	}
+
+	// jacked up PtyWidth to allow for long strings such as cert and key to not break the terminal
+	d.Transport.BaseTransportArgs.PtyWidth = 5000
+
+	n.cliConn = d
+
+	if err := n.PatchCLIConnOpen(ns); err != nil {
+		n.cliConn = nil
+
+		return err
+	}
+
+	if err := n.WaitCLIReady(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
+func (n *Node) PatchCLIConnOpen(ns string) error {
+	t, ok := n.cliConn.Transport.Impl.(scraplitransport.SystemTransport)
+	if !ok {
+		return ErrIncompatibleCliConn
+	}
+
+	t.SetExecCmd("kubectl")
+	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.pb.Name, "--", "sr_cli", "-d"})
+
+	return nil
+}
+
+// WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
+// for a given platform. Retries indefinitely till success.
+func (n *Node) WaitCLIReady() error {
+	transportReady := false
+	for !transportReady {
+		if err := n.cliConn.Open(); err != nil {
+			log.Debugf("%s - Cli not ready - waiting.", n.pb.Name)
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		transportReady = true
+		log.Debugf("%s - Cli ready.", n.pb.Name)
+	}
+
+	// wait till srlinux management server is ready to accept configs
+	return srlinux.WaitSRLMgmtSrv(context.TODO(), n.cliConn)
 }
 
 func init() {
