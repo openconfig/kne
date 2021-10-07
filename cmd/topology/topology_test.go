@@ -244,6 +244,11 @@ func TestReset(t *testing.T) {
 type fakeTopology struct {
 	resources *topo.Resources
 	rErr      error
+	lErr      error
+}
+
+func (f *fakeTopology) Load(context.Context) error {
+	return f.lErr
 }
 
 func (f *fakeTopology) Resources(context.Context) (*topo.Resources, error) {
@@ -360,6 +365,16 @@ func TestService(t *testing.T) {
 		args:    []string{"service", "testdata/valid_topo.pb.txt"},
 		topoNew: func(string, *tpb.Topology, ...topo.Option) (resourcer, error) {
 			return &fakeTopology{
+				resources: &topo.Resources{},
+			}, nil
+		},
+	}, {
+		desc:    "Load fail",
+		wantErr: "load failed",
+		args:    []string{"service", "testdata/valid_topo.pb.txt"},
+		topoNew: func(string, *tpb.Topology, ...topo.Option) (resourcer, error) {
+			return &fakeTopology{
+				lErr:      fmt.Errorf("load failed"),
 				resources: &topo.Resources{},
 			}, nil
 		},

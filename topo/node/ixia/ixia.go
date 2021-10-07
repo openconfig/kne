@@ -77,10 +77,13 @@ func (n *Node) Create(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Created custom resource: %s", n.Name())
+	if err := n.CreateService(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error {
+func (n *Node) Delete(ctx context.Context) error {
 	log.Infof("Deleting IxiaTG node resource %s", n.Name())
 	err := n.KubeClient.CoreV1().RESTClient().
 		Delete().
@@ -95,6 +98,9 @@ func (n *Node) DeleteNodeResource(ctx context.Context, ni node.Interface) error 
 		return err
 	}
 	log.Infof("Deleted custom resource: %s", n.Name())
+	if err := n.DeleteService(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 

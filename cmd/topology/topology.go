@@ -286,6 +286,7 @@ var (
 )
 
 type resourcer interface {
+	Load(context.Context) error
 	Resources(context.Context) (*topo.Resources, error)
 }
 
@@ -309,6 +310,10 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
+	if err := t.Load(cmd.Context()); err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+
 	r, err := t.Resources(cmd.Context())
 	if err != nil {
 		return err

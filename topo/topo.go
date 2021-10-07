@@ -36,7 +36,7 @@ import (
 
 	topologyclientv1 "github.com/google/kne/api/clientset/v1beta1"
 	topologyv1 "github.com/google/kne/api/types/v1beta1"
-	topopb "github.com/google/kne/proto/topo"
+	tpb "github.com/google/kne/proto/topo"
 
 	_ "github.com/google/kne/topo/node/ceos"
 	_ "github.com/google/kne/topo/node/cptx"
@@ -52,7 +52,7 @@ type Manager struct {
 	kClient  kubernetes.Interface
 	tClient  topologyclientv1.Interface
 	rCfg     *rest.Config
-	tpb      *topopb.Topology
+	proto    *tpb.Topology
 	nodes    map[string]node.Node
 }
 
@@ -83,10 +83,10 @@ func WithBasePath(s string) Option {
 }
 
 // New creates a new topology manager based on the provided kubecfg and topology.
-func New(kubecfg string, tpb *topopb.Topology, opts ...Option) (*Manager, error) {
-	log.Infof("Creating manager for: %s", tpb.Name)
+func New(kubecfg string, pb *tpb.Topology, opts ...Option) (*Manager, error) {
+	log.Infof("Creating manager for: %s", pb.Name)
 	m := &Manager{
-		tpb:   tpb,
+		proto: pb,
 		nodes: map[string]node.Node{},
 	}
 	for _, o := range opts {
@@ -124,53 +124,66 @@ func New(kubecfg string, tpb *topopb.Topology, opts ...Option) (*Manager, error)
 
 // Load creates an instance of the managed topology.
 func (m *Manager) Load(ctx context.Context) error {
-	for _, n := range m.tpb.Nodes {
-		log.Infof("Adding Node: %s:%s", n.Name, n.Type)
-		nn, err := node.New(m.tpb.Name, n, m.kClient, m.rCfg, m.BasePath)
-		if err != nil {
-			return fmt.Errorf("failed to load topology: %w", err)
+	nMap := map[string]*tpb.Node{}
+	for _, n := range m.proto.Nodes {
+		if len(n.Interfaces) == 0 {
+			n.Interfaces = map[string]*tpb.Interface{}
 		}
-		m.nodes[n.Name] = nn
+		nMap[n.Name] = n
 	}
 	uid := 0
-	for _, l := range m.tpb.Links {
+	for _, l := range m.proto.Links {
 		log.Infof("Adding Link: %s:%s %s:%s", l.ANode, l.AInt, l.ZNode, l.ZInt)
-		aNode, ok := m.nodes[l.ANode]
+		aNode, ok := nMap[l.ANode]
 		if !ok {
 			return fmt.Errorf("invalid topology: missing node %q", l.ANode)
 		}
-		aInt, ok := aNode.GetProto().Interfaces[l.AInt]
+		aInt, ok := aNode.Interfaces[l.AInt]
 		if !ok {
-			return fmt.Errorf("interface %s:%s must exist", l.ANode, l.AInt)
+			aInt = &tpb.Interface{
+				IntName: l.AInt,
+			}
+			aNode.Interfaces[l.AInt] = aInt
 		}
-		zNode, ok := m.nodes[l.ZNode]
+		zNode, ok := nMap[l.ZNode]
 		if !ok {
 			return fmt.Errorf("invalid topology: missing node %q", l.ZNode)
 		}
-		zInt, ok := zNode.GetProto().Interfaces[l.ZInt]
+		zInt, ok := zNode.Interfaces[l.ZInt]
 		if !ok {
-			return fmt.Errorf("interface %s:%s must exist", l.ZNode, l.ZInt)
+			zInt = &tpb.Interface{
+				IntName: l.ZInt,
+			}
+			zNode.Interfaces[l.ZInt] = zInt
 		}
 		if aInt.PeerName != "" {
 			return fmt.Errorf("interface %s:%s already connected", l.ANode, l.AInt)
 		}
 		if zInt.PeerName != "" {
-			return fmt.Errorf("interface %s:%s already connected", l.ANode, l.AInt)
+			return fmt.Errorf("interface %s:%s already connected", l.ZNode, l.ZInt)
 		}
 		aInt.PeerName = l.ZNode
-		aInt.PeerIntName = l.ZNode
+		aInt.PeerIntName = l.ZInt
 		aInt.Uid = int64(uid)
 		zInt.PeerName = l.ANode
-		zInt.PeerIntName = l.ZInt
+		zInt.PeerIntName = l.AInt
 		zInt.Uid = int64(uid)
 		uid++
+	}
+	for k, n := range nMap {
+		log.Infof("Adding Node: %s:%s", n.Name, n.Type)
+		nn, err := node.New(m.proto.Name, n, m.kClient, m.rCfg, m.BasePath)
+		if err != nil {
+			return fmt.Errorf("failed to load topology: %w", err)
+		}
+		m.nodes[k] = nn
 	}
 	return nil
 }
 
 // Topology gets the topology CRDs for the cluster.
 func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
-	topology, err := m.tClient.Topology(m.tpb.Name).List(ctx, metav1.ListOptions{})
+	topology, err := m.tClient.Topology(m.proto.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get topology CRDs: %v", err)
 	}
@@ -179,11 +192,11 @@ func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
 
 // Push pushes the current topology to k8s.
 func (m *Manager) Push(ctx context.Context) error {
-	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.tpb.Name, metav1.GetOptions{}); err != nil {
-		log.Infof("Creating namespace for topology: %q", m.tpb.Name)
+	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.proto.Name, metav1.GetOptions{}); err != nil {
+		log.Infof("Creating namespace for topology: %q", m.proto.Name)
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: m.tpb.Name,
+				Name: m.proto.Name,
 			},
 		}
 		sNs, err := m.kClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
@@ -193,7 +206,7 @@ func (m *Manager) Push(ctx context.Context) error {
 		log.Infof("Server Namespace: %+v", sNs)
 	}
 
-	log.Infof("Pushing Meshnet Node Topology to k8s: %q", m.tpb.Name)
+	log.Infof("Pushing Meshnet Node Topology to k8s: %q", m.proto.Name)
 	for _, n := range m.nodes {
 		t := &topologyv1.Topology{
 			ObjectMeta: metav1.ObjectMeta{
@@ -214,7 +227,7 @@ func (m *Manager) Push(ctx context.Context) error {
 			links = append(links, link)
 		}
 		t.Spec.Links = links
-		sT, err := m.tClient.Topology(m.tpb.Name).Create(ctx, t)
+		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
 		if err != nil {
 			return err
 		}
@@ -255,8 +268,8 @@ func GenerateSelfSigned(ctx context.Context, n node.Node) error {
 
 // Delete deletes the topology from k8s.
 func (m *Manager) Delete(ctx context.Context) error {
-	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.tpb.Name, metav1.GetOptions{}); err != nil {
-		return fmt.Errorf("topology %q does not exist in cluster", m.tpb.Name)
+	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.proto.Name, metav1.GetOptions{}); err != nil {
+		return fmt.Errorf("topology %q does not exist in cluster", m.proto.Name)
 	}
 
 	// Delete topology pods
@@ -266,13 +279,13 @@ func (m *Manager) Delete(ctx context.Context) error {
 			log.Warnf("Error deleting node %q: %v", n.Name(), err)
 		}
 		// Delete Topology for node
-		if err := m.tClient.Topology(m.tpb.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
+		if err := m.tClient.Topology(m.proto.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
 			log.Warnf("Error deleting topology %q: %v", n.Name(), err)
 		}
 	}
 	// Delete namespace
 	prop := metav1.DeletePropagationForeground
-	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.tpb.Name, metav1.DeleteOptions{
+	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.proto.Name, metav1.DeleteOptions{
 		PropagationPolicy: &prop,
 	}); err != nil {
 		return err
@@ -281,12 +294,12 @@ func (m *Manager) Delete(ctx context.Context) error {
 }
 
 // Load loads a Topology from fName.
-func Load(fName string) (*topopb.Topology, error) {
+func Load(fName string) (*tpb.Topology, error) {
 	b, err := ioutil.ReadFile(fName)
 	if err != nil {
 		return nil, err
 	}
-	t := &topopb.Topology{}
+	t := &tpb.Topology{}
 	if err := prototext.Unmarshal(b, t); err != nil {
 		return nil, err
 	}
@@ -337,7 +350,7 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		v := t
 		r.Topologies[v.Name] = &v
 	}
-	sList, err := m.kClient.CoreV1().Services(m.tpb.Name).List(ctx, metav1.ListOptions{})
+	sList, err := m.kClient.CoreV1().Services(m.proto.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +362,7 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 }
 
 func (m *Manager) Watch(ctx context.Context) error {
-	watcher, err := m.tClient.Topology(m.tpb.Name).Watch(ctx, metav1.ListOptions{})
+	watcher, err := m.tClient.Topology(m.proto.Name).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
