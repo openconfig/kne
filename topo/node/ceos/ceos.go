@@ -298,6 +298,7 @@ func (n *Node) FixInterfaces() {
 		}
 		if v.Name == "" {
 			n.Proto.Interfaces[k].Name = fmt.Sprintf("Ethernet%s", strings.TrimPrefix(k, "eth"))
+			log.Debugf("node %s mapped %q -> %q", n.Name(), k, v.Name)
 		}
 	}
 }

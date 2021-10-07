@@ -137,18 +137,14 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	log.Infof("Deleting Srlinux node resource %s", n.Name())
-
 	c, err := srlclient.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
-
 	err = c.Srlinux(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
-
 	log.Infof("Deleted custom resource: %s", n.Name())
 	if err := n.DeleteService(ctx); err != nil {
 		return err
@@ -156,6 +152,7 @@ func (n *Node) Delete(ctx context.Context) error {
 	if err := n.DeleteConfig(ctx); err != nil {
 		return err
 	}
+	log.Infof("Deleted Srlinux node resource %s", n.Name())
 	return nil
 }
 

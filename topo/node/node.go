@@ -149,13 +149,13 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 // maps.
 func (n *Impl) Create(ctx context.Context) error {
 	if err := n.CreateConfig(ctx); err != nil {
-		return err
+		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
 	}
 	if err := n.CreatePod(ctx); err != nil {
-		return err
+		return fmt.Errorf("node %s failed to create pod %w", n.Name(), err)
 	}
 	if err := n.CreateService(ctx); err != nil {
-		return err
+		return fmt.Errorf("node %s failed to create service %w", n.Name(), err)
 	}
 	return nil
 }
@@ -269,7 +269,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create pod for %q: %w", pb.Name, err)
+		return err
 	}
 	log.Debugf("Pod created:\n%+v\n", sPod)
 	return nil
