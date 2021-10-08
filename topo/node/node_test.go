@@ -5,61 +5,48 @@ import (
 	"testing"
 
 	topopb "github.com/google/kne/proto/topo"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
-func NewNR(pb *topopb.Node) (Implementation, error) {
-	return &notResetable{pb: pb}, nil
+func NewNR(impl *Impl) (Node, error) {
+	return &notResettable{Impl: impl}, nil
 }
 
-type notResetable struct {
-	pb *topopb.Node
+type notResettable struct {
+	*Impl
 }
 
-func (nr *notResetable) Proto() *topopb.Node {
-	return nr.pb
+type resettable struct {
+	*notResettable
 }
 
-func (nr *notResetable) CreateNodeResource(_ context.Context, _ Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func (nr *notResetable) GetNodeResourceStatus(_ context.Context, _ Interface) (*NodeStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func (nr *notResetable) DeleteNodeResource(_ context.Context, _ Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-type resetable struct {
-	*notResetable
-}
-
-func (r *resetable) ResetCfg(ctx context.Context, ni Interface) error {
+func (r *resettable) ResetCfg(ctx context.Context) error {
 	return nil
 }
 
-func NewR(pb *topopb.Node) (Implementation, error) {
-	return &resetable{&notResetable{pb: pb}}, nil
+func NewR(impl *Impl) (Node, error) {
+	return &resettable{&notResettable{Impl: impl}}, nil
 }
 
 func TestReset(t *testing.T) {
 	Register(topopb.Node_Type(1001), NewR)
 	Register(topopb.Node_Type(1002), NewNR)
-	n, err := New("test", &topopb.Node{Type: topopb.Node_Type(1001)}, nil, nil)
+	n, err := New("test", &topopb.Node{Type: topopb.Node_Type(1001)}, nil, nil, "")
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
 	}
-	if err := n.ResetCfg(context.Background()); err != nil {
-		t.Errorf("Resetable node failed to reset: %v", err)
+	r, ok := n.(Resetter)
+	if !ok {
+		t.Fatalf("Resettable node failed to type assert to resetter")
 	}
-	nr, err := New("test", &topopb.Node{Type: topopb.Node_Type(1002)}, nil, nil)
+	if err := r.ResetCfg(context.Background()); err != nil {
+		t.Errorf("Resettable node failed to reset: %v", err)
+	}
+	nr, err := New("test", &topopb.Node{Type: topopb.Node_Type(1002)}, nil, nil, "")
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
 	}
-	if err := nr.ResetCfg(context.Background()); err == nil {
-		t.Errorf("Non-resetable node was able to reset")
+	_, ok = nr.(Resetter)
+	if ok {
+		t.Errorf("Not-Resettable node type asserted to resetter")
 	}
 }

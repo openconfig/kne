@@ -5,9 +5,9 @@ package cptx
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
-    "os"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
@@ -18,34 +18,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
 )
-
-type fakeNode struct {
-	kClient    kubernetes.Interface
-	namespace  string
-	interfaces map[string]*node.Link
-	rCfg       *rest.Config
-}
-
-func (f *fakeNode) KubeClient() kubernetes.Interface {
-	return f.kClient
-}
-
-func (f *fakeNode) RESTConfig() *rest.Config {
-	return f.rCfg
-}
-
-func (f *fakeNode) Interfaces() map[string]*node.Link {
-	return f.interfaces
-}
-
-func (f *fakeNode) Namespace() string {
-	return f.namespace
-}
 
 type fakeWatch struct {
 	e []watch.Event
@@ -86,11 +61,6 @@ func TestConfigPush(t *testing.T) {
 	}
 	ki.PrependWatchReactor("*", reaction)
 
-	ni := &fakeNode{
-		kClient:   ki,
-		namespace: "test",
-	}
-
 	validPb := &topopb.Node{
 		Name:   "pod1",
 		Type:   2,
@@ -100,26 +70,31 @@ func TestConfigPush(t *testing.T) {
 	tests := []struct {
 		desc     string
 		wantErr  bool
-		ni       node.Interface
-		pb       *topopb.Node
+		ni       *node.Impl
 		testFile string
-        testConf string
+		testConf string
 	}{
 		{
 			// successfully push config
-			desc:     "success",
-			wantErr:  false,
-			ni:       ni,
-			pb:       validPb,
+			desc:    "success",
+			wantErr: false,
+			ni: &node.Impl{
+				KubeClient: ki,
+				Namespace:  "test",
+				Proto:      validPb,
+			},
 			testFile: "config_push_success",
 			testConf: "cptx-config",
 		},
 		{
 			// We encounter unqxpected response -- we expect to fail
-			desc:     "failure",
-			wantErr:  true,
-			ni:       ni,
-			pb:       validPb,
+			desc:    "failure",
+			wantErr: true,
+			ni: &node.Impl{
+				KubeClient: ki,
+				Namespace:  "test",
+				Proto:      validPb,
+			},
 			testFile: "config_push_failure",
 			testConf: "cptx-config",
 		},
@@ -127,12 +102,10 @@ func TestConfigPush(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			nImpl, err := New(tt.pb)
-
+			nImpl, err := New(tt.ni)
 			if err != nil {
 				t.Fatalf("failed creating kne juniper node")
 			}
-
 			n, _ := nImpl.(*Node)
 
 			oldNewCoreDriver := scraplicore.NewCoreDriver
@@ -146,15 +119,15 @@ func TestConfigPush(t *testing.T) {
 				)
 			}
 
-            fp, err := os.Open(tt.testConf)
-            if err != nil {
+			fp, err := os.Open(tt.testConf)
+			if err != nil {
 				t.Fatalf("unable to open file, error: %+v\n", err)
-            }
-            defer fp.Close()
+			}
+			defer fp.Close()
 
 			ctx := context.Background()
 
-			err = n.ConfigPush(ctx, ni.Namespace(), fp)
+			err = n.ConfigPush(ctx, fp)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("config push test failed, error: %+v\n", err)
 			}

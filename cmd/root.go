@@ -35,6 +35,7 @@ var (
 	kubecfg        string
 	topofile       string
 	dryrun         bool
+	timeout        uint32
 	logLevel       = "info"
 
 	rootCmd = &cobra.Command{
@@ -70,11 +71,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg, "kubeconfig file")
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "verbosity", "v", logLevel, "log level")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
+	createCmd.Flags().Uint32Var(&timeout, "timeout", 0, "Timeout for pod status enquiry")
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(showCmd)
-	rootCmd.AddCommand(enableForwardingCmd)
-	rootCmd.AddCommand(enableLLDPCmd)
 	rootCmd.AddCommand(topology.New())
 	rootCmd.AddCommand(deploy.New())
 	//rootCmd.AddCommand(graphCmd)
@@ -82,7 +82,7 @@ func init() {
 
 var (
 	createCmd = &cobra.Command{
-		Use:       "create <topology file>",
+		Use:       "create <topology file> [timeout sec]",
 		Short:     "Create Topology",
 		PreRunE:   validateTopology,
 		RunE:      createFn,
@@ -100,20 +100,6 @@ var (
 		Short:     "Show Topology",
 		PreRunE:   validateTopology,
 		RunE:      showFn,
-		ValidArgs: []string{"topology"},
-	}
-	enableForwardingCmd = &cobra.Command{
-		Use:       "enableForwarding <topology file>",
-		Short:     "Enable IP Forwarding",
-		PreRunE:   validateTopology,
-		RunE:      enableForwardingFn,
-		ValidArgs: []string{"topology"},
-	}
-	enableLLDPCmd = &cobra.Command{
-		Use:       "enableLLDP <topology file>",
-		Short:     "Enable LLDP Forwarding",
-		PreRunE:   validateTopology,
-		RunE:      enableLLDPFn,
 		ValidArgs: []string{"topology"},
 	}
 )
@@ -162,7 +148,7 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err := t.Push(cmd.Context()); err != nil {
 		return err
 	}
-	if err := t.CheckNodeStatus(cmd.Context()); err != nil {
+	if err := t.CheckNodeStatus(cmd.Context(), timeout); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "Topology %q created\n", topopb.Name)
@@ -232,34 +218,4 @@ func showFn(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(out, "%s:%s\nSpec:\n%s\nStatus:\n%s\n", topopb.Name, s.Name, pretty.Sprint(s.Spec), pretty.Sprint(s.Status))
 	}
 	return nil
-}
-
-func enableForwardingFn(cmd *cobra.Command, args []string) error {
-	topopb, err := topo.Load(args[0])
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-	t, err := topo.New(kubecfg, topopb)
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-	if err := t.Load(cmd.Context()); err != nil {
-		return err
-	}
-	return t.EnableIPForwarding(cmd.Context())
-}
-
-func enableLLDPFn(cmd *cobra.Command, args []string) error {
-	topopb, err := topo.Load(args[0])
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-	t, err := topo.New(kubecfg, topopb)
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-	if err := t.Load(cmd.Context()); err != nil {
-		return err
-	}
-	return t.EnableLLDP(cmd.Context())
 }

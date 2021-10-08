@@ -113,20 +113,21 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		nodes = []*node.Node{n}
+		nodes = []node.Node{n}
 	}
-	var resettable []*node.Node
+	var canReset []node.Node
 	for _, n := range nodes {
-		if _, ok := n.Impl().(node.Resetter); !ok {
+		_, ok := n.(node.Resetter)
+		if !ok {
 			if skipReset {
 				continue
 			}
 			return fmt.Errorf("node %s is not resettable and --skip not set", n.Name())
 		}
-		resettable = append(resettable, n)
+		canReset = append(canReset, n)
 	}
-	for _, r := range resettable {
-		if err := r.ResetCfg(ctx); err != nil {
+	for _, r := range canReset {
+		if err := r.(node.Resetter).ResetCfg(ctx); err != nil {
 			return err
 		}
 	}
@@ -140,13 +141,13 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to find relative path for topology: %v", err)
 	}
 	var errList errlist.List
-	for _, n := range resettable {
-		cd := n.Impl().Proto().GetConfig().GetConfigData()
+	for _, n := range canReset {
+		cd := n.GetProto().GetConfig().GetConfigData()
 		if cd == nil {
 			log.Infof("Skipping node %q no config provided", n.Name())
 			continue
 		}
-		_, ok := n.Impl().(node.ConfigPusher)
+		cp, ok := n.(node.ConfigPusher)
 		if !ok {
 			log.Infof("Skipping node %q not a ConfigPusher", n.Name())
 			continue
@@ -168,7 +169,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 				continue
 			}
 		}
-		if err := n.ConfigPush(context.Background(), bytes.NewBuffer(b)); err != nil {
+		if err := cp.ConfigPush(context.Background(), bytes.NewBuffer(b)); err != nil {
 			errList.Add(err)
 		}
 	}
@@ -285,6 +286,7 @@ var (
 )
 
 type resourcer interface {
+	Load(context.Context) error
 	Resources(context.Context) (*topo.Resources, error)
 }
 
@@ -308,6 +310,10 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
+	if err := t.Load(cmd.Context()); err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+
 	r, err := t.Resources(cmd.Context())
 	if err != nil {
 		return err
