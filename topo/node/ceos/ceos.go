@@ -291,7 +291,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 }
 
 func (n *Node) FixInterfaces() {
-	fmt.Println(n.Proto.Interfaces)
 	for k, v := range n.Proto.Interfaces {
 		if !strings.HasPrefix(k, "eth") {
 			continue
