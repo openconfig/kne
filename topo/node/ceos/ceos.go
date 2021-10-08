@@ -291,14 +291,12 @@ func defaults(pb *tpb.Node) *tpb.Node {
 }
 
 func (n *Node) FixInterfaces() {
-	fmt.Println(n.Proto.Interfaces)
 	for k, v := range n.Proto.Interfaces {
 		if !strings.HasPrefix(k, "eth") {
 			continue
 		}
 		if v.Name == "" {
 			n.Proto.Interfaces[k].Name = fmt.Sprintf("Ethernet%s", strings.TrimPrefix(k, "eth"))
-			log.Debugf("node %s mapped %q -> %q", n.Name(), k, v.Name)
 		}
 	}
 }
