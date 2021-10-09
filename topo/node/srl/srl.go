@@ -13,8 +13,8 @@ import (
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
-	srlclient "github.com/srl-labs/kne-controller/api/clientset/v1alpha1"
-	srltypes "github.com/srl-labs/kne-controller/api/types/v1alpha1"
+	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
+	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
 	srlinux "github.com/srl-labs/srlinux-scrapli"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -84,6 +84,7 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
+// Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
 
