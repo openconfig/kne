@@ -279,6 +279,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 func (n *Impl) CreateService(ctx context.Context) error {
 	var servicePorts []corev1.ServicePort
 	if len(n.Proto.Services) == 0 {
+		log.Info("no services found")
 		return nil
 	}
 	for k, v := range n.Proto.Services {
