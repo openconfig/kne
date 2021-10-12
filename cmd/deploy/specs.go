@@ -40,6 +40,11 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster"
 )
 
+const (
+	dockerConfigEnvVar = "DOCKER_CONFIG"
+	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
+)
+
 type execerInterface interface {
 	exec(string, ...string) error
 	setStdout(io.Writer)
@@ -107,7 +112,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	}
 	if k.DeployWithClient {
 		if len(k.GoogleArtifactRegistries) != 0 {
-			return fmt.Errorf("setting up access to artifact registries %v requires setting the deployWithClient field", k.GoogleArtifactRegistries)
+			return fmt.Errorf("setting up access to artifact registries %v requires unsetting the deployWithClient field", k.GoogleArtifactRegistries)
 		}
 		if err := provider.Create(
 			k.Name,
@@ -157,17 +162,17 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 		log.Debug("No registries require setup")
 		return nil
 	}
-	d, err := os.MkdirTemp("", "kne_kind_docker")
+	tempDockerDir, err := os.MkdirTemp("", "kne_kind_docker")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(d)
-	dc := os.Getenv("DOCKER_CONFIG")
-	defer os.Setenv("DOCKER_CONFIG", dc)
-	if err := os.Setenv("DOCKER_CONFIG", d); err != nil {
+	defer os.RemoveAll(tempDockerDir)
+	originalConfig := os.Getenv(dockerConfigEnvVar)
+	defer os.Setenv(dockerConfigEnvVar, originalConfig)
+	if err := os.Setenv(dockerConfigEnvVar, tempDockerDir); err != nil {
 		return err
 	}
-	configPath := filepath.Join(d, "config.json")
+	configPath := filepath.Join(tempDockerDir, "config.json")
 	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
 		return err
 	}
@@ -195,7 +200,7 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	k.execer.setStdout(log.StandardLogger().Out)
 	for _, node := range strings.Split(nodes.String(), " ") {
 		node = strings.TrimSuffix(node, "\n")
-		if err := k.execer.exec("docker", "cp", configPath, fmt.Sprintf("%s:/var/lib/kubelet/config.json", node)); err != nil {
+		if err := k.execer.exec("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
 			return err
 		}
 		if err := k.execer.exec("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {

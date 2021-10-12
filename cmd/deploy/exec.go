@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"errors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -45,14 +44,14 @@ func newFakeExecer(execErrs ...error) *fakeExecer {
 	return &fakeExecer{execErrs: execErrs}
 }
 
-func (f *fakeExecer) exec(_ string, _ ...string) error {
+func (f *fakeExecer) exec(cmd string, _ ...string) error {
 	switch len(f.execErrs) {
 	default:
 		err := f.execErrs[0]
 		f.execErrs = f.execErrs[1:]
 		return err
 	case 0:
-		return errors.New("unexpected Exec() call")
+		return fmt.Errorf("unexpected exec(%q) call", cmd)
 	case 1:
 		err := f.execErrs[0]
 		f.execErrs = []error{}

@@ -239,6 +239,69 @@ func TestKindSpec(t *testing.T) {
 			m.EXPECT().Create("test", gomock.Any()).Return(fmt.Errorf("create failed"))
 		},
 		wantErr: "failed to create cluster using kind client",
+	}, {
+		desc: "create cluster with GAR - 1 reg",
+		k: &KindSpec{
+			Name:   "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			execer: newFakeExecer(nil, nil, nil, nil, nil, nil),
+		},
+	}, {
+		desc: "create cluster with GAR - 2 regs",
+		k: &KindSpec{
+			Name:   "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev", "us-central1-docker.pkg.dev"},
+			execer: newFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+		},
+	}, {
+		desc: "create cluster with GAR - failed to get access token",
+		k: &KindSpec{
+			Name:   "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			execer: newFakeExecer(nil, errors.New("failed to get access token")),
+		},
+		wantErr: "failed to get access token",
+	}, {
+		desc: "create cluster with GAR - failed docker login",
+		k: &KindSpec{
+			Name:   "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			execer: newFakeExecer(nil, nil, errors.New("failed to login to docker")),
+		},
+		wantErr: "failed to login to docker",
+	}, {
+		desc: "create cluster with GAR - failed to get nodes",
+		k: &KindSpec{
+			Name:   "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			execer: newFakeExecer(nil, nil, nil, errors.New("failed to get nodes")),
+		},
+		wantErr: "failed to get nodes",
+	}, {
+		desc: "create cluster with GAR - failed to cp config to node",
+		k: &KindSpec{
+			Name:   "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			execer: newFakeExecer(nil, nil, nil, nil, errors.New("failed to cp config to node")),
+		},
+		wantErr: "failed to cp config to node",
+	}, {
+		desc: "create cluster with GAR - failed to restart kubelet",
+		k: &KindSpec{
+			Name:   "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			execer: newFakeExecer(nil, nil, nil, nil, nil, errors.New("failed to restart kubelet")),
+		},
+		wantErr: "failed to restart kubelet",
+	}, {
+		desc: "create cluster with GAR - requires CLI",
+		k: &KindSpec{
+			Name:   "test",
+			DeployWithClient: true,
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			execer: newFakeExecer(nil),
+		},
+		wantErr: "requires unsetting the deployWithClient field",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
