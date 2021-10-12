@@ -43,6 +43,13 @@ import (
 const (
 	dockerConfigEnvVar = "DOCKER_CONFIG"
 	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
+	dockerConfigTemplateContents = `{
+  "auths": {
+{{range $val := .}}    "{{$val}}": {}
+{{end}}  }
+}
+`
+	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
 )
 
 type execerInterface interface {
@@ -217,19 +224,7 @@ func writeDockerConfig(path string, registries []string) error {
 		return err
 	}
 	defer f.Close()
-	if _, err := f.WriteString("{\n\"auths\": {\n"); err != nil {
-		return err
-	}
-	for _, r := range registries {
-		s := fmt.Sprintf("%q: {}\n", r)
-		if _, err := f.WriteString(s); err != nil {
-			return err
-		}
-	}
-	if _, err := f.WriteString("}\n}\n"); err != nil {
-		return err
-	}
-	return nil
+	return dockerConfigTemplate.Execute(f, registries)
 }
 
 type MetalLBSpec struct {
