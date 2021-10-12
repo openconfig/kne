@@ -1,0 +1,72 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: topologies.networkop.co.uk
+spec:
+  group: networkop.co.uk
+  scope: Namespaced
+  names:
+    plural: topologies
+    singular: topology
+    kind: Topology
+    shortNames:
+    - topo
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              links:
+                items:
+                  description: 'A complete definition of a p2p link'
+                  required: ["uid", "peer_pod", "local_intf", "peer_intf"]
+                  properties:
+                    uid:
+                      description: 'Unique identified of a p2p link'
+                      type: integer
+                    peer_pod:
+                      description: 'Name of the peer pod'
+                      type: string
+                    local_intf:
+                      description: 'Local interface name'
+                      type: string
+                    peer_intf:
+                      description: 'Peer interface name'
+                      type: string
+                    peer_ip:
+                      description: '(Optional) Local IP address'
+                      type: string
+                    local_ip:
+                      description: '(Optional) Peer IP address'
+                      type: string
+                  type: object
+                type: array
+            type: object
+          status:
+            properties:
+              skipped:
+                description: 'List of pods that are skipped by local pod'
+                items:
+                  description: 'peer pod name'
+                  type: string
+                type: array
+              src_ip:
+                description: 'Source IP of the POD'
+                type: string
+              net_ns:
+                description: 'Network namespace of the POD'
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

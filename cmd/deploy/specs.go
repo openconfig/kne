@@ -22,6 +22,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+	"io"
+	"os"
+	"bytes"
+	"strings"
 
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
@@ -34,7 +38,14 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/kind/pkg/cluster"
+	kexec "github.com/google/kne/cmd/deploy/exec"
 )
+
+type execer interface {
+	Exec(string, ...string) error
+	SetStdout(io.Writer)
+	SetStderr(io.Writer)
+}
 
 type ClusterSpec struct {
 	Kind string    `yaml:"kind"`
@@ -45,6 +56,7 @@ type IngressSpec struct {
 	Kind string    `yaml:"kind"`
 	Spec yaml.Node `yaml:"spec"`
 }
+
 type CNISpec struct {
 	Kind string    `yaml:"kind"`
 	Spec yaml.Node `yaml:"spec"`
@@ -59,8 +71,8 @@ type KindSpec struct {
 	Wait             time.Duration `yaml:"wait"`
 	Kubecfg          string        `yaml:"kubecfg"`
 	DeployWithClient bool          `yaml:"deployWithClient"`
-	Load bool `yaml:"load"`
-	execer           func(string, ...string) error
+	GoogleArtifactRegistries     []string      `yaml:"googleArtifactRegistries"`
+	execer           Execer
 }
 
 //go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
@@ -95,6 +107,9 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		}
 	}
 	if k.DeployWithClient {
+		if len(k.GoogleArtifactRegistries) != 0 {
+			return fmt.Errorf("setting up access to artifact registries %v requires setting the deployWithClient field", k.GoogleArtifactRegistries)
+		}
 		if err := provider.Create(
 			k.Name,
 			cluster.CreateWithNodeImage(k.Image),
@@ -109,11 +124,11 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		log.Infof("Deployed kind cluster using kind client: %s", k.Name)
 		return nil
 	}
-	if k.execer == nil {
-		k.execer = execCmd
-	}
 	if _, err := execLookPath("kind"); err != nil {
 		return errors.Wrap(err, "install kind cli to deploy, or set the deployWithClient field")
+	}
+	if k.execer == nil {
+		k.execer = kexec.NewExecer(log.StandardLogger().Out, log.StandardLogger().Out)
 	}
 	args := []string{"create", "cluster"}
 	if k.Name != "" {
@@ -131,22 +146,84 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if k.Kubecfg != "" {
 		args = append(args, "--kubeconfig", k.Kubecfg)
 	}
-	if err := k.execer("kind", args...); err != nil {
+	if err := k.execer.Exec("kind", args...); err != nil {
 		return errors.Wrap(err, "failed to create cluster using cli")
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
-	if !k.Load {
+	return k.setupGoogleArtifactRegistryAccess()
+}
+
+func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
+	if len(k.GoogleArtifactRegistries) == 0 {
+		log.Debug("No registries require setup")
 		return nil
 	}
-	images := []string{"quay.io/metallb/controller:main", "quay.io/metallb/speaker:main", "hfam/meshnet", "networkop/meshnet", "networkop/init-wait"}
-	for _, im := range images {
-		loadArgs := []string{"load", "docker-image", im}
-		if k.Name != "" {
-			loadArgs = append(loadArgs, "--name", k.Name)
+	d, err := os.MkdirTemp("", "kne_kind_docker")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(d)
+	dc := os.Getenv("DOCKER_CONFIG")
+	defer os.Setenv("DOCKER_CONFIG", dc)
+	if err := os.Setenv("DOCKER_CONFIG", d); err != nil {
+		return err
+	}
+	configPath := filepath.Join(d, "config.json")
+	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
+		return err
+	}
+	var token bytes.Buffer
+	k.execer.SetStdout(&token)
+	if err := k.execer.Exec("gcloud", "auth", "print-access-token"); err != nil {
+		return err
+	}
+	k.execer.SetStdout(log.StandardLogger().Out)
+	for _, r := range k.GoogleArtifactRegistries {
+		s := fmt.Sprintf("https://%s", r)
+		if err := k.execer.Exec("docker", "login", "-u", "oauth2accesstoken", "-p", token.String(), s); err != nil {
+			return err
 		}
-		if err := k.execer("kind", loadArgs...); err != nil {
-			return fmt.Errorf("failed to load docker image %q in cluster: %v", im, err)
+	}
+	args := []string{"get", "nodes"}
+	if k.Name != "" {
+		args = append(args, "--name", k.Name)
+	}
+	var nodes bytes.Buffer
+	k.execer.SetStdout(&nodes)
+	if err := k.execer.Exec("kind", args...); err != nil {
+		return err
+	}
+	k.execer.SetStdout(log.StandardLogger().Out)
+	for _, node := range strings.Split(nodes.String(), " ") {
+		node = strings.TrimSuffix(node, "\n")
+		if err := k.execer.Exec("docker", "cp", configPath, fmt.Sprintf("%s:/var/lib/kubelet/config.json", node)); err != nil {
+			return err
 		}
+		if err := k.execer.Exec("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
+			return err
+		}
+	}
+	log.Infof("Setup credentials for accessing GAR locations %v in kind cluster", k.GoogleArtifactRegistries)
+	return nil
+}
+
+func writeDockerConfig(path string, registries []string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.WriteString("{\n\"auths\": {\n"); err != nil {
+		return err
+	}
+	for _, r := range registries {
+		s := fmt.Sprintf("%q: {}\n", r)
+		if _, err := f.WriteString(s); err != nil {
+			return err
+		}
+	}
+	if _, err := f.WriteString("}\n}\n"); err != nil {
+		return err
 	}
 	return nil
 }
@@ -156,8 +233,8 @@ type MetalLBSpec struct {
 	IPCount     int    `yaml:"ip_count"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
-	execer      func(string, ...string) error
 	dClient     dclient.NetworkAPIClient
+	execer      execer
 }
 
 func (m *MetalLBSpec) SetKClient(c kubernetes.Interface) {
@@ -186,16 +263,6 @@ type metalLBConfig struct {
 	AddressPools []pool `yaml:"address-pools"`
 }
 
-func execCmd(cmd string, args ...string) error {
-	c := exec.Command(cmd, args...)
-	c.Stderr = log.StandardLogger().Out
-	c.Stdout = log.StandardLogger().Out
-	log.Info(c.String())
-	if err := c.Run(); err != nil {
-		return fmt.Errorf("%q failed: %v", c.String(), err)
-	}
-	return nil
-}
 func makeConfig(n *net.IPNet, count int) metalLBConfig {
 	start := make(net.IP, len(n.IP))
 	copy(start, n.IP)
@@ -211,9 +278,10 @@ func makeConfig(n *net.IPNet, count int) metalLBConfig {
 		}},
 	}
 }
+
 func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if m.execer == nil {
-		m.execer = execCmd
+		m.execer = kexec.NewExecer(log.StandardLogger().Out, log.StandardLogger().Out)
 	}
 	if m.dClient == nil {
 		var err error
@@ -225,7 +293,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
 	log.Infof("Deploying metallb from: %s", mPath)
 	log.Infof("Creating metallb namespace")
-	if err := m.execer("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
+	if err := m.execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
 		return err
 	}
 	_, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{})
@@ -247,7 +315,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		}
 	}
 	log.Infof("Applying metallb pods")
-	if err := m.execer("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
+	if err := m.execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
 		return err
 	}
 	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Get(ctx, "config", metav1.GetOptions{})
@@ -335,7 +403,7 @@ type MeshnetSpec struct {
 	Image       string `yaml:"image"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
-	execer      func(string, ...string) error
+	execer      execer
 }
 
 func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
@@ -344,11 +412,11 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 	if m.execer == nil {
-		m.execer = execCmd
+		m.execer = kexec.NewExecer(log.StandardLogger().Out, log.StandardLogger().Out)
 	}
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
 	log.Infof("Deploying Meshnet from: %s", mPath)
-	if err := m.execer("kubectl", "apply", "-k", mPath); err != nil {
+	if err := m.execer.Exec("kubectl", "apply", "-k", mPath); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")

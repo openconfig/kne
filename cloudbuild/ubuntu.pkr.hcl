@@ -15,7 +15,7 @@ source "googlecompute" "kne-image" {
   source_image = "ubuntu-2004-focal-v20210927"
   disk_size    = 50
   image_name   = "kne-{{timestamp}}"
-  image_family = "kne"
+  image_family = "kne-untested"
   image_labels = {
     "tested" : "false",
     "kne_gh_commit_sha" : "${var.short_sha}",
@@ -57,13 +57,6 @@ build {
       "sudo usermod -aG docker $USER",
       "sudo docker version",
       "gcloud auth configure-docker us-west1-docker.pkg.dev -q",
-      "sudo docker pull kindest/node:v1.22.1",
-      "sudo docker pull networkop/init-wait",
-      "sudo docker pull networkop/meshnet",
-      "sudo docker pull hfam/meshnet",
-      "sudo docker pull quay.io/metallb/speaker:main",
-      "sudo docker pull quay.io/metallb/controller:main",
-      "sudo docker pull gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
     ]
   }
 

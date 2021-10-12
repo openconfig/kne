@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: meshnet
+  labels:
+    k8s-app: meshnet
+spec:
+  selector:
+    matchLabels:
+      name: meshnet
+  template:
+    metadata:
+      labels:
+        name: meshnet
+    spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      serviceAccountName: meshnet
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: meshnet
+        securityContext:
+          privileged: true
+        image: us-west1-docker.pkg.dev/gep-kne/kne/hfam/meshnet:ga
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: cni-cfg
+          mountPath: /etc/cni/net.d
+        - name: cni-bin
+          mountPath: /opt/cni/bin
+        - name: var-run-netns
+          mountPath: /var/run/netns
+          mountPropagation: Bidirectional
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - name: cni-bin
+        hostPath:
+          path: /opt/cni/bin
+      - name: cni-cfg
+        hostPath:
+          path: /etc/cni/net.d
+      - name: var-run-netns
+        hostPath:
+          path: /var/run/netns

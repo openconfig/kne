@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
 	ktest "k8s.io/client-go/testing"
+	"github.com/google/kne/cmd/deploy/exec"
 )
 
 var (
@@ -173,7 +174,7 @@ func TestKindSpec(t *testing.T) {
 		desc: "create cluster with cli",
 		k: &KindSpec{
 			Name:   "test",
-			execer: makeExecer(""),
+			execer: exec.NewFakeExecer(nil),
 		},
 	}, {
 		desc: "create cluster with client",
@@ -189,7 +190,7 @@ func TestKindSpec(t *testing.T) {
 		k: &KindSpec{
 			Name:    "test",
 			Recycle: true,
-			execer:  makeExecer(""),
+			execer: exec.NewFakeExecer(nil),
 		},
 		mockExpects: func(m *mocks.Mockprovider) {
 			m.EXPECT().List().Return([]string{"test1"}, nil)
@@ -218,7 +219,7 @@ func TestKindSpec(t *testing.T) {
 		desc: "unable to find kind cli",
 		k: &KindSpec{
 			Name:   "test",
-			execer: makeExecer(""),
+			execer: exec.NewFakeExecer(nil),
 		},
 		execPathErr: true,
 		wantErr:     "install kind cli to deploy",
@@ -226,7 +227,7 @@ func TestKindSpec(t *testing.T) {
 		desc: "create cluster with cli fail",
 		k: &KindSpec{
 			Name:   "test",
-			execer: makeExecer("cmd failed"),
+			execer: exec.NewFakeExecer(errors.New("cmd failed")),
 		},
 		wantErr: "failed to create cluster using cli",
 	}, {
@@ -260,18 +261,6 @@ func TestKindSpec(t *testing.T) {
 				t.Fatalf("unexpected error: %s", s)
 			}
 		})
-	}
-}
-
-func makeExecer(resp ...string) func(string, ...string) error {
-	r := resp
-	return func(_ string, _ ...string) error {
-		resp := r[0]
-		r = r[1:]
-		if resp == "" {
-			return nil
-		}
-		return fmt.Errorf(resp)
 	}
 }
 
@@ -351,14 +340,14 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "namespace error",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("namespace error"),
+			execer:  exec.NewFakeExecer(errors.New("namespace error")),
 		},
 		dErr: "namespace error",
 	}, {
 		desc: "secret create",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", ""),
+			execer:  exec.NewFakeExecer(nil, nil),
 		},
 		mockKClient: func(k *fake.Clientset) {
 			k.CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("get", "secrets", func(action ktest.Action) (handled bool, ret runtime.Object, err error) {
@@ -373,7 +362,7 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "metallb error",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "metallb error"),
+			execer:  exec.NewFakeExecer(nil, errors.New("metallb error")),
 		},
 		k8sObjects: []runtime.Object{
 			&corev1.Secret{
@@ -388,7 +377,7 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "canceled ctx",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", ""),
+			execer:  exec.NewFakeExecer(nil, nil),
 		},
 		k8sObjects: []runtime.Object{
 			&corev1.Secret{
@@ -407,7 +396,7 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "dclient error",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "", ""),
+			execer:  exec.NewFakeExecer(nil, nil, nil),
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("dclient error"))
@@ -417,7 +406,7 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "valid deployment",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "", ""),
+			execer:  exec.NewFakeExecer(nil, nil, nil),
 		},
 		wantCM: `address-pools:
     - name: default
@@ -527,20 +516,20 @@ func TestMeshnet(t *testing.T) {
 	}{{
 		desc: "apply error cluster",
 		m: &MeshnetSpec{
-			execer: makeExecer("apply error"),
+			execer: exec.NewFakeExecer(errors.New("apply error")),
 		},
 		dErr: "apply error",
 	}, {
 		desc: "canceled ctx",
 		m: &MeshnetSpec{
-			execer: makeExecer(""),
+			execer: exec.NewFakeExecer(nil),
 		},
 		ctx:  canceledCtx,
 		hErr: "context canceled",
 	}, {
 		desc: "valid deployment",
 		m: &MeshnetSpec{
-			execer: makeExecer(""),
+			execer: exec.NewFakeExecer(nil),
 		},
 	}}
 	for _, tt := range tests {
