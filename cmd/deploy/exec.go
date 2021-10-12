@@ -1,23 +1,24 @@
-package exec
+package deploy
 
 import (
 	"fmt"
 	"io"
 	"os/exec"
+	"errors"
 
 	log "github.com/sirupsen/logrus"
 )
 
-type Execer struct {
+type execer struct {
 	stdout io.Writer
 	stderr io.Writer
 }
 
-func NewExecer(stdout, stderr io.Writer) *Execer {
-	return &Execer{stdout: stdout, stderr: stderr}
+func newExecer(stdout, stderr io.Writer) *execer {
+	return &execer{stdout: stdout, stderr: stderr}
 }
 
-func (e *Execer) Exec(cmd string, args ...string) error {
+func (e *execer) exec(cmd string, args ...string) error {
 	c := exec.Command(cmd, args...)
 	c.Stdout = e.stdout
 	c.Stderr = e.stderr
@@ -28,23 +29,23 @@ func (e *Execer) Exec(cmd string, args ...string) error {
 	return nil
 }
 
-func (e *Execer) SetStdout(stdout io.Writer) {
-	e.Stdout = stdout
+func (e *execer) setStdout(stdout io.Writer) {
+	e.stdout = stdout
 }
 
-func (e *Execer) SetStderr(stderr io.Writer) {
-	e.Stderr = stderr
+func (e *execer) setStderr(stderr io.Writer) {
+	e.stderr = stderr
 }
 
-type FakeExecer struct {
+type fakeExecer struct {
 	execErrs []error
 }
 
-func NewFakeExecer(execErrs ...error) *FakeExecer {
-	return &FakeExecer{execErrs: ...execErrs}
+func newFakeExecer(execErrs ...error) *fakeExecer {
+	return &fakeExecer{execErrs: execErrs}
 }
 
-func (f *FakeExecer) Exec(_ string, _ ...string) error {
+func (f *fakeExecer) exec(_ string, _ ...string) error {
 	switch len(f.execErrs) {
 	default:
 		err := f.execErrs[0]
@@ -59,6 +60,6 @@ func (f *FakeExecer) Exec(_ string, _ ...string) error {
 	}
 }
 
-func (f *FakeExecer) SetStdout(stdout io.Writer) {}
+func (f *fakeExecer) setStdout(stdout io.Writer) {}
 
-func (f *FakeExecer) SetStderr(stderr io.Writer) {}
+func (f *fakeExecer) setStderr(stderr io.Writer) {}

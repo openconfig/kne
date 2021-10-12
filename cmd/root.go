@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/google/kne/cmd/deploy/deploy"
+	"github.com/google/kne/cmd/deploy"
 	"github.com/google/kne/cmd/topology"
 	"github.com/google/kne/topo"
 	"github.com/kr/pretty"

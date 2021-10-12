@@ -38,13 +38,12 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/kind/pkg/cluster"
-	kexec "github.com/google/kne/cmd/deploy/exec"
 )
 
-type execer interface {
-	Exec(string, ...string) error
-	SetStdout(io.Writer)
-	SetStderr(io.Writer)
+type execerInterface interface {
+	exec(string, ...string) error
+	setStdout(io.Writer)
+	setStderr(io.Writer)
 }
 
 type ClusterSpec struct {
@@ -72,7 +71,7 @@ type KindSpec struct {
 	Kubecfg          string        `yaml:"kubecfg"`
 	DeployWithClient bool          `yaml:"deployWithClient"`
 	GoogleArtifactRegistries     []string      `yaml:"googleArtifactRegistries"`
-	execer           Execer
+	execer           execerInterface
 }
 
 //go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
@@ -128,7 +127,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		return errors.Wrap(err, "install kind cli to deploy, or set the deployWithClient field")
 	}
 	if k.execer == nil {
-		k.execer = kexec.NewExecer(log.StandardLogger().Out, log.StandardLogger().Out)
+		k.execer = newExecer(log.StandardLogger().Out, log.StandardLogger().Out)
 	}
 	args := []string{"create", "cluster"}
 	if k.Name != "" {
@@ -146,7 +145,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if k.Kubecfg != "" {
 		args = append(args, "--kubeconfig", k.Kubecfg)
 	}
-	if err := k.execer.Exec("kind", args...); err != nil {
+	if err := k.execer.exec("kind", args...); err != nil {
 		return errors.Wrap(err, "failed to create cluster using cli")
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
@@ -173,14 +172,14 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 		return err
 	}
 	var token bytes.Buffer
-	k.execer.SetStdout(&token)
-	if err := k.execer.Exec("gcloud", "auth", "print-access-token"); err != nil {
+	k.execer.setStdout(&token)
+	if err := k.execer.exec("gcloud", "auth", "print-access-token"); err != nil {
 		return err
 	}
-	k.execer.SetStdout(log.StandardLogger().Out)
+	k.execer.setStdout(log.StandardLogger().Out)
 	for _, r := range k.GoogleArtifactRegistries {
 		s := fmt.Sprintf("https://%s", r)
-		if err := k.execer.Exec("docker", "login", "-u", "oauth2accesstoken", "-p", token.String(), s); err != nil {
+		if err := k.execer.exec("docker", "login", "-u", "oauth2accesstoken", "-p", token.String(), s); err != nil {
 			return err
 		}
 	}
@@ -189,17 +188,17 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 		args = append(args, "--name", k.Name)
 	}
 	var nodes bytes.Buffer
-	k.execer.SetStdout(&nodes)
-	if err := k.execer.Exec("kind", args...); err != nil {
+	k.execer.setStdout(&nodes)
+	if err := k.execer.exec("kind", args...); err != nil {
 		return err
 	}
-	k.execer.SetStdout(log.StandardLogger().Out)
+	k.execer.setStdout(log.StandardLogger().Out)
 	for _, node := range strings.Split(nodes.String(), " ") {
 		node = strings.TrimSuffix(node, "\n")
-		if err := k.execer.Exec("docker", "cp", configPath, fmt.Sprintf("%s:/var/lib/kubelet/config.json", node)); err != nil {
+		if err := k.execer.exec("docker", "cp", configPath, fmt.Sprintf("%s:/var/lib/kubelet/config.json", node)); err != nil {
 			return err
 		}
-		if err := k.execer.Exec("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
+		if err := k.execer.exec("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
 			return err
 		}
 	}
@@ -234,7 +233,7 @@ type MetalLBSpec struct {
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
 	dClient     dclient.NetworkAPIClient
-	execer      execer
+	execer      execerInterface
 }
 
 func (m *MetalLBSpec) SetKClient(c kubernetes.Interface) {
@@ -281,7 +280,7 @@ func makeConfig(n *net.IPNet, count int) metalLBConfig {
 
 func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if m.execer == nil {
-		m.execer = kexec.NewExecer(log.StandardLogger().Out, log.StandardLogger().Out)
+		m.execer = newExecer(log.StandardLogger().Out, log.StandardLogger().Out)
 	}
 	if m.dClient == nil {
 		var err error
@@ -293,7 +292,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
 	log.Infof("Deploying metallb from: %s", mPath)
 	log.Infof("Creating metallb namespace")
-	if err := m.execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
+	if err := m.execer.exec("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
 		return err
 	}
 	_, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{})
@@ -315,7 +314,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		}
 	}
 	log.Infof("Applying metallb pods")
-	if err := m.execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
+	if err := m.execer.exec("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
 		return err
 	}
 	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Get(ctx, "config", metav1.GetOptions{})
@@ -403,7 +402,7 @@ type MeshnetSpec struct {
 	Image       string `yaml:"image"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
-	execer      execer
+	execer      execerInterface
 }
 
 func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
@@ -412,11 +411,11 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 	if m.execer == nil {
-		m.execer = kexec.NewExecer(log.StandardLogger().Out, log.StandardLogger().Out)
+		m.execer = newExecer(log.StandardLogger().Out, log.StandardLogger().Out)
 	}
 	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
 	log.Infof("Deploying Meshnet from: %s", mPath)
-	if err := m.execer.Exec("kubectl", "apply", "-k", mPath); err != nil {
+	if err := m.execer.exec("kubectl", "apply", "-k", mPath); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")
