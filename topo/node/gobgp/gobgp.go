@@ -14,50 +14,31 @@
 package gobgp
 
 import (
-	"context"
 	"fmt"
 
-	topopb "github.com/google/kne/proto/topo"
+	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
-func New(pb *topopb.Node) (node.Implementation, error) {
-	cfg := defaults(pb)
-	proto.Merge(cfg, pb)
+func New(nodeImpl *node.Impl) (node.Node, error) {
+	cfg := defaults(nodeImpl.Proto)
+	proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
-	return &Node{
-		pb: cfg,
-	}, nil
-
+	n := &Node{
+		Impl: nodeImpl,
+	}
+	proto.Merge(n.Impl.Proto, cfg)
+	return n, nil
 }
 
 type Node struct {
-	pb *topopb.Node
+	*node.Impl
 }
 
-func (n *Node) Proto() *topopb.Node {
-	return n.pb
-}
-
-func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func defaults(pb *topopb.Node) *topopb.Node {
-	if pb == nil {
-		pb = &topopb.Node{
-			Name: "default_gobgp_node",
-		}
-	}
-	return &topopb.Node{
-		Config: &topopb.Config{
+func defaults(pb *tpb.Node) *tpb.Node {
+	return &tpb.Node{
+		Config: &tpb.Config{
 			Image:        "hfam/gobgp:latest",
 			Command:      []string{"/usr/local/bin/gobgpd", "-f", "/gobgp.conf", "-t", "yaml"},
 			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- /bin/bash", pb.Name),
@@ -68,5 +49,6 @@ func defaults(pb *topopb.Node) *topopb.Node {
 }
 
 func init() {
-	node.Register(topopb.Node_GOBGP, New)
+	node.Register(tpb.Node_GOBGP, New)
+	node.Vendor(tpb.Vendor_GOBGP, New)
 }

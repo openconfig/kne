@@ -38,6 +38,16 @@ The new deployment command will perform all the below operations in a single cal
 kne_cli create <topology file>
 ```
 
+## Install GO
+
+```bash
+curl -LO https://golang.org/dl/go1.17.1.linux-amd64.tar.gz
+tar -xzf go1.17.1.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo mv go /usr/local
+
+```
+
 ## Install Docker
 
 ```bash
@@ -66,7 +76,8 @@ $ sudo add-apt-repository \
 ```bash
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 chmod +x kubectl
-mv $(GOPATH)/bin/kubectl
+mkdir -p ~/go/bin
+mv kubectl ~/go/bin/kubectl
 ```
 
 ## Install Kind

@@ -19,17 +19,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"time"
 
-	topopb "github.com/google/kne/proto/topo"
+	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,22 +38,28 @@ import (
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
-func New(pb *topopb.Node) (node.Implementation, error) {
-	cfg := defaults(pb)
-	proto.Merge(cfg, pb)
-	node.FixServices(cfg)
-	return &Node{
-		pb: cfg,
-	}, nil
-}
-
 type Node struct {
-	pb      *topopb.Node
+	*node.Impl
 	cliConn *scraplinetwork.Driver
 }
 
-func (n *Node) Proto() *topopb.Node {
-	return n.pb
+// Add validations for interfaces the node provides
+var (
+	_ node.Certer       = (*Node)(nil)
+	_ node.ConfigPusher = (*Node)(nil)
+	_ node.Resetter     = (*Node)(nil)
+)
+
+func New(nodeImpl *node.Impl) (node.Node, error) {
+	cfg := defaults(nodeImpl.Proto)
+	proto.Merge(cfg, nodeImpl.Proto)
+	node.FixServices(cfg)
+	n := &Node{
+		Impl: nodeImpl,
+	}
+	proto.Merge(n.Impl.Proto, cfg)
+	n.FixInterfaces()
+	return n, nil
 }
 
 // WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
@@ -63,35 +68,34 @@ func (n *Node) WaitCLIReady() error {
 	transportReady := false
 	for !transportReady {
 		if err := n.cliConn.Open(); err != nil {
-			log.Debugf("%s - Cli not ready - waiting.", n.pb.Name)
+			log.Debugf("%s - Cli not ready - waiting.", n.Name())
 			time.Sleep(time.Second * 2)
 			continue
 		}
 		transportReady = true
-		log.Debugf("%s - Cli ready.", n.pb.Name)
+		log.Debugf("%s - Cli ready.", n.Name())
 	}
-
 	return nil
 }
 
 // PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
-func (n *Node) PatchCLIConnOpen(ns string) error {
+func (n *Node) PatchCLIConnOpen() error {
 	t, ok := n.cliConn.Transport.Impl.(scraplitransport.SystemTransport)
 	if !ok {
 		return ErrIncompatibleCliConn
 	}
 
 	t.SetExecCmd("kubectl")
-	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.pb.Name, "--", "Cli"})
+	t.SetOpenCmd([]string{"exec", "-it", "-n", n.Namespace, n.Name(), "--", "Cli"})
 
 	return nil
 }
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
 // to accept inputs.
-func (n *Node) SpawnCLIConn(ns string) error {
+func (n *Node) SpawnCLIConn() error {
 	d, err := scraplicore.NewCoreDriver(
-		n.pb.Name,
+		n.Name(),
 		"arista_eos",
 		scraplibase.WithAuthBypass(true),
 		// disable transport timeout
@@ -103,7 +107,7 @@ func (n *Node) SpawnCLIConn(ns string) error {
 
 	n.cliConn = d
 
-	err = n.PatchCLIConnOpen(ns)
+	err = n.PatchCLIConnOpen()
 	if err != nil {
 		n.cliConn = nil
 
@@ -118,17 +122,17 @@ func (n *Node) SpawnCLIConn(ns string) error {
 	return nil
 }
 
-func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
-	selfSigned := n.pb.GetConfig().GetCert().GetSelfSigned()
+func (n *Node) GenerateSelfSigned(ctx context.Context) error {
+	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
 	if selfSigned == nil {
-		log.Infof("%s - no cert config", n.pb.Name)
+		log.Infof("%s - no cert config", n.Name())
 		return nil
 	}
-	log.Infof("%s - generating self signed certs", n.pb.Name)
-	log.Infof("%s - waiting for pod to be running", n.pb.Name)
-	w, err := ni.KubeClient().CoreV1().Pods(ni.Namespace()).Watch(ctx, metav1.ListOptions{
+	log.Infof("%s - generating self signed certs", n.Name())
+	log.Infof("%s - waiting for pod to be running", n.Name())
+	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(
-			fields.Set{metav1.ObjectNameField: n.pb.Name},
+			fields.Set{metav1.ObjectNameField: n.Name()},
 		).String(),
 	})
 	if err != nil {
@@ -140,9 +144,9 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 			break
 		}
 	}
-	log.Infof("%s - pod running.", n.pb.Name)
+	log.Infof("%s - pod running.", n.Name())
 
-	err = n.SpawnCLIConn(ni.Namespace())
+	err = n.SpawnCLIConn()
 	if err != nil {
 		return err
 	}
@@ -159,7 +163,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 			"security pki certificate generate self-signed %s key %s parameters common-name %s\n",
 			selfSigned.CertName,
 			selfSigned.KeyName,
-			n.pb.Name,
+			n.Name(),
 		),
 	}
 
@@ -169,14 +173,14 @@ func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error 
 	}
 
 	if resp.Failed == nil {
-		log.Infof("%s - finshed cert generation", n.pb.Name)
+		log.Infof("%s - finshed cert generation", n.Name())
 	}
 
 	return resp.Failed
 }
 
-func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
-	log.Infof("%s - pushing config", n.pb.Name)
+func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+	log.Infof("%s - pushing config", n.Name())
 
 	cfg, err := ioutil.ReadAll(r)
 	cfgs := string(cfg)
@@ -187,7 +191,7 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 		return err
 	}
 
-	err = n.SpawnCLIConn(ns)
+	err = n.SpawnCLIConn()
 	if err != nil {
 		return err
 	}
@@ -200,16 +204,16 @@ func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
 	}
 
 	if resp.Failed == nil {
-		log.Infof("%s - finshed config push", n.pb.Name)
+		log.Infof("%s - finshed config push", n.Impl.Proto.Name)
 	}
 
 	return resp.Failed
 }
 
-func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
-	log.Infof("%s resetting config", n.pb.Name)
+func (n *Node) ResetCfg(ctx context.Context) error {
+	log.Infof("%s resetting config", n.Name())
 
-	err := n.SpawnCLIConn(ni.Namespace())
+	err := n.SpawnCLIConn()
 	if err != nil {
 		return err
 	}
@@ -226,32 +230,24 @@ func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
 	}
 
 	if resp.Failed == nil {
-		log.Infof("%s - finshed resetting config", n.pb.Name)
+		log.Infof("%s - finshed resetting config", n.Name())
 	}
 
 	return resp.Failed
 }
 
-func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func (n *Node) DeleteNodeResource(_ context.Context, _ node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
-func defaults(pb *topopb.Node) *topopb.Node {
+func defaults(pb *tpb.Node) *tpb.Node {
 	if pb == nil {
-		pb = &topopb.Node{
+		pb = &tpb.Node{
 			Name: "default_ceos_node",
 		}
 	}
-	return &topopb.Node{
+	return &tpb.Node{
 		Constraints: map[string]string{
 			"cpu":    "0.5",
 			"memory": "1Gi",
 		},
-		Services: map[uint32]*topopb.Service{
+		Services: map[uint32]*tpb.Service{
 			443: {
 				Name:     "ssl",
 				Inside:   443,
@@ -269,9 +265,13 @@ func defaults(pb *topopb.Node) *topopb.Node {
 			},
 		},
 		Labels: map[string]string{
-			"type": topopb.Node_ARISTA_CEOS.String(),
+			"type":    tpb.Node_ARISTA_CEOS.String(),
+			"vendor":  tpb.Vendor_ARISTA.String(),
+			"model":   pb.Model,
+			"os":      pb.Os,
+			"version": pb.Version,
 		},
-		Config: &topopb.Config{
+		Config: &tpb.Config{
 			Image: "ceos:latest",
 			Command: []string{
 				"/sbin/init",
@@ -297,6 +297,18 @@ func defaults(pb *topopb.Node) *topopb.Node {
 	}
 }
 
+func (n *Node) FixInterfaces() {
+	for k, v := range n.Proto.Interfaces {
+		if !strings.HasPrefix(k, "eth") {
+			continue
+		}
+		if v.Name == "" {
+			n.Proto.Interfaces[k].Name = fmt.Sprintf("Ethernet%s", strings.TrimPrefix(k, "eth"))
+		}
+	}
+}
+
 func init() {
-	node.Register(topopb.Node_ARISTA_CEOS, New)
+	node.Register(tpb.Node_ARISTA_CEOS, New)
+	node.Vendor(tpb.Vendor_ARISTA, New)
 }
