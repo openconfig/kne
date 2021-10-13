@@ -130,7 +130,8 @@ message Config {
     bytes data = 101;
     // File is always relative to the topology configuration file.
     string file = 102;
-  }
+  };
+  string init_image = 10; // Docker image to use as an init container for the pod.
 }
 
 message CertificateCfg {
