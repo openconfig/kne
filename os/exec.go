@@ -69,6 +69,6 @@ func (f *FakeExecer) Exec(cmd string, _ ...string) error {
 	}
 }
 
-func (f *fakeExecer) SetStdout(stdout io.Writer) {}
+func (f *FakeExecer) SetStdout(stdout io.Writer) {}
 
-func (f *fakeExecer) SetStderr(stderr io.Writer) {}
+func (f *FakeExecer) SetStderr(stderr io.Writer) {}
