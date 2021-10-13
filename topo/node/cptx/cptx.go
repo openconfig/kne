@@ -33,11 +33,11 @@ func (n *Node) Proto() *topopb.Node {
 }
 
 func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
-        return status.Errorf(codes.Unimplemented, "Unimplemented")
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
-        return status.Errorf(codes.Unimplemented, "Unimplemented")
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func (n *Node) CreateNodeResource(_ context.Context, _ node.Interface) error {
@@ -80,7 +80,7 @@ func defaults(pb *topopb.Node) *topopb.Node {
 				"/entrypoint.sh",
 			},
 			Env: map[string]string{
-			     "CPTX": "1",
+				"CPTX": "1",
 			},
 			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name),
 			ConfigPath:   "/home/evo/configdisk",
