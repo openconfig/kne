@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	dtypes "github.com/docker/docker/api/types"
@@ -50,7 +51,6 @@ const (
 {{end}}  }
 }
 `
-	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
 )
 
 type ClusterSpec struct {
@@ -93,6 +93,8 @@ type execerInterface interface {
 }
 
 var (
+	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
+
 	logOut = log.StandardLogger().Out
 
 	// execer handles all execs on host.
@@ -190,7 +192,7 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 		return err
 	}
 	var token bytes.Buffer
-	k.execer.setStdout(&token)
+	execer.SetStdout(&token)
 	if err := execer.Exec("gcloud", "auth", "print-access-token"); err != nil {
 		return err
 	}
