@@ -20,8 +20,6 @@ import (
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -46,6 +44,11 @@ type Node struct {
 	*node.Impl
 	cliConn *scraplinetwork.Driver
 }
+
+// Add validations for interfaces the node provides
+var (
+	_ node.ConfigPusher = (*Node)(nil)
+)
 
 // WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
 // for a given platform. Retries with exponential backoff.
@@ -115,10 +118,6 @@ func (n *Node) SpawnCLIConn(ns string) error {
 	}
 
 	return nil
-}
-
-func (n *Node) GenerateSelfSigned(ctx context.Context, ni node.Interface) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {

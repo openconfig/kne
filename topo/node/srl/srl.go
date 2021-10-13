@@ -3,7 +3,6 @@ package srl
 import (
 	"context"
 	"errors"
-	"io"
 	"time"
 
 	topopb "github.com/google/kne/proto/topo"
@@ -15,8 +14,6 @@ import (
 	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
 	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
 	srlinux "github.com/srl-labs/srlinux-scrapli"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +38,11 @@ type Node struct {
 	*node.Impl
 	cliConn *scraplinetwork.Driver
 }
+
+// Add validations for interfaces the node provides
+var (
+	_ node.Certer = (*Node)(nil)
+)
 
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
@@ -77,10 +79,6 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	}
 
 	return err
-}
-
-func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
