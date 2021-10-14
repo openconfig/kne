@@ -79,11 +79,18 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Cloning google/kne...",
+      "echo Cloning google/kne github repo...",
       "sudo apt-get install git -y",
       "git clone -b ${var.branch_name} https://github.com/google/kne.git",
       "cd kne/kne_cli",
       "/usr/local/go/bin/go build -v",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Cloning kne-internal cloud source repo...",
+      "gcloud source repos clone kne-internal --project=gep-kne",
     ]
   }
 }
