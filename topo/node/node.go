@@ -118,7 +118,7 @@ func (n *Impl) GetNamespace() string {
 }
 
 const (
-	defaultInitContainerName = "networkop/init-wait:latest"
+	defaultInitContainerImage = "networkop/init-wait:latest"
 )
 
 func ToEnvVar(kv map[string]string) []corev1.EnvVar {
@@ -196,9 +196,9 @@ func (n *Impl) CreateConfig(ctx context.Context) error {
 func (n *Impl) CreatePod(ctx context.Context) error {
 	pb := n.Proto
 	log.Infof("Creating Pod:\n %+v", pb)
-	initContainerName := pb.Config.InitContainer
-	if initContainerName == "" {
-		initContainerName = defaultInitContainerName
+	initContainerImage := pb.Config.InitImage
+	if initContainerImage == "" {
+		initContainerImage = defaultInitContainerImage
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -211,7 +211,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 		Spec: corev1.PodSpec{
 			InitContainers: []corev1.Container{{
 				Name:  fmt.Sprintf("init-%s", pb.Name),
-				Image: initContainerName,
+				Image: initContainerImage,
 				Args: []string{
 					fmt.Sprintf("%d", len(n.Proto.Interfaces)+1),
 					fmt.Sprintf("%d", pb.Config.Sleep),

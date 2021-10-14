@@ -130,7 +130,8 @@ message Config {
     // File is always relative to the topology configuration file.
     string file = 102;
   }
-  string init_image = 10; // Docker image to use as an init container for the pod.
+  // Docker image to use as an init container for the pod.
+  string init_image = 10;
 }
 
 message CertificateCfg {
