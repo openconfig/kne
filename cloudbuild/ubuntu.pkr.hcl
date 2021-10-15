@@ -28,6 +28,7 @@ source "googlecompute" "kne-image" {
   zone                  = "us-central1-a"
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
+  scopes                = ["https://www.googleapis.com/auth/cloud-platform"]
 }
 
 build {
