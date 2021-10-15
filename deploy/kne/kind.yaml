@@ -8,9 +8,9 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb/external
+    manifests: ../../manifests/metallb
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/external/base
+    manifests: ../../manifests/meshnet/base
