@@ -50,7 +50,7 @@ nodes: {
 nodes: {
     name: "ate1"
     type: IXIA_TG
-    version: "0.0.1-9999"
+    version: "0.0.1-2289"
     services: {
         key: 5555
         value: {
@@ -67,7 +67,7 @@ nodes: {
 nodes: {
     name: "ate2"
     type: IXIA_TG
-    version: "0.0.1-9999"
+    version: "0.0.1-2289"
     services: {
         key: 5555
         value: {
