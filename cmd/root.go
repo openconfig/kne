@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/kne/cmd/deploy"
@@ -35,7 +36,7 @@ var (
 	kubecfg        string
 	topofile       string
 	dryrun         bool
-	timeout        uint32
+	timeout        time.Duration
 	logLevel       = "info"
 
 	rootCmd = &cobra.Command{
@@ -71,7 +72,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg, "kubeconfig file")
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "verbosity", "v", logLevel, "log level")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
-	createCmd.Flags().Uint32Var(&timeout, "timeout", 0, "Timeout for pod status enquiry")
+	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(showCmd)
@@ -82,7 +83,7 @@ func init() {
 
 var (
 	createCmd = &cobra.Command{
-		Use:       "create <topology file> [timeout sec]",
+		Use:       "create <topology file>",
 		Short:     "Create Topology",
 		PreRunE:   validateTopology,
 		RunE:      createFn,

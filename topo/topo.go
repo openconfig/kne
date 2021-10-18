@@ -259,13 +259,13 @@ func (m *Manager) Push(ctx context.Context) error {
 }
 
 // CheckNodeStatus reports node status, ignores for unimplemented nodes.
-func (m *Manager) CheckNodeStatus(ctx context.Context, timeout uint32) error {
+func (m *Manager) CheckNodeStatus(ctx context.Context, timeout time.Duration) error {
 	foundAll := false
 	processed := make(map[string]bool)
 
 	// Check until end state or timeout sec expired
 	start := time.Now()
-	for uint32(time.Since(start).Seconds()) < timeout && !foundAll {
+	for (timeout == 0 || time.Since(start) < timeout) && !foundAll {
 		foundAll = true
 		for name, n := range m.nodes {
 			if _, ok := processed[name]; ok {

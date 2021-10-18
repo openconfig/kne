@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/google/kne/topo/node"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
+	errapi "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	tpb "github.com/google/kne/proto/topo"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/google/kne/topo/node"
 )
 
 type IxiaSpec struct {
@@ -95,16 +96,19 @@ func (n *Node) Create(ctx context.Context) error {
 func (n *Node) Status(ctx context.Context) (corev1.PodPhase, error) {
 	ixiaNode := Ixia{}
 	var phase corev1.PodPhase
-	err := error(nil)
-	pod, _ := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
-	if pod != nil && pod.Status.Phase == "Running" {
-		return pod.Status.Phase, nil
-	}
-
-	if pod != nil {
+	var err error
+	phase = corev1.PodUnknown
+	pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err != nil {
+		// Ignore not found error, because operator may not have picked up immediately
+		if !errapi.IsNotFound(err) {
+			return phase, err
+		}
+	} else if pod != nil {
 		phase = pod.Status.Phase
-	} else {
-		phase = corev1.PodUnknown
+		if phase == corev1.PodRunning {
+			return phase, nil
+		}
 	}
 
 	res := n.KubeClient.CoreV1().RESTClient().
