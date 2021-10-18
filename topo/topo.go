@@ -131,6 +131,11 @@ func (m *Manager) Load(ctx context.Context) error {
 		if len(n.Interfaces) == 0 {
 			n.Interfaces = map[string]*tpb.Interface{}
 		}
+		for k := range n.Interfaces {
+			if n.Interfaces[k].IntName == "" {
+				n.Interfaces[k].IntName = k
+			}
+		}
 		nMap[n.Name] = n
 	}
 	uid := 0

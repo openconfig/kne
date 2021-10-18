@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
 	"github.com/google/kne/cmd/deploy/mocks"
+	"github.com/google/kne/os/exec"
 	"github.com/h-fam/errdiff"
 	"github.com/kylelemons/godebug/diff"
 	log "github.com/sirupsen/logrus"
@@ -166,15 +167,16 @@ func TestKindSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		k           *KindSpec
+		execer      execerInterface
 		execPathErr bool
 		wantErr     string
 		mockExpects func(m *mocks.Mockprovider)
 	}{{
 		desc: "create cluster with cli",
 		k: &KindSpec{
-			Name:   "test",
-			execer: makeExecer(""),
+			Name: "test",
 		},
+		execer: exec.NewFakeExecer(nil),
 	}, {
 		desc: "create cluster with client",
 		k: &KindSpec{
@@ -189,8 +191,8 @@ func TestKindSpec(t *testing.T) {
 		k: &KindSpec{
 			Name:    "test",
 			Recycle: true,
-			execer:  makeExecer(""),
 		},
+		execer: exec.NewFakeExecer(nil),
 		mockExpects: func(m *mocks.Mockprovider) {
 			m.EXPECT().List().Return([]string{"test1"}, nil)
 		},
@@ -217,17 +219,17 @@ func TestKindSpec(t *testing.T) {
 	}, {
 		desc: "unable to find kind cli",
 		k: &KindSpec{
-			Name:   "test",
-			execer: makeExecer(""),
+			Name: "test",
 		},
+		execer:      exec.NewFakeExecer(nil),
 		execPathErr: true,
 		wantErr:     "install kind cli to deploy",
 	}, {
 		desc: "create cluster with cli fail",
 		k: &KindSpec{
-			Name:   "test",
-			execer: makeExecer("cmd failed"),
+			Name: "test",
 		},
+		execer:  exec.NewFakeExecer(errors.New("cmd failed")),
 		wantErr: "failed to create cluster using cli",
 	}, {
 		desc: "create cluster with client fail",
@@ -239,12 +241,78 @@ func TestKindSpec(t *testing.T) {
 			m.EXPECT().Create("test", gomock.Any()).Return(fmt.Errorf("create failed"))
 		},
 		wantErr: "failed to create cluster using kind client",
+	}, {
+		desc: "create cluster with GAR - 1 reg",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil),
+	}, {
+		desc: "create cluster with GAR - 2 regs",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev", "us-central1-docker.pkg.dev"},
+		},
+		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+	}, {
+		desc: "create cluster with GAR - failed to get access token",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		execer:  exec.NewFakeExecer(nil, errors.New("failed to get access token")),
+		wantErr: "failed to get access token",
+	}, {
+		desc: "create cluster with GAR - failed docker login",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, errors.New("failed to login to docker")),
+		wantErr: "failed to login to docker",
+	}, {
+		desc: "create cluster with GAR - failed to get nodes",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("failed to get nodes")),
+		wantErr: "failed to get nodes",
+	}, {
+		desc: "create cluster with GAR - failed to cp config to node",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, nil, errors.New("failed to cp config to node")),
+		wantErr: "failed to cp config to node",
+	}, {
+		desc: "create cluster with GAR - failed to restart kubelet",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, errors.New("failed to restart kubelet")),
+		wantErr: "failed to restart kubelet",
+	}, {
+		desc: "create cluster with GAR - requires CLI",
+		k: &KindSpec{
+			Name:                     "test",
+			DeployWithClient:         true,
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		execer:  exec.NewFakeExecer(nil),
+		wantErr: "requires unsetting the deployWithClient field",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			m := mocks.NewMockprovider(mockCtrl)
 			if tt.mockExpects != nil {
 				tt.mockExpects(m)
+			}
+			if tt.execer != nil {
+				execer = tt.execer
 			}
 			newProvider = func() provider {
 				return m
@@ -260,18 +328,6 @@ func TestKindSpec(t *testing.T) {
 				t.Fatalf("unexpected error: %s", s)
 			}
 		})
-	}
-}
-
-func makeExecer(resp ...string) func(string, ...string) error {
-	r := resp
-	return func(_ string, _ ...string) error {
-		resp := r[0]
-		r = r[1:]
-		if resp == "" {
-			return nil
-		}
-		return fmt.Errorf(resp)
 	}
 }
 
@@ -340,6 +396,7 @@ func TestMetalbSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		m           *MetalLBSpec
+		execer      execerInterface
 		wantCM      string
 		dErr        string
 		hErr        string
@@ -351,15 +408,15 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "namespace error",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("namespace error"),
 		},
-		dErr: "namespace error",
+		execer: exec.NewFakeExecer(errors.New("namespace error")),
+		dErr:   "namespace error",
 	}, {
 		desc: "secret create",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", ""),
 		},
+		execer: exec.NewFakeExecer(nil, nil),
 		mockKClient: func(k *fake.Clientset) {
 			k.CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("get", "secrets", func(action ktest.Action) (handled bool, ret runtime.Object, err error) {
 				return true, nil, fmt.Errorf("get secret error")
@@ -373,8 +430,8 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "metallb error",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "metallb error"),
 		},
+		execer: exec.NewFakeExecer(nil, errors.New("metallb error")),
 		k8sObjects: []runtime.Object{
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -388,8 +445,8 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "canceled ctx",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", ""),
 		},
+		execer: exec.NewFakeExecer(nil, nil),
 		k8sObjects: []runtime.Object{
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -407,8 +464,8 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "dclient error",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "", ""),
 		},
+		execer: exec.NewFakeExecer(nil, nil, nil),
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("dclient error"))
 		},
@@ -417,8 +474,8 @@ func TestMetalbSpec(t *testing.T) {
 		desc: "valid deployment",
 		m: &MetalLBSpec{
 			IPCount: 20,
-			execer:  makeExecer("", "", ""),
 		},
+		execer: exec.NewFakeExecer(nil, nil, nil),
 		wantCM: `address-pools:
     - name: default
       protocol: layer2
@@ -479,6 +536,9 @@ func TestMetalbSpec(t *testing.T) {
 				tt.mockExpects(m)
 				tt.m.dClient = m
 			}
+			if tt.execer != nil {
+				execer = tt.execer
+			}
 			err := tt.m.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -519,29 +579,27 @@ func TestMeshnet(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		desc string
-		m    *MeshnetSpec
-		dErr string
-		hErr string
-		ctx  context.Context
+		desc   string
+		m      *MeshnetSpec
+		execer execerInterface
+		dErr   string
+		hErr   string
+		ctx    context.Context
 	}{{
-		desc: "apply error cluster",
-		m: &MeshnetSpec{
-			execer: makeExecer("apply error"),
-		},
-		dErr: "apply error",
+		desc:   "apply error cluster",
+		m:      &MeshnetSpec{},
+		execer: exec.NewFakeExecer(errors.New("apply error")),
+		dErr:   "apply error",
 	}, {
-		desc: "canceled ctx",
-		m: &MeshnetSpec{
-			execer: makeExecer(""),
-		},
-		ctx:  canceledCtx,
-		hErr: "context canceled",
+		desc:   "canceled ctx",
+		m:      &MeshnetSpec{},
+		execer: exec.NewFakeExecer(nil),
+		ctx:    canceledCtx,
+		hErr:   "context canceled",
 	}, {
-		desc: "valid deployment",
-		m: &MeshnetSpec{
-			execer: makeExecer(""),
-		},
+		desc:   "valid deployment",
+		m:      &MeshnetSpec{},
+		execer: exec.NewFakeExecer(nil),
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -578,6 +636,9 @@ func TestMeshnet(t *testing.T) {
 			}
 			ki.PrependWatchReactor("daemonsets", reaction)
 			tt.m.SetKClient(ki)
+			if tt.execer != nil {
+				execer = tt.execer
+			}
 			err := tt.m.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)

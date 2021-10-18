@@ -43,6 +43,13 @@ type Node struct {
 	cliConn *scraplinetwork.Driver
 }
 
+// Add validations for interfaces the node provides
+var (
+	_ node.Certer       = (*Node)(nil)
+	_ node.ConfigPusher = (*Node)(nil)
+	_ node.Resetter     = (*Node)(nil)
+)
+
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	cfg := defaults(nodeImpl.Proto)
 	proto.Merge(cfg, nodeImpl.Proto)
@@ -203,7 +210,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	return resp.Failed
 }
 
-func (n *Node) ResetCfg(ctx context.Context, ni node.Interface) error {
+func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Infof("%s resetting config", n.Name())
 
 	err := n.SpawnCLIConn()

@@ -1,16 +1,34 @@
+variable "short_sha" {
+  type = string
+}
+
+variable "branch_name" {
+  type = string
+}
+
+variable "build_id" {
+  type = string
+}
+
 source "googlecompute" "kne-image" {
-  project_id            = "gep-kne"
-  source_image          = "debian-11-bullseye-v20210817"
-  disk_size             = 50
-  image_name            = "kne-{{timestamp}}"
-  image_family          = "kne"
-  image_labels          = { "tested" : "false" }
-  image_description     = "Debian based linux VM image with KNE and all dependencies installed."
+  project_id   = "gep-kne"
+  source_image = "ubuntu-2004-focal-v20210927"
+  disk_size    = 50
+  image_name   = "kne-{{timestamp}}"
+  image_family = "kne-untested"
+  image_labels = {
+    "tested" : "false",
+    "kne_gh_commit_sha" : "${var.short_sha}",
+    "kne_gh_branch_name" : "${var.branch_name}",
+    "cloud_build_id" : "${var.build_id}",
+  }
+  image_description     = "Ubuntu based linux VM image with KNE and all dependencies installed."
   ssh_username          = "user"
-  machine_type          = "e2-standard-4"
+  machine_type          = "n2-standard-8"
   zone                  = "us-central1-a"
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
+  scopes                = ["https://www.googleapis.com/auth/cloud-platform"]
 }
 
 build {
@@ -33,12 +51,13 @@ build {
       "echo Installing docker...",
       "sudo apt-get update",
       "sudo apt-get install apt-transport-https ca-certificates curl gnupg lsb-release -y",
-      "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
       "sudo apt-get update",
       "sudo apt-get install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
-      "docker -v",
+      "sudo docker version",
+      "gcloud auth configure-docker us-west1-docker.pkg.dev -q",
     ]
   }
 
@@ -61,11 +80,18 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Cloning google/kne...",
+      "echo Cloning google/kne github repo...",
       "sudo apt-get install git -y",
-      "git clone https://github.com/google/kne.git",
+      "git clone -b ${var.branch_name} https://github.com/google/kne.git",
       "cd kne/kne_cli",
       "/usr/local/go/bin/go build -v",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Cloning kne-internal cloud source repo...",
+      "gcloud source repos clone kne-internal --project=gep-kne",
     ]
   }
 }

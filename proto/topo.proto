@@ -62,7 +62,6 @@ message Node {
     GOBGP = 11;
   }
 
-
   string name = 1; // Name of the node in the topology. Must be unique.
   // Type of node to create. (Will be deprecated).
   // If type is set vendor / model / version will not be evaluated.
@@ -131,6 +130,8 @@ message Config {
     // File is always relative to the topology configuration file.
     string file = 102;
   }
+  // Docker image to use as an init container for the pod.
+  string init_image = 10;
 }
 
 message CertificateCfg {
@@ -161,10 +162,10 @@ message SelfSignedCertCfg {
 // listen on. The outside port if provided will be the load balanced advertised
 // port.  If no outsideport is provided the inside port will be used.
 message Service {
-  string name = 1;  // Name of the service (optional)
+  string name = 1; // Name of the service (optional)
   uint32 inside = 2; // Inside port to map Node (container listening port)
   uint32 outside = 3; // Outside port to map (target port on loadbalancer)
-  string inside_ip = 4;  // Assigned by KNE.
+  string inside_ip = 4; // Assigned by KNE.
   string outside_ip = 5; // Assigned by KNE.
   uint32 node_port = 6; // Assigned by KNE.
 }

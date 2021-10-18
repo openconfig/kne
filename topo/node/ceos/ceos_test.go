@@ -220,7 +220,7 @@ func TestResetCfg(t *testing.T) {
 
 			ctx := context.Background()
 
-			err = n.ResetCfg(ctx, ni)
+			err = n.ResetCfg(ctx)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("resetting config failed, error: %+v\n", err)
 			}

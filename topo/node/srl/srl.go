@@ -3,8 +3,6 @@ package srl
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"time"
 
 	topopb "github.com/google/kne/proto/topo"
@@ -13,11 +11,9 @@ import (
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
-	srlclient "github.com/srl-labs/kne-controller/api/clientset/v1alpha1"
-	srltypes "github.com/srl-labs/kne-controller/api/types/v1alpha1"
+	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
+	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
 	srlinux "github.com/srl-labs/srlinux-scrapli"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +38,11 @@ type Node struct {
 	*node.Impl
 	cliConn *scraplinetwork.Driver
 }
+
+// Add validations for interfaces the node provides
+var (
+	_ node.Certer = (*Node)(nil)
+)
 
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
@@ -80,10 +81,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	return err
 }
 
-func (n *Node) ConfigPush(ctx context.Context, ns string, r io.Reader) error {
-	return status.Errorf(codes.Unimplemented, "Unimplemented")
-}
-
+// Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
 
@@ -100,10 +98,26 @@ func (n *Node) Create(ctx context.Context) error {
 			},
 		},
 		Spec: srltypes.SrlinuxSpec{
-			NumInterfaces: len(n.Proto.Interfaces),
+			NumInterfaces: len(n.GetProto().GetInterfaces()),
 			Config: &srltypes.NodeConfig{
-				Sleep: 0,
+				Command:      n.GetProto().GetConfig().GetCommand(),
+				Args:         n.GetProto().GetConfig().GetArgs(),
+				Image:        n.GetProto().GetConfig().GetImage(),
+				Env:          n.GetProto().GetConfig().GetEnv(),
+				EntryCommand: n.GetProto().GetConfig().GetEntryCommand(),
+				ConfigPath:   n.GetProto().GetConfig().GetConfigPath(),
+				ConfigFile:   n.GetProto().GetConfig().GetConfigFile(),
+				Cert: &srltypes.CertificateCfg{
+					CertName:   n.GetProto().GetConfig().GetCert().GetSelfSigned().GetCertName(),
+					KeyName:    n.GetProto().GetConfig().GetCert().GetSelfSigned().GetKeyName(),
+					CommonName: n.GetProto().GetConfig().GetCert().GetSelfSigned().GetCommonName(),
+					KeySize:    n.GetProto().GetConfig().GetCert().GetSelfSigned().GetKeySize(),
+				},
+				Sleep: n.GetProto().GetConfig().GetSleep(),
 			},
+			Constraints: n.GetProto().GetConstraints(),
+			Model:       n.GetProto().GetModel(),
+			Version:     n.GetProto().GetVersion(),
 		},
 	}
 
@@ -133,7 +147,11 @@ func (n *Node) Create(ctx context.Context) error {
 
 	log.Infof("Created Srlinux resource: %s", n.Name())
 
-	return nil
+	if err := n.CreateService(ctx); err != nil {
+		return err
+	}
+
+	return err
 }
 
 func (n *Node) Delete(ctx context.Context) error {
@@ -158,10 +176,6 @@ func (n *Node) Delete(ctx context.Context) error {
 
 func defaults(pb *topopb.Node) *topopb.Node {
 	return &topopb.Node{
-		Constraints: map[string]string{
-			"cpu":    "0.5",
-			"memory": "1Gi",
-		},
 		Services: map[uint32]*topopb.Service{
 			443: {
 				Name:    "ssl",
@@ -183,26 +197,7 @@ func defaults(pb *topopb.Node) *topopb.Node {
 			"type": topopb.Node_NOKIA_SRL.String(),
 		},
 		Config: &topopb.Config{
-			Image: "srlinux:latest",
-			Command: []string{
-				"/tini",
-			},
-			Args: []string{
-				"--",
-				"fixuid",
-				"-q",
-				"/entrypoint.sh",
-				"sudo",
-				"bash",
-				"-c",
-				"touch /.dockerenv && /opt/srlinux/bin/sr_linux",
-			},
-			Env: map[string]string{
-				"SRLINUX": "1",
-			},
-			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sr_cli", pb.Name),
-			ConfigPath:   "/etc/opt/srlinux",
-			ConfigFile:   "config.json",
+			Image: "ghcr.io/nokia/srlinux:latest",
 		},
 	}
 }
@@ -270,4 +265,5 @@ func (n *Node) WaitCLIReady() error {
 
 func init() {
 	node.Register(topopb.Node_NOKIA_SRL, New)
+	node.Vendor(topopb.Vendor_NOKIA, New)
 }
