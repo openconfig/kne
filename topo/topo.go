@@ -16,11 +16,13 @@ package topo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/google/kne/topo/node"
 	"github.com/kr/pretty"
@@ -252,6 +254,39 @@ func (m *Manager) Push(ctx context.Context) error {
 			return fmt.Errorf("failed to generate cert for node %s: %w", n.Name(), err)
 		case err == nil, status.Code(err) == codes.Unimplemented:
 		}
+	}
+	return nil
+}
+
+// CheckNodeStatus reports node status, ignores for unimplemented nodes.
+func (m *Manager) CheckNodeStatus(ctx context.Context, timeout time.Duration) error {
+	foundAll := false
+	processed := make(map[string]bool)
+
+	// Check until end state or timeout sec expired
+	start := time.Now()
+	for (timeout == 0 || time.Since(start) < timeout) && !foundAll {
+		foundAll = true
+		for name, n := range m.nodes {
+			if _, ok := processed[name]; ok {
+				continue
+			}
+
+			phase, err := n.Status(ctx)
+			if err != nil || phase == "Failed" {
+				return errors.New(fmt.Sprintf("Node %q: Pod Status %s Reason %s", name, phase, err.Error()))
+			}
+			if phase == "Running" {
+				log.Infof("Node %q: Pod Status %s", name, phase)
+				processed[name] = true
+			} else {
+				foundAll = false
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !foundAll {
+		log.Warnf("Failed to determine status of some node resources in %d sec", timeout)
 	}
 	return nil
 }

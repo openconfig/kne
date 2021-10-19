@@ -32,6 +32,9 @@ type Implementation interface {
 	// Create provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Create(context.Context) error
+	// Status provides a custom implementation of accessing vendor node status.
+	// Requires context, Kubernetes client interface and namespace.
+	Status(context.Context) (corev1.PodPhase, error)
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
