@@ -4,6 +4,7 @@
 transceiver qsfp default-mode 4x10G
 !
 service routing protocols model ribd
+service routing protocols model multi-agent
 !
 agent Bfd shutdown
 agent PowerManager shutdown
