@@ -104,7 +104,8 @@ func (n *Node) Status(ctx context.Context) (corev1.PodPhase, error) {
 		if !errapi.IsNotFound(err) {
 			return phase, err
 		}
-	} else if pod != nil {
+	}
+	if pod != nil {
 		phase = pod.Status.Phase
 		if phase == corev1.PodRunning {
 			return phase, nil
