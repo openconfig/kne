@@ -1,11 +1,11 @@
-name: "3node-traffic"
+name: "3node-ipv6"
 nodes: {
     name: "r1"
     type: ARISTA_CEOS
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "ceos-withtraffic/r1-config"
+        file: "r1.ipv6.config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -21,7 +21,7 @@ nodes: {
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "ceos-withtraffic/r2-config"
+        file: "r2.ipv6.config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -37,7 +37,7 @@ nodes: {
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "ceos-withtraffic/r3-config"
+        file: "r3-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
