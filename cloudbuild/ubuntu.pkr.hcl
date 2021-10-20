@@ -90,8 +90,9 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Cloning kne-internal cloud source repo...",
+      "echo Cloning internal cloud source repos...",
       "gcloud source repos clone kne-internal --project=gep-kne",
+      "gcloud source repos clone keysight --project=gep-kne",
     ]
   }
 }
