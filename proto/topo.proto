@@ -60,6 +60,7 @@ message Node {
     NOKIA_SRL = 9;
     IXIA_TG = 10;
     GOBGP = 11;
+    CISCO_XRD = 12;
   }
 
   string name = 1; // Name of the node in the topology. Must be unique.
