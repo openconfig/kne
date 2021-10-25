@@ -46,6 +46,7 @@ import (
 	_ "github.com/google/kne/topo/node/host"
 	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/srl"
+	_ "github.com/google/kne/topo/node/xrd"
 )
 
 // Manager is a topology instance manager for k8s cluster instance.
@@ -86,6 +87,9 @@ func WithBasePath(s string) Option {
 
 // New creates a new topology manager based on the provided kubecfg and topology.
 func New(kubecfg string, pb *tpb.Topology, opts ...Option) (*Manager, error) {
+	if pb == nil {
+		return nil, fmt.Errorf("pb cannot be nil")
+	}
 	log.Infof("Creating manager for: %s", pb.Name)
 	m := &Manager{
 		proto: pb,
@@ -130,6 +134,12 @@ func (m *Manager) Load(ctx context.Context) error {
 	for _, n := range m.proto.Nodes {
 		if len(n.Interfaces) == 0 {
 			n.Interfaces = map[string]*tpb.Interface{}
+		} else {
+			for k := range n.Interfaces {
+				if n.Interfaces[k].IntName == "" {
+					n.Interfaces[k].IntName = k
+				}
+			}
 		}
 		for k := range n.Interfaces {
 			if n.Interfaces[k].IntName == "" {
@@ -178,7 +188,7 @@ func (m *Manager) Load(ctx context.Context) error {
 		uid++
 	}
 	for k, n := range nMap {
-		log.Infof("Adding Node: %s:%s", n.Name, n.Type)
+		log.Infof("Adding Node: %s:%s:%s", n.Name, n.Vendor, n.Type)
 		nn, err := node.New(m.proto.Name, n, m.kClient, m.rCfg, m.BasePath)
 		if err != nil {
 			return fmt.Errorf("failed to load topology: %w", err)
@@ -222,9 +232,9 @@ func (m *Manager) Push(ctx context.Context) error {
 			Spec: topologyv1.TopologySpec{},
 		}
 		var links []topologyv1.Link
-		for _, intf := range n.GetProto().Interfaces {
+		for k, intf := range n.GetProto().Interfaces {
 			link := topologyv1.Link{
-				LocalIntf: intf.IntName,
+				LocalIntf: k,
 				LocalIP:   "",
 				PeerIntf:  intf.PeerIntName,
 				PeerIP:    "",
