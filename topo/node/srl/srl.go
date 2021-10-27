@@ -3,6 +3,7 @@ package srl
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	topopb "github.com/google/kne/proto/topo"
@@ -85,6 +86,11 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
 
+	if err := n.CreateConfig(ctx); err != nil {
+		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
+	}
+	log.Infof("Created SR Linux node %s configmap", n.Name())
+
 	srl := &srltypes.Srlinux{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Srlinux",
@@ -100,13 +106,14 @@ func (n *Node) Create(ctx context.Context) error {
 		Spec: srltypes.SrlinuxSpec{
 			NumInterfaces: len(n.GetProto().GetInterfaces()),
 			Config: &srltypes.NodeConfig{
-				Command:      n.GetProto().GetConfig().GetCommand(),
-				Args:         n.GetProto().GetConfig().GetArgs(),
-				Image:        n.GetProto().GetConfig().GetImage(),
-				Env:          n.GetProto().GetConfig().GetEnv(),
-				EntryCommand: n.GetProto().GetConfig().GetEntryCommand(),
-				ConfigPath:   n.GetProto().GetConfig().GetConfigPath(),
-				ConfigFile:   n.GetProto().GetConfig().GetConfigFile(),
+				Command:           n.GetProto().GetConfig().GetCommand(),
+				Args:              n.GetProto().GetConfig().GetArgs(),
+				Image:             n.GetProto().GetConfig().GetImage(),
+				Env:               n.GetProto().GetConfig().GetEnv(),
+				EntryCommand:      n.GetProto().GetConfig().GetEntryCommand(),
+				ConfigPath:        n.GetProto().GetConfig().GetConfigPath(),
+				ConfigFile:        n.GetProto().GetConfig().GetConfigFile(),
+				ConfigDataPresent: n.isConfigDataPresent(),
 				Cert: &srltypes.CertificateCfg{
 					CertName:   n.GetProto().GetConfig().GetCert().GetSelfSigned().GetCertName(),
 					KeyName:    n.GetProto().GetConfig().GetCert().GetSelfSigned().GetKeyName(),
@@ -197,7 +204,8 @@ func defaults(pb *topopb.Node) *topopb.Node {
 			"type": topopb.Node_NOKIA_SRL.String(),
 		},
 		Config: &topopb.Config{
-			Image: "ghcr.io/nokia/srlinux:latest",
+			Image:      "ghcr.io/nokia/srlinux:latest",
+			ConfigFile: "config.json",
 		},
 	}
 }
@@ -261,6 +269,16 @@ func (n *Node) WaitCLIReady() error {
 
 	// wait till srlinux management server is ready to accept configs
 	return srlinux.WaitSRLMgmtSrv(context.TODO(), n.cliConn)
+}
+
+// isConfigDataPresent is a helper function that returns true
+// if either a string blob or file with config was set in topo file
+func (n *Node) isConfigDataPresent() bool {
+	if n.GetProto().GetConfig().GetData() != nil || n.GetProto().GetConfig().GetFile() != "" {
+		return true
+	}
+
+	return false
 }
 
 func init() {
