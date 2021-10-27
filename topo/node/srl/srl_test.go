@@ -127,7 +127,6 @@ func TestGenerateSelfSigned(t *testing.T) {
 			oldSRLinuxDriver := srlinux.NewSRLinuxDriver
 			defer func() { srlinux.NewSRLinuxDriver = oldSRLinuxDriver }()
 			srlinux.NewSRLinuxDriver = func(host string, options ...scraplibase.Option) (*scraplinetwork.Driver, error) {
-				log.Println("here102")
 				return srlinux.NewPatchedSRLinuxDriver(
 					host,
 					scraplibase.WithAuthBypass(true),
