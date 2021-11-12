@@ -96,6 +96,8 @@ func (n *Node) SpawnCLIConn(ns string) error {
 		scraplibase.WithAuthBypass(true),
 		// disable transport timeout
 		scraplibase.WithTimeoutTransport(0),
+		// for committing a very large config
+		scraplibase.WithTimeoutOps(300 * time.Second),
 	)
 	if err != nil {
 		return err
