@@ -26,8 +26,12 @@ import (
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
-// Approx timeout while we wait for cli to get ready
-const timeout = 500
+var (
+	// Approx timeout while we wait for cli to get ready
+	waitForCLITimeout = 500 * time.Second
+	// For committing a very large config
+	scrapliOperationTimeout = 300 * time.Second
+)
 
 func New(impl *node.Impl) (node.Node, error) {
 	cfg := defaults(impl.Proto)
@@ -96,8 +100,7 @@ func (n *Node) SpawnCLIConn(ns string) error {
 		scraplibase.WithAuthBypass(true),
 		// disable transport timeout
 		scraplibase.WithTimeoutTransport(0),
-		// for committing a very large config
-		scraplibase.WithTimeoutOps(300 * time.Second),
+		scraplibase.WithTimeoutOps(scrapliOperationTimeout),
 	)
 	if err != nil {
 		return err
@@ -112,7 +115,7 @@ func (n *Node) SpawnCLIConn(ns string) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), waitForCLITimeout)
 	defer cancel()
 	err = n.WaitCLIReady(ctx)
 	if err != nil {
