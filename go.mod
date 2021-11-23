@@ -3,8 +3,8 @@ module github.com/google/kne
 go 1.17
 
 require (
-	github.com/containerd/containerd v1.5.7 // indirect
-	github.com/docker/docker v20.10.8+incompatible
+	github.com/containerd/containerd v1.5.8 // indirect
+	github.com/docker/docker v20.10.11+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
@@ -60,7 +60,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
+	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/sirikothe/gotextfsm v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
