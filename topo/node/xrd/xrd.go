@@ -83,10 +83,13 @@ func (n *Node) Create(ctx context.Context) error {
 				ImagePullPolicy: "IfNotPresent",
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
-					RunAsUser:  pointer.Int64(0),
-					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN"},
-					},
+					//RunAsUser:  , //pointer.Int64(0),
+					//Capabilities: &corev1.Capabilities{
+					//	Add: []corev1.Capability{"SYS_ADMIN", "AUDIT_WRITE", "CHOWN", "DAC_OVERRIDE", "FOWNER",
+					//		"FSETID", "KILL", "MKNOD", "NET_BIND_SERVICE", "NET_RAW", "SETFCAP", "SETGID", "SETUID",
+					//		"SETPCAP", "SYS_CHROOT", "SYS_NICE", "SYS_PTRACE", "SYS_RESOURCE",
+					//		"NET_ADMIN --device /dev/fuse --device /dev/net/tun"},
+					//},
 				},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      fmt.Sprintf("%s-run-mount", pb.Name),
@@ -188,7 +191,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Inside:   22,
 				NodePort: node.GetNextPort(),
 			},
-			6030: {
+			57400: {
 				Name:     "gnmi",
 				Inside:   57400,
 				NodePort: node.GetNextPort(),
@@ -198,10 +201,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			"vendor": tpb.Vendor_CISCO.String(),
 		},
 		Config: &tpb.Config{
-			Image: "ios-xr:latest",
+			Image: "localhost/ios-xr:7.6.1.12I",
 			Env: map[string]string{
-				"XR_INTERFACES":                  "Gi0/0/0/0:eth1",
-				"XR_CHECKSUM_OFFLOAD_COUNTERACT": "GigabitEthernet0/0/0/0",
+				"XR_INTERFACES":                  "Gi0/0/0/0:eth1,MgmtEther0/RP0/CPU0/0:eth0",
+				"XR_CHECKSUM_OFFLOAD_COUNTERACT": "GigabitEthernet0/0/0/0,MgmtEther0/RP0/CPU0/0",
 				"XR_EVERY_BOOT_CONFIG":           filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile),
 			},
 			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name),
