@@ -19,7 +19,7 @@ option go_package = "github.com/google/kne/proto/controller";
 
 // Topology manager service definition.
 service TopologyManager {
-    rpc CreateTopology (HelloRequest) returns (HelloReply) {}
+    rpc CreateTopology (CreateTopologyRequest) returns (CreateTopologyResponse) {}
 }
 
 // Request message to create a topology from a file.
@@ -27,7 +27,7 @@ message CreateTopologyRequest {
     string file_name = 1;
 }
   
-// The response message containing the greetings
+// Returns create topology response.
 message CreateTopologyResponse {
     string message = 1;
 }
