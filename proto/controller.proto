@@ -15,6 +15,8 @@ syntax = "proto3";
 
 package controller;
 
+import "topo.proto";
+
 option go_package = "github.com/google/kne/proto/controller";
 
 // Topology manager service definition.
@@ -24,10 +26,9 @@ service TopologyManager {
 
 // Request message to create a topology from a file.
 message CreateTopologyRequest {
-  string file_name = 1;
+  topo.Topology topology = 1;
 }
   
 // Returns create topology response.
 message CreateTopologyResponse {
-  string message = 1;
 }
