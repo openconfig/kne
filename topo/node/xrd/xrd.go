@@ -83,7 +83,7 @@ func (n *Node) Create(ctx context.Context) error {
 				ImagePullPolicy: "IfNotPresent",
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
-					RunAsUser:  , //pointer.Int64(0),
+					RunAsUser:  pointer.Int64(0),
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"SYS_ADMIN", "AUDIT_WRITE", "CHOWN", "DAC_OVERRIDE", "FOWNER",
 							"FSETID", "KILL", "MKNOD", "NET_BIND_SERVICE", "NET_RAW", "SETFCAP", "SETGID", "SETUID",
