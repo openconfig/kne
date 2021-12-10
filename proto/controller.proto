@@ -22,13 +22,47 @@ option go_package = "github.com/google/kne/proto/controller";
 // Topology manager service definition.
 service TopologyManager {
   rpc CreateTopology (CreateTopologyRequest) returns(CreateTopologyResponse) {}
+  rpc DeleteTopology (DeleteTopologyRequest) returns(DeleteTopologyResponse) {}
+  rpc ShowTopology (ShowTopologyRequest) returns(ShowTopologyResponse) {}
 }
 
-// Request message to create a topology from a file.
+enum NodeState {
+  STATE_UNKNOWN = 0;
+  STATE_FAILED = 1;
+  STATE_RUNNING = 2;
+  STATE_DELETED = 3;
+}
+
+// Request message to create a topology.
 message CreateTopologyRequest {
   topo.Topology topology = 1;
 }
   
 // Returns create topology response.
 message CreateTopologyResponse {
+  string topology_name = 1;
+  NodeState state = 2;
 }
+
+// Request message to delete a topology.
+message DeleteTopologyRequest {
+  string topology_name = 1;
+}
+
+// Returns delete topology response.
+message DeleteTopologyResponse {
+  string message = 1;   
+}
+
+// Request message to view topology info
+message ShowTopologyRequest {
+  string topology_name = 1;
+}
+
+// Returns topology view response.
+message ShowTopologyResponse {
+  NodeState state = 1;   
+}
+  
+  
+  
