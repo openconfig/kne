@@ -27,10 +27,11 @@ service TopologyManager {
 }
 
 enum NodeState {
-  STATE_UNKNOWN = 0;
-  STATE_FAILED = 1;
-  STATE_RUNNING = 2;
-  STATE_DELETED = 3;
+  STATE_CREATING = 0;
+  STATE_CONTROLLER_AWAIT = 1;
+  STATE_STARTING = 2;
+  STATE_RUNNING = 3;
+  STATE_ERROR = 4;
 }
 
 // Request message to create a topology.
