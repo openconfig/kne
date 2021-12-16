@@ -46,14 +46,42 @@ type Node struct {
 	*node.Impl
 }
 
+/*func (n *Node) createxrd() error {
+}
+
+func (n *Node) createE82100() error {
+
+}*/
+
 func (n *Node) Create(ctx context.Context) error {
-	log.Infof("Creating XRD node resource %s", n.Name())
+	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
 	if err := n.CreateConfig(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
 	}
-	log.Infof("Created XRD node %s configmap", n.Name())
+	log.Infof("Created Cisco %s node %s configmap", n.Proto.Model, n.Name())
 
+	secContext := &corev1.SecurityContext{
+		Privileged: pointer.Bool(true),
+		RunAsUser:  pointer.Int64(0),
+		Capabilities: &corev1.Capabilities{
+			Add: []corev1.Capability{"SYS_ADMIN", "AUDIT_WRITE", "CHOWN", "DAC_OVERRIDE", "FOWNER",
+				"FSETID", "KILL", "MKNOD", "NET_BIND_SERVICE", "NET_RAW", "SETFCAP", "SETGID", "SETUID",
+				"SETPCAP", "SYS_CHROOT", "SYS_NICE", "SYS_PTRACE", "SYS_RESOURCE",
+				"NET_ADMIN"},
+		},
+	}
+	if n.Proto.Model == "8201" {
+		secContext = &corev1.SecurityContext{
+			Privileged: pointer.Bool(true),
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{"SYS_ADMIN", "AUDIT_WRITE", "CHOWN", "DAC_OVERRIDE", "FOWNER",
+					"FSETID", "KILL", "MKNOD", "NET_BIND_SERVICE", "NET_RAW", "SETFCAP", "SETGID", "SETUID",
+					"SETPCAP", "SYS_CHROOT", "SYS_NICE", "SYS_PTRACE", "SYS_RESOURCE",
+					"NET_ADMIN"},
+			},
+		}
+	}
 	pb := n.Proto
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -81,16 +109,7 @@ func (n *Node) Create(ctx context.Context) error {
 				Env:             node.ToEnvVar(pb.Config.Env),
 				Resources:       node.ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: pointer.Bool(true),
-					RunAsUser:  pointer.Int64(0),
-					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "AUDIT_WRITE", "CHOWN", "DAC_OVERRIDE", "FOWNER",
-							"FSETID", "KILL", "MKNOD", "NET_BIND_SERVICE", "NET_RAW", "SETFCAP", "SETGID", "SETUID",
-							"SETPCAP", "SYS_CHROOT", "SYS_NICE", "SYS_PTRACE", "SYS_RESOURCE",
-							"NET_ADMIN --device  /dev/kvm"},
-					},
-				},
+				SecurityContext: secContext,
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      fmt.Sprintf("%s-run-mount", pb.Name),
 					ReadOnly:  false,
@@ -151,18 +170,18 @@ func (n *Node) Create(ctx context.Context) error {
 		return fmt.Errorf("failed to create pod for %q: %w", pb.Name, err)
 	}
 	log.Debugf("Pod created:\n%+v\n", sPod)
-	log.Infof("Created XRD node resource %s pod", n.Name())
+	log.Infof("Created Cisco %s node resource %s pod", n.Proto.Model, n.Name())
 	if err := n.CreateService(ctx); err != nil {
 		return err
 	}
-	log.Infof("Created XRD node resource %s services", n.Name())
+	log.Infof("Created Cisco %s node resource %s services", n.Proto.Model, n.Name())
 	return nil
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
 	if pb == nil {
 		pb = &tpb.Node{
-			Name: "default_xrd_node",
+			Name: "default_cisco_node",
 		}
 	}
 	if pb.Config == nil {
@@ -174,12 +193,22 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config.ConfigPath == "" {
 		pb.Config.ConfigPath = "/"
 	}
+	if pb.Model == "" {
+		pb.Model = "xrd"
+	}
+	constraint := map[string]string{
+		"cpu":    "1",
+		"memory": "2Gi",
+	}
+	if pb.Model == "8201" {
+		constraint = map[string]string{
+			"cpu":    "4",
+			"memory": "12Gi",
+		}
+	}
 	return &tpb.Node{
-		Name: pb.Name,
-		Constraints: map[string]string{
-			"cpu":    "1",
-			"memory": "2Gi",
-		},
+		Name:        pb.Name,
+		Constraints: constraint,
 		Services: map[uint32]*tpb.Service{
 			443: {
 				Name:     "ssl",
@@ -215,6 +244,5 @@ func defaults(pb *tpb.Node) *tpb.Node {
 }
 
 func init() {
-	node.Register(tpb.Node_CISCO_XRD, New)
 	node.Vendor(tpb.Vendor_CISCO, New)
 }
