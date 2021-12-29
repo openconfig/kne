@@ -5,16 +5,20 @@ package cptx
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	topopb "github.com/google/kne/proto/topo"
+	"github.com/google/go-cmp/cmp"
+	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
+	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -61,10 +65,10 @@ func TestConfigPush(t *testing.T) {
 	}
 	ki.PrependWatchReactor("*", reaction)
 
-	validPb := &topopb.Node{
+	validPb := &tpb.Node{
 		Name:   "pod1",
 		Type:   2,
-		Config: &topopb.Config{},
+		Config: &tpb.Config{},
 	}
 
 	tests := []struct {
@@ -130,6 +134,109 @@ func TestConfigPush(t *testing.T) {
 			err = n.ConfigPush(ctx, fp)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("config push test failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+// Test custom cptx
+func TestNew(t *testing.T) {
+	tests := []struct {
+		desc    string
+		ni      *node.Impl
+		want    *tpb.Node
+		wantErr string
+		cErr    string
+	}{{
+		desc:    "nil node impl",
+		wantErr: "nodeImpl cannot be nil",
+	}, {
+		desc: "empty proto",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name: "pod1",
+			},
+		},
+		want: defaults(&tpb.Node{
+			Name: "pod1",
+		}),
+	}, {
+		desc: "full proto",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name: "pod1",
+				Config: &tpb.Config{
+					ConfigFile: "foo",
+					ConfigPath: "/",
+					ConfigData: &tpb.Config_Data{
+						Data: []byte("config file data"),
+					},
+				},
+			},
+		},
+		want: &tpb.Node{
+			Name: "pod1",
+			Constraints: map[string]string{
+				"cpu":    "8",
+				"memory": "8Gi",
+			},
+			Services: map[uint32]*tpb.Service{
+				443: {
+					Name:     "ssl",
+					Inside:   443,
+					NodePort: node.GetNextPort(),
+				},
+				22: {
+					Name:     "ssh",
+					Inside:   22,
+					NodePort: node.GetNextPort(),
+				},
+				50051: {
+					Name:     "gnmi",
+					Inside:   50051,
+					NodePort: node.GetNextPort(),
+				},
+			},
+			Labels: map[string]string{
+				"type":   tpb.Node_JUNIPER_CEVO.String(),
+				"vendor": tpb.Vendor_JUNIPER.String(),
+			},
+			Config: &tpb.Config{
+				Image: "cptx:latest",
+				Command: []string{
+					"/entrypoint.sh",
+				},
+				Env: map[string]string{
+					"CPTX": "1",
+				},
+				EntryCommand: fmt.Sprintf("kubectl exec -it pod1 -- cli -c"),
+				ConfigPath:   "/",
+				ConfigFile:   "foo",
+				ConfigData: &tpb.Config_Data{
+					Data: []byte("config file data"),
+				},
+			},
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			n, err := New(tt.ni)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Fatalf("Unexpected error: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			if s := cmp.Diff(n.GetProto(), tt.want, protocmp.Transform(), protocmp.IgnoreFields(&tpb.Service{}, "node_port")); s != "" {
+				t.Fatalf("Protos not equal: %s", s)
+			}
+			err = n.Create(context.Background())
+			if s := errdiff.Check(err, tt.cErr); s != "" {
+				t.Fatalf("Unexpected error: %s", s)
 			}
 		})
 	}
