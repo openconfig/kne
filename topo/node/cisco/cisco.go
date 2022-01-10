@@ -199,7 +199,7 @@ func generateInterfacesEnvs(pb *tpb.Node) (interfaceList, interfaceMap string) {
 		if pb.Interfaces[eth].Name == "" {
 			ethID, err := strconv.Atoi(strings.TrimPrefix(eth, "eth"))
 			if err != nil {
-				// This should never happen since  eth ids are validated before calling this function.
+				// This should never happen since eth ids are validated before calling this function.
 				continue
 			}
 			ciscoInterfacePrefix := ""
@@ -216,7 +216,6 @@ func generateInterfacesEnvs(pb *tpb.Node) (interfaceList, interfaceMap string) {
 			case "8202":
 				if ethID-1 <= 47 {
 					ciscoInterfacePrefix = "HundredGigE0/0/0/"
-
 				} else if ethID-1 <= 59 {
 					ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
 				} else if ethID-1 <= 71 {
@@ -247,59 +246,6 @@ func generateInterfacesEnvs(pb *tpb.Node) (interfaceList, interfaceMap string) {
 	return interfaceList, interfaceMap
 }
 
-/*for k, v := range pb.Interfaces {
-	if !strings.HasPrefix(k, "eth") {
-		continue
-	}
-	if v.Name == "" {
-		ethID, err := strconv.Atoi(strings.TrimPrefix(k, "eth"))
-		if err != nil {
-			// This should never happen since  eth ids are validated before calling this function.
-			continue
-		}
-		ciscoInterfacePrefix := ""
-		switch pb.Model {
-		case "xrd":
-			ciscoInterfacePrefix = "GigabitEthernet0/0/0/"
-		case "8201":
-			if ethID-1 <= 23 {
-				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-
-			} else if ethID-1 <= 35 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			}
-		case "8202":
-			if ethID-1 <= 47 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-
-			} else if ethID-1 <= 59 {
-				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-			} else if ethID-1 <= 71 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			}
-		case "8201-32FH":
-			if ethID-1 <= 31 {
-				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-			}
-		case "8101-32H":
-			if ethID-1 <= 31 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			}
-		case "8102-64H":
-			if ethID-1 <= 63 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			}
-		}
-		if ciscoInterfacePrefix != "" {
-			interfaceList = fmt.Sprintf("%s,%s%d", interfaceList, ciscoInterfacePrefix, ethID-1)
-			interfaceMap = fmt.Sprintf("%s,%s%d:%s", interfaceMap, ciscoInterfacePrefix, ethID-1, k)
-		}
-	} else {
-		interfaceList = fmt.Sprintf("%s,%s", interfaceList, v.Name)
-		interfaceMap = fmt.Sprintf("%s,%s:%s", interfaceMap, v.Name, k)
-	}
-}*/
-//}
 func defaults(pb *tpb.Node) *tpb.Node {
 	if pb == nil {
 		pb = &tpb.Node{
