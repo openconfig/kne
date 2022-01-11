@@ -18,17 +18,21 @@ import (
 
 	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
-	"google.golang.org/protobuf/proto"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
+	if nodeImpl == nil {
+		return nil, fmt.Errorf("nodeImpl cannot be nil")
+	}
+	if nodeImpl.Proto == nil {
+		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
+	}
 	cfg := defaults(nodeImpl.Proto)
-	proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
+	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	proto.Merge(n.Impl.Proto, cfg)
 	return n, nil
 }
 
@@ -37,15 +41,25 @@ type Node struct {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
-	return &tpb.Node{
-		Config: &tpb.Config{
-			Image:        "alpine:latest",
-			Command:      []string{"/bin/sh", "-c", "sleep 2000000000000"},
-			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name),
-			ConfigPath:   "/etc",
-			ConfigFile:   "config",
-		},
+	if pb.Config == nil {
+		pb.Config = &tpb.Config{}
 	}
+	if len(pb.GetConfig().GetCommand()) == 0 {
+		pb.Config.Command = []string{"/bin/sh", "-c", "sleep 2000000000000"}
+	}
+	if pb.Config.EntryCommand == "" {
+		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "alpine:latest"
+	}
+	if pb.Config.ConfigPath == "" {
+		pb.Config.ConfigPath = "/etc"
+	}
+	if pb.Config.ConfigFile == "" {
+		pb.Config.ConfigFile = "config"
+	}
+	return pb
 }
 
 func init() {
