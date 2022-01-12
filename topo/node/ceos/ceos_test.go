@@ -15,15 +15,19 @@ package ceos
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -47,6 +51,150 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 		}
 	}()
 	return eCh
+}
+
+func TestNew(t *testing.T) {
+	tests := []struct {
+		desc    string
+		nImpl   *node.Impl
+		want    *topopb.Node
+		wantErr string
+	}{{
+		desc:    "nil nodeImpl",
+		wantErr: "nodeImpl cannot be nil",
+	}, {
+		desc:    "nil pb",
+		nImpl:   &node.Impl{},
+		wantErr: "nodeImpl.Proto cannot be nil",
+	}, {
+		desc: "default check with empty topo proto",
+		nImpl: &node.Impl{
+			Proto: &topopb.Node{},
+		},
+		want: &topopb.Node{
+			Config: &topopb.Config{
+				Command: []string{
+					"/sbin/init",
+					"systemd.setenv=INTFTYPE=eth",
+					"systemd.setenv=ETBA=1",
+					"systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
+					"systemd.setenv=CEOS=1",
+					"systemd.setenv=EOS_PLATFORM=ceoslab",
+					"systemd.setenv=container=docker",
+				},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
+				Image:        "ceos:latest",
+				ConfigPath:   "/mnt/flash",
+				ConfigFile:   "startup-config",
+				Env: map[string]string{
+					"CEOS":                                "1",
+					"EOS_PLATFORM":                        "ceoslab",
+					"container":                           "docker",
+					"ETBA":                                "1",
+					"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
+					"INTFTYPE":                            "eth",
+				},
+			},
+			Labels: map[string]string{
+				"type":    "ARISTA_CEOS",
+				"vendor":  "ARISTA",
+				"model":   "",
+				"os":      "",
+				"version": "",
+			},
+			Constraints: map[string]string{
+				"cpu":    "0.5",
+				"memory": "1Gi",
+			},
+			Services: map[uint32]*topopb.Service{
+				443: {
+					Name:     "ssl",
+					Inside:   443,
+					NodePort: 30001,
+				},
+				22: {
+					Name:     "ssh",
+					Inside:   22,
+					NodePort: 30002,
+				},
+				6030: {
+					Name:     "gnmi",
+					Inside:   6030,
+					NodePort: 30003,
+				},
+			},
+		},
+	}, {
+		desc: "with config",
+		nImpl: &node.Impl{
+			Proto: &topopb.Node{
+				Config: &topopb.Config{
+					Command: []string{"do", "run"},
+				},
+			},
+		},
+		want: &topopb.Node{
+			Config: &topopb.Config{
+				Command:      []string{"do", "run"},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
+				Image:        "ceos:latest",
+				ConfigPath:   "/mnt/flash",
+				ConfigFile:   "startup-config",
+				Env: map[string]string{
+					"CEOS":                                "1",
+					"EOS_PLATFORM":                        "ceoslab",
+					"container":                           "docker",
+					"ETBA":                                "1",
+					"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
+					"INTFTYPE":                            "eth",
+				},
+			},
+			Labels: map[string]string{
+				"type":    "ARISTA_CEOS",
+				"vendor":  "ARISTA",
+				"model":   "",
+				"os":      "",
+				"version": "",
+			},
+			Constraints: map[string]string{
+				"cpu":    "0.5",
+				"memory": "1Gi",
+			},
+			Services: map[uint32]*topopb.Service{
+				443: {
+					Name:     "ssl",
+					Inside:   443,
+					NodePort: 30004,
+				},
+				22: {
+					Name:     "ssh",
+					Inside:   22,
+					NodePort: 30005,
+				},
+				6030: {
+					Name:     "gnmi",
+					Inside:   6030,
+					NodePort: 30006,
+				},
+			},
+		},
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			n, err := New(tt.nImpl)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: got %v, want %s", err, s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if !proto.Equal(n.GetProto(), tt.want) {
+				t.Fatalf("New() failed: got\n\n%swant\n\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
+			}
+
+		})
+	}
 }
 
 func TestGenerateSelfSigned(t *testing.T) {
