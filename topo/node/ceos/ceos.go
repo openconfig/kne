@@ -57,13 +57,11 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
 	cfg := defaults(nodeImpl.Proto)
-	// proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	// proto.Merge(n.Impl.Proto, cfg)
 	n.FixInterfaces()
 	return n, nil
 }
