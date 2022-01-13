@@ -57,11 +57,13 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
 	cfg := defaults(nodeImpl.Proto)
+	// proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
+	// proto.Merge(n.Impl.Proto, cfg)
 	n.FixInterfaces()
 	return n, nil
 }
@@ -279,6 +281,22 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			"os":      pb.Os,
 			"version": pb.Version,
 		}
+	} else {
+		if pb.Labels["type"] == "" {
+			pb.Labels["type"] = tpb.Node_ARISTA_CEOS.String()
+		}
+		if pb.Labels["vendor"] == "" {
+			pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
+		}
+		if pb.Labels["model"] == "" {
+			pb.Labels["model"] = pb.Model
+		}
+		if pb.Labels["os"] == "" {
+			pb.Labels["os"] = pb.Os
+		}
+		if pb.Labels["version"] == "" {
+			pb.Labels["version"] = pb.Version
+		}
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
@@ -305,6 +323,25 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			"ETBA":                                "1",
 			"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
 			"INTFTYPE":                            "eth",
+		}
+	} else {
+		if pb.Config.Env["CEOS"] == "" {
+			pb.Config.Env["CEOS"] = "1"
+		}
+		if pb.Config.Env["EOS_PLATFORM"] == "" {
+			pb.Config.Env["EOS_PLATFORM"] = "ceoslab"
+		}
+		if pb.Config.Env["container"] == "" {
+			pb.Config.Env["container"] = "docker"
+		}
+		if pb.Config.Env["ETBA"] == "" {
+			pb.Config.Env["ETBA"] = "1"
+		}
+		if pb.Config.Env["SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT"] == "" {
+			pb.Config.Env["SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT"] = "1"
+		}
+		if pb.Config.Env["INTFTYPE"] == "" {
+			pb.Config.Env["INTFTYPE"] = "eth"
 		}
 	}
 	if pb.Config.EntryCommand == "" {

@@ -59,126 +59,137 @@ func TestNew(t *testing.T) {
 		nImpl   *node.Impl
 		want    *topopb.Node
 		wantErr string
-	}{{
-		desc:    "nil nodeImpl",
-		wantErr: "nodeImpl cannot be nil",
-	}, {
-		desc:    "nil pb",
-		nImpl:   &node.Impl{},
-		wantErr: "nodeImpl.Proto cannot be nil",
-	}, {
-		desc: "default check with empty topo proto",
-		nImpl: &node.Impl{
-			Proto: &topopb.Node{},
-		},
-		want: &topopb.Node{
-			Config: &topopb.Config{
-				Command: []string{
-					"/sbin/init",
-					"systemd.setenv=INTFTYPE=eth",
-					"systemd.setenv=ETBA=1",
-					"systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
-					"systemd.setenv=CEOS=1",
-					"systemd.setenv=EOS_PLATFORM=ceoslab",
-					"systemd.setenv=container=docker",
-				},
-				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
-				Image:        "ceos:latest",
-				ConfigPath:   "/mnt/flash",
-				ConfigFile:   "startup-config",
-				Env: map[string]string{
-					"CEOS":                                "1",
-					"EOS_PLATFORM":                        "ceoslab",
-					"container":                           "docker",
-					"ETBA":                                "1",
-					"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
-					"INTFTYPE":                            "eth",
-				},
+	}{
+		{
+			desc:    "nil nodeImpl",
+			wantErr: "nodeImpl cannot be nil",
+		}, {
+			desc:    "nil pb",
+			nImpl:   &node.Impl{},
+			wantErr: "nodeImpl.Proto cannot be nil",
+		}, {
+			desc: "default check with empty topo proto",
+			nImpl: &node.Impl{
+				Proto: &topopb.Node{},
 			},
-			Labels: map[string]string{
-				"type":    "ARISTA_CEOS",
-				"vendor":  "ARISTA",
-				"model":   "",
-				"os":      "",
-				"version": "",
-			},
-			Constraints: map[string]string{
-				"cpu":    "0.5",
-				"memory": "1Gi",
-			},
-			Services: map[uint32]*topopb.Service{
-				443: {
-					Name:     "ssl",
-					Inside:   443,
-					NodePort: 30001,
-				},
-				22: {
-					Name:     "ssh",
-					Inside:   22,
-					NodePort: 30002,
-				},
-				6030: {
-					Name:     "gnmi",
-					Inside:   6030,
-					NodePort: 30003,
-				},
-			},
-		},
-	}, {
-		desc: "with config",
-		nImpl: &node.Impl{
-			Proto: &topopb.Node{
+			want: &topopb.Node{
 				Config: &topopb.Config{
-					Command: []string{"do", "run"},
+					Command: []string{
+						"/sbin/init",
+						"systemd.setenv=INTFTYPE=eth",
+						"systemd.setenv=ETBA=1",
+						"systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
+						"systemd.setenv=CEOS=1",
+						"systemd.setenv=EOS_PLATFORM=ceoslab",
+						"systemd.setenv=container=docker",
+					},
+					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
+					Image:        "ceos:latest",
+					ConfigPath:   "/mnt/flash",
+					ConfigFile:   "startup-config",
+					Env: map[string]string{
+						"CEOS":                                "1",
+						"EOS_PLATFORM":                        "ceoslab",
+						"container":                           "docker",
+						"ETBA":                                "1",
+						"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
+						"INTFTYPE":                            "eth",
+					},
+				},
+				Labels: map[string]string{
+					"type":    "ARISTA_CEOS",
+					"vendor":  "ARISTA",
+					"model":   "",
+					"os":      "",
+					"version": "",
+				},
+				Constraints: map[string]string{
+					"cpu":    "0.5",
+					"memory": "1Gi",
+				},
+				Services: map[uint32]*topopb.Service{
+					443: {
+						Name:     "ssl",
+						Inside:   443,
+						NodePort: 30001,
+					},
+					22: {
+						Name:     "ssh",
+						Inside:   22,
+						NodePort: 30002,
+					},
+					6030: {
+						Name:     "gnmi",
+						Inside:   6030,
+						NodePort: 30003,
+					},
+				},
+			},
+		}, {
+			desc: "with config",
+			nImpl: &node.Impl{
+				Proto: &topopb.Node{
+					Config: &topopb.Config{
+						Command: []string{"do", "run"},
+						Env: map[string]string{
+							"CEOS":      "123",
+							"container": "test",
+						},
+					},
+					Labels: map[string]string{
+						"type":  "test",
+						"model": "foo",
+						"os":    "bar",
+					},
+				},
+			},
+			want: &topopb.Node{
+				Config: &topopb.Config{
+					Command:      []string{"do", "run"},
+					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
+					Image:        "ceos:latest",
+					ConfigPath:   "/mnt/flash",
+					ConfigFile:   "startup-config",
+					Env: map[string]string{
+						"CEOS":                                "123",
+						"EOS_PLATFORM":                        "ceoslab",
+						"container":                           "test",
+						"ETBA":                                "1",
+						"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
+						"INTFTYPE":                            "eth",
+					},
+				},
+				Labels: map[string]string{
+					"type":    "test",
+					"vendor":  "ARISTA",
+					"model":   "foo",
+					"os":      "bar",
+					"version": "",
+				},
+				Constraints: map[string]string{
+					"cpu":    "0.5",
+					"memory": "1Gi",
+				},
+				Services: map[uint32]*topopb.Service{
+					443: {
+						Name:     "ssl",
+						Inside:   443,
+						NodePort: 30004,
+					},
+					22: {
+						Name:     "ssh",
+						Inside:   22,
+						NodePort: 30005,
+					},
+					6030: {
+						Name:     "gnmi",
+						Inside:   6030,
+						NodePort: 30006,
+					},
 				},
 			},
 		},
-		want: &topopb.Node{
-			Config: &topopb.Config{
-				Command:      []string{"do", "run"},
-				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
-				Image:        "ceos:latest",
-				ConfigPath:   "/mnt/flash",
-				ConfigFile:   "startup-config",
-				Env: map[string]string{
-					"CEOS":                                "1",
-					"EOS_PLATFORM":                        "ceoslab",
-					"container":                           "docker",
-					"ETBA":                                "1",
-					"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
-					"INTFTYPE":                            "eth",
-				},
-			},
-			Labels: map[string]string{
-				"type":    "ARISTA_CEOS",
-				"vendor":  "ARISTA",
-				"model":   "",
-				"os":      "",
-				"version": "",
-			},
-			Constraints: map[string]string{
-				"cpu":    "0.5",
-				"memory": "1Gi",
-			},
-			Services: map[uint32]*topopb.Service{
-				443: {
-					Name:     "ssl",
-					Inside:   443,
-					NodePort: 30004,
-				},
-				22: {
-					Name:     "ssh",
-					Inside:   22,
-					NodePort: 30005,
-				},
-				6030: {
-					Name:     "gnmi",
-					Inside:   6030,
-					NodePort: 30006,
-				},
-			},
-		},
-	}}
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
