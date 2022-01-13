@@ -29,7 +29,6 @@ import (
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -51,13 +50,18 @@ var (
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
+	if nodeImpl == nil {
+		return nil, fmt.Errorf("nodeImpl cannot be nil")
+	}
+	if nodeImpl.Proto == nil {
+		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
+	}
 	cfg := defaults(nodeImpl.Proto)
-	proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
+	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	proto.Merge(n.Impl.Proto, cfg)
 	n.FixInterfaces()
 	return n, nil
 }
@@ -242,12 +246,14 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			Name: "default_ceos_node",
 		}
 	}
-	return &tpb.Node{
-		Constraints: map[string]string{
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{
 			"cpu":    "0.5",
 			"memory": "1Gi",
-		},
-		Services: map[uint32]*tpb.Service{
+		}
+	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*tpb.Service{
 			443: {
 				Name:     "ssl",
 				Inside:   443,
@@ -263,38 +269,89 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Inside:   6030,
 				NodePort: node.GetNextPort(),
 			},
-		},
-		Labels: map[string]string{
+		}
+	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{
 			"type":    tpb.Node_ARISTA_CEOS.String(),
 			"vendor":  tpb.Vendor_ARISTA.String(),
 			"model":   pb.Model,
 			"os":      pb.Os,
 			"version": pb.Version,
-		},
-		Config: &tpb.Config{
-			Image: "ceos:latest",
-			Command: []string{
-				"/sbin/init",
-				"systemd.setenv=INTFTYPE=eth",
-				"systemd.setenv=ETBA=1",
-				"systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
-				"systemd.setenv=CEOS=1",
-				"systemd.setenv=EOS_PLATFORM=ceoslab",
-				"systemd.setenv=container=docker",
-			},
-			Env: map[string]string{
-				"CEOS":                                "1",
-				"EOS_PLATFORM":                        "ceoslab",
-				"container":                           "docker",
-				"ETBA":                                "1",
-				"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
-				"INTFTYPE":                            "eth",
-			},
-			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", pb.Name),
-			ConfigPath:   "/mnt/flash",
-			ConfigFile:   "startup-config",
-		},
+		}
+	} else {
+		if pb.Labels["type"] == "" {
+			pb.Labels["type"] = tpb.Node_ARISTA_CEOS.String()
+		}
+		if pb.Labels["vendor"] == "" {
+			pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
+		}
+		if pb.Labels["model"] == "" {
+			pb.Labels["model"] = pb.Model
+		}
+		if pb.Labels["os"] == "" {
+			pb.Labels["os"] = pb.Os
+		}
+		if pb.Labels["version"] == "" {
+			pb.Labels["version"] = pb.Version
+		}
 	}
+	if pb.Config == nil {
+		pb.Config = &tpb.Config{}
+	}
+	if len(pb.Config.GetCommand()) == 0 {
+		pb.Config.Command = []string{
+			"/sbin/init",
+			"systemd.setenv=INTFTYPE=eth",
+			"systemd.setenv=ETBA=1",
+			"systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
+			"systemd.setenv=CEOS=1",
+			"systemd.setenv=EOS_PLATFORM=ceoslab",
+			"systemd.setenv=container=docker",
+		}
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "ceos:latest"
+	}
+	if pb.Config.Env == nil {
+		pb.Config.Env = map[string]string{
+			"CEOS":                                "1",
+			"EOS_PLATFORM":                        "ceoslab",
+			"container":                           "docker",
+			"ETBA":                                "1",
+			"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
+			"INTFTYPE":                            "eth",
+		}
+	} else {
+		if pb.Config.Env["CEOS"] == "" {
+			pb.Config.Env["CEOS"] = "1"
+		}
+		if pb.Config.Env["EOS_PLATFORM"] == "" {
+			pb.Config.Env["EOS_PLATFORM"] = "ceoslab"
+		}
+		if pb.Config.Env["container"] == "" {
+			pb.Config.Env["container"] = "docker"
+		}
+		if pb.Config.Env["ETBA"] == "" {
+			pb.Config.Env["ETBA"] = "1"
+		}
+		if pb.Config.Env["SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT"] == "" {
+			pb.Config.Env["SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT"] = "1"
+		}
+		if pb.Config.Env["INTFTYPE"] == "" {
+			pb.Config.Env["INTFTYPE"] = "eth"
+		}
+	}
+	if pb.Config.EntryCommand == "" {
+		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- Cli", pb.Name)
+	}
+	if pb.Config.ConfigPath == "" {
+		pb.Config.ConfigPath = "/mnt/flash"
+	}
+	if pb.Config.ConfigFile == "" {
+		pb.Config.ConfigFile = "startup-config"
+	}
+	return pb
 }
 
 func (n *Node) FixInterfaces() {
