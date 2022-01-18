@@ -3,7 +3,6 @@ module github.com/google/kne
 go 1.17
 
 require (
-	github.com/containerd/containerd v1.5.8 // indirect
 	github.com/docker/docker v20.10.11+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/golang/mock v1.6.0
@@ -42,6 +41,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.17 // indirect
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718170140-424f52054f94 // indirect
+	github.com/containerd/containerd v1.5.9 // indirect
 	github.com/creack/pty v1.1.11 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
