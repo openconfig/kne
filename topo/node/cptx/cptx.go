@@ -48,13 +48,11 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
 	cfg := defaults(nodeImpl.Proto)
-	// proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	// proto.Merge(n.Impl.Proto, cfg)
 	return n, nil
 }
 
@@ -397,57 +395,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config.ConfigFile = "juniper.conf"
 	}
 	return pb
-
-	//////////////////////////////////////////////
-	// if pb.Config == nil { // DONE
-	// 	pb.Config = &tpb.Config{}
-	// }
-	// if pb.Config.ConfigFile == "" {
-	// 	pb.Config.ConfigFile = "juniper.conf" // DONE
-	// }
-	// if pb.Config.ConfigPath == "" {
-	// 	pb.Config.ConfigPath = "/home/evo/configdisk" // DONE
-	// }
-	// return &tpb.Node{
-	// 	Name: pb.Name,
-	// 	Constraints: map[string]string{ // DONE
-	// 		"cpu":    "8",
-	// 		"memory": "8Gi",
-	// 	},
-	// 	Services: map[uint32]*tpb.Service{ // DONE
-	// 		443: {
-	// 			Name:     "ssl",
-	// 			Inside:   443,
-	// 			NodePort: node.GetNextPort(),
-	// 		},
-	// 		22: {
-	// 			Name:     "ssh",
-	// 			Inside:   22,
-	// 			NodePort: node.GetNextPort(),
-	// 		},
-	// 		50051: {
-	// 			Name:     "gnmi",
-	// 			Inside:   50051,
-	// 			NodePort: node.GetNextPort(),
-	// 		},
-	// 	},
-	// 	Labels: map[string]string{  // DONE
-	// 		"type":   tpb.Node_JUNIPER_CEVO.String(),
-	// 		"vendor": tpb.Vendor_JUNIPER.String(),
-	// 	},
-	// 	Config: &tpb.Config{
-	// 		Image: "cptx:latest", // DONE
-	// 		Command: []string{ // DONE
-	// 			"/entrypoint.sh",
-	// 		},
-	// 		Env: map[string]string{ // DONE
-	// 			"CPTX": "1",
-	// 		},
-	// 		EntryCommand: fmt.Sprintf("kubectl exec -it %s -- cli -c", pb.Name), // DONE
-	// 		ConfigPath:   pb.Config.ConfigPath, // DONE
-	// 		ConfigFile:   pb.Config.ConfigFile, // DONE
-	// 	},
-	// }
 }
 
 // isChannelized is a helper function that returns 1 if cptx is channelized
