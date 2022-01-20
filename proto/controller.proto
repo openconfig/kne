@@ -24,14 +24,87 @@ service TopologyManager {
   rpc CreateTopology (CreateTopologyRequest) returns(CreateTopologyResponse) {}
   rpc DeleteTopology (DeleteTopologyRequest) returns(DeleteTopologyResponse) {}
   rpc ShowTopology (ShowTopologyRequest) returns(ShowTopologyResponse) {}
+  rpc CreateCluster (CreateClusterRequest) returns(CreateClusterResponse) {}
+  rpc DeleteCluster (DeleteClusterRequest) returns(DeleteClusterResponse) {}
+  rpc ShowCluster (ShowClusterRequest) returns(ShowClusterResponse) {}  
 }
 
-enum NodeState {
-  STATE_CREATING = 0;
-  STATE_CONTROLLER_AWAIT = 1;
-  STATE_STARTING = 2;
-  STATE_RUNNING = 3;
-  STATE_ERROR = 4;
+// Kind cluster specifications
+message KindSpec {
+  string name = 1;
+  bool recycle = 2;
+  string version = 3;
+  string image = 4;
+  bool retain = 5;
+  string kubecfg = 6;
+  repeated string google_artifact_registries = 7;
+}
+
+// Metallb specifications
+message MetallbSpec {
+  string version = 1;
+  int32 ip_count = 2;
+  string manifest_dir = 3;
+}
+
+// Meshnet specifications
+message MeshnetSpec {
+  string image = 1;
+  string manifest_dir = 2;
+}
+
+// Request message to create a cluster.
+message CreateClusterRequest {
+  oneof cluster_spec {
+    KindSpec kind = 1;
+  }
+  oneof ingress_spec {
+    MetallbSpec metallb = 2;
+  }
+  oneof cni_spec {
+    MeshnetSpec meshnet = 3;
+  }
+}
+
+enum ClusterState {
+  CLUSTER_STATE_UNKNOWN = 0;
+  CLUSTER_STATE_CREATING = 1;
+  CLUSTER_STATE_RUNNING = 2;
+  CLUSTER_STATE_ERROR = 3;
+}
+
+// Returns create cluster response.
+message CreateClusterResponse {
+  string name = 1;
+  ClusterState state = 2;
+}
+
+// Request message to delete a cluster.
+message DeleteClusterRequest {
+  string name = 1;
+}
+
+// Returns delete cluster response.
+message DeleteClusterResponse {
+  string response = 1;
+}
+
+// Request message to show cluster by name.
+message ShowClusterRequest {
+  string name = 1;
+}
+
+// Returns show cluster response.
+message ShowClusterResponse {
+  ClusterState state = 1;
+  repeated string topology_names = 2;
+}
+
+enum TopologyState {
+  TOPOLOGY_STATE_UNKNOWN = 0;
+  TOPOLOGY_STATE_CREATING = 1;
+  TOPOLOGY_STATE_RUNNING = 2;
+  TOPOLOGY_STATE_ERROR = 3;
 }
 
 // Request message to create a topology.
@@ -42,7 +115,7 @@ message CreateTopologyRequest {
 // Returns create topology response.
 message CreateTopologyResponse {
   string topology_name = 1;
-  NodeState state = 2;
+  TopologyState state = 2;
 }
 
 // Request message to delete a topology.
@@ -62,7 +135,7 @@ message ShowTopologyRequest {
 
 // Returns topology view response.
 message ShowTopologyResponse {
-  NodeState state = 1;   
+  TopologyState state = 1;   
 }
   
   
