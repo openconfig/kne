@@ -1,0 +1,85 @@
+name: "2node-xrd"
+nodes: {
+    name: "r1"
+    type: CISCO_XRD
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
+    config: {
+        file: "r1.config"
+        image: "localhost/ios-xr:7.6.1.16I"
+        init_image: "networkop/init-wait:latest"
+        cert: {
+            self_signed: {
+                cert_name: "r1.pem",
+                key_name: "r1.key",
+                key_size: 2048,
+            }
+        }
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 57400 
+        value: {
+            name: "gnmi"
+            inside: 57400
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+          name: "GigabitEthernet0/0/0/0"
+        }
+    }
+}
+nodes: {
+    name: "r2"
+    type: CISCO_XRD
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
+    config: {
+        file: "r2.config"
+        image: "localhost/ios-xr:7.6.1.16I"
+        init_image: "networkop/init-wait:latest"
+        cert: {
+            self_signed: {
+                cert_name: "r2.pem",
+                key_name: "r2.key",
+                key_size: 2048,
+            }
+        }
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 57400 
+        value: {
+            name: "gnmi"
+            inside: 57400
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+          name: "GigabitEthernet0/0/0/0"
+        }
+    }
+}
+links: {
+    a_node: "r1"
+    a_int: "eth1"
+    z_node: "r2"
+    z_int: "eth1"
+}
