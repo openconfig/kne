@@ -7,7 +7,7 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r1.config"
-        image: "c8201:pvt"
+        image: "c8201:latest"
         init_image: "networkop/init-wait:latest"
     }
     services:{
@@ -39,7 +39,7 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r2.config"
-        image: "c8201:pvt"
+        image: "c8201:latest"
         init_image: "networkop/init-wait:latest"
     }
     services:{
