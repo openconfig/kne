@@ -21,7 +21,6 @@ import (
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -41,17 +40,19 @@ const (
 	defaultInitContainerImage = "networkop/init-wait:latest"
 )
 
-func New(impl *node.Impl) (node.Node, error) {
-	if impl == nil {
+func New(nodeImpl *node.Impl) (node.Node, error) {
+	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
 	}
-	cfg := defaults(impl.Proto)
-	proto.Merge(cfg, impl.Proto)
-	node.FixServices(cfg)
-	n := &Node{
-		Impl: impl,
+	if nodeImpl.Proto == nil {
+		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
-	proto.Merge(n.Impl.Proto, cfg)
+	cfg := defaults(nodeImpl.Proto)
+	node.FixServices(cfg)
+	nodeImpl.Proto = cfg
+	n := &Node{
+		Impl: nodeImpl,
+	}
 	return n, nil
 }
 
@@ -330,22 +331,14 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			Name: "default_cptx_node",
 		}
 	}
-	if pb.Config == nil {
-		pb.Config = &tpb.Config{}
-	}
-	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "juniper.conf"
-	}
-	if pb.Config.ConfigPath == "" {
-		pb.Config.ConfigPath = "/home/evo/configdisk"
-	}
-	return &tpb.Node{
-		Name: pb.Name,
-		Constraints: map[string]string{
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{
 			"cpu":    "8",
 			"memory": "8Gi",
-		},
-		Services: map[uint32]*tpb.Service{
+		}
+	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*tpb.Service{
 			443: {
 				Name:     "ssl",
 				Inside:   443,
@@ -361,24 +354,47 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Inside:   50051,
 				NodePort: node.GetNextPort(),
 			},
-		},
-		Labels: map[string]string{
+		}
+	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{
 			"type":   tpb.Node_JUNIPER_CEVO.String(),
 			"vendor": tpb.Vendor_JUNIPER.String(),
-		},
-		Config: &tpb.Config{
-			Image: "cptx:latest",
-			Command: []string{
-				"/entrypoint.sh",
-			},
-			Env: map[string]string{
-				"CPTX": "1",
-			},
-			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- cli -c", pb.Name),
-			ConfigPath:   pb.Config.ConfigPath,
-			ConfigFile:   pb.Config.ConfigFile,
-		},
+		}
+	} else {
+		if pb.Labels["type"] == "" {
+			pb.Labels["type"] = tpb.Node_JUNIPER_CEVO.String()
+		}
+		if pb.Labels["vendor"] == "" {
+			pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
+		}
 	}
+	if pb.Config == nil {
+		pb.Config = &tpb.Config{}
+	}
+	if len(pb.Config.GetCommand()) == 0 {
+		pb.Config.Command = []string{
+			"/entrypoint.sh",
+		}
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "cptx:latest"
+	}
+	if pb.Config.Env == nil {
+		pb.Config.Env = map[string]string{
+			"CPTX": "1",
+		}
+	}
+	if pb.Config.EntryCommand == "" {
+		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- cli -c", pb.Name)
+	}
+	if pb.Config.ConfigPath == "" {
+		pb.Config.ConfigPath = "/home/evo/configdisk"
+	}
+	if pb.Config.ConfigFile == "" {
+		pb.Config.ConfigFile = "juniper.conf"
+	}
+	return pb
 }
 
 // isChannelized is a helper function that returns 1 if cptx is channelized
