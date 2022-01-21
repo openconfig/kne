@@ -22,7 +22,7 @@ import (
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
-		return nil, fmt.Errorf("nodeImpl can not be nil")
+		return nil, fmt.Errorf("nodeImpl cannot be nil")
 	}
 	if nodeImpl.Proto == nil {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
