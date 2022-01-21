@@ -21,11 +21,17 @@ option go_package = "github.com/google/kne/proto/controller";
 
 // Topology manager service definition.
 service TopologyManager {
+  // Creates a topology with and responds with topology name and state.
   rpc CreateTopology (CreateTopologyRequest) returns(CreateTopologyResponse) {}
+  // Deletes a topology.
   rpc DeleteTopology (DeleteTopologyRequest) returns(DeleteTopologyResponse) {}
+  // Shows the topology info and responds with the current topology state.
   rpc ShowTopology (ShowTopologyRequest) returns(ShowTopologyResponse) {}
+  // Creates kind cluster and responds with cluster name and state.
   rpc CreateCluster (CreateClusterRequest) returns(CreateClusterResponse) {}
+  // Deletes a kind cluster by cluster name.
   rpc DeleteCluster (DeleteClusterRequest) returns(DeleteClusterResponse) {}
+  // Shows cluster state and topologies deployed in the cluster.
   rpc ShowCluster (ShowClusterRequest) returns(ShowClusterResponse) {}  
 }
 
@@ -86,7 +92,6 @@ message DeleteClusterRequest {
 
 // Returns delete cluster response.
 message DeleteClusterResponse {
-  string response = 1;
 }
 
 // Request message to show cluster by name.
@@ -110,6 +115,7 @@ enum TopologyState {
 // Request message to create a topology.
 message CreateTopologyRequest {
   topo.Topology topology = 1;
+  string kubecfg = 2;
 }
   
 // Returns create topology response.
@@ -124,8 +130,7 @@ message DeleteTopologyRequest {
 }
 
 // Returns delete topology response.
-message DeleteTopologyResponse {
-  string message = 1;   
+message DeleteTopologyResponse {   
 }
 
 // Request message to view topology info

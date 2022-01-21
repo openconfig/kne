@@ -18,11 +18,17 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TopologyManagerClient interface {
+	// Creates a topology with and responds with topology name and state.
 	CreateTopology(ctx context.Context, in *CreateTopologyRequest, opts ...grpc.CallOption) (*CreateTopologyResponse, error)
+	// Deletes a topology.
 	DeleteTopology(ctx context.Context, in *DeleteTopologyRequest, opts ...grpc.CallOption) (*DeleteTopologyResponse, error)
+	// Shows the topology info and responds with the current topology state.
 	ShowTopology(ctx context.Context, in *ShowTopologyRequest, opts ...grpc.CallOption) (*ShowTopologyResponse, error)
+	// Creates kind cluster and responds with cluster name and state.
 	CreateCluster(ctx context.Context, in *CreateClusterRequest, opts ...grpc.CallOption) (*CreateClusterResponse, error)
+	// Deletes a kind cluster by cluster name.
 	DeleteCluster(ctx context.Context, in *DeleteClusterRequest, opts ...grpc.CallOption) (*DeleteClusterResponse, error)
+	// Shows cluster state and topologies deployed in the cluster.
 	ShowCluster(ctx context.Context, in *ShowClusterRequest, opts ...grpc.CallOption) (*ShowClusterResponse, error)
 }
 
@@ -92,11 +98,17 @@ func (c *topologyManagerClient) ShowCluster(ctx context.Context, in *ShowCluster
 // All implementations must embed UnimplementedTopologyManagerServer
 // for forward compatibility
 type TopologyManagerServer interface {
+	// Creates a topology with and responds with topology name and state.
 	CreateTopology(context.Context, *CreateTopologyRequest) (*CreateTopologyResponse, error)
+	// Deletes a topology.
 	DeleteTopology(context.Context, *DeleteTopologyRequest) (*DeleteTopologyResponse, error)
+	// Shows the topology info and responds with the current topology state.
 	ShowTopology(context.Context, *ShowTopologyRequest) (*ShowTopologyResponse, error)
+	// Creates kind cluster and responds with cluster name and state.
 	CreateCluster(context.Context, *CreateClusterRequest) (*CreateClusterResponse, error)
+	// Deletes a kind cluster by cluster name.
 	DeleteCluster(context.Context, *DeleteClusterRequest) (*DeleteClusterResponse, error)
+	// Shows cluster state and topologies deployed in the cluster.
 	ShowCluster(context.Context, *ShowClusterRequest) (*ShowClusterResponse, error)
 	mustEmbedUnimplementedTopologyManagerServer()
 }
