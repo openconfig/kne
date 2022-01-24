@@ -140,7 +140,8 @@ message ShowTopologyRequest {
 
 // Returns topology view response.
 message ShowTopologyResponse {
-  TopologyState state = 1;   
+  TopologyState state = 1;
+  topo.Topology topology = 2;
 }
   
   
