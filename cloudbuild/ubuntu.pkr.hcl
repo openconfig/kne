@@ -40,6 +40,7 @@ build {
       "echo Installing golang...",
       "curl -O https://dl.google.com/go/go1.16.5.linux-amd64.tar.gz",
       "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.16.5.linux-amd64.tar.gz",
+      "rm go1.16.5.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",
@@ -91,8 +92,12 @@ build {
   provisioner "shell" {
     inline = [
       "echo Cloning internal cloud source repos...",
-      "gcloud source repos clone kne-internal --project=gep-kne",
       "gcloud source repos clone keysight --project=gep-kne",
+      "gcloud source repos clone kne-internal --project=gep-kne",
+      "cd kne-internal",
+      "/usr/local/go/bin/go get -d ./...",
+      "cd proxy/gnmi/server",
+      "/usr/local/go/bin/go build -v",
     ]
   }
 }
