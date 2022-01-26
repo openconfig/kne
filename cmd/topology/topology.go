@@ -198,6 +198,11 @@ func pushFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := fp.Close(); err != nil {
+			log.Warnf("failed to close config file %q", args[2])
+		}
+	}()
 	if err := t.ConfigPush(ctx, args[1], fp); err != nil {
 		return err
 	}
