@@ -70,7 +70,11 @@ func TestNew(t *testing.T) {
 	}, {
 		desc: "empty pb defaults",
 		nImpl: &node.Impl{
-			Proto: &topopb.Node{},
+			Proto: &topopb.Node{
+				Labels: map[string]string{
+					"foo": "test_label",
+				},
+			},
 		},
 		want: &topopb.Node{
 			Config: &topopb.Config{
@@ -79,6 +83,7 @@ func TestNew(t *testing.T) {
 			},
 			Labels: map[string]string{
 				"type": "NOKIA_SRL",
+				"foo":  "test_label",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
