@@ -248,7 +248,12 @@ func (n *Node) PatchCLIConnOpen(ns string) error {
 	}
 
 	t.SetExecCmd("kubectl")
-	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.Name(), "--", "sr_cli", "-d"})
+	var args []string
+	if n.Kubecfg != "" {
+		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
+	}
+	args = append(args, "-it", "-n", n.Namespace, n.Name(), "--", "Cli")
+	t.SetOpenCmd(args)
 
 	return nil
 }
