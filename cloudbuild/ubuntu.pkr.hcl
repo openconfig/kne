@@ -10,6 +10,11 @@ variable "build_id" {
   type = string
 }
 
+variable "zone" {
+  type = string
+  default = "us-central1-b"
+}
+
 source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
   source_image = "ubuntu-2004-focal-v20210927"
@@ -24,8 +29,8 @@ source "googlecompute" "kne-image" {
   }
   image_description     = "Ubuntu based linux VM image with KNE and all dependencies installed."
   ssh_username          = "user"
-  machine_type          = "n2-standard-8"
-  zone                  = "us-central1-a"
+  machine_type          = "e2-medium"
+  zone                  = "${var.zone}"
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
   scopes                = ["https://www.googleapis.com/auth/cloud-platform"]
