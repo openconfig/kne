@@ -52,6 +52,7 @@ import (
 // Manager is a topology instance manager for k8s cluster instance.
 type Manager struct {
 	BasePath string
+	kubecfg  string
 	kClient  kubernetes.Interface
 	tClient  topologyclientv1.Interface
 	rCfg     *rest.Config
@@ -92,8 +93,9 @@ func New(kubecfg string, pb *tpb.Topology, opts ...Option) (*Manager, error) {
 	}
 	log.Infof("Creating manager for: %s", pb.Name)
 	m := &Manager{
-		proto: pb,
-		nodes: map[string]node.Node{},
+		kubecfg: kubecfg,
+		proto:   pb,
+		nodes:   map[string]node.Node{},
 	}
 	for _, o := range opts {
 		o(m)
@@ -189,7 +191,7 @@ func (m *Manager) Load(ctx context.Context) error {
 	}
 	for k, n := range nMap {
 		log.Infof("Adding Node: %s:%s:%s", n.Name, n.Vendor, n.Type)
-		nn, err := node.New(m.proto.Name, n, m.kClient, m.rCfg, m.BasePath)
+		nn, err := node.New(m.proto.Name, n, m.kClient, m.rCfg, m.BasePath, m.kubecfg)
 		if err != nil {
 			return fmt.Errorf("failed to load topology: %w", err)
 		}

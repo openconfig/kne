@@ -98,17 +98,19 @@ type Impl struct {
 	RestConfig *rest.Config
 	Proto      *tpb.Node
 	BasePath   string
+	Kubecfg    string
 }
 
 // New creates a new node for use in the k8s cluster.  Configure will push the node to
 // the cluster.
-func New(namespace string, pb *tpb.Node, kClient kubernetes.Interface, rCfg *rest.Config, bp string) (Node, error) {
+func New(namespace string, pb *tpb.Node, kClient kubernetes.Interface, rCfg *rest.Config, bp, kubecfg string) (Node, error) {
 	return getImpl(&Impl{
 		Namespace:  namespace,
 		Proto:      pb,
 		KubeClient: kClient,
 		RestConfig: rCfg,
 		BasePath:   bp,
+		Kubecfg:    kubecfg,
 	})
 }
 
