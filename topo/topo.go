@@ -359,17 +359,11 @@ func Load(fName string) (*tpb.Topology, error) {
 	}
 	t := &tpb.Topology{}
 
-	var jsonBytes []byte
-	if strings.HasSuffix(fName, ".json") {
-		jsonBytes = b
-	} else if strings.HasSuffix(fName, ".yaml") || strings.HasSuffix(fName, ".yml") {
-		jsonBytes, err = yaml.YAMLToJSON(b)
+	if strings.HasSuffix(fName, ".yaml") || strings.HasSuffix(fName, ".yml") {
+		jsonBytes, err := yaml.YAMLToJSON(b)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse yaml: %v", err)
 		}
-	}
-
-	if jsonBytes != nil {
 		if err := protojsonUnmarshaller.Unmarshal(jsonBytes, t); err != nil {
 			return nil, fmt.Errorf("could not parse json: %v", err)
 		}

@@ -28,7 +28,6 @@ func TestLoad(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "pb", args: args{fName: "../examples/2node-ixia.pb.txt"}, wantErr: false},
-		{name: "json", args: args{fName: "../examples/2node-ixia.json"}, wantErr: false},
 		{name: "yaml", args: args{fName: "../examples/2node-ixia.yaml"}, wantErr: false},
 	}
 	for _, tt := range tests {
