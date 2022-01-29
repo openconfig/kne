@@ -71,7 +71,7 @@ func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
 	d := &Deployment{}
 	switch cfg.Cluster.Kind {
 	case "Kind":
-		log.Infof("Using kind scenario") // Entry point
+		log.Infof("Using kind scenario")
 		v := &KindSpec{}
 		if err := cfg.Cluster.Spec.Decode(v); err != nil {
 			return nil, err
