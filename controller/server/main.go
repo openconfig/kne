@@ -22,6 +22,8 @@ import (
 
 	cpb "github.com/google/kne/proto/controller"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -32,15 +34,20 @@ type server struct {
 	cpb.UnimplementedTopologyManagerServer
 }
 
-// // SayHello implements helloworld.GreeterServer
-// func (s *server) SayHello(ctx context.Context, in *cpb.HelloRequest) (*cpb.HelloReply, error) {
-//     log.Printf("Received: %v", in.GetName())
-//     return &cpb.HelloReply{Message: "Hello " + in.GetName()}, nil
-// }
-
 func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
-	log.Printf("Received CreateCluster request: %+v", req)
-	return nil, nil
+	return nil, status.Errorf(codes.Unimplemented, "CreateCluster RPC method not implemented.")
+}
+
+func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterRequest) (*cpb.DeleteClusterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "DeleteCluster RPC method not implemented.")
+}
+
+func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "CreateTopology RPC method not implemented.")
+}
+
+func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequest) (*cpb.DeleteTopologyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "DeleteTopology RPC method not implemented.")
 }
 
 func main() {
