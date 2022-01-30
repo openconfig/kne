@@ -14,7 +14,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -22,8 +21,7 @@ import (
 
 	cpb "github.com/google/kne/proto/controller"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/credentials/alts"
 )
 
 var (
@@ -34,31 +32,16 @@ type server struct {
 	cpb.UnimplementedTopologyManagerServer
 }
 
-func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "CreateCluster RPC method not implemented.")
-}
-
-func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterRequest) (*cpb.DeleteClusterResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "DeleteCluster RPC method not implemented.")
-}
-
-func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "CreateTopology RPC method not implemented.")
-}
-
-func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequest) (*cpb.DeleteTopologyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "DeleteTopology RPC method not implemented.")
-}
-
 func main() {
 	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
+	addr := fmt.Sprintf(":%d", *port)
+	lis, err := net.Listen("tcp6", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+	creds := alts.NewServerCreds(alts.DefaultServerOptions())
+	s := grpc.NewServer(grpc.Creds(creds))
 	cpb.RegisterTopologyManagerServer(s, &server{})
-
 	log.Printf("Controller server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
