@@ -157,7 +157,7 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
-	return &tpb.Node{}
+	return pb
 }
 
 func init() {
