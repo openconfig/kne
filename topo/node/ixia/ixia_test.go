@@ -32,7 +32,11 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
-		want: &tpb.Node{},
+		want: &tpb.Node{
+			Config: &tpb.Config{
+				Image: "foo:bar",
+			},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
