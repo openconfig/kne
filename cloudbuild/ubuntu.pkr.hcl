@@ -10,6 +10,11 @@ variable "build_id" {
   type = string
 }
 
+variable "zone" {
+  type = string
+  default = "us-central1-b"
+}
+
 source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
   source_image = "ubuntu-2004-focal-v20210927"
@@ -24,8 +29,8 @@ source "googlecompute" "kne-image" {
   }
   image_description     = "Ubuntu based linux VM image with KNE and all dependencies installed."
   ssh_username          = "user"
-  machine_type          = "n2-standard-8"
-  zone                  = "us-central1-a"
+  machine_type          = "e2-medium"
+  zone                  = "${var.zone}"
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
   scopes                = ["https://www.googleapis.com/auth/cloud-platform"]
@@ -40,6 +45,7 @@ build {
       "echo Installing golang...",
       "curl -O https://dl.google.com/go/go1.16.5.linux-amd64.tar.gz",
       "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.16.5.linux-amd64.tar.gz",
+      "rm go1.16.5.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",
@@ -91,8 +97,12 @@ build {
   provisioner "shell" {
     inline = [
       "echo Cloning internal cloud source repos...",
-      "gcloud source repos clone kne-internal --project=gep-kne",
       "gcloud source repos clone keysight --project=gep-kne",
+      "gcloud source repos clone kne-internal --project=gep-kne",
+      "cd kne-internal",
+      "/usr/local/go/bin/go get -d ./...",
+      "cd proxy/gnmi/server",
+      "/usr/local/go/bin/go build -v",
     ]
   }
 }

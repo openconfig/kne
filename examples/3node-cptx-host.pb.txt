@@ -13,11 +13,26 @@ nodes: {
 nodes: {
     name: "cptx"
     type: JUNIPER_CEVO
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
     config: {
       image: "cptx:latest"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
       file: "cptx/cptx-config" 
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "et-0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/1"
+        }
     }
     services:{
         key: 22

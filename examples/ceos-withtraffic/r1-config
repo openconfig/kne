@@ -4,6 +4,7 @@
 transceiver qsfp default-mode 4x10G
 !
 service routing protocols model ribd
+service routing protocols model multi-agent
 !
 agent Bfd shutdown
 agent PowerManager shutdown
@@ -18,6 +19,9 @@ hostname r1
 spanning-tree mode mstp
 !
 no aaa root
+!
+p4-runtime 
+ no shutdown
 !
 username admin privilege 15 role network-admin secret sha512 $6$YDkKMqrZIRO65B7i$NfH7OT8ujV12S.5q2sH7c7l1AEqhYULt9OSf9/EKaC4S8cNLppS.otHhr0QlC9Kud9Xbt4OdxVOkZiwV/yBV/1
 !

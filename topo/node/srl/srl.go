@@ -3,6 +3,7 @@ package srl
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	topopb "github.com/google/kne/proto/topo"
@@ -14,7 +15,6 @@ import (
 	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
 	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
 	srlinux "github.com/srl-labs/srlinux-scrapli"
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -24,13 +24,18 @@ import (
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
+	if nodeImpl == nil {
+		return nil, fmt.Errorf("nodeImpl cannot be nil")
+	}
+	if nodeImpl.Proto == nil {
+		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
+	}
 	cfg := defaults(nodeImpl.Proto)
-	proto.Merge(cfg, nodeImpl.Proto)
 	node.FixServices(cfg)
+	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	proto.Merge(n.Impl.Proto, cfg)
 	return n, nil
 }
 
@@ -85,6 +90,11 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
 
+	if err := n.CreateConfig(ctx); err != nil {
+		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
+	}
+	log.Infof("Created SR Linux node %s configmap", n.Name())
+
 	srl := &srltypes.Srlinux{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Srlinux",
@@ -100,13 +110,14 @@ func (n *Node) Create(ctx context.Context) error {
 		Spec: srltypes.SrlinuxSpec{
 			NumInterfaces: len(n.GetProto().GetInterfaces()),
 			Config: &srltypes.NodeConfig{
-				Command:      n.GetProto().GetConfig().GetCommand(),
-				Args:         n.GetProto().GetConfig().GetArgs(),
-				Image:        n.GetProto().GetConfig().GetImage(),
-				Env:          n.GetProto().GetConfig().GetEnv(),
-				EntryCommand: n.GetProto().GetConfig().GetEntryCommand(),
-				ConfigPath:   n.GetProto().GetConfig().GetConfigPath(),
-				ConfigFile:   n.GetProto().GetConfig().GetConfigFile(),
+				Command:           n.GetProto().GetConfig().GetCommand(),
+				Args:              n.GetProto().GetConfig().GetArgs(),
+				Image:             n.GetProto().GetConfig().GetImage(),
+				Env:               n.GetProto().GetConfig().GetEnv(),
+				EntryCommand:      n.GetProto().GetConfig().GetEntryCommand(),
+				ConfigPath:        n.GetProto().GetConfig().GetConfigPath(),
+				ConfigFile:        n.GetProto().GetConfig().GetConfigFile(),
+				ConfigDataPresent: n.isConfigDataPresent(),
 				Cert: &srltypes.CertificateCfg{
 					CertName:   n.GetProto().GetConfig().GetCert().GetSelfSigned().GetCertName(),
 					KeyName:    n.GetProto().GetConfig().GetCert().GetSelfSigned().GetKeyName(),
@@ -175,8 +186,11 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {
-	return &topopb.Node{
-		Services: map[uint32]*topopb.Service{
+	if pb.Config == nil {
+		pb.Config = &topopb.Config{}
+	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*topopb.Service{
 			443: {
 				Name:    "ssl",
 				Inside:  443,
@@ -192,14 +206,28 @@ func defaults(pb *topopb.Node) *topopb.Node {
 				Inside:   57400,
 				NodePort: node.GetNextPort(),
 			},
-		},
-		Labels: map[string]string{
-			"type": topopb.Node_NOKIA_SRL.String(),
-		},
-		Config: &topopb.Config{
-			Image: "ghcr.io/nokia/srlinux:latest",
-		},
+		}
+
 	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{
+			"type": topopb.Node_NOKIA_SRL.String(),
+		}
+	} else {
+		if pb.Labels["type"] == "" {
+			pb.Labels["type"] = topopb.Node_NOKIA_SRL.String()
+		}
+	}
+	if pb.Config == nil {
+		pb.Config = &topopb.Config{}
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "ghcr.io/nokia/srlinux:latest"
+	}
+	if pb.Config.ConfigFile == "" {
+		pb.Config.ConfigFile = "config.json"
+	}
+	return pb
 }
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
@@ -240,7 +268,12 @@ func (n *Node) PatchCLIConnOpen(ns string) error {
 	}
 
 	t.SetExecCmd("kubectl")
-	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.Name(), "--", "sr_cli", "-d"})
+	var args []string
+	if n.Kubecfg != "" {
+		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
+	}
+	args = append(args, "-it", "-n", n.Namespace, n.Name(), "--", "Cli")
+	t.SetOpenCmd(args)
 
 	return nil
 }
@@ -261,6 +294,16 @@ func (n *Node) WaitCLIReady() error {
 
 	// wait till srlinux management server is ready to accept configs
 	return srlinux.WaitSRLMgmtSrv(context.TODO(), n.cliConn)
+}
+
+// isConfigDataPresent is a helper function that returns true
+// if either a string blob or file with config was set in topo file
+func (n *Node) isConfigDataPresent() bool {
+	if n.GetProto().GetConfig().GetData() != nil || n.GetProto().GetConfig().GetFile() != "" {
+		return true
+	}
+
+	return false
 }
 
 func init() {

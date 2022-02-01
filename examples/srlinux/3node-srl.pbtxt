@@ -21,6 +21,7 @@ nodes: {
     # check https://github.com/srl-labs/srl-controller for possible models
     model: "ixr6"
 }
+
 nodes: {
     name: "r2"
     vendor: NOKIA
@@ -35,8 +36,12 @@ nodes: {
         # container image to use for this SR Linux pod
         # can be cheked with `show version` cli command
         image: "ghcr.io/nokia/srlinux:21.6.1-250"
+        # file property sets the path to the startup config file that srlinux will boot with
+        # the path is relative to the topology file
+        file: "r2.cfg.json"
     }
 }
+
 nodes: {
     name: "r3"
     type: NOKIA_SRL
@@ -48,6 +53,10 @@ nodes: {
         }
     }
 }
+
+# ========================
+# LINKS
+# ========================
 links: {
     a_node: "r1"
     a_int: "e1-1"

@@ -25,13 +25,21 @@ import (
 	tpb "github.com/google/kne/proto/topo"
 )
 
+func NewNC(impl *node.Impl) (node.Node, error) {
+	return &notConfigable{Impl: impl}, nil
+}
+
+type notConfigable struct {
+	*node.Impl
+	configPushErr error
+}
+
 func NewNR(impl *node.Impl) (node.Node, error) {
-	return &notResettable{Impl: impl}, nil
+	return &notResettable{&notConfigable{Impl: impl}}, nil
 }
 
 type notResettable struct {
-	*node.Impl
-	configPushErr error
+	*notConfigable
 }
 
 func (nr *notResettable) ConfigPush(_ context.Context, r io.Reader) error {
@@ -54,7 +62,7 @@ func (r *resettable) ResetCfg(ctx context.Context) error {
 }
 
 func NewR(impl *node.Impl) (node.Node, error) {
-	return &resettable{&notResettable{Impl: impl}}, nil
+	return &resettable{&notResettable{&notConfigable{Impl: impl}}}, nil
 }
 
 func writeTopology(t *testing.T, topo *tpb.Topology) (*os.File, func()) {
@@ -484,6 +492,86 @@ func TestService(t *testing.T) {
 			}
 			if !proto.Equal(got, tt.want) {
 				t.Fatalf("Service failed: got:\n%s\n, want:\n%s\n", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPush(t *testing.T) {
+	confFile, err := ioutil.TempFile("", "push")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Fprintln(confFile, "some bytes")
+	defer os.Remove(confFile.Name())
+	tWithConfig := &tpb.Topology{
+		Nodes: []*tpb.Node{{
+			Name: "configable",
+			Type: tpb.Node_Type(1003),
+		}, {
+			Name: "notconfigable",
+			Type: tpb.Node_Type(1004),
+		}},
+	}
+	fConfig, closer := writeTopology(t, tWithConfig)
+	defer closer()
+	node.Register(tpb.Node_Type(1003), NewR)
+	node.Register(tpb.Node_Type(1004), NewNC)
+	tests := []struct {
+		desc    string
+		args    []string
+		tFile   string
+		wantErr string
+	}{{
+		desc:    "no args",
+		wantErr: "invalid args",
+		args:    []string{"push"},
+	}, {
+		desc:    "missing args",
+		wantErr: "invalid args",
+		args:    []string{"push", fConfig.Name(), "configable"},
+	}, {
+		desc:    "no file",
+		args:    []string{"push", fConfig.Name(), "configable", "filedne"},
+		wantErr: "no such file",
+	}, {
+		desc:    "valid file invalid device",
+		args:    []string{"push", fConfig.Name(), "foo", confFile.Name()},
+		wantErr: `node "foo" not found`,
+	}, {
+		desc: "valid file notconfigable device",
+		args: []string{"push", fConfig.Name(), "notconfigable", confFile.Name()},
+	}, {
+		desc: "valid file",
+		args: []string{"push", fConfig.Name(), "configable", confFile.Name()},
+	}}
+
+	rCmd := New()
+	origOpts := opts
+	tf, err := tfake.NewSimpleClientset()
+	if err != nil {
+		t.Fatalf("cannot create fake topology clientset")
+	}
+	opts = []topo.Option{
+		topo.WithClusterConfig(&rest.Config{}),
+		topo.WithKubeClient(kfake.NewSimpleClientset()),
+		topo.WithTopoClient(tf),
+	}
+	defer func() {
+		opts = origOpts
+	}()
+	rCmd.PersistentFlags().String("kubecfg", "", "")
+	buf := bytes.NewBuffer([]byte{})
+	rCmd.SetOut(buf)
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			rCmd.SetArgs(tt.args)
+			err := rCmd.ExecuteContext(context.Background())
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Fatalf("pushFn failed: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
 			}
 		})
 	}

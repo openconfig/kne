@@ -1,0 +1,148 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+syntax = "proto3";
+
+package controller;
+
+import "topo.proto";
+
+option go_package = "github.com/google/kne/proto/controller";
+
+// Topology manager service definition.
+service TopologyManager {
+  // Creates a topology with and responds with topology name and state.
+  rpc CreateTopology (CreateTopologyRequest) returns(CreateTopologyResponse) {}
+  // Deletes a topology.
+  rpc DeleteTopology (DeleteTopologyRequest) returns(DeleteTopologyResponse) {}
+  // Shows the topology info and responds with the current topology state.
+  rpc ShowTopology (ShowTopologyRequest) returns(ShowTopologyResponse) {}
+  // Creates kind cluster and responds with cluster name and state.
+  rpc CreateCluster (CreateClusterRequest) returns(CreateClusterResponse) {}
+  // Deletes a kind cluster by cluster name.
+  rpc DeleteCluster (DeleteClusterRequest) returns(DeleteClusterResponse) {}
+  // Shows cluster state and topologies deployed in the cluster.
+  rpc ShowCluster (ShowClusterRequest) returns(ShowClusterResponse) {}  
+}
+
+// Kind cluster specifications
+message KindSpec {
+  string name = 1;
+  bool recycle = 2;
+  string version = 3;
+  string image = 4;
+  bool retain = 5;
+  string kubecfg = 6;
+  repeated string google_artifact_registries = 7;
+}
+
+// Metallb specifications
+message MetallbSpec {
+  string version = 1;
+  int32 ip_count = 2;
+  string manifest_dir = 3;
+}
+
+// Meshnet specifications
+message MeshnetSpec {
+  string image = 1;
+  string manifest_dir = 2;
+}
+
+// Request message to create a cluster.
+message CreateClusterRequest {
+  oneof cluster_spec {
+    KindSpec kind = 1;
+  }
+  oneof ingress_spec {
+    MetallbSpec metallb = 2;
+  }
+  oneof cni_spec {
+    MeshnetSpec meshnet = 3;
+  }
+}
+
+enum ClusterState {
+  CLUSTER_STATE_UNKNOWN = 0;
+  CLUSTER_STATE_CREATING = 1;
+  CLUSTER_STATE_RUNNING = 2;
+  CLUSTER_STATE_ERROR = 3;
+}
+
+// Returns create cluster response.
+message CreateClusterResponse {
+  string name = 1;
+  ClusterState state = 2;
+}
+
+// Request message to delete a cluster.
+message DeleteClusterRequest {
+  string name = 1;
+}
+
+// Returns delete cluster response.
+message DeleteClusterResponse {
+}
+
+// Request message to show cluster by name.
+message ShowClusterRequest {
+  string name = 1;
+}
+
+// Returns show cluster response.
+message ShowClusterResponse {
+  ClusterState state = 1;
+  repeated string topology_names = 2;
+}
+
+enum TopologyState {
+  TOPOLOGY_STATE_UNKNOWN = 0;
+  TOPOLOGY_STATE_CREATING = 1;
+  TOPOLOGY_STATE_RUNNING = 2;
+  TOPOLOGY_STATE_ERROR = 3;
+}
+
+// Request message to create a topology.
+message CreateTopologyRequest {
+  topo.Topology topology = 1;
+  string kubecfg = 2;
+}
+  
+// Returns create topology response.
+message CreateTopologyResponse {
+  string topology_name = 1;
+  TopologyState state = 2;
+}
+
+// Request message to delete a topology.
+message DeleteTopologyRequest {
+  string topology_name = 1;
+}
+
+// Returns delete topology response.
+message DeleteTopologyResponse {   
+}
+
+// Request message to view topology info
+message ShowTopologyRequest {
+  string topology_name = 1;
+}
+
+// Returns topology view response.
+message ShowTopologyResponse {
+  TopologyState state = 1;
+  topo.Topology topology = 2;
+}
+  
+  
+  

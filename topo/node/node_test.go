@@ -30,7 +30,7 @@ func NewR(impl *Impl) (Node, error) {
 func TestReset(t *testing.T) {
 	Register(topopb.Node_Type(1001), NewR)
 	Register(topopb.Node_Type(1002), NewNR)
-	n, err := New("test", &topopb.Node{Type: topopb.Node_Type(1001)}, nil, nil, "")
+	n, err := New("test", &topopb.Node{Type: topopb.Node_Type(1001)}, nil, nil, "", "")
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestReset(t *testing.T) {
 	if err := r.ResetCfg(context.Background()); err != nil {
 		t.Errorf("Resettable node failed to reset: %v", err)
 	}
-	nr, err := New("test", &topopb.Node{Type: topopb.Node_Type(1002)}, nil, nil, "")
+	nr, err := New("test", &topopb.Node{Type: topopb.Node_Type(1002)}, nil, nil, "", "")
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
 	}
