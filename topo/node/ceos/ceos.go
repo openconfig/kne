@@ -57,7 +57,6 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
 	cfg := defaults(nodeImpl.Proto)
-	node.FixServices(cfg)
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
@@ -261,17 +260,14 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			443: {
 				Name:     "ssl",
 				Inside:   443,
-				NodePort: node.GetNextPort(),
 			},
 			22: {
 				Name:     "ssh",
 				Inside:   22,
-				NodePort: node.GetNextPort(),
 			},
 			6030: {
 				Name:     "gnmi",
 				Inside:   6030,
-				NodePort: node.GetNextPort(),
 			},
 		}
 	}
