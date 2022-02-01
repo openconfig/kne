@@ -71,7 +71,6 @@ func TestNew(t *testing.T) {
 					Outside:   20001,
 					InsideIp:  "1.1.1.1",
 					OutsideIp: "10.10.10.10",
-					NodePort:  30001,
 				},
 			},
 		},

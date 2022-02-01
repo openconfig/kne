@@ -89,18 +89,14 @@ func TestNew(t *testing.T) {
 				443: {
 					Name:     "ssl",
 					Inside:   443,
-					Outside:  30001,
-					NodePort: 30004,
 				},
 				22: {
 					Name:     "ssh",
 					Inside:   22,
-					NodePort: 30002,
 				},
 				57400: {
 					Name:     "gnmi",
 					Inside:   57400,
-					NodePort: 30003,
 				},
 			},
 		},
