@@ -21,7 +21,6 @@ import (
 	"io"
 	"io/ioutil"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/google/kne/topo/node"
@@ -445,17 +444,4 @@ func (m *Manager) Node(nodeName string) (node.Node, error) {
 		return nil, fmt.Errorf("node %q not found", nodeName)
 	}
 	return n, nil
-}
-
-var (
-	muPort   sync.Mutex
-	nextPort uint32 = 30001
-)
-
-func GetNextPort() uint32 {
-	muPort.Lock()
-	p := nextPort
-	nextPort++
-	muPort.Unlock()
-	return p
 }

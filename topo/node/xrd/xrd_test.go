@@ -103,17 +103,14 @@ func TestNew(t *testing.T) {
 				443: {
 					Name:     "ssl",
 					Inside:   443,
-					NodePort: node.GetNextPort(),
 				},
 				22: {
 					Name:     "ssh",
 					Inside:   22,
-					NodePort: node.GetNextPort(),
 				},
 				6030: {
 					Name:     "gnmi",
 					Inside:   57400,
-					NodePort: node.GetNextPort(),
 				},
 			},
 			Labels: map[string]string{

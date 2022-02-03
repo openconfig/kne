@@ -27,8 +27,7 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl.Proto == nil {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
-	cfg := defaults(nodeImpl.Proto)
-	node.FixServices(cfg)
+	defaults(nodeImpl.Proto)
 	n := &Node{
 		Impl: nodeImpl,
 	}
