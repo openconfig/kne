@@ -61,7 +61,6 @@ func NewDeployment(cfg *deploy.DeploymentConfig) (*deploy.Deployment, error) {
 			return nil, err
 		}
 		var err error
-		fmt.Println("v.ManifestDir Meshnet: ", v.ManifestDir)
 		v.ManifestDir, err = filepath.Abs(v.ManifestDir)
 		if err != nil {
 			return nil, err
@@ -77,14 +76,12 @@ func NewDeployment(cfg *deploy.DeploymentConfig) (*deploy.Deployment, error) {
 		if err := cfg.Ingress.Spec.Decode(v); err != nil {
 			return nil, err
 		}
-		fmt.Println("v.ManifestDir MetalLB: ", v.ManifestDir)
 		var err error
 		v.ManifestDir, err = filepath.Abs(v.ManifestDir)
 		if err != nil {
 			return nil, err
 
 		}
-		log.Infof("v.ManifestDir: %s", v.ManifestDir)
 		d.Ingress = v
 	default:
 		return nil, fmt.Errorf("ingress type not supported: %s", cfg.Ingress.Kind)
@@ -149,7 +146,6 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	}
 	d.Ingress.SetKClient(kClient)
 	log.Infof("Validating cluster health")
-	log.Info(d.Ingress)
 	if err := d.Ingress.Deploy(cmd.Context()); err != nil {
 		return err
 	}
