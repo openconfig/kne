@@ -26,6 +26,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/google/kne/deploy"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -39,40 +41,12 @@ func New() *cobra.Command {
 	return deployCmd
 }
 
-type Cluster interface {
-	Deploy(context.Context) error
-}
-
-type Ingress interface {
-	Deploy(context.Context) error
-	SetKClient(kubernetes.Interface)
-	Healthy(context.Context) error
-}
-
-type CNI interface {
-	Deploy(context.Context) error
-	SetKClient(kubernetes.Interface)
-	Healthy(context.Context) error
-}
-
-type Deployment struct {
-	Cluster Cluster
-	Ingress Ingress
-	CNI     CNI
-}
-
-type DeploymentConfig struct {
-	Cluster ClusterSpec `yaml:"cluster"`
-	Ingress IngressSpec `yaml:"ingress"`
-	CNI     CNISpec     `yaml:"cni"`
-}
-
-func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
-	d := &Deployment{}
+func NewDeployment(cfg *deploy.DeploymentConfig) (*deploy.Deployment, error) {
+	d := &deploy.Deployment{}
 	switch cfg.Cluster.Kind {
 	case "Kind":
 		log.Infof("Using kind scenario")
-		v := &KindSpec{}
+		v := &deploy.KindSpec{}
 		if err := cfg.Cluster.Spec.Decode(v); err != nil {
 			return nil, err
 		}
@@ -82,11 +56,12 @@ func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
 	}
 	switch cfg.CNI.Kind {
 	case "Meshnet":
-		v := &MeshnetSpec{}
+		v := &deploy.MeshnetSpec{}
 		if err := cfg.CNI.Spec.Decode(v); err != nil {
 			return nil, err
 		}
 		var err error
+		fmt.Println("v.ManifestDir Meshnet: ", v.ManifestDir)
 		v.ManifestDir, err = filepath.Abs(v.ManifestDir)
 		if err != nil {
 			return nil, err
@@ -98,11 +73,11 @@ func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
 	}
 	switch cfg.Ingress.Kind {
 	case "MetalLB":
-		v := &MetalLBSpec{}
+		v := &deploy.MetalLBSpec{}
 		if err := cfg.Ingress.Spec.Decode(v); err != nil {
 			return nil, err
 		}
-		log.Infof("v.ManifestDir: %s", v.ManifestDir)
+		fmt.Println("v.ManifestDir MetalLB: ", v.ManifestDir)
 		var err error
 		v.ManifestDir, err = filepath.Abs(v.ManifestDir)
 		if err != nil {
@@ -121,7 +96,7 @@ var (
 	deploymentBasePath string
 )
 
-func deploymentFromArg(p string) (*DeploymentConfig, string, error) {
+func deploymentFromArg(p string) (*deploy.DeploymentConfig, string, error) {
 	bp, err := filepath.Abs(p)
 	if err != nil {
 		return nil, "", err
@@ -131,7 +106,7 @@ func deploymentFromArg(p string) (*DeploymentConfig, string, error) {
 		return nil, "", err
 	}
 	bp = filepath.Dir(bp)
-	dCfg := &DeploymentConfig{}
+	dCfg := &deploy.DeploymentConfig{}
 	decoder := yaml.NewDecoder(bytes.NewBuffer(b))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(dCfg); err != nil {

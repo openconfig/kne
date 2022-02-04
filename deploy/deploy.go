@@ -79,6 +79,34 @@ type execerInterface interface {
 	SetStderr(io.Writer)
 }
 
+type Cluster interface {
+	Deploy(context.Context) error
+}
+
+type Ingress interface {
+	Deploy(context.Context) error
+	SetKClient(kubernetes.Interface)
+	Healthy(context.Context) error
+}
+
+type CNI interface {
+	Deploy(context.Context) error
+	SetKClient(kubernetes.Interface)
+	Healthy(context.Context) error
+}
+
+type Deployment struct {
+	Cluster Cluster
+	Ingress Ingress
+	CNI     CNI
+}
+
+type DeploymentConfig struct {
+	Cluster ClusterSpec `yaml:"cluster"`
+	Ingress IngressSpec `yaml:"ingress"`
+	CNI     CNISpec     `yaml:"cni"`
+}
+
 var (
 	deploymentBasePath   string
 	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
