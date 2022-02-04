@@ -282,10 +282,12 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 	}
-	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
-	log.Infof("Deploying metallb from: %s", mPath)
+	// mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
+
+	log.Info(m)
+	log.Infof("Deploying metallb from: %s", m.ManifestDir)
 	log.Infof("Creating metallb namespace")
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "namespace.yaml")); err != nil {
 		return err
 	}
 	_, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{})
@@ -307,7 +309,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		}
 	}
 	log.Infof("Applying metallb pods")
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "metallb.yaml")); err != nil {
 		return err
 	}
 	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Get(ctx, "config", metav1.GetOptions{})
@@ -402,9 +404,9 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 }
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
-	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
-	log.Infof("Deploying Meshnet from: %s", mPath)
-	if err := execer.Exec("kubectl", "apply", "-k", mPath); err != nil {
+	// mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
+	log.Infof("Deploying Meshnet from: %s", m.ManifestDir)
+	if err := execer.Exec("kubectl", "apply", "-k", m.ManifestDir); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")

@@ -86,6 +86,12 @@ func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
 		if err := cfg.CNI.Spec.Decode(v); err != nil {
 			return nil, err
 		}
+		var err error
+		v.ManifestDir, err = filepath.Abs(v.ManifestDir)
+		if err != nil {
+			return nil, err
+
+		}
 		d.CNI = v
 	default:
 		return nil, fmt.Errorf("CNI type not supported: %s", cfg.CNI.Kind)
@@ -96,6 +102,14 @@ func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
 		if err := cfg.Ingress.Spec.Decode(v); err != nil {
 			return nil, err
 		}
+		log.Infof("v.ManifestDir: %s", v.ManifestDir)
+		var err error
+		v.ManifestDir, err = filepath.Abs(v.ManifestDir)
+		if err != nil {
+			return nil, err
+
+		}
+		log.Infof("v.ManifestDir: %s", v.ManifestDir)
 		d.Ingress = v
 	default:
 		return nil, fmt.Errorf("ingress type not supported: %s", cfg.Ingress.Kind)
@@ -160,6 +174,7 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	}
 	d.Ingress.SetKClient(kClient)
 	log.Infof("Validating cluster health")
+	log.Info(d.Ingress)
 	if err := d.Ingress.Deploy(cmd.Context()); err != nil {
 		return err
 	}
