@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/kind/pkg/cluster"
 )
 
@@ -40,37 +41,26 @@ const (
 `
 )
 
-type ClusterSpec struct {
-	Kind string    `yaml:"kind"`
-	Spec yaml.Node `yaml:"spec"`
-}
+var (
+	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
+	logOut               = log.StandardLogger().Out
 
-type IngressSpec struct {
-	Kind string    `yaml:"kind"`
-	Spec yaml.Node `yaml:"spec"`
-}
+	// execer handles all execs on host.
+	execer execerInterface = kexec.NewExecer(logOut, logOut)
 
-type CNISpec struct {
-	Kind string    `yaml:"kind"`
-	Spec yaml.Node `yaml:"spec"`
-}
-
-type KindSpec struct {
-	Name                     string        `yaml:"name"`
-	Recycle                  bool          `yaml:"recycle"`
-	Version                  string        `yaml:"version"`
-	Image                    string        `yaml:"image"`
-	Retain                   bool          `yaml:"retain"`
-	Wait                     time.Duration `yaml:"wait"`
-	Kubecfg                  string        `yaml:"kubecfg"`
-	DeployWithClient         bool          `yaml:"deployWithClient"`
-	GoogleArtifactRegistries []string      `yaml:"googleArtifactRegistries"`
-}
+	// Stubs for testing.
+	newProvider  = defaultProvider
+	execLookPath = exec.LookPath
+)
 
 //go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
 type provider interface {
 	List() ([]string, error)
 	Create(name string, options ...cluster.CreateOption) error
+}
+
+func defaultProvider() provider {
+	return cluster.NewProvider(cluster.ProviderWithLogger(&logAdapter{log.StandardLogger()}))
 }
 
 type execerInterface interface {
@@ -101,27 +91,56 @@ type Deployment struct {
 	CNI     CNI
 }
 
-type DeploymentConfig struct {
-	Cluster ClusterSpec `yaml:"cluster"`
-	Ingress IngressSpec `yaml:"ingress"`
-	CNI     CNISpec     `yaml:"cni"`
+func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
+        log.Infof("Deploying cluster...")
+	if err := d.Cluster.Deploy(ctx); err != nil {
+                return err
+        }
+	log.Infof("Cluster deployed")
+        // Once cluster is up set kClient
+        rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
+        if err != nil {
+                return err
+        }
+        kClient, err := kubernetes.NewForConfig(rCfg)
+        if err != nil {
+                return err
+        }
+        d.Ingress.SetKClient(kClient)
+        log.Infof("Deploying ingress...")
+        if err := d.Ingress.Deploy(ctx); err != nil {
+                return err
+        }
+        tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+        defer cancel()
+        if err := d.Ingress.Healthy(tCtx); err != nil {
+                return err
+        }
+	log.Infof("Ingress healthy")
+	log.Infof("Deploying CNI...")
+        if err := d.CNI.Deploy(ctx); err != nil {
+                return err
+        }
+        d.CNI.SetKClient(kClient)
+        tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+        defer cancel()
+        if err := d.CNI.Healthy(tCtx); err != nil {
+                return err
+        }
+	log.Infof("CNI healthy")
+        return nil
 }
 
-var (
-	deploymentBasePath   string
-	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
-	logOut               = log.StandardLogger().Out
-
-	// execer handles all execs on host.
-	execer execerInterface = kexec.NewExecer(logOut, logOut)
-
-	// Stubs for testing.
-	newProvider  = defaultProvider
-	execLookPath = exec.LookPath
-)
-
-func defaultProvider() provider {
-	return cluster.NewProvider(cluster.ProviderWithLogger(&logAdapter{log.StandardLogger()}))
+type KindSpec struct {
+	Name                     string        `yaml:"name"`
+	Recycle                  bool          `yaml:"recycle"`
+	Version                  string        `yaml:"version"`
+	Image                    string        `yaml:"image"`
+	Retain                   bool          `yaml:"retain"`
+	Wait                     time.Duration `yaml:"wait"`
+	Kubecfg                  string        `yaml:"kubecfg"`
+	DeployWithClient         bool          `yaml:"deployWithClient"`
+	GoogleArtifactRegistries []string      `yaml:"googleArtifactRegistries"`
 }
 
 func (k *KindSpec) Deploy(ctx context.Context) error {
