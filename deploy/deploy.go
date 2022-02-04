@@ -329,7 +329,6 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 	}
-	log.Infof("Deploying metallb from: %s", m.ManifestDir)
 	log.Infof("Creating metallb namespace")
 	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "namespace.yaml")); err != nil {
 		return err
@@ -448,7 +447,6 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 }
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploying Meshnet from: %s", m.ManifestDir)
 	if err := execer.Exec("kubectl", "apply", "-k", m.ManifestDir); err != nil {
 		return err
 	}

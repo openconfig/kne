@@ -61,12 +61,12 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("Reading deployment config: %q", p)
 	b, err := ioutil.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}
 	basePath := filepath.Dir(p)
-	log.Info(basePath)
 	cfg := &DeploymentConfig{}
 	decoder := yaml.NewDecoder(bytes.NewBuffer(b))
 	decoder.KnownFields(true)
@@ -113,10 +113,8 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 
 func cleanPath(path, basePath string) string {
 	if filepath.IsAbs(path) {
-		log.Info(path)
 		return path
 	}
-	log.Info(filepath.Join(basePath, path))
 	return filepath.Join(basePath, path)
 }
 

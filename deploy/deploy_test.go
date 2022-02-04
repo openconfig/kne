@@ -10,7 +10,7 @@ import (
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
-	"github.com/google/kne/cmd/deploy/mocks"
+	"github.com/google/kne/deploy/mocks"
 	"github.com/google/kne/os/exec"
 	"github.com/h-fam/errdiff"
 	"github.com/kylelemons/godebug/diff"
