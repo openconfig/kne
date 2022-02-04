@@ -268,7 +268,7 @@ func (n *Node) PatchCLIConnOpen(ns string) error {
 	if n.Kubecfg != "" {
 		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
 	}
-	args = append(args, "-it", "-n", n.Namespace, n.Name(), "--", "Cli")
+	args = append(args, "exec", "-it", "-n", n.Namespace, n.Name(), "--", "sr_cli", "-d")
 	t.SetOpenCmd(args)
 
 	return nil
