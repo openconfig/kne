@@ -241,6 +241,7 @@ func generateInterfacesEnvs(pb *tpb.Node) (interfaceList, interfaceMap string) {
 			continue
 		}
 		if pb.Interfaces[eth].Name == "" {
+			// ethWithIdRegx.MatchString(eth) was suceffull, so no need to do extra check here
 			ethId, _ := strconv.Atoi(ethRegx.Split(eth, -1)[1])
 			ciscoInterfaceId, err := getCiscoInterfaceId(pb.Model, ethId)
 			if err == nil {
