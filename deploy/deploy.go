@@ -34,10 +34,10 @@ const (
 	dockerConfigEnvVar           = "DOCKER_CONFIG"
 	kubeletConfigPathTemplate    = "%s:/var/lib/kubelet/config.json"
 	dockerConfigTemplateContents = `{
-		"auths": {
-	  {{range $val := .}}    "{{$val}}": {}
-	  {{end}}  }
-	  }
+  "auths": {
+{{range $val := .}}    "{{$val}}": {}
+{{end}}  }
+}
 `
 )
 
@@ -92,43 +92,43 @@ type Deployment struct {
 }
 
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
-        log.Infof("Deploying cluster...")
+	log.Infof("Deploying cluster...")
 	if err := d.Cluster.Deploy(ctx); err != nil {
-                return err
-        }
+		return err
+	}
 	log.Infof("Cluster deployed")
-        // Once cluster is up set kClient
-        rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
-        if err != nil {
-                return err
-        }
-        kClient, err := kubernetes.NewForConfig(rCfg)
-        if err != nil {
-                return err
-        }
-        d.Ingress.SetKClient(kClient)
-        log.Infof("Deploying ingress...")
-        if err := d.Ingress.Deploy(ctx); err != nil {
-                return err
-        }
-        tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
-        defer cancel()
-        if err := d.Ingress.Healthy(tCtx); err != nil {
-                return err
-        }
+	// Once cluster is up set kClient
+	rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
+	if err != nil {
+		return err
+	}
+	kClient, err := kubernetes.NewForConfig(rCfg)
+	if err != nil {
+		return err
+	}
+	d.Ingress.SetKClient(kClient)
+	log.Infof("Deploying ingress...")
+	if err := d.Ingress.Deploy(ctx); err != nil {
+		return err
+	}
+	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	if err := d.Ingress.Healthy(tCtx); err != nil {
+		return err
+	}
 	log.Infof("Ingress healthy")
 	log.Infof("Deploying CNI...")
-        if err := d.CNI.Deploy(ctx); err != nil {
-                return err
-        }
-        d.CNI.SetKClient(kClient)
-        tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
-        defer cancel()
-        if err := d.CNI.Healthy(tCtx); err != nil {
-                return err
-        }
+	if err := d.CNI.Deploy(ctx); err != nil {
+		return err
+	}
+	d.CNI.SetKClient(kClient)
+	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	if err := d.CNI.Healthy(tCtx); err != nil {
+		return err
+	}
 	log.Infof("CNI healthy")
-        return nil
+	return nil
 }
 
 type KindSpec struct {
@@ -447,6 +447,7 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 }
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
+	log.Infof("Deploying Meshnet from: %s", m.ManifestDir)
 	if err := execer.Exec("kubectl", "apply", "-k", m.ManifestDir); err != nil {
 		return err
 	}
@@ -481,5 +482,4 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 			}
 		}
 	}
-
 }
