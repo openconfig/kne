@@ -15,7 +15,6 @@ import (
 	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
 	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
 	srlinux "github.com/srl-labs/srlinux-scrapli"
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -25,13 +24,17 @@ import (
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
+	if nodeImpl == nil {
+		return nil, fmt.Errorf("nodeImpl cannot be nil")
+	}
+	if nodeImpl.Proto == nil {
+		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
+	}
 	cfg := defaults(nodeImpl.Proto)
-	proto.Merge(cfg, nodeImpl.Proto)
-	node.FixServices(cfg)
+	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	proto.Merge(n.Impl.Proto, cfg)
 	return n, nil
 }
 
@@ -182,32 +185,45 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *topopb.Node) *topopb.Node {
-	return &topopb.Node{
-		Services: map[uint32]*topopb.Service{
+	if pb.Config == nil {
+		pb.Config = &topopb.Config{}
+	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*topopb.Service{
 			443: {
 				Name:    "ssl",
 				Inside:  443,
-				Outside: node.GetNextPort(),
 			},
 			22: {
 				Name:     "ssh",
 				Inside:   22,
-				NodePort: node.GetNextPort(),
 			},
 			57400: {
 				Name:     "gnmi",
 				Inside:   57400,
-				NodePort: node.GetNextPort(),
 			},
-		},
-		Labels: map[string]string{
-			"type": topopb.Node_NOKIA_SRL.String(),
-		},
-		Config: &topopb.Config{
-			Image:      "ghcr.io/nokia/srlinux:latest",
-			ConfigFile: "config.json",
-		},
+		}
+
 	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{
+			"type": topopb.Node_NOKIA_SRL.String(),
+		}
+	} else {
+		if pb.Labels["type"] == "" {
+			pb.Labels["type"] = topopb.Node_NOKIA_SRL.String()
+		}
+	}
+	if pb.Config == nil {
+		pb.Config = &topopb.Config{}
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "ghcr.io/nokia/srlinux:latest"
+	}
+	if pb.Config.ConfigFile == "" {
+		pb.Config.ConfigFile = "config.json"
+	}
+	return pb
 }
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
@@ -248,7 +264,12 @@ func (n *Node) PatchCLIConnOpen(ns string) error {
 	}
 
 	t.SetExecCmd("kubectl")
-	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.Name(), "--", "sr_cli", "-d"})
+	var args []string
+	if n.Kubecfg != "" {
+		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
+	}
+	args = append(args, "exec", "-it", "-n", n.Namespace, n.Name(), "--", "sr_cli", "-d")
+	t.SetOpenCmd(args)
 
 	return nil
 }

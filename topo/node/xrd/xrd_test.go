@@ -56,6 +56,10 @@ func TestNew(t *testing.T) {
 		desc:    "nil node impl",
 		wantErr: "nodeImpl cannot be nil",
 	}, {
+		desc:    "nil pb",
+		ni:      &node.Impl{},
+		wantErr: "nodeImpl.Proto cannot be nil",
+	}, {
 		desc: "empty proto",
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
@@ -80,30 +84,33 @@ func TestNew(t *testing.T) {
 					ConfigData: &tpb.Config_Data{
 						Data: []byte("config file data"),
 					},
+					Env: map[string]string{
+						"XR_INTERFACES": "test/interface",
+					},
+				},
+				Constraints: map[string]string{
+					"cpu": "2",
 				},
 			},
 		},
 		want: &tpb.Node{
 			Name: "pod1",
 			Constraints: map[string]string{
-				"cpu":    "1",
+				"cpu":    "2",
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
 					Name:     "ssl",
 					Inside:   443,
-					NodePort: node.GetNextPort(),
 				},
 				22: {
 					Name:     "ssh",
 					Inside:   22,
-					NodePort: node.GetNextPort(),
 				},
 				6030: {
 					Name:     "gnmi",
 					Inside:   57400,
-					NodePort: node.GetNextPort(),
 				},
 			},
 			Labels: map[string]string{
@@ -112,7 +119,7 @@ func TestNew(t *testing.T) {
 			Config: &tpb.Config{
 				Image: "ios-xr:latest",
 				Env: map[string]string{
-					"XR_INTERFACES":                  "Gi0/0/0/0:eth1",
+					"XR_INTERFACES":                  "test/interface",
 					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "GigabitEthernet0/0/0/0",
 					"XR_EVERY_BOOT_CONFIG":           "/foo",
 				},

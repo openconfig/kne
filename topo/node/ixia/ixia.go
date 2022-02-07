@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	errapi "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,13 +35,17 @@ type Ixia struct {
 }
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
+	if nodeImpl == nil {
+		return nil, fmt.Errorf("nodeImpl cannot be nil")
+	}
+	if nodeImpl.Proto == nil {
+		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
+	}
 	cfg := defaults(nodeImpl.Proto)
-	proto.Merge(cfg, nodeImpl.Proto)
-	node.FixServices(cfg)
+	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	proto.Merge(n.Impl.Proto, cfg)
 	return n, nil
 }
 
@@ -152,7 +156,7 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
-	return &tpb.Node{}
+	return pb
 }
 
 func init() {

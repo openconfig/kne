@@ -178,7 +178,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 
 func pushFn(cmd *cobra.Command, args []string) error {
 	if len(args) != 3 {
-		return fmt.Errorf("%s: missing args", cmd.Use)
+		return fmt.Errorf("%s: invalid args", cmd.Use)
 	}
 	topopb, err := topo.Load(args[0])
 	if err != nil {
@@ -188,16 +188,22 @@ func pushFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	t, err := topo.New(s, topopb)
+	t, err := topo.New(s, topopb, opts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
+
 	ctx := cmd.Context()
 	t.Load(ctx)
 	fp, err := os.Open(args[2])
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := fp.Close(); err != nil {
+			log.Warnf("failed to close config file %q", args[2])
+		}
+	}()
 	if err := t.ConfigPush(ctx, args[1], fp); err != nil {
 		return err
 	}

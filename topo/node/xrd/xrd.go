@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/kne/topo/node"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -32,13 +31,14 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
 	}
+	if nodeImpl.Proto == nil {
+		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
+	}
 	cfg := defaults(nodeImpl.Proto)
-	proto.Merge(cfg, nodeImpl.Proto)
-	node.FixServices(cfg)
+	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	proto.Merge(n.Impl.Proto, cfg)
 	return n, nil
 }
 
@@ -171,44 +171,64 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config.ConfigPath == "" {
 		pb.Config.ConfigPath = "/"
 	}
-	return &tpb.Node{
-		Name: pb.Name,
-		Constraints: map[string]string{
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{
 			"cpu":    "1",
 			"memory": "2Gi",
-		},
-		Services: map[uint32]*tpb.Service{
+		}
+	} else {
+		if pb.Constraints["cpu"] == "" {
+			pb.Constraints["cpu"] = "1"
+		}
+		if pb.Constraints["memory"] == "" {
+			pb.Constraints["memory"] = "2Gi"
+		}
+	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*tpb.Service{
 			443: {
 				Name:     "ssl",
 				Inside:   443,
-				NodePort: node.GetNextPort(),
 			},
 			22: {
 				Name:     "ssh",
 				Inside:   22,
-				NodePort: node.GetNextPort(),
 			},
 			6030: {
 				Name:     "gnmi",
 				Inside:   57400,
-				NodePort: node.GetNextPort(),
 			},
-		},
-		Labels: map[string]string{
-			"vendor": tpb.Vendor_CISCO.String(),
-		},
-		Config: &tpb.Config{
-			Image: "ios-xr:latest",
-			Env: map[string]string{
-				"XR_INTERFACES":                  "Gi0/0/0/0:eth1",
-				"XR_CHECKSUM_OFFLOAD_COUNTERACT": "GigabitEthernet0/0/0/0",
-				"XR_EVERY_BOOT_CONFIG":           filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile),
-			},
-			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name),
-			ConfigPath:   pb.Config.ConfigPath,
-			ConfigFile:   pb.Config.ConfigFile,
-		},
+		}
 	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{
+			"vendor": tpb.Vendor_CISCO.String(),
+		}
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "ios-xr:latest"
+	}
+	if pb.Config.EntryCommand == "" {
+		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name)
+	}
+	if pb.Config.Env == nil {
+		pb.Config.Env = map[string]string{
+			"XR_INTERFACES":                  "Gi0/0/0/0:eth1",
+			"XR_CHECKSUM_OFFLOAD_COUNTERACT": "GigabitEthernet0/0/0/0",
+			"XR_EVERY_BOOT_CONFIG":           filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile),
+		}
+	} else {
+		if pb.Config.Env["XR_INTERFACES"] == "" {
+			pb.Config.Env["XR_INTERFACES"] = "Gi0/0/0/0:eth1"
+		}
+		if pb.Config.Env["XR_CHECKSUM_OFFLOAD_COUNTERACT"] == "" {
+			pb.Config.Env["XR_CHECKSUM_OFFLOAD_COUNTERACT"] = "GigabitEthernet0/0/0/0"
+		}
+		if pb.Config.Env["XR_EVERY_BOOT_CONFIG"] == "" {
+			pb.Config.Env["XR_EVERY_BOOT_CONFIG"] = filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile)
+		}
+	}
+	return pb
 }
 
 func init() {

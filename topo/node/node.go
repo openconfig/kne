@@ -98,17 +98,19 @@ type Impl struct {
 	RestConfig *rest.Config
 	Proto      *tpb.Node
 	BasePath   string
+	Kubecfg    string
 }
 
 // New creates a new node for use in the k8s cluster.  Configure will push the node to
 // the cluster.
-func New(namespace string, pb *tpb.Node, kClient kubernetes.Interface, rCfg *rest.Config, bp string) (Node, error) {
+func New(namespace string, pb *tpb.Node, kClient kubernetes.Interface, rCfg *rest.Config, bp, kubecfg string) (Node, error) {
 	return getImpl(&Impl{
 		Namespace:  namespace,
 		Proto:      pb,
 		KubeClient: kClient,
 		RestConfig: rCfg,
 		BasePath:   bp,
+		Kubecfg:    kubecfg,
 	})
 }
 
@@ -298,8 +300,10 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			Name:       name,
 			Protocol:   "TCP",
 			Port:       int32(v.Inside),
-			NodePort:   int32(v.NodePort),
 			TargetPort: intstr.FromInt(int(v.Inside)),
+		}
+		if v.NodePort != 0 {
+			sp.NodePort = int32(v.NodePort)
 		}
 		if v.Outside != 0 {
 			sp.TargetPort = intstr.FromInt(int(v.Outside))
@@ -445,25 +449,4 @@ func getImpl(impl *Impl) (Node, error) {
 		return nil, fmt.Errorf("impl not found: %v", impl.Proto.Type)
 	}
 	return fn(impl)
-}
-
-var (
-	muPort   sync.Mutex
-	nextPort uint32 = 30001
-)
-
-func GetNextPort() uint32 {
-	muPort.Lock()
-	defer muPort.Unlock()
-	p := nextPort
-	nextPort++
-	return p
-}
-
-func FixServices(pb *tpb.Node) {
-	for k := range pb.Services {
-		if pb.Services[k].NodePort == 0 {
-			pb.Services[k].NodePort = GetNextPort()
-		}
-	}
 }

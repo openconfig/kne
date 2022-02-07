@@ -48,7 +48,6 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
 	cfg := defaults(nodeImpl.Proto)
-	node.FixServices(cfg)
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
@@ -97,8 +96,12 @@ func (n *Node) PatchCLIConnOpen(ns string) error {
 		return ErrIncompatibleCliConn
 	}
 
-	t.SetExecCmd("kubectl")
-	t.SetOpenCmd([]string{"exec", "-it", "-n", ns, n.Name(), "--", "cli", "-c"})
+	var args []string
+	if n.Kubecfg != "" {
+		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
+	}
+	args = append(args, "exec", "-it", "-n", n.Namespace, n.Name(), "--", "cli", "-c")
+	t.SetOpenCmd(args)
 
 	return nil
 }
@@ -342,17 +345,14 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			443: {
 				Name:     "ssl",
 				Inside:   443,
-				NodePort: node.GetNextPort(),
 			},
 			22: {
 				Name:     "ssh",
 				Inside:   22,
-				NodePort: node.GetNextPort(),
 			},
 			50051: {
 				Name:     "gnmi",
 				Inside:   50051,
-				NodePort: node.GetNextPort(),
 			},
 		}
 	}

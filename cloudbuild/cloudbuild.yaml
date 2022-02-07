@@ -15,9 +15,17 @@ steps:
   - id: packer_build
     name: "gcr.io/gep-kne/packer"
     args: ["build", "cloudbuild/ubuntu.pkr.hcl"]
-    env: ["PKR_VAR_build_id=$BUILD_ID", "PKR_VAR_short_sha=$SHORT_SHA", "PKR_VAR_branch_name=$BRANCH_NAME"]
+    env: [
+      "PKR_VAR_build_id=$BUILD_ID",
+      "PKR_VAR_short_sha=$SHORT_SHA",
+      "PKR_VAR_branch_name=$BRANCH_NAME",
+      "PKR_VAR_zone=${_ZONE}",
+    ]
 
 timeout: 1800s
+
+substitutions:
+  _ZONE: us-central1-b # default value
 
 options:
   pool:

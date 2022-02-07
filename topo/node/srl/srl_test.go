@@ -21,11 +21,14 @@ import (
 
 	topopb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	"github.com/scrapli/scrapligo/logging"
 	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
 	srlinux "github.com/srl-labs/srlinux-scrapli"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -51,6 +54,69 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return eCh
 }
 
+func TestNew(t *testing.T) {
+	tests := []struct {
+		desc    string
+		nImpl   *node.Impl
+		want    *topopb.Node
+		wantErr string
+	}{{
+		desc:    "nil impl",
+		wantErr: "nodeImpl cannot be nil",
+	}, {
+		desc:    "nil pb",
+		wantErr: "nodeImpl.Proto cannot be nil",
+		nImpl:   &node.Impl{},
+	}, {
+		desc: "empty pb defaults",
+		nImpl: &node.Impl{
+			Proto: &topopb.Node{
+				Labels: map[string]string{
+					"foo": "test_label",
+				},
+			},
+		},
+		want: &topopb.Node{
+			Config: &topopb.Config{
+				Image:      "ghcr.io/nokia/srlinux:latest",
+				ConfigFile: "config.json",
+			},
+			Labels: map[string]string{
+				"type": "NOKIA_SRL",
+				"foo":  "test_label",
+			},
+			Services: map[uint32]*topopb.Service{
+				443: {
+					Name:     "ssl",
+					Inside:   443,
+				},
+				22: {
+					Name:     "ssh",
+					Inside:   22,
+				},
+				57400: {
+					Name:     "gnmi",
+					Inside:   57400,
+				},
+			},
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			n, err := New(tt.nImpl)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: got %v, want %s", err, s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if !proto.Equal(n.GetProto(), tt.want) {
+				t.Fatalf("New() failed: got\n%swant\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
+			}
+		})
+
+	}
+}
 func TestGenerateSelfSigned(t *testing.T) {
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
