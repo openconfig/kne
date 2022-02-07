@@ -436,7 +436,7 @@ func TestMetalbSpec(t *testing.T) {
 	}
 }
 
-func TestMeshnet(t *testing.T) {
+func TestMeshnetSpec(t *testing.T) {
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 	d := &appsv1.DaemonSet{

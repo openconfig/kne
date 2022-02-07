@@ -124,11 +124,7 @@ func TestNewDeployment(t *testing.T) {
 				tt.path = f.Name()
 				defer os.Remove(f.Name())
 			}
-			cfg, _, err := deploymentFromArg(tt.path)
-			if err != nil {
-				t.Fatalf("failed to unmarshal config: %v", err)
-			}
-			d, err := NewDeployment(cfg)
+			d, err := newDeployment(tt.path)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
