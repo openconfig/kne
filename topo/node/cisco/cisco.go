@@ -204,9 +204,6 @@ func getCiscoInterfaceId(pb *tpb.Node, eth string) (string, error) {
 	if !ethWithIdRegx.MatchString(eth) {
 		return "", fmt.Errorf("interface '%s' is invalid", eth)
 	}
-	if !ethWithIdRegx.MatchString(eth) {
-		return "", fmt.Errorf("interface '%s' is invalid", eth)
-	}
 	if pb.Interfaces[eth].Name != "" {
 		return pb.Interfaces[eth].Name, nil
 	}
