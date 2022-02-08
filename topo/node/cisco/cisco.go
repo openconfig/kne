@@ -15,7 +15,6 @@ package cisco
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -38,7 +37,10 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl.Proto == nil {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
-	cfg := defaults(nodeImpl.Proto)
+	cfg, err := defaults(nodeImpl.Proto)
+	if err != nil {
+		return nil, err
+	}
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
@@ -165,67 +167,86 @@ func (n *Node) Create(ctx context.Context) error {
 	return nil
 }
 
-func constraints(pb *tpb.Node) map[string]string {
-	constraints := map[string]string{
-		"cpu":    "1",
-		"memory": "2Gi",
+func constraints(pb *tpb.Node) *tpb.Node {
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{}
 	}
 	switch pb.Model {
 	case "8201", "8201-32FH", "8202", "8101-32H", "8102-64H":
-		constraints = map[string]string{
-			"cpu":    "4",
-			"memory": "12Gi",
+		if pb.Constraints["cpu"] == "" {
+			pb.Constraints["cpu"] = "4"
 		}
-	case "xrd":
-		constraints = map[string]string{
-			"cpu":    "1",
-			"memory": "2Gi",
-		}
-	}
-	return constraints
-}
-
-func getCiscoInterfaceId(model string, ethID int) (string, error) {
-	ciscoInterfacePrefix := ""
-	switch model {
-	case "8201":
-		if ethID-1 <= 23 {
-			ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-
-		} else if ethID-1 <= 35 {
-			ciscoInterfacePrefix = "HundredGigE0/0/0/"
-		}
-	case "8202":
-		if ethID-1 <= 47 {
-			ciscoInterfacePrefix = "HundredGigE0/0/0/"
-		} else if ethID-1 <= 59 {
-			ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-		} else if ethID-1 <= 71 {
-			ciscoInterfacePrefix = "HundredGigE0/0/0/"
-		}
-	case "8201-32FH":
-		if ethID-1 <= 31 {
-			ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-		}
-	case "8101-32H":
-		if ethID-1 <= 31 {
-			ciscoInterfacePrefix = "HundredGigE0/0/0/"
-		}
-	case "8102-64H":
-		if ethID-1 <= 63 {
-			ciscoInterfacePrefix = "HundredGigE0/0/0/"
+		if pb.Constraints["memory"] == "" {
+			pb.Constraints["memory"] = "12Gi"
 		}
 	default:
-		ciscoInterfacePrefix = "GigabitEthernet0/0/0/"
+		if pb.Constraints["cpu"] == "" {
+			pb.Constraints["cpu"] = "1"
+		}
+		if pb.Constraints["memory"] == "" {
+			pb.Constraints["memory"] = "2Gi"
+		}
 	}
-	if ciscoInterfacePrefix != "" {
-		return fmt.Sprintf("%s%d", ciscoInterfacePrefix, ethID-1), nil
+	return pb
+}
+
+func getCiscoInterfaceId(pb *tpb.Node, eth string) (string, error) {
+	ciscoInterfacePrefix := ""
+	ethWithIdRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)\d+`) // check for e|et|eth|....
+	ethRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)`)          // check for e|et|eth|....
+	if !ethWithIdRegx.MatchString(eth) {
+		return "", fmt.Errorf("interface '%s' is invalid", eth)
+	}
+	if pb.Interfaces[eth].Name == "" {
+		// ethWithIdRegx.MatchString(eth) was successfull, so no need to do extra check here
+		ethId, _ := strconv.Atoi(ethRegx.Split(eth, -1)[1])
+		switch pb.Model {
+		case "8201":
+			if ethId-1 <= 23 {
+				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
+			} else if ethId-1 <= 35 {
+				ciscoInterfacePrefix = "HundredGigE0/0/0/"
+			} else {
+				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth36 is supported on %s ", ethId, pb.Model)
+			}
+		case "8202":
+			if ethId-1 <= 47 {
+				ciscoInterfacePrefix = "HundredGigE0/0/0/"
+			} else if ethId-1 <= 59 {
+				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
+			} else if ethId-1 <= 71 {
+				ciscoInterfacePrefix = "HundredGigE0/0/0/"
+			} else {
+				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth72 is supported on %s ", ethId, pb.Model)
+			}
+		case "8201-32FH":
+			if ethId-1 <= 31 {
+				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
+			} else {
+				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethId, pb.Model)
+			}
+		case "8101-32H":
+			if ethId-1 <= 31 {
+				ciscoInterfacePrefix = "HundredGigE0/0/0/"
+			} else {
+				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethId, pb.Model)
+			}
+		case "8102-64H":
+			if ethId-1 <= 63 {
+				ciscoInterfacePrefix = "HundredGigE0/0/0/"
+			} else {
+				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth64 is supported on %s ", ethId, pb.Model)
+			}
+		default:
+			ciscoInterfacePrefix = "GigabitEthernet0/0/0/"
+		}
+		return fmt.Sprintf("%s%d", ciscoInterfacePrefix, ethId-1), nil
 	} else {
-		return "", errors.New("invalid interface id")
+		return pb.Interfaces[eth].Name, nil
 	}
 }
 
-func generateInterfacesEnvs(pb *tpb.Node) (interfaceList, interfaceMap string) {
+func generateInterfacesEnvs(pb *tpb.Node) (interfaceList, interfaceMap string, err error) {
 	interfaceList = "MgmtEther0/RP0/CPU0/0"
 	interfaceMap = "MgmtEther0/RP0/CPU0/0:eth0"
 	eths := make([]string, 0)
@@ -233,33 +254,19 @@ func generateInterfacesEnvs(pb *tpb.Node) (interfaceList, interfaceMap string) {
 		eths = append(eths, k)
 	}
 	sort.Strings(eths)
-	ethWithIdRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)\d+`) // check for e|et|eth|....
-	ethRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)`)          // check for e|et|eth|....
 	for _, eth := range eths {
-		if !ethWithIdRegx.MatchString(eth) {
-			log.Warn(fmt.Sprintf("Interface id %s is invalid", eth))
-			continue
-		}
-		if pb.Interfaces[eth].Name == "" {
-			// ethWithIdRegx.MatchString(eth) was suceffull, so no need to do extra check here
-			ethId, _ := strconv.Atoi(ethRegx.Split(eth, -1)[1])
-			ciscoInterfaceId, err := getCiscoInterfaceId(pb.Model, ethId)
-			if err == nil {
-				interfaceList = fmt.Sprintf("%s,%s", interfaceList, ciscoInterfaceId)
-				interfaceMap = fmt.Sprintf("%s,%s:%s", interfaceMap, ciscoInterfaceId, eth)
-			} else {
-				log.Warn(fmt.Errorf("can not get cisco interface id for %s : %w ", eth, err))
-				continue
-			}
+		ciscoInterfaceId, err := getCiscoInterfaceId(pb, eth)
+		if err == nil {
+			interfaceList = fmt.Sprintf("%s,%s", interfaceList, ciscoInterfaceId)
+			interfaceMap = fmt.Sprintf("%s,%s:%s", interfaceMap, ciscoInterfaceId, eth)
 		} else {
-			interfaceList = fmt.Sprintf("%s,%s", interfaceList, pb.Interfaces[eth].Name)
-			interfaceMap = fmt.Sprintf("%s,%s:%s", interfaceMap, pb.Interfaces[eth].Name, eth)
+			return interfaceList, interfaceMap, err
 		}
 	}
-	return interfaceList, interfaceMap
+	return interfaceList, interfaceMap, nil
 }
 
-func defaults(pb *tpb.Node) *tpb.Node {
+func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	if pb == nil {
 		pb = &tpb.Node{
 			Name: "default_cisco_node",
@@ -277,17 +284,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Model == "" {
 		pb.Model = "xrd"
 	}
-	constraints := constraints(pb)
-	if pb.Constraints == nil {
-		pb.Constraints = constraints
-	} else {
-		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = constraints["cpu"]
-		}
-		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = constraints["memory"]
-		}
-	}
+	pb = constraints(pb)
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			443: {
@@ -315,7 +312,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name)
 	}
-	interfaceList, interfaceMap := generateInterfacesEnvs(pb)
+	interfaceList, interfaceMap, err := generateInterfacesEnvs(pb)
+	if err != nil {
+		return nil, err
+	}
 	if pb.Config.Env == nil {
 		pb.Config.Env = map[string]string{
 			"XR_INTERFACES":                  interfaceMap,
@@ -338,7 +338,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		// This enables autmatic bringup of the managment interface for xrd
 		pb.Config.Env["XR_SNOOP_IP_INTERFACES"] = "MgmtEther0/RP0/CPU0/0"
 	}
-	return pb
+	return pb, nil
 }
 
 func init() {

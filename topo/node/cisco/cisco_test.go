@@ -44,6 +44,10 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	}()
 	return eCh
 }
+func deafultNode(pb *tpb.Node) *tpb.Node {
+	node, _ := defaults(pb)
+	return node
+}
 
 func TestNew(t *testing.T) {
 	tests := []struct {
@@ -64,9 +68,24 @@ func TestNew(t *testing.T) {
 				Name: "pod1",
 			},
 		},
-		want: defaults(&tpb.Node{
+		want: deafultNode(&tpb.Node{
 			Name: "pod1",
 		}),
+	}, {
+		desc: "node cisco test invalid interface",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "xrd",
+				Interfaces: map[string]*tpb.Interface{
+					"eeth": &tpb.Interface{},
+				},
+			},
+		},
+		want:    nil,
+		wantErr: "interface 'eeth' is invalid",
 	}, {
 		desc: "full proto",
 		ni: &node.Impl{
@@ -216,7 +235,6 @@ func TestNew(t *testing.T) {
 					"eth24": &tpb.Interface{},
 					"eth25": &tpb.Interface{},
 					"eth36": &tpb.Interface{},
-					"eth37": &tpb.Interface{},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -238,7 +256,6 @@ func TestNew(t *testing.T) {
 				"eth24": &tpb.Interface{},
 				"eth25": &tpb.Interface{},
 				"eth36": &tpb.Interface{},
-				"eth37": &tpb.Interface{},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -277,6 +294,21 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}, {
+		desc: "Cisco 8201 Proto- Invalid interface id",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "8201",
+				Interfaces: map[string]*tpb.Interface{
+					"eth37": &tpb.Interface{},
+				},
+			},
+		},
+		want:    nil,
+		wantErr: "interface id 37 can not be mapped to a cisco interface, eth1..eth36 is supported on 8201",
+	}, {
 		desc: "Cisco 8202 proto",
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
@@ -294,7 +326,6 @@ func TestNew(t *testing.T) {
 					"eth60": &tpb.Interface{},
 					"eth61": &tpb.Interface{},
 					"eth72": &tpb.Interface{},
-					"eth73": &tpb.Interface{},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -318,7 +349,6 @@ func TestNew(t *testing.T) {
 				"eth60": &tpb.Interface{},
 				"eth61": &tpb.Interface{},
 				"eth72": &tpb.Interface{},
-				"eth73": &tpb.Interface{},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -357,6 +387,36 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}, {
+		desc: "Cisco 8202 Proto- Invalid interface id",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "8202",
+				Interfaces: map[string]*tpb.Interface{
+					"eth73": &tpb.Interface{},
+				},
+			},
+		},
+		want:    nil,
+		wantErr: "interface id 73 can not be mapped to a cisco interface, eth1..eth72 is supported on 8202",
+	}, {
+		desc: "Cisco 8201-32FH Proto- Invalid interface id",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "8201-32FH",
+				Interfaces: map[string]*tpb.Interface{
+					"eth33": &tpb.Interface{},
+				},
+			},
+		},
+		want:    nil,
+		wantErr: "interface id 33 can not be mapped to a cisco interface, eth1..eth32 is supported on 8201-32FH",
+	}, {
 		desc: "Cisco 8201-32FH proto",
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
@@ -370,7 +430,6 @@ func TestNew(t *testing.T) {
 						Name: "GIG1",
 					},
 					"eth32": &tpb.Interface{},
-					"eth33": &tpb.Interface{},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -390,7 +449,6 @@ func TestNew(t *testing.T) {
 					Name: "GIG1",
 				},
 				"eth32": &tpb.Interface{},
-				"eth33": &tpb.Interface{},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -442,7 +500,6 @@ func TestNew(t *testing.T) {
 						Name: "GIG1",
 					},
 					"eth32": &tpb.Interface{},
-					"eth33": &tpb.Interface{},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -462,7 +519,6 @@ func TestNew(t *testing.T) {
 					Name: "GIG1",
 				},
 				"eth32": &tpb.Interface{},
-				"eth33": &tpb.Interface{},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -501,6 +557,36 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}, {
+		desc: "Cisco 8101-32H Proto- Invalid interface id",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "8101-32H",
+				Interfaces: map[string]*tpb.Interface{
+					"eth33": &tpb.Interface{},
+				},
+			},
+		},
+		want:    nil,
+		wantErr: "interface id 33 can not be mapped to a cisco interface, eth1..eth32 is supported on 8101-32H",
+	}, {
+		desc: "Cisco 8102-64H Proto- Invalid interface id",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "8102-64H",
+				Interfaces: map[string]*tpb.Interface{
+					"eth65": &tpb.Interface{},
+				},
+			},
+		},
+		want:    nil,
+		wantErr: "interface id 65 can not be mapped to a cisco interface, eth1..eth64 is supported on 8102-64H",
+	}, {
 		desc: "8102-64H",
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
@@ -514,7 +600,6 @@ func TestNew(t *testing.T) {
 						Name: "GIG1",
 					},
 					"eth64": &tpb.Interface{},
-					"eth65": &tpb.Interface{},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -534,7 +619,6 @@ func TestNew(t *testing.T) {
 					Name: "GIG1",
 				},
 				"eth64": &tpb.Interface{},
-				"eth65": &tpb.Interface{},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
