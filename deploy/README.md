@@ -267,3 +267,298 @@ Gateway of last resort is not set
 ! IP routing not enabled
 r1>
 ```
+
+
+## Example on using grpcurl to access provided services
+
+### Reflection example
+
+```
+grpcurl -insecure -H 'username:admin' -H 'password:admin' 192.168.16.51:6030 list
+gnmi.gNMI
+gnoi.certificate.CertificateManagement
+gnoi.factory_reset.FactoryReset
+gnoi.os.OS
+gnoi.system.System
+grpc.reflection.v1alpha.ServerReflection
+```
+
+```
+grpcurl -insecure -H 'username:admin' -H 'password:admin' 192.168.16.51:6030 describe gnmi.gNMI
+gnmi.gNMI is a service:
+service gNMI {
+  rpc Capabilities ( .gnmi.CapabilityRequest ) returns ( .gnmi.CapabilityResponse );
+  rpc Get ( .gnmi.GetRequest ) returns ( .gnmi.GetResponse );
+  rpc Set ( .gnmi.SetRequest ) returns ( .gnmi.SetResponse );
+  rpc Subscribe ( stream .gnmi.SubscribeRequest ) returns ( stream .gnmi.SubscribeResponse );
+}
+```
+
+### gNMI example
+
+```
+grpcurl -insecure -H 'username:admin' -H 'password:admin' -d @ 192.168.16.51:6030 gnmi.gNMI.Subscribe << EOM
+{
+  "subscribe": {
+    "mode": 1,
+    "subscription": {
+      "path": {
+        "elem": [
+          {
+            "name": "interfaces"
+          },
+          {
+            "name": "interface",
+            "key": {
+              "name": "Ethernet1"
+            }
+          },
+          {
+            "name": "ethernet"
+          },
+          {
+            "name": "state"
+          },    
+          {
+            "name": "counters"
+          }       
+        ]
+      }
+    }
+  }
+}
+EOM
+
+```
+
+#### Response
+```
+{
+  "update": {
+    "timestamp": "1643673996534934536",
+    "prefix": {
+      "elem": [
+        {
+          "name": "interfaces"
+        },
+        {
+          "name": "interface",
+          "key": {
+            "name": "Ethernet1"
+          }
+        },
+        {
+          "name": "ethernet"
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "counters"
+        }
+      ]
+    },
+    "update": [
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "in-crc-errors"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      },
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "in-fragment-frames"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      },
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "in-jabber-frames"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      },
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "in-mac-control-frames"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      },
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "in-mac-pause-frames"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      },
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "in-oversize-frames"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      },
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "out-mac-control-frames"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      },
+      {
+        "path": {
+          "elem": [
+            {
+              "name": "out-mac-pause-frames"
+            }
+          ]
+        },
+        "val": {
+          "uintVal": "0"
+        }
+      }
+    ]
+  }
+}
+{
+  "syncResponse": true
+}
+
+```
+
+### gRIBI example
+
+#### Request
+
+```
+$ grpcurl -insecure -H 'username:admin' -H 'password:admin' -d @ 192.168.16.51:6031 gribi.gRIBI.Modify << EOM
+{
+    "params": {
+        "redundancy": 1,
+        "persistence": 1
+    }
+}
+{
+    "election_id": {
+        "high": 1,
+        "low": 1
+    }
+}   
+{
+    "operation": {
+        "id": 1,
+        "network_instance": "default",
+        "op": 1,
+        "next_hop": {
+            "index": 1,
+            "next_hop": {
+                "ip_address": {
+                    "value": "100.0.0.2"
+                }
+            }
+        },
+        "election_id": {
+            "high": 1,
+            "low": 1
+          }
+    }
+}
+EOM
+```
+
+### Response
+```
+{
+  "sessionParamsResult": {
+    
+  }
+}
+{
+  "electionId": {
+    "high": "1",
+    "low": "1"
+  }
+}
+{
+  "result": [
+    {
+      "id": "1",
+      "status": "RIB_PROGRAMMED",
+      "timestamp": "1644343687209115978"
+    }
+  ]
+}
+```
+
+
+#### Request
+
+```
+grpcurl -insecure -H 'username:admin' -H 'password:admin' -d @ 192.168.16.51:6031 gribi.gRIBI.Get << EOM
+{
+  "name": "default",
+  "aft": 1
+}
+EOM
+```
+
+#### Response
+```
+{
+  "entry": [
+    {
+      "networkInstance": "default",
+      "nextHop": {
+        "index": "1",
+        "nextHop": {
+          "networkInstance": {
+            "value": "default"
+          },
+          "ipAddress": {
+            "value": "100.0.0.2"
+          }
+        }
+      }
+    }
+  ]
+}
+
+```
