@@ -1,0 +1,72 @@
+name: "2node-e8000"
+nodes: {
+    name: "vxr1"
+    type: CISCO_E8000
+    vendor: CISCO
+    model:"8201"
+    os: "ios-xr"
+    config: {
+        file: "r1.config"
+        image: "c8201:latest"
+        init_image: "networkop/init-wait:latest"
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 57400 
+        value: {
+            name: "gnmi"
+            inside: 57400
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+          name: "FourHundredGigE0/0/0/0"
+        }
+    }
+}
+nodes: {
+    name: "vxr2"
+    type: CISCO_E8000
+    vendor: CISCO
+    model: "8201"
+    os: "ios-xr"
+    config: {
+        file: "r2.config"
+        image: "c8201:latest"
+        init_image: "networkop/init-wait:latest"
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 57400 
+        value: {
+            name: "gnmi"
+            inside: 57400
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+          name: "FourHundredGigE0/0/0/0"
+        }
+    }
+}
+links: {
+    a_node: "vxr1"
+    a_int: "eth1"
+    z_node: "vxr2"
+    z_int: "eth1"
+}
+

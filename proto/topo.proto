@@ -61,6 +61,7 @@ message Node {
     IXIA_TG = 10;
     GOBGP = 11;
     CISCO_XRD = 12;
+    CISCO_E8000 = 13;
   }
 
   string name = 1; // Name of the node in the topology. Must be unique.
