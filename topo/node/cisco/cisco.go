@@ -190,59 +190,65 @@ func constraints(pb *tpb.Node) *tpb.Node {
 	return pb
 }
 
+func fmtInt100(eid int) string {
+	return fmt.Sprintf("HundredGigE0/0/0/%d", eid)
+}
+
+func fmtInt400(eid int) string {
+	return fmt.Sprintf("FourHundredGigE0/0/0/%d", eid)
+}
+
 func getCiscoInterfaceId(pb *tpb.Node, eth string) (string, error) {
-	ciscoInterfacePrefix := ""
 	ethWithIdRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)\d+`) // check for e|et|eth|....
 	ethRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)`)          // check for e|et|eth|....
 	if !ethWithIdRegx.MatchString(eth) {
 		return "", fmt.Errorf("interface '%s' is invalid", eth)
 	}
-	if pb.Interfaces[eth].Name == "" {
-		// ethWithIdRegx.MatchString(eth) was successfull, so no need to do extra check here
-		ethId, _ := strconv.Atoi(ethRegx.Split(eth, -1)[1])
-		switch pb.Model {
-		case "8201":
-			if ethId-1 <= 23 {
-				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-			} else if ethId-1 <= 35 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			} else {
-				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth36 is supported on %s ", ethId, pb.Model)
-			}
-		case "8202":
-			if ethId-1 <= 47 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			} else if ethId-1 <= 59 {
-				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-			} else if ethId-1 <= 71 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			} else {
-				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth72 is supported on %s ", ethId, pb.Model)
-			}
-		case "8201-32FH":
-			if ethId-1 <= 31 {
-				ciscoInterfacePrefix = "FourHundredGigE0/0/0/"
-			} else {
-				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethId, pb.Model)
-			}
-		case "8101-32H":
-			if ethId-1 <= 31 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			} else {
-				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethId, pb.Model)
-			}
-		case "8102-64H":
-			if ethId-1 <= 63 {
-				ciscoInterfacePrefix = "HundredGigE0/0/0/"
-			} else {
-				return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth64 is supported on %s ", ethId, pb.Model)
-			}
-		default:
-			ciscoInterfacePrefix = "GigabitEthernet0/0/0/"
-		}
-		return fmt.Sprintf("%s%d", ciscoInterfacePrefix, ethId-1), nil
-	} else {
+	if !ethWithIdRegx.MatchString(eth) {
+		return "", fmt.Errorf("interface '%s' is invalid", eth)
+	}
+	if pb.Interfaces[eth].Name != "" {
 		return pb.Interfaces[eth].Name, nil
+	}
+	// ethWithIdRegx.MatchString(eth) was successful, so no need to do extra check here
+	ethId, _ := strconv.Atoi(ethRegx.Split(eth, -1)[1])
+	eid := ethId - 1
+	switch pb.Model {
+	case "8201":
+		switch {
+		case eid <= 23:
+			return fmtInt400(eid), nil
+		case eid <= 35:
+			return fmtInt100(eid), nil
+		}
+		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth36 is supported on %s ", ethId, pb.Model)
+	case "8202":
+		switch {
+		case eid <= 47:
+			return fmtInt100(eid), nil
+		case eid <= 59:
+			return fmtInt400(eid), nil
+		case eid <= 71:
+			return fmtInt100(eid), nil
+		}
+		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth72 is supported on %s ", ethId, pb.Model)
+	case "8201-32FH":
+		if eid <= 31 {
+			return fmtInt400(eid), nil
+		}
+		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethId, pb.Model)
+	case "8101-32H":
+		if eid <= 31 {
+			return fmtInt100(eid), nil
+		}
+		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethId, pb.Model)
+	case "8102-64H":
+		if eid <= 63 {
+			return fmtInt100(eid), nil
+		}
+		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth64 is supported on %s ", ethId, pb.Model)
+	default:
+		return fmt.Sprintf("GigabitEthernet0/0/0/%d", eid), nil
 	}
 }
 
