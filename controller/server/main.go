@@ -14,22 +14,99 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net"
+	"path/filepath"
 
+	log "github.com/sirupsen/logrus"
+	"k8s.io/client-go/util/homedir"
+
+	"github.com/google/kne/deploy"
 	cpb "github.com/google/kne/proto/controller"
-	"google.golang.org/grpc"
+
 	"google.golang.org/grpc/credentials/alts"
+
+	"google.golang.org/grpc"
+)
+
+const (
+	defaultMetallbManifestDir = "../../manifests/metallb"
+	defaultMeshnetManifestDir = "../../manifests/meshnet/base"
 )
 
 var (
-	port = flag.Int("port", 50051, "Controller server port")
+	port           = flag.Int("port", 50051, "Controller server port")
+	defaultKubeCfg = ""
 )
 
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
+}
+
+func getDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
+	d := &deploy.Deployment{}
+	switch kind := req.ClusterSpec.(type) {
+	case *cpb.CreateClusterRequest_Kind:
+		k := &deploy.KindSpec{}
+		k.Name = req.GetKind().Name
+		k.Recycle = req.GetKind().Recycle
+		k.Version = req.GetKind().Version
+		k.Image = req.GetKind().Image
+		d.Cluster = k
+	default:
+		return nil, fmt.Errorf("cluster type not supported: %T", kind)
+	}
+	switch metallb := req.IngressSpec.(type) {
+	case *cpb.CreateClusterRequest_Metallb:
+		l := &deploy.MetalLBSpec{}
+		if req.GetMetallb().ManifestDir == "" {
+			l.ManifestDir = defaultMetallbManifestDir
+		} else {
+			l.ManifestDir = req.GetMetallb().ManifestDir
+		}
+		l.IPCount = int(req.GetMetallb().IpCount)
+		d.Ingress = l
+	default:
+		return nil, fmt.Errorf("ingress spec not supported: %T", metallb)
+	}
+	switch meshnet := req.CniSpec.(type) {
+	case *cpb.CreateClusterRequest_Meshnet:
+		m := &deploy.MeshnetSpec{}
+		if req.GetMeshnet().ManifestDir == "" {
+			m.ManifestDir = defaultMeshnetManifestDir
+		} else {
+			m.ManifestDir = req.GetMeshnet().ManifestDir
+		}
+		d.CNI = m
+	default:
+		return nil, fmt.Errorf("CNI type not supported: %T", meshnet)
+	}
+	return d, nil
+
+}
+
+func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
+	log.Infof("Creating new cluster")
+	d, err := getDeployment(req)
+	if err != nil {
+		return nil, err
+	}
+	if home := homedir.HomeDir(); home != "" {
+		defaultKubeCfg = filepath.Join(home, ".kube", "config")
+	}
+	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
+		return &cpb.CreateClusterResponse{
+			Name:  req.GetKind().Name,
+			State: cpb.ClusterState_CLUSTER_STATE_ERROR,
+		}, fmt.Errorf("Failed to deploy cluster: %s", err)
+	}
+	log.Infof("Cluster deployed and ready for topology.")
+	return &cpb.CreateClusterResponse{
+		Name:  req.GetKind().Name,
+		State: cpb.ClusterState_CLUSTER_STATE_RUNNING,
+	}, nil
 }
 
 func main() {
