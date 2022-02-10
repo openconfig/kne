@@ -32,7 +32,7 @@ service TopologyManager {
   // Deletes a kind cluster by cluster name.
   rpc DeleteCluster (DeleteClusterRequest) returns(DeleteClusterResponse) {}
   // Shows cluster state and topologies deployed in the cluster.
-  rpc ShowCluster (ShowClusterRequest) returns(ShowClusterResponse) {}  
+  rpc ShowCluster (ShowClusterRequest) returns(ShowClusterResponse) {}
 }
 
 // Kind cluster specifications
@@ -44,6 +44,15 @@ message KindSpec {
   bool retain = 5;
   string kubecfg = 6;
   repeated string google_artifact_registries = 7;
+  // container_images is a map of source images to target images for containers
+  // to load in the kind cluster. For example:
+  // container_images = {
+  //   "us-west1-docker.pkg.dev/pkg/a:ga": "pkg/a:latest",
+  //   "us-west1-docker.pkg.dev/pkg/b:v0.8.0": "pkg/b:v0.8.0",
+  // }
+  // Would load images "pkg/a:latest" and "pkg/b:v0.8.0" into the cluster
+  // after fetching their source images from "us-west1-docker.pkg.dev".
+  map<string, string> container_images = 8;
 }
 
 // Metallb specifications
