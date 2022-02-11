@@ -8,7 +8,6 @@ import (
 )
 
 func TestNewDeployment(t *testing.T) {
-
 	tests := []struct {
 		desc    string
 		req     *cpb.CreateClusterRequest
