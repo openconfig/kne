@@ -99,6 +99,25 @@ func TestNewDeployment(t *testing.T) {
 			},
 		},
 		wantErr: "failed to validate path \"/foo\"",
+	}, {
+		desc: "cni spec empty",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kind{
+				&cpb.KindSpec{
+					Name:    "kne",
+					Recycle: true,
+					Version: "0.11.1",
+					Image:   "kindest/node:v1.22.1",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				&cpb.MetallbSpec{
+					ManifestDir: "/usr/local",
+					IpCount:     100,
+				},
+			},
+		},
+		wantErr: "cni type not supported:",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
