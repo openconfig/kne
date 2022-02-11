@@ -285,6 +285,7 @@ func (k *KindSpec) loadContainerImages() error {
 		return errors.Wrap(err, "install docker cli to load container images")
 	}
 	for s, d := range k.ContainerImages {
+		log.Infof("Loading %q as %q", s, d)
 		if err := execer.Exec("docker", "pull", s); err != nil {
 			return errors.Wrapf(err, "pulling %q", s)
 		}
@@ -299,7 +300,7 @@ func (k *KindSpec) loadContainerImages() error {
 			return errors.Wrapf(err, "loading %q", d)
 		}
 	}
-	log.Infof("Loaded all container images %v", k.ContainerImages)
+	log.Infof("Loaded all container images")
 	return nil
 }
 
