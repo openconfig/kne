@@ -174,17 +174,17 @@ func TestKindSpec(t *testing.T) {
 	}, {
 		desc: "create cluster load containers",
 		k: &KindSpec{
-			Name:                     "test",
+			Name: "test",
 			ContainerImages: map[string]string{
 				"docker": "local",
-				"gar": "docker",
+				"gar":    "docker",
 			},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
 	}, {
 		desc: "create cluster load containers - failed pull",
 		k: &KindSpec{
-			Name:                     "test",
+			Name: "test",
 			ContainerImages: map[string]string{
 				"docker": "local",
 			},
@@ -194,7 +194,7 @@ func TestKindSpec(t *testing.T) {
 	}, {
 		desc: "create cluster load containers - failed tag",
 		k: &KindSpec{
-			Name:                     "test",
+			Name: "test",
 			ContainerImages: map[string]string{
 				"docker": "local",
 			},
@@ -204,7 +204,7 @@ func TestKindSpec(t *testing.T) {
 	}, {
 		desc: "create cluster load containers - failed load",
 		k: &KindSpec{
-			Name:                     "test",
+			Name: "test",
 			ContainerImages: map[string]string{
 				"docker": "local",
 			},
@@ -214,8 +214,8 @@ func TestKindSpec(t *testing.T) {
 	}, {
 		desc: "create cluster load containers - requires CLI",
 		k: &KindSpec{
-			Name:                     "test",
-			DeployWithClient:         true,
+			Name:             "test",
+			DeployWithClient: true,
 			ContainerImages: map[string]string{
 				"docker": "local",
 			},

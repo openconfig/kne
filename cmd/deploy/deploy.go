@@ -20,10 +20,10 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/google/kne/deploy"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"github.com/google/kne/deploy"
 )
 
 func New() *cobra.Command {
@@ -36,18 +36,18 @@ func New() *cobra.Command {
 }
 
 type ClusterSpec struct {
-        Kind string    `yaml:"kind"`
-        Spec yaml.Node `yaml:"spec"`
+	Kind string    `yaml:"kind"`
+	Spec yaml.Node `yaml:"spec"`
 }
 
 type IngressSpec struct {
-        Kind string    `yaml:"kind"`
-        Spec yaml.Node `yaml:"spec"`
+	Kind string    `yaml:"kind"`
+	Spec yaml.Node `yaml:"spec"`
 }
 
 type CNISpec struct {
-        Kind string    `yaml:"kind"`
-        Spec yaml.Node `yaml:"spec"`
+	Kind string    `yaml:"kind"`
+	Spec yaml.Node `yaml:"spec"`
 }
 
 type DeploymentConfig struct {

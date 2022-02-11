@@ -132,16 +132,16 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 }
 
 type KindSpec struct {
-	Name                     string        `yaml:"name"`
-	Recycle                  bool          `yaml:"recycle"`
-	Version                  string        `yaml:"version"`
-	Image                    string        `yaml:"image"`
-	Retain                   bool          `yaml:"retain"`
-	Wait                     time.Duration `yaml:"wait"`
-	Kubecfg                  string        `yaml:"kubecfg"`
-	DeployWithClient         bool          `yaml:"deployWithClient"`
-	GoogleArtifactRegistries []string      `yaml:"googleArtifactRegistries"`
-	ContainerImages map[string]string `yaml:"containerImages"`
+	Name                     string            `yaml:"name"`
+	Recycle                  bool              `yaml:"recycle"`
+	Version                  string            `yaml:"version"`
+	Image                    string            `yaml:"image"`
+	Retain                   bool              `yaml:"retain"`
+	Wait                     time.Duration     `yaml:"wait"`
+	Kubecfg                  string            `yaml:"kubecfg"`
+	DeployWithClient         bool              `yaml:"deployWithClient"`
+	GoogleArtifactRegistries []string          `yaml:"googleArtifactRegistries"`
+	ContainerImages          map[string]string `yaml:"containerImages"`
 }
 
 func (k *KindSpec) Deploy(ctx context.Context) error {
@@ -270,7 +270,7 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	for _, node := range strings.Split(nodes.String(), " ") {
 		node = strings.TrimSuffix(node, "\n")
 		if err := execer.Exec("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
-                        return err
+			return err
 		}
 		if err := execer.Exec("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
 			return err
@@ -287,17 +287,17 @@ func (k *KindSpec) loadContainerImages() error {
 	for s, d := range k.ContainerImages {
 		if err := execer.Exec("docker", "pull", s); err != nil {
 			return errors.Wrapf(err, "pulling %q", s)
-                }
+		}
 		if err := execer.Exec("docker", "tag", s, d); err != nil {
-                        return errors.Wrapf(err, "tagging %q with %q", s, d)
-                }
+			return errors.Wrapf(err, "tagging %q with %q", s, d)
+		}
 		args := []string{"load", "docker-image", d}
 		if k.Name != "" {
 			args = append(args, "--name", k.Name)
 		}
 		if err := execer.Exec("kind", args...); err != nil {
-                        return errors.Wrapf(err, "loading %q", d)
-                }
+			return errors.Wrapf(err, "loading %q", d)
+		}
 	}
 	log.Infof("Loaded all container images %v", k.ContainerImages)
 	return nil
