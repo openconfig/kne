@@ -26,8 +26,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/util/homedir"
 
-	// "google.golang.org/grpc/credentials/alts"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/alts"
 )
 
 var (
@@ -143,9 +143,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	// creds := alts.NewServerCreds(alts.DefaultServerOptions())
-	// s := grpc.NewServer(grpc.Creds(creds))
-	s := grpc.NewServer()
+	creds := alts.NewServerCreds(alts.DefaultServerOptions())
+	s := grpc.NewServer(grpc.Creds(creds))
 	cpb.RegisterTopologyManagerServer(s, &server{})
 	log.Printf("Controller server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
