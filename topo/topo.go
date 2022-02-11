@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/google/kne/topo/node"
+  "github.com/golang/protobuf/proto"
 	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -444,4 +445,76 @@ func (m *Manager) Node(nodeName string) (node.Node, error) {
 		return nil, fmt.Errorf("node %q not found", nodeName)
 	}
 	return n, nil
+}
+
+// TopologyParams specifies the parameters used by the functions that
+// creates/deletes topology.
+type TopologyParams struct {
+	TopoName       string                                                   // the filename of the topology
+	Kubecfg        string                                                   // the path of kube config
+	TopoLoadFunc   func(fName string) (*tpb.Topology, error)                // the function that returns the topology protobuf from a file
+	TopoNewFunc    func(string, *tpb.Topology, ...Option) (*Manager, error) // the function that returns a Manager with the topology protobuf
+	TopoNewOptions []Option                                                 // the options used in the TopoNewFunc
+	Timeout        time.Duration
+	DryRun         bool
+}
+
+// CreateTopology creates the topology and configs it.
+func CreateTopology(ctx context.Context, params TopologyParams) error {
+	topopb, err := params.TopoLoadFunc(params.TopoName)
+	if err != nil {
+		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	}
+	t, err := params.TopoNewFunc(params.Kubecfg, topopb, params.TopoNewOptions...)
+	if err != nil {
+		return fmt.Errorf("failed to create topology for %s: %+v", params.TopoName, err)
+	}
+	log.Infof("Topology:\n%s\n", proto.MarshalTextString(topopb))
+	if err := t.Load(ctx); err != nil {
+		return fmt.Errorf("failed to load topology: %w", err)
+	}
+	if params.DryRun {
+		return nil
+	}
+
+	if err := t.Push(ctx); err != nil {
+		return err
+	}
+	if err := t.CheckNodeStatus(ctx, params.Timeout); err != nil {
+		return err
+	}
+	log.Infof("Topology %q created\n", topopb.Name)
+	r, err := t.Resources(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check resource %s: %+v", params.TopoName, err)
+	}
+	log.Infof("Pods:")
+	for _, p := range r.Pods {
+		log.Infof("%s\n", p.Name)
+	}
+
+	return nil
+}
+
+// DeleteTopology deletes the topology.
+func DeleteTopology(ctx context.Context, params TopologyParams) error {
+	topopb, err := params.TopoLoadFunc(params.TopoName)
+	if err != nil {
+		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	}
+	t, err := params.TopoNewFunc(params.Kubecfg, topopb, params.TopoNewOptions...)
+	if err != nil {
+		return fmt.Errorf("failed to delete topology for %s: %+v", params.TopoName, err)
+	}
+	log.Infof("Topology:\n%+v\n", proto.MarshalTextString(topopb))
+	if err := t.Load(ctx); err != nil {
+		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	}
+
+	if err := t.Delete(ctx); err != nil {
+		return fmt.Errorf("failed to delete %s: %+v", params.TopoName, err)
+	}
+	log.Infof("Successfully deleted topology: %q", topopb.Name)
+
+	return nil
 }
