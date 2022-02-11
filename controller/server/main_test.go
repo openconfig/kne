@@ -25,11 +25,14 @@ func TestNewDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				&cpb.MetallbSpec{
-					IpCount: 100,
+					ManifestDir: "/home",
+					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
-				&cpb.MeshnetSpec{},
+				&cpb.MeshnetSpec{
+					ManifestDir: "/home",
+				},
 			},
 		},
 	}, {
@@ -98,7 +101,7 @@ func TestNewDeployment(t *testing.T) {
 				},
 			},
 		},
-		wantErr: "failed to validate path \"/foo\"",
+		wantErr: "failed to validate path",
 	}, {
 		desc: "cni spec empty",
 		req: &cpb.CreateClusterRequest{
