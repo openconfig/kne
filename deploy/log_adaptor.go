@@ -60,4 +60,3 @@ func (l *logAdapter) V(level klog.Level) klog.InfoLogger {
 	}
 	return &debugLogger{l.Logger}
 }
-
