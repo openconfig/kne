@@ -171,6 +171,57 @@ func TestKindSpec(t *testing.T) {
 		},
 		execer:  exec.NewFakeExecer(nil),
 		wantErr: "requires unsetting the deployWithClient field",
+	}, {
+		desc: "create cluster load containers",
+		k: &KindSpec{
+			Name:                     "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+				"gar": "docker",
+			},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+	}, {
+		desc: "create cluster load containers - failed pull",
+		k: &KindSpec{
+			Name:                     "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+			},
+		},
+		execer:  exec.NewFakeExecer(nil, errors.New("unable to pull")),
+		wantErr: "pulling",
+	}, {
+		desc: "create cluster load containers - failed tag",
+		k: &KindSpec{
+			Name:                     "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+			},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, errors.New("unable to tag")),
+		wantErr: "tagging",
+	}, {
+		desc: "create cluster load containers - failed load",
+		k: &KindSpec{
+			Name:                     "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+			},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("unable to load")),
+		wantErr: "loading",
+	}, {
+		desc: "create cluster load containers - requires CLI",
+		k: &KindSpec{
+			Name:                     "test",
+			DeployWithClient:         true,
+			ContainerImages: map[string]string{
+				"docker": "local",
+			},
+		},
+		execer:  exec.NewFakeExecer(nil),
+		wantErr: "requires unsetting the deployWithClient field",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
