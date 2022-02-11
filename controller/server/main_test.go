@@ -7,7 +7,7 @@ import (
 	"github.com/h-fam/errdiff"
 )
 
-func TestGetDeployment(t *testing.T) {
+func TestNewDeployment(t *testing.T) {
 
 	tests := []struct {
 		desc    string
@@ -26,16 +26,35 @@ func TestGetDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				&cpb.MetallbSpec{
-					ManifestDir: "../../foo",
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				&cpb.MeshnetSpec{},
+			},
+		},
+	}, {
+		desc: "bad metallb manifest dir",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kind{
+				&cpb.KindSpec{
+					Name:    "kne",
+					Recycle: true,
+					Version: "0.11.1",
+					Image:   "kindest/node:v1.22.1",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				&cpb.MetallbSpec{
+					ManifestDir: "/foo",
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
-				&cpb.MeshnetSpec{
-					ManifestDir: "../../bar",
-				},
+				&cpb.MeshnetSpec{},
 			},
 		},
+		wantErr: "failed to validate path \"/foo\"",
 	}, {
 		desc:    "empty kind spec",
 		req:     &cpb.CreateClusterRequest{},
@@ -59,7 +78,7 @@ func TestGetDeployment(t *testing.T) {
 		},
 		wantErr: "ingress spec not supported:",
 	}, {
-		desc: "empty Cni spec",
+		desc: "bad meshnet manifest dir",
 		req: &cpb.CreateClusterRequest{
 			ClusterSpec: &cpb.CreateClusterRequest_Kind{
 				&cpb.KindSpec{
@@ -71,16 +90,20 @@ func TestGetDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				&cpb.MetallbSpec{
-					ManifestDir: "../../foo",
-					IpCount:     100,
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				&cpb.MeshnetSpec{
+					ManifestDir: "/foo",
 				},
 			},
 		},
-		wantErr: "CNI type not supported:",
+		wantErr: "failed to validate path \"/foo\"",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			d, err := getDeployment(tt.req)
+			d, err := newDeployment(tt.req)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
