@@ -132,15 +132,16 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 }
 
 type KindSpec struct {
-	Name                     string        `yaml:"name"`
-	Recycle                  bool          `yaml:"recycle"`
-	Version                  string        `yaml:"version"`
-	Image                    string        `yaml:"image"`
-	Retain                   bool          `yaml:"retain"`
-	Wait                     time.Duration `yaml:"wait"`
-	Kubecfg                  string        `yaml:"kubecfg"`
-	DeployWithClient         bool          `yaml:"deployWithClient"`
-	GoogleArtifactRegistries []string      `yaml:"googleArtifactRegistries"`
+	Name                     string            `yaml:"name"`
+	Recycle                  bool              `yaml:"recycle"`
+	Version                  string            `yaml:"version"`
+	Image                    string            `yaml:"image"`
+	Retain                   bool              `yaml:"retain"`
+	Wait                     time.Duration     `yaml:"wait"`
+	Kubecfg                  string            `yaml:"kubecfg"`
+	DeployWithClient         bool              `yaml:"deployWithClient"`
+	GoogleArtifactRegistries []string          `yaml:"googleArtifactRegistries"`
+	ContainerImages          map[string]string `yaml:"containerImages"`
 }
 
 func (k *KindSpec) Deploy(ctx context.Context) error {
@@ -160,6 +161,9 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if k.DeployWithClient {
 		if len(k.GoogleArtifactRegistries) != 0 {
 			return fmt.Errorf("setting up access to artifact registries %v requires unsetting the deployWithClient field", k.GoogleArtifactRegistries)
+		}
+		if len(k.ContainerImages) != 0 {
+			return fmt.Errorf("loading container images requires unsetting the deployWithClient field")
 		}
 		if err := provider.Create(
 			k.Name,
@@ -198,13 +202,27 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create cluster using cli")
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
-	return k.setupGoogleArtifactRegistryAccess()
+	if len(k.GoogleArtifactRegistries) != 0 {
+		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
+		if err := k.setupGoogleArtifactRegistryAccess(); err != nil {
+			return errors.Wrap(err, "setting up google artifact registry access")
+		}
+	}
+	if len(k.ContainerImages) != 0 {
+		log.Infof("Loading container images")
+		if err := k.loadContainerImages(); err != nil {
+			return errors.Wrap(err, "loading container images")
+		}
+	}
+	return nil
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
-	if len(k.GoogleArtifactRegistries) == 0 {
-		log.Debug("No registries require setup")
-		return nil
+	if _, err := execLookPath("gcloud"); err != nil {
+		return errors.Wrap(err, "install gcloud cli to setup Google Artifact Registry access")
+	}
+	if _, err := execLookPath("docker"); err != nil {
+		return errors.Wrap(err, "install docker cli to setup Google Artifact Registry access")
 	}
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
@@ -259,6 +277,30 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 		}
 	}
 	log.Infof("Setup credentials for accessing GAR locations %v in kind cluster", k.GoogleArtifactRegistries)
+	return nil
+}
+
+func (k *KindSpec) loadContainerImages() error {
+	if _, err := execLookPath("docker"); err != nil {
+		return errors.Wrap(err, "install docker cli to load container images")
+	}
+	for s, d := range k.ContainerImages {
+		log.Infof("Loading %q as %q", s, d)
+		if err := execer.Exec("docker", "pull", s); err != nil {
+			return errors.Wrapf(err, "pulling %q", s)
+		}
+		if err := execer.Exec("docker", "tag", s, d); err != nil {
+			return errors.Wrapf(err, "tagging %q with %q", s, d)
+		}
+		args := []string{"load", "docker-image", d}
+		if k.Name != "" {
+			args = append(args, "--name", k.Name)
+		}
+		if err := execer.Exec("kind", args...); err != nil {
+			return errors.Wrapf(err, "loading %q", d)
+		}
+	}
+	log.Infof("Loaded all container images")
 	return nil
 }
 
