@@ -24,10 +24,9 @@ import (
 	"github.com/google/kne/deploy"
 	cpb "github.com/google/kne/proto/controller"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/client-go/util/homedir"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/alts"
+	"k8s.io/client-go/util/homedir"
 )
 
 var (
@@ -36,6 +35,14 @@ var (
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
 )
+
+func init() {
+	if home := homedir.HomeDir(); home != "" {
+		defaultKubeCfg = filepath.Join(home, ".kube", "config")
+		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
+		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
+	}
+}
 
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
@@ -59,13 +66,14 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch metallb := req.IngressSpec.(type) {
 	case *cpb.CreateClusterRequest_Metallb:
 		l := &deploy.MetalLBSpec{}
+		var path string
+		path = defaultMetallbManifestDir
 		if req.GetMetallb().ManifestDir != "" {
-			defaultMetallbManifestDir = req.GetMetallb().ManifestDir
-
+			path = req.GetMetallb().ManifestDir
 		}
-		p, err := validatePath(defaultMetallbManifestDir)
+		p, err := validatePath(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to validate path %q", defaultMetallbManifestDir)
+			return nil, fmt.Errorf("failed to validate path %q", path)
 		}
 		l.ManifestDir = p
 		l.IPCount = int(req.GetMetallb().IpCount)
@@ -77,12 +85,14 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch meshnet := req.CniSpec.(type) {
 	case *cpb.CreateClusterRequest_Meshnet:
 		m := &deploy.MeshnetSpec{}
+		var path string
+		path = defaultMeshnetManifestDir
 		if req.GetMeshnet().ManifestDir != "" {
-			defaultMeshnetManifestDir = req.GetMeshnet().ManifestDir
+			path = req.GetMeshnet().ManifestDir
 		}
-		p, err := validatePath(defaultMeshnetManifestDir)
+		p, err := validatePath(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to validate path %q", defaultMeshnetManifestDir)
+			return nil, fmt.Errorf("failed to validate path %q", path)
 		}
 		m.Image = req.GetMeshnet().Image
 		m.ManifestDir = p
@@ -91,7 +101,6 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		return nil, fmt.Errorf("cni type not supported: %T", meshnet)
 	}
 	return d, nil
-
 }
 
 func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
@@ -126,17 +135,7 @@ func validatePath(path string) (string, error) {
 	return path, nil
 }
 
-func Init() {
-	if home := homedir.HomeDir(); home != "" {
-		defaultKubeCfg = filepath.Join(home, ".kube", "config")
-		defaultMeshnetManifestDir = filepath.Join(home, "kne/manifests/meshnet/base")
-		defaultMetallbManifestDir = filepath.Join(home, "kne/manifests/metallb")
-	}
-
-}
-
 func main() {
-	Init()
 	flag.Parse()
 	addr := fmt.Sprintf(":%d", *port)
 	lis, err := net.Listen("tcp6", addr)
