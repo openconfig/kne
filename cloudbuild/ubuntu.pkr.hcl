@@ -91,7 +91,7 @@ build {
       "git clone -b ${var.branch_name} https://github.com/google/kne.git",
       "cd kne/kne_cli",
       "/usr/local/go/bin/go build -v",
-      "cp kne_cli /usr/local/bin/",
+      "sudo cp kne_cli /usr/local/bin/",
       "cd ../controller/server",
       "/usr/local/go/bin/go build -v",
     ]
