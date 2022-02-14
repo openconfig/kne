@@ -40,7 +40,6 @@ func TestCreateTopology(t *testing.T) {
 	tests := []struct {
 		desc       string
 		inputParam TopologyParams
-		testFunc   func(ctx context.Context, params TopologyParams) error
 		wantErr    string
 	}{{
 		desc: "create with valid topology file",
@@ -98,7 +97,6 @@ func TestDeleteTopology(t *testing.T) {
 	tests := []struct {
 		desc       string
 		inputParam TopologyParams
-		testFunc   func(ctx context.Context, params TopologyParams) error
 		wantErr    string
 	}{{
 		desc: "delete a non-existing topology with valid topology file",
