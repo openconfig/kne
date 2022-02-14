@@ -31,9 +31,10 @@ import (
 
 var (
 	defaultKubeCfg            = ""
-	port                      = flag.Int("port", 50051, "Controller server port")
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
+	// Flags.
+	port = flag.Int("port", 50051, "Controller server port")
 )
 
 func init() {
@@ -59,6 +60,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			Image:                    req.GetKind().Image,
 			Retain:                   req.GetKind().Retain,
 			GoogleArtifactRegistries: req.GetKind().GoogleArtifactRegistries,
+			ContainerImages:          req.GetKind().ContainerImages,
 		}
 	default:
 		return nil, fmt.Errorf("cluster type not supported: %T", kind)
@@ -116,7 +118,7 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 		}
 		return resp, fmt.Errorf("failed to deploy cluster: %s", err)
 	}
-	log.Infof("Cluster: %q deployed and ready for topology.", req.GetKind().Name)
+	log.Infof("Cluster %q deployed and ready for topology", req.GetKind().Name)
 	resp := &cpb.CreateClusterResponse{
 		Name:  req.GetKind().Name,
 		State: cpb.ClusterState_CLUSTER_STATE_RUNNING,
