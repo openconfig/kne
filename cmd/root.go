@@ -111,11 +111,6 @@ func validateTopology(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-var (
-	topoNew = topo.New
-	topoLoad = topo.Load
-)
-
 func fileRelative(p string) (string, error) {
 	bp, err := filepath.Abs(p)
 	if err != nil {
@@ -130,24 +125,24 @@ func createFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Infof(bp)
-	p := topo.TopologyParams {
-		TopoName: args[0],
-		Kubecfg: kubecfg,
-		TopoNewFunc: topoNew,
+	p := topo.TopologyParams{
+		TopoName:       args[0],
+		Kubecfg:        kubecfg,
+		TopoNewFunc:    topo.New,
 		TopoNewOptions: []topo.Option{topo.WithBasePath(bp)},
-		TopoLoadFunc: topoLoad,
-		Timeout: timeout,
-		DryRun: dryrun,
+		TopoLoadFunc:   topo.Load,
+		Timeout:        timeout,
+		DryRun:         dryrun,
 	}
 	return topo.CreateTopology(cmd.Context(), p)
 }
 
 func deleteFn(cmd *cobra.Command, args []string) error {
-	p := topo.TopologyParams {
-		TopoName: args[0],
-		Kubecfg: kubecfg,
-		TopoNewFunc: topoNew,
-		TopoLoadFunc: topoLoad,
+	p := topo.TopologyParams{
+		TopoName:     args[0],
+		Kubecfg:      kubecfg,
+		TopoNewFunc:  topo.New,
+		TopoLoadFunc: topo.Load,
 	}
 	return topo.DeleteTopology(cmd.Context(), p)
 }

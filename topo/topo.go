@@ -23,8 +23,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/kne/topo/node"
-  "github.com/golang/protobuf/proto"
 	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -61,6 +61,12 @@ type Manager struct {
 }
 
 type Option func(m *Manager)
+
+func WithTopology(t *tpb.Topology) Option {
+	return func(m *Manager) {
+		m.proto = t
+	}
+}
 
 func WithKubeClient(c kubernetes.Interface) Option {
 	return func(m *Manager) {
@@ -452,7 +458,6 @@ func (m *Manager) Node(nodeName string) (node.Node, error) {
 type TopologyParams struct {
 	TopoName       string                                                   // the filename of the topology
 	Kubecfg        string                                                   // the path of kube config
-	TopoLoadFunc   func(fName string) (*tpb.Topology, error)                // the function that returns the topology protobuf from a file
 	TopoNewFunc    func(string, *tpb.Topology, ...Option) (*Manager, error) // the function that returns a Manager with the topology protobuf
 	TopoNewOptions []Option                                                 // the options used in the TopoNewFunc
 	Timeout        time.Duration
@@ -461,7 +466,7 @@ type TopologyParams struct {
 
 // CreateTopology creates the topology and configs it.
 func CreateTopology(ctx context.Context, params TopologyParams) error {
-	topopb, err := params.TopoLoadFunc(params.TopoName)
+	topopb, err := Load(params.TopoName)
 	if err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
@@ -498,7 +503,7 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 
 // DeleteTopology deletes the topology.
 func DeleteTopology(ctx context.Context, params TopologyParams) error {
-	topopb, err := params.TopoLoadFunc(params.TopoName)
+	topopb, err := Load(params.TopoName)
 	if err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
