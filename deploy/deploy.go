@@ -1,16 +1,3 @@
-// Copyright 2021 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 package deploy
 
 import (
@@ -39,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/kind/pkg/cluster"
 )
 
@@ -53,49 +41,9 @@ const (
 `
 )
 
-type ClusterSpec struct {
-	Kind string    `yaml:"kind"`
-	Spec yaml.Node `yaml:"spec"`
-}
-
-type IngressSpec struct {
-	Kind string    `yaml:"kind"`
-	Spec yaml.Node `yaml:"spec"`
-}
-
-type CNISpec struct {
-	Kind string    `yaml:"kind"`
-	Spec yaml.Node `yaml:"spec"`
-}
-
-type KindSpec struct {
-	Name                     string        `yaml:"name"`
-	Recycle                  bool          `yaml:"recycle"`
-	Version                  string        `yaml:"version"`
-	Image                    string        `yaml:"image"`
-	Retain                   bool          `yaml:"retain"`
-	Wait                     time.Duration `yaml:"wait"`
-	Kubecfg                  string        `yaml:"kubecfg"`
-	DeployWithClient         bool          `yaml:"deployWithClient"`
-	GoogleArtifactRegistries []string      `yaml:"googleArtifactRegistries"`
-}
-
-//go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
-type provider interface {
-	List() ([]string, error)
-	Create(name string, options ...cluster.CreateOption) error
-}
-
-type execerInterface interface {
-	Exec(string, ...string) error
-	SetStdout(io.Writer)
-	SetStderr(io.Writer)
-}
-
 var (
 	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
-
-	logOut = log.StandardLogger().Out
+	logOut               = log.StandardLogger().Out
 
 	// execer handles all execs on host.
 	execer execerInterface = kexec.NewExecer(logOut, logOut)
@@ -105,8 +53,95 @@ var (
 	execLookPath = exec.LookPath
 )
 
+//go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
+type provider interface {
+	List() ([]string, error)
+	Create(name string, options ...cluster.CreateOption) error
+}
+
 func defaultProvider() provider {
 	return cluster.NewProvider(cluster.ProviderWithLogger(&logAdapter{log.StandardLogger()}))
+}
+
+type execerInterface interface {
+	Exec(string, ...string) error
+	SetStdout(io.Writer)
+	SetStderr(io.Writer)
+}
+
+type Cluster interface {
+	Deploy(context.Context) error
+}
+
+type Ingress interface {
+	Deploy(context.Context) error
+	SetKClient(kubernetes.Interface)
+	Healthy(context.Context) error
+}
+
+type CNI interface {
+	Deploy(context.Context) error
+	SetKClient(kubernetes.Interface)
+	Healthy(context.Context) error
+}
+
+type Deployment struct {
+	Cluster Cluster
+	Ingress Ingress
+	CNI     CNI
+}
+
+func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
+	log.Infof("Deploying cluster...")
+	if err := d.Cluster.Deploy(ctx); err != nil {
+		return err
+	}
+	log.Infof("Cluster deployed")
+	// Once cluster is up set kClient
+	rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
+	if err != nil {
+		return err
+	}
+	kClient, err := kubernetes.NewForConfig(rCfg)
+	if err != nil {
+		return err
+	}
+	d.Ingress.SetKClient(kClient)
+	log.Infof("Deploying ingress...")
+	if err := d.Ingress.Deploy(ctx); err != nil {
+		return err
+	}
+	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	if err := d.Ingress.Healthy(tCtx); err != nil {
+		return err
+	}
+	log.Infof("Ingress healthy")
+	log.Infof("Deploying CNI...")
+	if err := d.CNI.Deploy(ctx); err != nil {
+		return err
+	}
+	d.CNI.SetKClient(kClient)
+	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	if err := d.CNI.Healthy(tCtx); err != nil {
+		return err
+	}
+	log.Infof("CNI healthy")
+	return nil
+}
+
+type KindSpec struct {
+	Name                     string            `yaml:"name"`
+	Recycle                  bool              `yaml:"recycle"`
+	Version                  string            `yaml:"version"`
+	Image                    string            `yaml:"image"`
+	Retain                   bool              `yaml:"retain"`
+	Wait                     time.Duration     `yaml:"wait"`
+	Kubecfg                  string            `yaml:"kubecfg"`
+	DeployWithClient         bool              `yaml:"deployWithClient"`
+	GoogleArtifactRegistries []string          `yaml:"googleArtifactRegistries"`
+	ContainerImages          map[string]string `yaml:"containerImages"`
 }
 
 func (k *KindSpec) Deploy(ctx context.Context) error {
@@ -126,6 +161,9 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if k.DeployWithClient {
 		if len(k.GoogleArtifactRegistries) != 0 {
 			return fmt.Errorf("setting up access to artifact registries %v requires unsetting the deployWithClient field", k.GoogleArtifactRegistries)
+		}
+		if len(k.ContainerImages) != 0 {
+			return fmt.Errorf("loading container images requires unsetting the deployWithClient field")
 		}
 		if err := provider.Create(
 			k.Name,
@@ -164,13 +202,27 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create cluster using cli")
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
-	return k.setupGoogleArtifactRegistryAccess()
+	if len(k.GoogleArtifactRegistries) != 0 {
+		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
+		if err := k.setupGoogleArtifactRegistryAccess(); err != nil {
+			return errors.Wrap(err, "setting up google artifact registry access")
+		}
+	}
+	if len(k.ContainerImages) != 0 {
+		log.Infof("Loading container images")
+		if err := k.loadContainerImages(); err != nil {
+			return errors.Wrap(err, "loading container images")
+		}
+	}
+	return nil
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
-	if len(k.GoogleArtifactRegistries) == 0 {
-		log.Debug("No registries require setup")
-		return nil
+	if _, err := execLookPath("gcloud"); err != nil {
+		return errors.Wrap(err, "install gcloud cli to setup Google Artifact Registry access")
+	}
+	if _, err := execLookPath("docker"); err != nil {
+		return errors.Wrap(err, "install docker cli to setup Google Artifact Registry access")
 	}
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
@@ -225,6 +277,30 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 		}
 	}
 	log.Infof("Setup credentials for accessing GAR locations %v in kind cluster", k.GoogleArtifactRegistries)
+	return nil
+}
+
+func (k *KindSpec) loadContainerImages() error {
+	if _, err := execLookPath("docker"); err != nil {
+		return errors.Wrap(err, "install docker cli to load container images")
+	}
+	for s, d := range k.ContainerImages {
+		log.Infof("Loading %q as %q", s, d)
+		if err := execer.Exec("docker", "pull", s); err != nil {
+			return errors.Wrapf(err, "pulling %q", s)
+		}
+		if err := execer.Exec("docker", "tag", s, d); err != nil {
+			return errors.Wrapf(err, "tagging %q with %q", s, d)
+		}
+		args := []string{"load", "docker-image", d}
+		if k.Name != "" {
+			args = append(args, "--name", k.Name)
+		}
+		if err := execer.Exec("kind", args...); err != nil {
+			return errors.Wrapf(err, "loading %q", d)
+		}
+	}
+	log.Infof("Loaded all container images")
 	return nil
 }
 
@@ -295,10 +371,8 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 	}
-	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
-	log.Infof("Deploying metallb from: %s", mPath)
 	log.Infof("Creating metallb namespace")
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "namespace.yaml")); err != nil {
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "namespace.yaml")); err != nil {
 		return err
 	}
 	_, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{})
@@ -320,7 +394,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		}
 	}
 	log.Infof("Applying metallb pods")
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(mPath, "metallb.yaml")); err != nil {
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "metallb.yaml")); err != nil {
 		return err
 	}
 	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Get(ctx, "config", metav1.GetOptions{})
@@ -415,9 +489,8 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 }
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
-	mPath := filepath.Join(deploymentBasePath, m.ManifestDir)
-	log.Infof("Deploying Meshnet from: %s", mPath)
-	if err := execer.Exec("kubectl", "apply", "-k", mPath); err != nil {
+	log.Infof("Deploying Meshnet from: %s", m.ManifestDir)
+	if err := execer.Exec("kubectl", "apply", "-k", m.ManifestDir); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")

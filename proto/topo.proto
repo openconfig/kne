@@ -61,6 +61,7 @@ message Node {
     IXIA_TG = 10;
     GOBGP = 11;
     CISCO_XRD = 12;
+    CISCO_E8000 = 13;
   }
 
   string name = 1; // Name of the node in the topology. Must be unique.
@@ -68,7 +69,7 @@ message Node {
   // If type is set vendor / model / version will not be evaluated.
   Type type = 2;
   map<string,string> labels = 4; // Metadata labels describing the node.
-  Config config = 5; // Pod specfic configuration of the node.
+  Config config = 5; // Pod specific configuration of the node.
   map<uint32, Service> services = 6; // Map of services to enable on the node.
   map<string, string> constraints = 7; // Any k8s constraints required by node.
   Vendor vendor = 8; // Vendor enum replaces type.
@@ -86,7 +87,7 @@ message Interface {
   // Name of the interface provided by Node implementation. This will be used
   // to map the int_name into a vendor specific interface name. Vendor operators
   // should provide the name mapping from the node interface key to this vendor
-  // sepcific name.
+  // specific name.
   string name = 1;
   // Internal device name. This name matches the key in the Node interface map.
   // It will be returned by the operator. Assigned by KNE.

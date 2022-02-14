@@ -44,12 +44,12 @@ import (
 	tpb "github.com/google/kne/proto/topo"
 
 	_ "github.com/google/kne/topo/node/ceos"
+	_ "github.com/google/kne/topo/node/cisco"
 	_ "github.com/google/kne/topo/node/cptx"
 	_ "github.com/google/kne/topo/node/gobgp"
 	_ "github.com/google/kne/topo/node/host"
 	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/srl"
-	_ "github.com/google/kne/topo/node/xrd"
 )
 
 var protojsonUnmarshaller = protojson.UnmarshalOptions{

@@ -14,22 +14,125 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net"
+	"os"
+	"path/filepath"
 
+	"github.com/google/kne/deploy"
 	cpb "github.com/google/kne/proto/controller"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/alts"
+	"k8s.io/client-go/util/homedir"
 )
 
 var (
-	port = flag.Int("port", 50051, "Controller server port")
+	defaultKubeCfg            = ""
+	port                      = flag.Int("port", 50051, "Controller server port")
+	defaultMetallbManifestDir = ""
+	defaultMeshnetManifestDir = ""
 )
+
+func init() {
+	if home := homedir.HomeDir(); home != "" {
+		defaultKubeCfg = filepath.Join(home, ".kube", "config")
+		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
+		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
+	}
+}
 
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
+}
+
+func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
+	d := &deploy.Deployment{}
+	switch kind := req.ClusterSpec.(type) {
+	case *cpb.CreateClusterRequest_Kind:
+		d.Cluster = &deploy.KindSpec{
+			Name:                     req.GetKind().Name,
+			Recycle:                  req.GetKind().Recycle,
+			Version:                  req.GetKind().Version,
+			Image:                    req.GetKind().Image,
+			Retain:                   req.GetKind().Retain,
+			GoogleArtifactRegistries: req.GetKind().GoogleArtifactRegistries,
+		}
+	default:
+		return nil, fmt.Errorf("cluster type not supported: %T", kind)
+	}
+	switch metallb := req.IngressSpec.(type) {
+	case *cpb.CreateClusterRequest_Metallb:
+		l := &deploy.MetalLBSpec{}
+		var path string
+		path = defaultMetallbManifestDir
+		if req.GetMetallb().ManifestDir != "" {
+			path = req.GetMetallb().ManifestDir
+		}
+		p, err := validatePath(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate path %q", path)
+		}
+		l.ManifestDir = p
+		l.IPCount = int(req.GetMetallb().IpCount)
+		l.Version = req.GetMetallb().Version
+		d.Ingress = l
+	default:
+		return nil, fmt.Errorf("ingress spec not supported: %T", metallb)
+	}
+	switch meshnet := req.CniSpec.(type) {
+	case *cpb.CreateClusterRequest_Meshnet:
+		m := &deploy.MeshnetSpec{}
+		var path string
+		path = defaultMeshnetManifestDir
+		if req.GetMeshnet().ManifestDir != "" {
+			path = req.GetMeshnet().ManifestDir
+		}
+		p, err := validatePath(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate path %q", path)
+		}
+		m.Image = req.GetMeshnet().Image
+		m.ManifestDir = p
+		d.CNI = m
+	default:
+		return nil, fmt.Errorf("cni type not supported: %T", meshnet)
+	}
+	return d, nil
+}
+
+func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
+	log.Infof("Creating new cluster")
+	d, err := newDeployment(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
+		resp := &cpb.CreateClusterResponse{
+			Name:  req.GetKind().Name,
+			State: cpb.ClusterState_CLUSTER_STATE_ERROR,
+		}
+		return resp, fmt.Errorf("failed to deploy cluster: %s", err)
+	}
+	log.Infof("Cluster: %q deployed and ready for topology.", req.GetKind().Name)
+	resp := &cpb.CreateClusterResponse{
+		Name:  req.GetKind().Name,
+		State: cpb.ClusterState_CLUSTER_STATE_RUNNING,
+	}
+	return resp, nil
+}
+
+func validatePath(path string) (string, error) {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to evaluate absolute path: %q", path)
+	}
+	if _, err := os.Stat(path); err != nil {
+		return "", fmt.Errorf("path %q does not exist", path)
+	}
+	return path, nil
 }
 
 func main() {

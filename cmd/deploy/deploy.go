@@ -15,19 +15,15 @@ package deploy
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
-	"time"
 
+	"github.com/google/kne/deploy"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func New() *cobra.Command {
@@ -39,26 +35,19 @@ func New() *cobra.Command {
 	return deployCmd
 }
 
-type Cluster interface {
-	Deploy(context.Context) error
+type ClusterSpec struct {
+	Kind string    `yaml:"kind"`
+	Spec yaml.Node `yaml:"spec"`
 }
 
-type Ingress interface {
-	Deploy(context.Context) error
-	SetKClient(kubernetes.Interface)
-	Healthy(context.Context) error
+type IngressSpec struct {
+	Kind string    `yaml:"kind"`
+	Spec yaml.Node `yaml:"spec"`
 }
 
-type CNI interface {
-	Deploy(context.Context) error
-	SetKClient(kubernetes.Interface)
-	Healthy(context.Context) error
-}
-
-type Deployment struct {
-	Cluster Cluster
-	Ingress Ingress
-	CNI     CNI
+type CNISpec struct {
+	Kind string    `yaml:"kind"`
+	Spec yaml.Node `yaml:"spec"`
 }
 
 type DeploymentConfig struct {
@@ -67,12 +56,29 @@ type DeploymentConfig struct {
 	CNI     CNISpec     `yaml:"cni"`
 }
 
-func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
-	d := &Deployment{}
+func newDeployment(cfgPath string) (*deploy.Deployment, error) {
+	p, err := filepath.Abs(cfgPath)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Reading deployment config: %q", p)
+	b, err := ioutil.ReadFile(p)
+	if err != nil {
+		return nil, err
+	}
+	basePath := filepath.Dir(p)
+	cfg := &DeploymentConfig{}
+	decoder := yaml.NewDecoder(bytes.NewBuffer(b))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(cfg); err != nil {
+		return nil, err
+	}
+
+	d := &deploy.Deployment{}
 	switch cfg.Cluster.Kind {
 	case "Kind":
 		log.Infof("Using kind scenario")
-		v := &KindSpec{}
+		v := &deploy.KindSpec{}
 		if err := cfg.Cluster.Spec.Decode(v); err != nil {
 			return nil, err
 		}
@@ -82,20 +88,22 @@ func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
 	}
 	switch cfg.CNI.Kind {
 	case "Meshnet":
-		v := &MeshnetSpec{}
+		v := &deploy.MeshnetSpec{}
 		if err := cfg.CNI.Spec.Decode(v); err != nil {
 			return nil, err
 		}
+		v.ManifestDir = cleanPath(v.ManifestDir, basePath)
 		d.CNI = v
 	default:
 		return nil, fmt.Errorf("CNI type not supported: %s", cfg.CNI.Kind)
 	}
 	switch cfg.Ingress.Kind {
 	case "MetalLB":
-		v := &MetalLBSpec{}
+		v := &deploy.MetalLBSpec{}
 		if err := cfg.Ingress.Spec.Decode(v); err != nil {
 			return nil, err
 		}
+		v.ManifestDir = cleanPath(v.ManifestDir, basePath)
 		d.Ingress = v
 	default:
 		return nil, fmt.Errorf("ingress type not supported: %s", cfg.Ingress.Kind)
@@ -103,27 +111,11 @@ func NewDeployment(cfg *DeploymentConfig) (*Deployment, error) {
 	return d, nil
 }
 
-var (
-	deploymentBasePath string
-)
-
-func deploymentFromArg(p string) (*DeploymentConfig, string, error) {
-	bp, err := filepath.Abs(p)
-	if err != nil {
-		return nil, "", err
+func cleanPath(path, basePath string) string {
+	if filepath.IsAbs(path) {
+		return path
 	}
-	b, err := ioutil.ReadFile(bp)
-	if err != nil {
-		return nil, "", err
-	}
-	bp = filepath.Dir(bp)
-	dCfg := &DeploymentConfig{}
-	decoder := yaml.NewDecoder(bytes.NewBuffer(b))
-	decoder.KnownFields(true)
-	if err := decoder.Decode(dCfg); err != nil {
-		return nil, "", err
-	}
-	return dCfg, bp, nil
+	return filepath.Join(basePath, path)
 }
 
 func deployFn(cmd *cobra.Command, args []string) error {
@@ -133,50 +125,17 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	if _, err := exec.LookPath("kubectl"); err != nil {
 		return fmt.Errorf("install kubectl before running deploy: %v", err)
 	}
-	dCfg, bp, err := deploymentFromArg(args[0])
-	if err != nil {
-		return err
-	}
-	deploymentBasePath = bp
-	d, err := NewDeployment(dCfg)
-	if err != nil {
-		return err
-	}
-	if err := d.Cluster.Deploy(cmd.Context()); err != nil {
-		return err
-	}
-	// Once cluster is up set kClient
 	kubecfg, err := cmd.Flags().GetString("kubecfg")
 	if err != nil {
 		return err
 	}
-	rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
+	d, err := newDeployment(args[0])
 	if err != nil {
 		return err
 	}
-	kClient, err := kubernetes.NewForConfig(rCfg)
-	if err != nil {
+	if err := d.Deploy(cmd.Context(), kubecfg); err != nil {
 		return err
 	}
-	d.Ingress.SetKClient(kClient)
-	log.Infof("Validating cluster health")
-	if err := d.Ingress.Deploy(cmd.Context()); err != nil {
-		return err
-	}
-	ctx, cancel := context.WithTimeout(cmd.Context(), 1*time.Minute)
-	defer cancel()
-	if err := d.Ingress.Healthy(ctx); err != nil {
-		return err
-	}
-	if err := d.CNI.Deploy(cmd.Context()); err != nil {
-		return err
-	}
-	d.CNI.SetKClient(kClient)
-	ctx, cancel = context.WithTimeout(cmd.Context(), 1*time.Minute)
-	defer cancel()
-	if err := d.CNI.Healthy(ctx); err != nil {
-		return err
-	}
-	log.Infof("Ready for topology")
+	log.Infof("Deployment complete, ready for topology")
 	return nil
 }
