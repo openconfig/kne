@@ -130,7 +130,6 @@ func createFn(cmd *cobra.Command, args []string) error {
 		Kubecfg:        kubecfg,
 		TopoNewFunc:    topo.New,
 		TopoNewOptions: []topo.Option{topo.WithBasePath(bp)},
-		TopoLoadFunc:   topo.Load,
 		Timeout:        timeout,
 		DryRun:         dryrun,
 	}
@@ -142,7 +141,6 @@ func deleteFn(cmd *cobra.Command, args []string) error {
 		TopoName:     args[0],
 		Kubecfg:      kubecfg,
 		TopoNewFunc:  topo.New,
-		TopoLoadFunc: topo.Load,
 	}
 	return topo.DeleteTopology(cmd.Context(), p)
 }
