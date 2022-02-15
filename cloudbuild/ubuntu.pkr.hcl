@@ -71,6 +71,7 @@ build {
     inline = [
       "echo Installing kind...",
       "/usr/local/go/bin/go get -u sigs.k8s.io/kind",
+      "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",
     ]
   }
