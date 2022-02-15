@@ -1,0 +1,28 @@
+name: "test-data-topology"
+nodes: {
+    name: "r1"
+    type: ARISTA_CEOS
+}
+nodes: {
+    name: "ate1"
+    type: IXIA_TG
+    version: "0.0.1-9999"
+    services: {
+        key: 5555
+        value: {
+            inside: 5555
+        }
+    }
+    services: {
+        key: 50071
+        value: {
+            inside: 50071
+        }
+    }
+}
+links: {
+    a_node: "r1"
+    a_int: "eth9"
+    z_node: "ate1"
+    z_int: "eth1"
+}

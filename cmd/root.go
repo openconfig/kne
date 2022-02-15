@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/kne/cmd/deploy"
 	"github.com/google/kne/cmd/topology"
 	"github.com/google/kne/topo"
@@ -112,10 +111,6 @@ func validateTopology(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-var (
-	topoNew = topo.New
-)
-
 func fileRelative(p string) (string, error) {
 	bp, err := filepath.Abs(p)
 	if err != nil {
@@ -125,68 +120,27 @@ func fileRelative(p string) (string, error) {
 }
 
 func createFn(cmd *cobra.Command, args []string) error {
-	topopb, err := topo.Load(args[0])
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
 	bp, err := fileRelative(args[0])
 	if err != nil {
 		return err
 	}
-	fmt.Println(bp)
-	t, err := topoNew(kubecfg, topopb, topo.WithBasePath(bp))
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
+	log.Infof(bp)
+	p := topo.TopologyParams{
+		TopoName:       args[0],
+		Kubecfg:        kubecfg,
+		TopoNewOptions: []topo.Option{topo.WithBasePath(bp)},
+		Timeout:        timeout,
+		DryRun:         dryrun,
 	}
-	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "Topology:\n%s\n", proto.MarshalTextString(topopb))
-	if err := t.Load(cmd.Context()); err != nil {
-		return fmt.Errorf("failed to load topology: %w", err)
-	}
-	if dryrun {
-		return nil
-	}
-	if err := t.Push(cmd.Context()); err != nil {
-		return err
-	}
-	if err := t.CheckNodeStatus(cmd.Context(), timeout); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "Topology %q created\n", topopb.Name)
-	r, err := t.Resources(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-	fmt.Fprintf(out, "Pods:\n")
-	for _, p := range r.Pods {
-		fmt.Fprintf(out, "%s\n", p.Name)
-	}
-
-	return nil
+	return topo.CreateTopology(cmd.Context(), p)
 }
 
 func deleteFn(cmd *cobra.Command, args []string) error {
-	topopb, err := topo.Load(args[0])
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
+	p := topo.TopologyParams{
+		TopoName: args[0],
+		Kubecfg:  kubecfg,
 	}
-	t, err := topo.New(kubecfg, topopb)
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "Topology:\n%s\n", proto.MarshalTextString(topopb))
-	if err := t.Load(cmd.Context()); err != nil {
-		return fmt.Errorf("failed to load topology: %w", err)
-	}
-	if dryrun {
-		return nil
-	}
-	if err := t.Delete(cmd.Context()); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "Successfully deleted topology: %q\n", topopb.Name)
-	return nil
+	return topo.DeleteTopology(cmd.Context(), p)
 }
 
 func showFn(cmd *cobra.Command, args []string) error {

@@ -1,0 +1,11 @@
+name: "test-data-topology"
+nodes: {
+    name: "r1"
+    type: ARISTA_CEOS
+}
+links: {
+    a_node: "r1"
+    a_int: "eth9"
+    z_node: "ate1"
+    z_int: "eth1"
+}
