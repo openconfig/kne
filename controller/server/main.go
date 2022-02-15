@@ -21,9 +21,9 @@ import (
 	"os"
 	"path/filepath"
 
+	log "github.com/golang/glog"
 	"github.com/google/kne/deploy"
 	cpb "github.com/google/kne/proto/controller"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/alts"
 	"k8s.io/client-go/util/homedir"
@@ -106,11 +106,12 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 }
 
 func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
-	log.Infof("Creating new cluster")
+	log.Infof("Received CreateCluster request: %+v", req)
 	d, err := newDeployment(req)
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("Parsed request into deployment: %+v", d)
 	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
 		resp := &cpb.CreateClusterResponse{
 			Name:  req.GetKind().Name,
@@ -147,7 +148,7 @@ func main() {
 	creds := alts.NewServerCreds(alts.DefaultServerOptions())
 	s := grpc.NewServer(grpc.Creds(creds))
 	cpb.RegisterTopologyManagerServer(s, &server{})
-	log.Printf("Controller server listening at %v", lis.Addr())
+	log.Infof("Controller server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
