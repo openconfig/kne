@@ -16,11 +16,9 @@ package topo
 
 import (
 	"context"
-	// "fmt"
 	"testing"
 
 	tfake "github.com/google/kne/api/clientset/v1beta1/fake"
-	// tpb "github.com/google/kne/proto/topo"
 	"github.com/h-fam/errdiff"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
