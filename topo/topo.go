@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ghodss/yaml"
