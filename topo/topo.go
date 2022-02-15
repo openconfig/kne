@@ -456,10 +456,9 @@ func (m *Manager) Node(nodeName string) (node.Node, error) {
 // TopologyParams specifies the parameters used by the functions that
 // creates/deletes topology.
 type TopologyParams struct {
-	TopoName       string                                                   // the filename of the topology
-	Kubecfg        string                                                   // the path of kube config
-	TopoNewFunc    func(string, *tpb.Topology, ...Option) (*Manager, error) // the function that returns a Manager with the topology protobuf
-	TopoNewOptions []Option                                                 // the options used in the TopoNewFunc
+	TopoName       string   // the filename of the topology
+	Kubecfg        string   // the path of kube config
+	TopoNewOptions []Option // the options used in the TopoNewFunc
 	Timeout        time.Duration
 	DryRun         bool
 }
@@ -470,7 +469,7 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
-	t, err := params.TopoNewFunc(params.Kubecfg, topopb, params.TopoNewOptions...)
+	t, err := New(params.Kubecfg, topopb, params.TopoNewOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to create topology for %s: %+v", params.TopoName, err)
 	}
@@ -507,7 +506,7 @@ func DeleteTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
-	t, err := params.TopoNewFunc(params.Kubecfg, topopb, params.TopoNewOptions...)
+	t, err := New(params.Kubecfg, topopb, params.TopoNewOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to delete topology for %s: %+v", params.TopoName, err)
 	}

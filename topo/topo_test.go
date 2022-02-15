@@ -16,11 +16,11 @@ package topo
 
 import (
 	"context"
-	"fmt"
+	// "fmt"
 	"testing"
 
 	tfake "github.com/google/kne/api/clientset/v1beta1/fake"
-	tpb "github.com/google/kne/proto/topo"
+	// tpb "github.com/google/kne/proto/topo"
 	"github.com/h-fam/errdiff"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -45,7 +45,6 @@ func TestCreateTopology(t *testing.T) {
 		desc: "create with valid topology file",
 		inputParam: TopologyParams{
 			TopoName:       "testdata/valid_topo.pb.txt",
-			TopoNewFunc:    New,
 			TopoNewOptions: opts,
 			DryRun:         true,
 		},
@@ -54,7 +53,6 @@ func TestCreateTopology(t *testing.T) {
 		desc: "create with non-existent topology file",
 		inputParam: TopologyParams{
 			TopoName:       "testdata/non_existing.pb.txt",
-			TopoNewFunc:    New,
 			TopoNewOptions: opts,
 			DryRun:         true,
 		},
@@ -62,10 +60,7 @@ func TestCreateTopology(t *testing.T) {
 	}, {
 		desc: "create with invalid topology",
 		inputParam: TopologyParams{
-			TopoName: "testdata/valid_topo.pb.txt",
-			TopoNewFunc: func(string, *tpb.Topology, ...Option) (*Manager, error) {
-				return nil, fmt.Errorf("invalid topology")
-			},
+			TopoName:       "testdata/invalid_topo.pb.txt",
 			TopoNewOptions: opts,
 			DryRun:         true,
 		},
@@ -102,7 +97,6 @@ func TestDeleteTopology(t *testing.T) {
 		desc: "delete a non-existing topology with valid topology file",
 		inputParam: TopologyParams{
 			TopoName:       "testdata/valid_topo.pb.txt",
-			TopoNewFunc:    New,
 			TopoNewOptions: opts,
 			DryRun:         true,
 		},
@@ -111,7 +105,6 @@ func TestDeleteTopology(t *testing.T) {
 		desc: "delete with non-existent topology file",
 		inputParam: TopologyParams{
 			TopoName:       "testdata/non_existing.pb.txt",
-			TopoNewFunc:    New,
 			TopoNewOptions: opts,
 			DryRun:         true,
 		},
@@ -119,10 +112,7 @@ func TestDeleteTopology(t *testing.T) {
 	}, {
 		desc: "delete with invalid topology",
 		inputParam: TopologyParams{
-			TopoName: "testdata/valid_topo.pb.txt",
-			TopoNewFunc: func(string, *tpb.Topology, ...Option) (*Manager, error) {
-				return nil, fmt.Errorf("invalid topology")
-			},
+			TopoName:       "testdata/invalid_topo.pb.txt",
 			TopoNewOptions: opts,
 			DryRun:         true,
 		},
