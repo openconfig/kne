@@ -319,10 +319,10 @@ links: {
   z_int: "eth1"
 }
 links: {
-    a_node: "r1"
-    a_int: "eth9"
-    z_node: "ate2"
-    z_int: "eth1"
+  a_node: "r1"
+  a_int: "eth9"
+  z_node: "ate2"
+  z_int: "eth1"
 }
 `
 )
