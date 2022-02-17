@@ -49,59 +49,17 @@ import (
 	_ "github.com/google/kne/topo/node/srl"
 )
 
-// Resourcer loads and reports resources of a topology.
-type Resourcer interface {
-	Load(context.Context) error
-	Resources(context.Context) (*Resources, error)
-}
-
-// Creator creates a topology.
-type Creator interface {
-	Load(context.Context) error
-	Push(context.Context) error
-	CheckNodeStatus(context.Context, time.Duration) error
-	Resources(context.Context) (*Resources, error)
-}
-
-// Deleter deletes a topology.
-type Deleter interface {
-	Load(context.Context) error
-	Delete(context.Context) error
-}
-
-// Watcher watches a topology.
-type Watcher interface {
-	Watch(context.Context) error
-}
-
-// Pusher pushes config to a topology.
-type Pusher interface {
-	Load(context.Context) error
-	Push(context.Context) error
-	ConfigPush(context.Context, string, io.Reader) error
-}
-
-// Certer generates cert for a node.
-type Certer interface {
-	Load(context.Context) error
-	Node(string) (node.Node, error)
-}
-
-// Resetter reset a topology.
-type Resetter interface {
-	Load(context.Context) error
-	Nodes() []node.Node
-}
-
 // TopologyManager manages a topology.
 type TopologyManager interface {
-	Resourcer
-	Creator
-	Deleter
-	Watcher
-	Pusher
-	Certer
-	Resetter
+	CheckNodeStatus(context.Context, time.Duration) error
+	ConfigPush(context.Context, string, io.Reader) error
+	Delete(context.Context) error
+	Load(context.Context) error
+	Node(string) (node.Node, error)
+	Nodes() []node.Node
+	Push(context.Context) error
+	Resources(context.Context) (*Resources, error)
+	Watch(context.Context) error
 }
 
 // Manager is a topology instance manager for k8s cluster instance.
