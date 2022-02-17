@@ -508,6 +508,26 @@ func (m *Manager) Node(nodeName string) (node.Node, error) {
 	return n, nil
 }
 
+type resourcer interface {
+	Load(context.Context) error
+	Resources(context.Context) (*Resources, error)
+}
+
+// fakeTopology is used for testing only.
+type fakeTopology struct {
+	resources *Resources
+	rErr      error
+	lErr      error
+}
+
+func (f *fakeTopology) Load(context.Context) error {
+	return f.lErr
+}
+
+func (f *fakeTopology) Resources(context.Context) (*Resources, error) {
+	return f.resources, f.rErr
+}
+
 // TopologyParams specifies the parameters used by the functions that
 // creates/deletes/show topology.
 type TopologyParams struct {
@@ -516,6 +536,7 @@ type TopologyParams struct {
 	TopoNewOptions []Option // the options used in the TopoNewFunc
 	Timeout        time.Duration
 	DryRun         bool
+	fakeTopo       *fakeTopology // a fake topology manager for testing only
 }
 
 // CreateTopology creates the topology and configs it.
