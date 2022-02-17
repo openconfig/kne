@@ -17,10 +17,14 @@ package topo
 import (
 	"context"
 	"fmt"
+	"io"
 	"testing"
+	"time"
 
 	tfake "github.com/google/kne/api/clientset/v1beta1/fake"
+	topologyv1 "github.com/google/kne/api/types/v1beta1"
 	tpb "github.com/google/kne/proto/topo"
+	"github.com/google/kne/topo/node"
 	"github.com/h-fam/errdiff"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -103,6 +107,49 @@ links: {
 }
 `
 )
+
+// defaultFakeTopology serves as a testing fake with default implementation.
+type defaultFakeTopology struct{}
+
+func (f *defaultFakeTopology) Load(context.Context) error {
+	return nil
+}
+
+func (f *defaultFakeTopology) Topology(context.Context) ([]topologyv1.Topology, error) {
+	return nil, nil
+}
+
+func (f *defaultFakeTopology) Push(context.Context) error {
+	return nil
+}
+
+func (f *defaultFakeTopology) CheckNodeStatus(context.Context, time.Duration) error {
+	return nil
+}
+
+func (f *defaultFakeTopology) Delete(context.Context) error {
+	return nil
+}
+
+func (f *defaultFakeTopology) Nodes() []node.Node {
+	return nil
+}
+
+func (f *defaultFakeTopology) Resources(context.Context) (*Resources, error) {
+	return nil, nil
+}
+
+func (f *defaultFakeTopology) Watch(context.Context) error {
+	return nil
+}
+
+func (f *defaultFakeTopology) ConfigPush(context.Context, string, io.Reader) error {
+	return nil
+}
+
+func (f *defaultFakeTopology) Node(string) (node.Node, error) {
+	return nil, nil
+}
 
 func TestCreateTopology(t *testing.T) {
 	tf, err := tfake.NewSimpleClientset()
@@ -208,6 +255,22 @@ func TestDeleteTopology(t *testing.T) {
 	}
 }
 
+// fakeTopology is used to test GetTopologyServices().
+type fakeTopology struct {
+	defaultFakeTopology
+	resources *Resources
+	rErr      error
+	lErr      error
+}
+
+func (f *fakeTopology) Load(context.Context) error {
+	return f.lErr
+}
+
+func (f *fakeTopology) Resources(context.Context) (*Resources, error) {
+	return f.resources, f.rErr
+}
+
 func TestGetTopologyServices(t *testing.T) {
 	tf, err := tfake.NewSimpleClientset()
 	if err != nil {
@@ -223,18 +286,16 @@ func TestGetTopologyServices(t *testing.T) {
 		t.Fatalf("cannot Unmarshal validTopo: %v", err)
 	}
 	tests := []struct {
-		desc       string
-		inputParam TopologyParams
-		want       *tpb.Topology
-		wantErr    string
+		desc        string
+		inputParam  TopologyParams
+		topoNewFunc func(string, *tpb.Topology, ...Option) (TopologyManager, error)
+		want        *tpb.Topology
+		wantErr     string
 	}{{
 		desc: "load topology error",
 		inputParam: TopologyParams{
 			TopoName:       "testdata/not_there.pb.txt",
 			TopoNewOptions: opts,
-			fakeTopo: &fakeTopology{
-				resources: &Resources{},
-			},
 		},
 		wantErr: "no such file or directory",
 	}, {
@@ -242,9 +303,11 @@ func TestGetTopologyServices(t *testing.T) {
 		inputParam: TopologyParams{
 			TopoName:       "testdata/valid_topo.pb.txt",
 			TopoNewOptions: opts,
-			fakeTopo: &fakeTopology{
+		},
+		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+			return &fakeTopology{
 				resources: &Resources{},
-			},
+			}, nil
 		},
 		wantErr: "not found",
 	}, {
@@ -252,10 +315,12 @@ func TestGetTopologyServices(t *testing.T) {
 		inputParam: TopologyParams{
 			TopoName:       "testdata/valid_topo.pb.txt",
 			TopoNewOptions: opts,
-			fakeTopo: &fakeTopology{
+		},
+		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+			return &fakeTopology{
 				lErr:      fmt.Errorf("load failed"),
 				resources: &Resources{},
-			},
+			}, nil
 		},
 		wantErr: "load failed",
 	}, {
@@ -263,7 +328,9 @@ func TestGetTopologyServices(t *testing.T) {
 		inputParam: TopologyParams{
 			TopoName:       "testdata/valid_topo.pb.txt",
 			TopoNewOptions: opts,
-			fakeTopo: &fakeTopology{
+		},
+		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+			return &fakeTopology{
 				resources: &Resources{
 					Services: map[string]*corev1.Service{
 						"gnmi-service": {
@@ -335,7 +402,7 @@ func TestGetTopologyServices(t *testing.T) {
 						},
 					},
 				},
-			},
+			}, nil
 		},
 		wantErr: "",
 		want:    validTopoOut,
@@ -344,6 +411,13 @@ func TestGetTopologyServices(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
+			if tc.topoNewFunc != nil {
+				origNew := new
+				new = tc.topoNewFunc
+				defer func() {
+					new = origNew
+				}()
+			}
 			got, err := GetTopologyServices(context.Background(), tc.inputParam)
 			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
 				t.Fatalf("failed: %+v", err)
