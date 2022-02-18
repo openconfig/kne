@@ -20,16 +20,25 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"os/exec"
+	"bytes"
+	"strings"
 
 	log "github.com/golang/glog"
 	"github.com/google/kne/deploy"
 	cpb "github.com/google/kne/proto/controller"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/credentials/alts"
 	"k8s.io/client-go/util/homedir"
+	kexec "github.com/google/kne/os/exec"
 )
 
 var (
+	logOut = &logger{}
+	execer = kexec.NewExecer(logOut, logOut)
+
 	defaultKubeCfg            = ""
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
@@ -43,6 +52,13 @@ func init() {
 		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 	}
+}
+
+type logger struct {}
+
+func (l *logger) Write(p []byte) (int, error) {
+	log.Info(p)
+	return len(p), nil
 }
 
 type server struct {
@@ -109,7 +125,7 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 	log.Infof("Received CreateCluster request: %+v", req)
 	d, err := newDeployment(req)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, "unable to parse request: %v", err)
 	}
 	log.Infof("Parsed request into deployment: %+v", d)
 	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
@@ -117,7 +133,7 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 			Name:  req.GetKind().Name,
 			State: cpb.ClusterState_CLUSTER_STATE_ERROR,
 		}
-		return resp, fmt.Errorf("failed to deploy cluster: %s", err)
+		return resp, status.Errorf(codes.Internal, "failed to deploy cluster: %v", err)
 	}
 	log.Infof("Cluster %q deployed and ready for topology", req.GetKind().Name)
 	resp := &cpb.CreateClusterResponse{
@@ -125,6 +141,39 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 		State: cpb.ClusterState_CLUSTER_STATE_RUNNING,
 	}
 	return resp, nil
+}
+
+func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterRequest) (*cpb.DeleteClusterResponse, error) {
+	log.Infof("Received DeleteCluster request: %+v", req)
+	if _, err := exec.LookPath("kind"); err != nil {
+                return nil, status.Errorf(codes.Internal, "kind cli not installed on host")
+        }
+	var b bytes.Buffer
+	execer.SetStdout(&b)
+	if err := execer.Exec("kind", "get", "clusters"); err != nil {
+		return nil, status.Errorf(codes.NotFound, "cannot check for existence of kind cluster")
+	}
+	execer.SetStdout(logOut)
+	clusters := strings.Split(b.String(), "\n")
+	found := false
+	for _, c := range clusters {
+		if c == req.GetName() {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, status.Errorf(codes.NotFound, "cluster %q does not exist, or is not a kind cluster")
+	}
+        args := []string{"delete", "cluster"}
+        if req.GetName() != "" {
+                args = append(args, "--name", req.GetName())
+        }
+        if err := execer.Exec("kind", args...); err != nil {
+                return nil, status.Errorf(codes.Internal, "failed to delete cluster using cli")
+        }
+        log.Infof("Deleted kind cluster %q", req.GetName())
+	return &cpb.DeleteClusterResponse{}, nil
 }
 
 func validatePath(path string) (string, error) {
