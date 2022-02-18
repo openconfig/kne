@@ -21,15 +21,13 @@ import (
 	"os"
 	"path/filepath"
 
+	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo"
 	"github.com/google/kne/topo/node"
 	"github.com/openconfig/gnmi/errlist"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
-	corev1 "k8s.io/api/core/v1"
-
-	tpb "github.com/google/kne/proto/topo"
 )
 
 func New() *cobra.Command {
@@ -259,34 +257,6 @@ func certFn(cmd *cobra.Command, args []string) error {
 	return topo.GenerateSelfSigned(cmd.Context(), n)
 }
 
-func serviceToProto(s *corev1.Service, m map[uint32]*tpb.Service) error {
-	if s == nil || m == nil {
-		return fmt.Errorf("service and map must not be nil")
-	}
-	if len(s.Status.LoadBalancer.Ingress) == 0 {
-		return fmt.Errorf("service %s has no external loadbalancer configured", s.Name)
-	}
-	for _, p := range s.Spec.Ports {
-		k := uint32(p.Port)
-		service, ok := m[k]
-		if !ok {
-			service = &tpb.Service{
-				Name:   p.Name,
-				Inside: k,
-			}
-			m[k] = service
-		}
-		if service.Name == "" {
-			service.Name = p.Name
-		}
-		service.Outside = uint32(p.TargetPort.IntVal)
-		service.NodePort = uint32(p.NodePort)
-		service.InsideIp = s.Spec.ClusterIP
-		service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
-	}
-	return nil
-}
-
 var (
 	topoNew = defaultNewTopo
 )
@@ -300,53 +270,27 @@ func defaultNewTopo(kubeCfg string, t *tpb.Topology, opts ...topo.Option) (resou
 	return topo.New(kubeCfg, t, opts...)
 }
 
+var (
+	getTopologyServices = topo.GetTopologyServices
+)
+
 func serviceFn(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("%s: missing topology", cmd.Use)
-	}
-	topopb, err := topo.Load(args[0])
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
 	kubeCfg, err := cmd.Flags().GetString("kubecfg")
 	if err != nil {
 		return err
 	}
-	t, err := topoNew(kubeCfg, topopb, opts...)
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
+	param := topo.TopologyParams{
+		TopoName: args[0],
+		Kubecfg:  kubeCfg,
 	}
-	if err := t.Load(cmd.Context()); err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-
-	r, err := t.Resources(cmd.Context())
+	ts, err := getTopologyServices(cmd.Context(), param)
 	if err != nil {
 		return err
 	}
-	for _, n := range topopb.Nodes {
-		if len(n.Services) == 0 {
-			n.Services = map[uint32]*tpb.Service{}
-		}
-		// (TODO:hines): Remove type once deprecated
-		if n.Vendor == tpb.Vendor_KEYSIGHT || n.Type == tpb.Node_IXIA_TG {
-			// Add Keysight gnmi and grpc global services until
-			// they have a better registration mechanism for global
-			// services
-			if gnmiService, ok := r.Services["gnmi-service"]; ok {
-				serviceToProto(gnmiService, n.Services)
-			}
-			if grpcService, ok := r.Services["grpc-service"]; ok {
-				serviceToProto(grpcService, n.Services)
-			}
-		}
-		sName := fmt.Sprintf("service-%s", n.Name)
-		s, ok := r.Services[sName]
-		if !ok {
-			return fmt.Errorf("service %s not found", sName)
-		}
-		serviceToProto(s, n.Services)
-	}
-	fmt.Fprintln(cmd.OutOrStdout(), prototext.Format(topopb))
+
+	fmt.Fprintln(cmd.OutOrStdout(), prototext.Format(ts))
 	return nil
 }
