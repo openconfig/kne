@@ -163,7 +163,8 @@ func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterReques
 		}
 	}
 	if !found {
-		return nil, status.Errorf(codes.NotFound, "cluster does not exist, or is not a kind cluster")
+		log.Infof("Cluster %q does not exist, or is not a kind cluster (%v)", req.GetName(), clusters)
+		return nil, status.Errorf(codes.NotFound, "cluster %q does not exist, or is not a kind cluster (%v)", req.GetName(), clusters)
 	}
 	args := []string{"delete", "cluster"}
 	if req.GetName() != "" {
