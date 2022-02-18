@@ -14,25 +14,25 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"os/exec"
-	"bytes"
+	"path/filepath"
 	"strings"
 
 	log "github.com/golang/glog"
 	"github.com/google/kne/deploy"
+	kexec "github.com/google/kne/os/exec"
 	cpb "github.com/google/kne/proto/controller"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/credentials/alts"
+	"google.golang.org/grpc/status"
 	"k8s.io/client-go/util/homedir"
-	kexec "github.com/google/kne/os/exec"
 )
 
 var (
@@ -54,7 +54,7 @@ func init() {
 	}
 }
 
-type logger struct {}
+type logger struct{}
 
 func (l *logger) Write(p []byte) (int, error) {
 	log.Info(p)
@@ -146,8 +146,8 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterRequest) (*cpb.DeleteClusterResponse, error) {
 	log.Infof("Received DeleteCluster request: %+v", req)
 	if _, err := exec.LookPath("kind"); err != nil {
-                return nil, status.Errorf(codes.Internal, "kind cli not installed on host")
-        }
+		return nil, status.Errorf(codes.Internal, "kind cli not installed on host")
+	}
 	var b bytes.Buffer
 	execer.SetStdout(&b)
 	if err := execer.Exec("kind", "get", "clusters"); err != nil {
@@ -165,14 +165,14 @@ func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterReques
 	if !found {
 		return nil, status.Errorf(codes.NotFound, "cluster %q does not exist, or is not a kind cluster")
 	}
-        args := []string{"delete", "cluster"}
-        if req.GetName() != "" {
-                args = append(args, "--name", req.GetName())
-        }
-        if err := execer.Exec("kind", args...); err != nil {
-                return nil, status.Errorf(codes.Internal, "failed to delete cluster using cli")
-        }
-        log.Infof("Deleted kind cluster %q", req.GetName())
+	args := []string{"delete", "cluster"}
+	if req.GetName() != "" {
+		args = append(args, "--name", req.GetName())
+	}
+	if err := execer.Exec("kind", args...); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete cluster using cli")
+	}
+	log.Infof("Deleted kind cluster %q", req.GetName())
 	return &cpb.DeleteClusterResponse{}, nil
 }
 
