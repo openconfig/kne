@@ -24,8 +24,9 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/kne/deploy"
 	cpb "github.com/google/kne/proto/controller"
+	"github.com/google/kne/topo"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/alts"
+	// "google.golang.org/grpc/credentials/alts"
 	"k8s.io/client-go/util/homedir"
 )
 
@@ -34,7 +35,8 @@ var (
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
 	// Flags.
-	port = flag.Int("port", 50051, "Controller server port")
+	port    = flag.Int("port", 50051, "Controller server port")
+	kubecfg string
 )
 
 func init() {
@@ -43,6 +45,8 @@ func init() {
 		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 	}
+	// flag.IntVar(&port, "port", 50051, "Controller server port")
+	flag.StringVar(&kubecfg, "kubecfg", defaultKubeCfg, "Kube config")
 }
 
 type server struct {
@@ -138,6 +142,75 @@ func validatePath(path string) (string, error) {
 	return path, nil
 }
 
+func fileRelative(p string) (string, error) {
+	bp, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(bp), nil
+}
+
+func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {
+	log.Infof("Received CreateTopology request: %+v", req)
+	bp, err := fileRelative(req.Topology.Name)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("bp = %s", bp)
+	p := topo.TopologyParams{
+		TopoName: req.Topology.Name,
+		TopoNewOptions: []topo.Option{topo.WithBasePath(bp)},
+		Kubecfg:  kubecfg,
+	}
+	err = topo.CreateTopology(ctx, p)
+	if err != nil {
+		return &cpb.CreateTopologyResponse{
+			TopologyName: req.Topology.GetName(),
+			State:        cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+		}, err
+	}
+
+	return &cpb.CreateTopologyResponse{
+		TopologyName: req.Topology.GetName(),
+		State:        cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+	}, nil
+
+}
+
+func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequest) (*cpb.DeleteTopologyResponse, error) {
+	log.Infof("Received DeleteTopology request: %+v", req)
+	p := topo.TopologyParams{
+		TopoName: req.TopologyName,
+		Kubecfg:  kubecfg,
+	}
+	err := topo.DeleteTopology(ctx, p)
+	if err != nil {
+		return &cpb.DeleteTopologyResponse{}, err
+	}
+
+	return &cpb.DeleteTopologyResponse{}, nil
+
+}
+
+// func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest) (*cpb.ShowTopologyResponse, error) {
+// 	log.Infof("Received ShowTopology request: %+v", req)
+// 	p := topo.TopologyParams{
+// 		TopoName: req.TopologyName,
+// 		Kubecfg:  kubecfg,
+// 	}
+// 	tpb, err := topo.ShowTopologyServices(ctx, p)
+// 	if err != nil {
+// 		return &cpb.ShowTopologyResponse{
+// 			State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+// 		}, err
+// 	}
+
+// 	return &cpb.ShowTopologyResponse{
+// 		State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+// 		Topology: tpb,
+// 	}, nil
+// }
+
 func main() {
 	flag.Parse()
 	addr := fmt.Sprintf(":%d", *port)
@@ -145,8 +218,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	creds := alts.NewServerCreds(alts.DefaultServerOptions())
-	s := grpc.NewServer(grpc.Creds(creds))
+	// TODO(guoshiuan): how to set this loas right?
+	// creds := alts.NewServerCreds(alts.DefaultServerOptions())
+	// s := grpc.NewServer(grpc.Creds(creds))
+	var opts []grpc.ServerOption
+	s := grpc.NewServer(opts...)
 	cpb.RegisterTopologyManagerServer(s, &server{})
 	log.Infof("Controller server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
