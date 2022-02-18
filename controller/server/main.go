@@ -57,7 +57,7 @@ func init() {
 type logger struct{}
 
 func (l *logger) Write(p []byte) (int, error) {
-	log.Info(p)
+	log.Info(string(p))
 	return len(p), nil
 }
 
@@ -127,7 +127,7 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "unable to parse request: %v", err)
 	}
-	log.Infof("Parsed request into deployment: %+v", d)
+	log.Infof("Parsed request into deployment: %v", d)
 	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
 		resp := &cpb.CreateClusterResponse{
 			Name:  req.GetKind().Name,

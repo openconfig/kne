@@ -91,6 +91,14 @@ type Deployment struct {
 	CNI     CNI
 }
 
+func (d *Deployment) String() string {
+	b, err := json.MarshalIndent(d, "", "\t")
+	if err != nil {
+		return fmt.Sprintf("%+v", d)
+	}
+	return string(b)
+}
+
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	log.Infof("Deploying cluster...")
 	if err := d.Cluster.Deploy(ctx); err != nil {
