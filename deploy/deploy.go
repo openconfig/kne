@@ -93,10 +93,7 @@ type Deployment struct {
 }
 
 func (d *Deployment) String() string {
-	b, err := json.MarshalIndent(d, "", "\t")
-	if err != nil {
-		return fmt.Sprintf("%+v", d)
-	}
+	b, _ := json.MarshalIndent(d, "", "\t")
 	return string(b)
 }
 
