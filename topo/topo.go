@@ -57,6 +57,19 @@ var protojsonUnmarshaller = protojson.UnmarshalOptions{
 	DiscardUnknown: false,
 }
 
+// TopologyManager manages a topology.
+type TopologyManager interface {
+	CheckNodeStatus(context.Context, time.Duration) error
+	ConfigPush(context.Context, string, io.Reader) error
+	Delete(context.Context) error
+	Load(context.Context) error
+	Node(string) (node.Node, error)
+	Nodes() []node.Node
+	Push(context.Context) error
+	Resources(context.Context) (*Resources, error)
+	Watch(context.Context) error
+}
+
 // Manager is a topology instance manager for k8s cluster instance.
 type Manager struct {
 	BasePath string
@@ -101,7 +114,7 @@ func WithBasePath(s string) Option {
 }
 
 // New creates a new topology manager based on the provided kubecfg and topology.
-func New(kubecfg string, pb *tpb.Topology, opts ...Option) (*Manager, error) {
+func New(kubecfg string, pb *tpb.Topology, opts ...Option) (TopologyManager, error) {
 	if pb == nil {
 		return nil, fmt.Errorf("pb cannot be nil")
 	}
@@ -474,7 +487,7 @@ func (m *Manager) Node(nodeName string) (node.Node, error) {
 }
 
 // TopologyParams specifies the parameters used by the functions that
-// creates/deletes topology.
+// creates/deletes/show topology.
 type TopologyParams struct {
 	TopoName       string   // the filename of the topology
 	Kubecfg        string   // the path of kube config
@@ -541,4 +554,84 @@ func DeleteTopology(ctx context.Context, params TopologyParams) error {
 	log.Infof("Successfully deleted topology: %q", topopb.Name)
 
 	return nil
+}
+
+// serviceToProto creates the service mapping.
+func serviceToProto(s *corev1.Service, m map[uint32]*tpb.Service) error {
+	if s == nil || m == nil {
+		return fmt.Errorf("service and map must not be nil")
+	}
+	if len(s.Status.LoadBalancer.Ingress) == 0 {
+		return fmt.Errorf("service %s has no external loadbalancer configured", s.Name)
+	}
+	for _, p := range s.Spec.Ports {
+		k := uint32(p.Port)
+		service, ok := m[k]
+		if !ok {
+			service = &tpb.Service{
+				Name:   p.Name,
+				Inside: k,
+			}
+			m[k] = service
+		}
+		if service.Name == "" {
+			service.Name = p.Name
+		}
+		service.Outside = uint32(p.TargetPort.IntVal)
+		service.NodePort = uint32(p.NodePort)
+		service.InsideIp = s.Spec.ClusterIP
+		service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
+	}
+	return nil
+}
+
+var (
+	new = New // a non-public new to allow overriding the New() in this package.
+)
+
+// GetTopologyServices returns the topology information.
+func GetTopologyServices(ctx context.Context, params TopologyParams) (*tpb.Topology, error) {
+	topopb, err := Load(params.TopoName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	}
+
+	t, err := new(params.Kubecfg, topopb, params.TopoNewOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get topology service for %s: %+v", params.TopoName, err)
+	}
+
+	if err := t.Load(ctx); err != nil {
+		return nil, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	}
+
+	r, err := t.Resources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range topopb.Nodes {
+		if len(n.Services) == 0 {
+			n.Services = map[uint32]*tpb.Service{}
+		}
+		// (TODO:hines): Remove type once deprecated
+		if n.Vendor == tpb.Vendor_KEYSIGHT || n.Type == tpb.Node_IXIA_TG {
+			// Add Keysight gnmi and grpc global services until
+			// they have a better registration mechanism for global
+			// services
+			if gnmiService, ok := r.Services["gnmi-service"]; ok {
+				serviceToProto(gnmiService, n.Services)
+			}
+			if grpcService, ok := r.Services["grpc-service"]; ok {
+				serviceToProto(grpcService, n.Services)
+			}
+		}
+		sName := fmt.Sprintf("service-%s", n.Name)
+		s, ok := r.Services[sName]
+		if !ok {
+			return nil, fmt.Errorf("service %s not found", sName)
+		}
+		serviceToProto(s, n.Services)
+	}
+
+	return topopb, nil
 }
