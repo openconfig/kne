@@ -116,11 +116,7 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 	}
 	log.Infof("Parsed request into deployment: %v", d)
 	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
-		resp := &cpb.CreateClusterResponse{
-			Name:  req.GetKind().Name,
-			State: cpb.ClusterState_CLUSTER_STATE_ERROR,
-		}
-		return resp, fmt.Errorf("failed to deploy cluster: %s", err)
+		return nil, status.Errorf(codes.Internal, "failed to deploy cluster: %v", err)
 	}
 	log.Infof("Cluster %q deployed and ready for topology", req.GetKind().Name)
 	resp := &cpb.CreateClusterResponse{
@@ -154,10 +150,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	}
 	err = topo.CreateTopology(ctx, p)
 	if err != nil {
-		return &cpb.CreateTopologyResponse{
-			TopologyName: req.Topology.GetName(),
-			State:        cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-		}, status.Errorf(codes.Internal, "failed to create topology: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to create topology: %v", err)
 	}
 
 	return &cpb.CreateTopologyResponse{
@@ -174,7 +167,7 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	}
 	err := topo.DeleteTopology(ctx, p)
 	if err != nil {
-		return &cpb.DeleteTopologyResponse{}, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
 	}
 
 	return &cpb.DeleteTopologyResponse{}, nil
@@ -188,9 +181,7 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 	}
 	tpb, err := topo.GetTopologyServices(ctx, p)
 	if err != nil {
-		return &cpb.ShowTopologyResponse{
-			State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-		}, status.Errorf(codes.Internal, "failed to show topology: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
 	}
 
 	return &cpb.ShowTopologyResponse{
