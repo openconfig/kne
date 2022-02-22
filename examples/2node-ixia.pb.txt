@@ -1,0 +1,45 @@
+name: "2node-ixia"
+nodes: {
+    name: "ixia-c-port1"
+    type: IXIA_TG
+    version: "0.0.1-2543"
+    services: {
+        key: 5555
+        value: {
+            inside: 5555
+            outside: 0
+        }
+    }
+    services: {
+        key: 50071
+        value: {
+            inside: 50071
+            outside: 0
+        }
+    }
+}
+nodes: {
+    name: "ixia-c-port2"
+    type: IXIA_TG
+    version: "0.0.1-2543"
+    services: {
+        key: 5555
+        value: {
+            inside: 5555
+            outside: 0
+        }
+    }
+    services: {
+        key: 50071
+        value: {
+            inside: 50071
+            outside: 0
+        }
+    }
+}
+links: {
+    a_node: "ixia-c-port1"
+    a_int: "eth1"
+    z_node: "ixia-c-port2"
+    z_int: "eth1"
+}

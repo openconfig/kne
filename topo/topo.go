@@ -21,14 +21,17 @@ import (
 	"io"
 	"io/ioutil"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/kne/topo/node"
 	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +51,11 @@ import (
 	_ "github.com/google/kne/topo/node/ixia"
 	_ "github.com/google/kne/topo/node/srl"
 )
+
+var protojsonUnmarshaller = protojson.UnmarshalOptions{
+	AllowPartial:   true,
+	DiscardUnknown: false,
+}
 
 // TopologyManager manages a topology.
 type TopologyManager interface {
@@ -371,9 +379,21 @@ func Load(fName string) (*tpb.Topology, error) {
 		return nil, err
 	}
 	t := &tpb.Topology{}
-	if err := prototext.Unmarshal(b, t); err != nil {
-		return nil, err
+
+	if strings.HasSuffix(fName, ".yaml") || strings.HasSuffix(fName, ".yml") {
+		jsonBytes, err := yaml.YAMLToJSON(b)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse yaml: %v", err)
+		}
+		if err := protojsonUnmarshaller.Unmarshal(jsonBytes, t); err != nil {
+			return nil, fmt.Errorf("could not parse json: %v", err)
+		}
+	} else {
+		if err := prototext.Unmarshal(b, t); err != nil {
+			return nil, err
+		}
 	}
+
 	return t, nil
 }
 
