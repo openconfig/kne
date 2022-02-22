@@ -37,8 +37,7 @@ var (
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
 	// Flags.
-	port    = flag.Int("port", 50051, "Controller server port")
-	kubecfg string
+	port = flag.Int("port", 50051, "Controller server port")
 )
 
 func init() {
@@ -47,8 +46,6 @@ func init() {
 		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 	}
-	// flag.IntVar(&port, "port", 50051, "Controller server port")
-	flag.StringVar(&kubecfg, "kubecfg", defaultKubeCfg, "Kube config")
 }
 
 type server struct {
@@ -153,7 +150,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	p := topo.TopologyParams{
 		TopoName:       req.Topology.Name,
 		TopoNewOptions: []topo.Option{topo.WithBasePath(filepath.Dir(bp))},
-		Kubecfg:        kubecfg,
+		Kubecfg:        req.Kubecfg,
 	}
 	err = topo.CreateTopology(ctx, p)
 	if err != nil {
@@ -174,7 +171,6 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	log.Infof("Received DeleteTopology request: %v", req)
 	p := topo.TopologyParams{
 		TopoName: req.TopologyName,
-		Kubecfg:  kubecfg,
 	}
 	err := topo.DeleteTopology(ctx, p)
 	if err != nil {
@@ -189,7 +185,6 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 	log.Infof("Received ShowTopology request: %v", req)
 	p := topo.TopologyParams{
 		TopoName: req.TopologyName,
-		Kubecfg:  kubecfg,
 	}
 	tpb, err := topo.GetTopologyServices(ctx, p)
 	if err != nil {
