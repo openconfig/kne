@@ -151,7 +151,7 @@ func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterReques
 	var b bytes.Buffer
 	execer.SetStdout(&b)
 	if err := execer.Exec("kind", "get", "clusters"); err != nil {
-		return nil, status.Errorf(codes.NotFound, "cannot check for existence of kind cluster")
+		return nil, status.Errorf(codes.NotFound, "cannot check for existence of kind cluster: %v", err)
 	}
 	execer.SetStdout(logOut)
 	clusters := strings.Split(b.String(), "\n")
@@ -171,7 +171,7 @@ func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterReques
 		args = append(args, "--name", req.GetName())
 	}
 	if err := execer.Exec("kind", args...); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to delete cluster using cli")
+		return nil, status.Errorf(codes.Internal, "failed to delete cluster using cli: %v", err)
 	}
 	log.Infof("Deleted kind cluster %q", req.GetName())
 	return &cpb.DeleteClusterResponse{}, nil
