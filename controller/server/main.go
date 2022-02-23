@@ -172,17 +172,18 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	}
 
 	return &cpb.DeleteTopologyResponse{}, nil
-
 }
 
 func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest) (*cpb.ShowTopologyResponse, error) {
 	log.Infof("Received ShowTopology request: %v", req)
-	p := topo.TopologyParams{
+	resp, err := topo.GetTopologyServices(ctx, topo.TopologyParams{
 		TopoName: req.TopologyName,
 		Kubecfg:  defaultKubeCfg,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
 	}
-
-	return topo.GetTopologyServices(ctx, p)
+	return resp, nil
 }
 
 func main() {

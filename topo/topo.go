@@ -611,29 +611,21 @@ func (s *sMap) TopoState() cpb.TopologyState {
 func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowTopologyResponse, error) {
 	topopb, err := Load(params.TopoName)
 	if err != nil {
-		return &cpb.ShowTopologyResponse{
-			State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-		}, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+		return nil, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
 
 	t, err := new(params.Kubecfg, topopb, params.TopoNewOptions...)
 	if err != nil {
-		return &cpb.ShowTopologyResponse{
-			State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-		}, fmt.Errorf("failed to get topology service for %s: %+v", params.TopoName, err)
+		return nil, fmt.Errorf("failed to get topology service for %s: %+v", params.TopoName, err)
 	}
 
 	if err := t.Load(ctx); err != nil {
-		return &cpb.ShowTopologyResponse{
-			State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-		}, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+		return nil, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
 
 	r, err := t.Resources(ctx)
 	if err != nil {
-		return &cpb.ShowTopologyResponse{
-			State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-		}, err
+		return nil, err
 	}
 	for _, n := range topopb.Nodes {
 		if len(n.Services) == 0 {
@@ -654,9 +646,7 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowT
 		sName := fmt.Sprintf("service-%s", n.Name)
 		s, ok := r.Services[sName]
 		if !ok {
-			return &cpb.ShowTopologyResponse{
-				State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-			}, fmt.Errorf("service %s not found", sName)
+			return nil, fmt.Errorf("service %s not found", sName)
 		}
 		serviceToProto(s, n.Services)
 	}
