@@ -419,14 +419,14 @@ func TestGetTopologyServices(t *testing.T) {
 					new = origNew
 				}()
 			}
-			got, _, err := GetTopologyServices(context.Background(), tc.inputParam)
+			got, err := GetTopologyServices(context.Background(), tc.inputParam)
 			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
 				t.Fatalf("failed: %+v", err)
 			}
 			if tc.wantErr != "" {
 				return
 			}
-			if !proto.Equal(got, tc.want) {
+			if !proto.Equal(got.Topology, tc.want) {
 				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got, tc.want)
 			}
 		})

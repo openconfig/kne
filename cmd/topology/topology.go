@@ -286,11 +286,11 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 		TopoName: args[0],
 		Kubecfg:  kubeCfg,
 	}
-	ts, _, err := getTopologyServices(cmd.Context(), param)
+	ts, err := getTopologyServices(cmd.Context(), param)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), prototext.Format(ts))
+	fmt.Fprintln(cmd.OutOrStdout(), prototext.Format(ts.Topology))
 	return nil
 }

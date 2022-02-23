@@ -335,7 +335,7 @@ func TestService(t *testing.T) {
 	tests := []struct {
 		desc                string
 		args                []string
-		getTopologyServices func(ctx context.Context, params topo.TopologyParams) (*tpb.Topology, cpb.TopologyState, error)
+		getTopologyServices func(ctx context.Context, params topo.TopologyParams) (*cpb.ShowTopologyResponse, error)
 		want                *tpb.Topology
 		wantErr             string
 	}{
@@ -345,15 +345,20 @@ func TestService(t *testing.T) {
 			args:    []string{"service"},
 		}, {
 			desc: "fail to get topology service",
-			getTopologyServices: func(context.Context, topo.TopologyParams) (*tpb.Topology, cpb.TopologyState, error) {
-				return nil, cpb.TopologyState_TOPOLOGY_STATE_ERROR, fmt.Errorf("some error")
+			getTopologyServices: func(context.Context, topo.TopologyParams) (*cpb.ShowTopologyResponse, error) {
+				return &cpb.ShowTopologyResponse{
+					State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+				}, fmt.Errorf("some error")
 			},
 			wantErr: "some error",
 			args:    []string{"service", "testdata/valid_topo.pb.txt"},
 		}, {
 			desc: "valid case",
-			getTopologyServices: func(context.Context, topo.TopologyParams) (*tpb.Topology, cpb.TopologyState, error) {
-				return validProto, cpb.TopologyState_TOPOLOGY_STATE_RUNNING, nil
+			getTopologyServices: func(context.Context, topo.TopologyParams) (*cpb.ShowTopologyResponse, error) {
+				return &cpb.ShowTopologyResponse{
+					State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+					Topology: validProto,
+				}, nil
 			},
 			want: validProto,
 			args: []string{"service", "testdata/valid_topo.pb.txt"},

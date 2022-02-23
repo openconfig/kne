@@ -181,15 +181,8 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 		TopoName: req.TopologyName,
 		Kubecfg:  defaultKubeCfg,
 	}
-	tpb, state, err := topo.GetTopologyServices(ctx, p)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
-	}
 
-	return &cpb.ShowTopologyResponse{
-		State:    state,
-		Topology: tpb,
-	}, nil
+	return topo.GetTopologyServices(ctx, p)
 }
 
 func main() {
