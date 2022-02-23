@@ -55,6 +55,10 @@ type server struct {
 	deployments map[string]*deploy.Deployment
 }
 
+func newServer() *server {
+	return &server{deployments: map[string]*deploy.Deployment{}}
+}
+
 func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	d := &deploy.Deployment{}
 	switch kind := req.ClusterSpec.(type) {
@@ -186,7 +190,7 @@ func main() {
 	}
 	creds := alts.NewServerCreds(alts.DefaultServerOptions())
 	s := grpc.NewServer(grpc.Creds(creds))
-	cpb.RegisterTopologyManagerServer(s, &server{})
+	cpb.RegisterTopologyManagerServer(s, newServer())
 	log.Infof("Controller server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
