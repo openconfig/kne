@@ -51,7 +51,7 @@ func init() {
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
 
-	mu sync.Mutex
+	mu          sync.Mutex
 	deployments map[string]*deploy.Deployment
 }
 
@@ -116,7 +116,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 }
 
 func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
-	log.Infof("Received CreateCluster request: %+v", req)
+	log.Infof("Received CreateCluster request: %v", req)
 	d, err := newDeployment(req)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "unable to parse request: %v", err)
@@ -141,7 +141,7 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 }
 
 func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterRequest) (*cpb.DeleteClusterResponse, error) {
-	log.Infof("Received DeleteCluster request: %+v", req)
+	log.Infof("Received DeleteCluster request: %v", req)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, ok := s.deployments[req.GetName()]
@@ -157,7 +157,7 @@ func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterReques
 }
 
 func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (*cpb.ShowClusterResponse, error) {
-	log.Infof("Received ShowCluster request: %+v", req)
+	log.Infof("Received ShowCluster request: %v", req)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, ok := s.deployments[req.GetName()]
