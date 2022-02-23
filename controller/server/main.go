@@ -148,8 +148,8 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 		TopoNewOptions: []topo.Option{topo.WithBasePath(filepath.Dir(bp))},
 		Kubecfg:        req.Kubecfg,
 	}
-	err = topo.CreateTopology(ctx, p)
-	if err != nil {
+
+	if err = topo.CreateTopology(ctx, p); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology: %v", err)
 	}
 
@@ -164,9 +164,10 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	log.Infof("Received DeleteTopology request: %v", req)
 	p := topo.TopologyParams{
 		TopoName: req.TopologyName,
+		Kubecfg:  defaultKubeCfg,
 	}
-	err := topo.DeleteTopology(ctx, p)
-	if err != nil {
+
+	if err := topo.DeleteTopology(ctx, p); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
 	}
 
@@ -178,14 +179,15 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 	log.Infof("Received ShowTopology request: %v", req)
 	p := topo.TopologyParams{
 		TopoName: req.TopologyName,
+		Kubecfg:  defaultKubeCfg,
 	}
-	tpb, err := topo.GetTopologyServices(ctx, p)
+	tpb, state, err := topo.GetTopologyServices(ctx, p)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
 	}
 
 	return &cpb.ShowTopologyResponse{
-		State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+		State:    state,
 		Topology: tpb,
 	}, nil
 }

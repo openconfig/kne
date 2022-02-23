@@ -23,6 +23,7 @@ import (
 
 	tfake "github.com/google/kne/api/clientset/v1beta1/fake"
 	topologyv1 "github.com/google/kne/api/types/v1beta1"
+	cpb "github.com/google/kne/proto/controller"
 	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 	"github.com/h-fam/errdiff"
@@ -418,7 +419,7 @@ func TestGetTopologyServices(t *testing.T) {
 					new = origNew
 				}()
 			}
-			got, err := GetTopologyServices(context.Background(), tc.inputParam)
+			got, _, err := GetTopologyServices(context.Background(), tc.inputParam)
 			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
 				t.Fatalf("failed: %+v", err)
 			}
@@ -427,6 +428,76 @@ func TestGetTopologyServices(t *testing.T) {
 			}
 			if !proto.Equal(got, tc.want) {
 				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestStateMap(t *testing.T) {
+	type node struct {
+		name  string
+		phase corev1.PodPhase
+	}
+
+	tests := []struct {
+		desc  string
+		nodes []*node
+		want  cpb.TopologyState
+	}{{
+		desc: "no nodes",
+		want: cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN,
+	}, {
+		desc: "one node failed",
+		nodes: []*node{
+			{"n1", corev1.PodFailed},
+			{"n2", corev1.PodRunning},
+			{"n3", corev1.PodRunning},
+		},
+		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+	}, {
+		desc: "one node failed with one node pending",
+		nodes: []*node{
+			{"n1", corev1.PodFailed},
+			{"n2", corev1.PodPending},
+			{"n3", corev1.PodRunning},
+		},
+		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+	}, {
+		desc: "one node failed, one node pending, one node unknown",
+		nodes: []*node{
+			{"n1", corev1.PodFailed},
+			{"n2", corev1.PodPending},
+			{"n3", corev1.PodUnknown},
+		},
+		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+	}, {
+		desc: "all nodes failed",
+		nodes: []*node{
+			{"n1", corev1.PodFailed},
+			{"n2", corev1.PodFailed},
+			{"n3", corev1.PodFailed},
+		},
+		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+	}, {
+		desc: "one node pending",
+		nodes: []*node{
+			{"n1", corev1.PodPending},
+			{"n2", corev1.PodRunning},
+			{"n3", corev1.PodRunning},
+		},
+		want: cpb.TopologyState_TOPOLOGY_STATE_CREATING,
+	},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			sm := &sMap{}
+			for _, n := range tc.nodes {
+				sm.SetNodeState(n.name, n.phase)
+			}
+			got := sm.TopoState()
+			if tc.want != got {
+				t.Fatalf("want: %+v, got: %+v", tc.want, got)
 			}
 		})
 	}
