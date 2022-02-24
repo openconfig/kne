@@ -122,15 +122,14 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 		return nil, status.Errorf(codes.InvalidArgument, "unable to parse request: %v", err)
 	}
 	log.Infof("Parsed request into deployment: %v", d)
-	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
-		resp := &cpb.CreateClusterResponse{
-			Name:  d.Cluster.GetName(),
-			State: cpb.ClusterState_CLUSTER_STATE_ERROR,
-		}
-		return resp, status.Errorf(codes.Internal, "failed to deploy cluster: %v", err)
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, ok := s.deployments[d.Cluster.GetName()]; ok { // if OK
+		return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", d.Cluster.GetName())
+	}
+	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to deploy cluster: %v", err)
+	}
 	s.deployments[d.Cluster.GetName()] = d
 	log.Infof("Cluster %q deployed and ready for topology", d.Cluster.GetName())
 	resp := &cpb.CreateClusterResponse{
@@ -146,7 +145,7 @@ func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterReques
 	defer s.mu.Unlock()
 	d, ok := s.deployments[req.GetName()]
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only delete clusters created using TopologyManager")
+		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only delete clusters created using TopologyManager", req.GetName())
 	}
 	if err := d.Delete(); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete cluster: %v", err)
@@ -162,7 +161,7 @@ func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (
 	defer s.mu.Unlock()
 	d, ok := s.deployments[req.GetName()]
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only show clusters created using TopologyManager")
+		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only show clusters created using TopologyManager", req.GetName())
 	}
 	if err := d.Healthy(ctx); err != nil {
 		return &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_ERROR}, nil
