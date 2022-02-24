@@ -26,6 +26,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/proto"
+	cpb "github.com/google/kne/proto/controller"
 	"github.com/google/kne/topo/node"
 	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
@@ -589,8 +590,45 @@ var (
 	new = New // a non-public new to allow overriding the New() in this package.
 )
 
+// sMap keeps the POD state of all topology nodes.
+type sMap struct {
+	m map[string]corev1.PodPhase
+}
+
+func (s *sMap) Size() int {
+	return len(s.m)
+}
+
+func (s *sMap) SetNodeState(name string, state corev1.PodPhase) {
+	if s.m == nil {
+		s.m = map[string]corev1.PodPhase{}
+	}
+	s.m[name] = state
+}
+
+func (s *sMap) TopoState() cpb.TopologyState {
+	if s == nil || len(s.m) == 0 {
+		return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
+	}
+	cntTable := map[corev1.PodPhase]int{}
+	for _, gotState := range s.m {
+		cntTable[gotState]++
+	}
+
+	if cntTable[corev1.PodRunning] == s.Size() {
+		return cpb.TopologyState_TOPOLOGY_STATE_RUNNING
+	}
+	if cntTable[corev1.PodFailed] > 0 {
+		return cpb.TopologyState_TOPOLOGY_STATE_ERROR
+	}
+	if cntTable[corev1.PodPending] > 0 {
+		return cpb.TopologyState_TOPOLOGY_STATE_CREATING
+	}
+	return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
+}
+
 // GetTopologyServices returns the topology information.
-func GetTopologyServices(ctx context.Context, params TopologyParams) (*tpb.Topology, error) {
+func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowTopologyResponse, error) {
 	topopb, err := Load(params.TopoName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
@@ -632,6 +670,13 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*tpb.Topol
 		}
 		serviceToProto(s, n.Services)
 	}
-
-	return topopb, nil
+	sMap := &sMap{}
+	for _, n := range t.Nodes() {
+		phase, _ := n.Status(ctx)
+		sMap.SetNodeState(n.Name(), phase)
+	}
+	return &cpb.ShowTopologyResponse{
+		State:    sMap.TopoState(),
+		Topology: topopb,
+	}, nil
 }

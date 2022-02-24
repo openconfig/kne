@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	tfake "github.com/google/kne/api/clientset/v1beta1/fake"
+	cpb "github.com/google/kne/proto/controller"
+	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo"
 	"github.com/google/kne/topo/node"
 	"github.com/h-fam/errdiff"
@@ -19,8 +21,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
-
-	tpb "github.com/google/kne/proto/topo"
 )
 
 func NewNC(impl *node.Impl) (node.Node, error) {
@@ -335,7 +335,7 @@ func TestService(t *testing.T) {
 	tests := []struct {
 		desc                string
 		args                []string
-		getTopologyServices func(ctx context.Context, params topo.TopologyParams) (*tpb.Topology, error)
+		getTopologyServices func(ctx context.Context, params topo.TopologyParams) (*cpb.ShowTopologyResponse, error)
 		want                *tpb.Topology
 		wantErr             string
 	}{
@@ -345,15 +345,20 @@ func TestService(t *testing.T) {
 			args:    []string{"service"},
 		}, {
 			desc: "fail to get topology service",
-			getTopologyServices: func(context.Context, topo.TopologyParams) (*tpb.Topology, error) {
-				return nil, fmt.Errorf("some error")
+			getTopologyServices: func(context.Context, topo.TopologyParams) (*cpb.ShowTopologyResponse, error) {
+				return &cpb.ShowTopologyResponse{
+					State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+				}, fmt.Errorf("some error")
 			},
 			wantErr: "some error",
 			args:    []string{"service", "testdata/valid_topo.pb.txt"},
 		}, {
 			desc: "valid case",
-			getTopologyServices: func(context.Context, topo.TopologyParams) (*tpb.Topology, error) {
-				return validProto, nil
+			getTopologyServices: func(context.Context, topo.TopologyParams) (*cpb.ShowTopologyResponse, error) {
+				return &cpb.ShowTopologyResponse{
+					State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+					Topology: validProto,
+				}, nil
 			},
 			want: validProto,
 			args: []string{"service", "testdata/valid_topo.pb.txt"},

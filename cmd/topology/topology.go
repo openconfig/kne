@@ -291,6 +291,6 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), prototext.Format(ts))
+	fmt.Fprintln(cmd.OutOrStdout(), prototext.Format(ts.Topology))
 	return nil
 }

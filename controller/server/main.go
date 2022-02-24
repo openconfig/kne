@@ -28,6 +28,7 @@ import (
 	"github.com/google/kne/deploy"
 	kexec "github.com/google/kne/os/exec"
 	cpb "github.com/google/kne/proto/controller"
+	"github.com/google/kne/topo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/alts"
@@ -122,18 +123,14 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 }
 
 func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterRequest) (*cpb.CreateClusterResponse, error) {
-	log.Infof("Received CreateCluster request: %+v", req)
+	log.Infof("Received CreateCluster request: %v", req)
 	d, err := newDeployment(req)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "unable to parse request: %v", err)
 	}
 	log.Infof("Parsed request into deployment: %v", d)
 	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
-		resp := &cpb.CreateClusterResponse{
-			Name:  req.GetKind().Name,
-			State: cpb.ClusterState_CLUSTER_STATE_ERROR,
-		}
-		return resp, status.Errorf(codes.Internal, "failed to deploy cluster: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to deploy cluster: %v", err)
 	}
 	log.Infof("Cluster %q deployed and ready for topology", req.GetKind().Name)
 	resp := &cpb.CreateClusterResponse{
@@ -186,6 +183,55 @@ func validatePath(path string) (string, error) {
 		return "", fmt.Errorf("path %q does not exist", path)
 	}
 	return path, nil
+}
+
+func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {
+	log.Infof("Received CreateTopology request: %v", req)
+	bp, err := validatePath(req.Topology.Name)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid topology path: %v", err)
+	}
+	p := topo.TopologyParams{
+		TopoName:       req.Topology.Name,
+		TopoNewOptions: []topo.Option{topo.WithBasePath(filepath.Dir(bp))},
+		Kubecfg:        req.Kubecfg,
+	}
+
+	if err = topo.CreateTopology(ctx, p); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create topology: %v", err)
+	}
+
+	return &cpb.CreateTopologyResponse{
+		TopologyName: req.Topology.GetName(),
+		State:        cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+	}, nil
+
+}
+
+func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequest) (*cpb.DeleteTopologyResponse, error) {
+	log.Infof("Received DeleteTopology request: %v", req)
+	p := topo.TopologyParams{
+		TopoName: req.TopologyName,
+		Kubecfg:  defaultKubeCfg,
+	}
+
+	if err := topo.DeleteTopology(ctx, p); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
+	}
+
+	return &cpb.DeleteTopologyResponse{}, nil
+}
+
+func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest) (*cpb.ShowTopologyResponse, error) {
+	log.Infof("Received ShowTopology request: %v", req)
+	resp, err := topo.GetTopologyServices(ctx, topo.TopologyParams{
+		TopoName: req.TopologyName,
+		Kubecfg:  defaultKubeCfg,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
+	}
+	return resp, nil
 }
 
 func main() {
