@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -89,6 +90,11 @@ type Deployment struct {
 	Cluster Cluster
 	Ingress Ingress
 	CNI     CNI
+}
+
+func (d *Deployment) String() string {
+	b, _ := json.MarshalIndent(d, "", "\t")
+	return string(b)
 }
 
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {

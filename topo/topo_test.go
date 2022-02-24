@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -34,6 +36,58 @@ import (
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 )
+
+func TestLoad(t *testing.T) {
+	type args struct {
+		fName string
+	}
+
+	invalidPb, err := ioutil.TempFile(".", "invalid*.pb.txt")
+	if err != nil {
+		t.Errorf("failed creating tmp pb: %v", err)
+	}
+	defer os.Remove(invalidPb.Name())
+
+	invalidYaml, err := ioutil.TempFile(".", "invalid*.yaml")
+	if err != nil {
+		t.Errorf("failed creating tmp yaml: %v", err)
+	}
+	defer os.Remove(invalidYaml.Name())
+
+	invalidPb.WriteString(`
+	name: "2node-ixia"
+	nodes: {
+		nme: "ixia-c-port1"
+	}
+	`)
+
+	invalidYaml.WriteString(`
+	name: 2node-ixia
+	nodes:
+	  - name: ixia-c-port1
+	`)
+
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{name: "pb", args: args{fName: "../examples/2node-ixia.pb.txt"}, wantErr: false},
+		{name: "yaml", args: args{fName: "../examples/2node-ixia.yaml"}, wantErr: false},
+		{name: "invalid-pb", args: args{fName: invalidPb.Name()}, wantErr: true},
+		{name: "invalid-yaml", args: args{fName: invalidYaml.Name()}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(tt.args.fName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}
 
 var (
 	validPbTxt = `
