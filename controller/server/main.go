@@ -14,19 +14,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+	"sync"
 
 	log "github.com/golang/glog"
 	"github.com/google/kne/deploy"
-	kexec "github.com/google/kne/os/exec"
 	cpb "github.com/google/kne/proto/controller"
 	"github.com/google/kne/topo"
 	"google.golang.org/grpc"
@@ -37,9 +34,6 @@ import (
 )
 
 var (
-	logOut = &logger{}
-	execer = kexec.NewExecer(logOut, logOut)
-
 	defaultKubeCfg            = ""
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
@@ -55,15 +49,15 @@ func init() {
 	}
 }
 
-type logger struct{}
-
-func (l *logger) Write(p []byte) (int, error) {
-	log.Info(string(p))
-	return len(p), nil
-}
-
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
+
+	mu          sync.Mutex
+	deployments map[string]*deploy.Deployment
+}
+
+func newServer() *server {
+	return &server{deployments: map[string]*deploy.Deployment{}}
 }
 
 func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
@@ -129,49 +123,51 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 		return nil, status.Errorf(codes.InvalidArgument, "unable to parse request: %v", err)
 	}
 	log.Infof("Parsed request into deployment: %v", d)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.deployments[d.Cluster.GetName()]; ok { // if OK
+		return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", d.Cluster.GetName())
+	}
 	if err := d.Deploy(ctx, defaultKubeCfg); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deploy cluster: %v", err)
 	}
-	log.Infof("Cluster %q deployed and ready for topology", req.GetKind().Name)
+	s.deployments[d.Cluster.GetName()] = d
+	log.Infof("Cluster %q deployed and ready for topology", d.Cluster.GetName())
 	resp := &cpb.CreateClusterResponse{
-		Name:  req.GetKind().Name,
+		Name:  d.Cluster.GetName(),
 		State: cpb.ClusterState_CLUSTER_STATE_RUNNING,
 	}
 	return resp, nil
 }
 
 func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterRequest) (*cpb.DeleteClusterResponse, error) {
-	log.Infof("Received DeleteCluster request: %+v", req)
-	if _, err := exec.LookPath("kind"); err != nil {
-		return nil, status.Errorf(codes.Internal, "kind cli not installed on host")
+	log.Infof("Received DeleteCluster request: %v", req)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d, ok := s.deployments[req.GetName()]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only delete clusters created using TopologyManager", req.GetName())
 	}
-	var b bytes.Buffer
-	execer.SetStdout(&b)
-	if err := execer.Exec("kind", "get", "clusters"); err != nil {
-		return nil, status.Errorf(codes.NotFound, "cannot check for existence of kind cluster: %v", err)
+	if err := d.Delete(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete cluster: %v", err)
 	}
-	execer.SetStdout(logOut)
-	clusters := strings.Split(b.String(), "\n")
-	found := false
-	for _, c := range clusters {
-		if c == req.GetName() {
-			found = true
-			break
-		}
-	}
-	if !found {
-		log.Infof("Cluster %q does not exist, or is not a kind cluster (%v)", req.GetName(), clusters)
-		return nil, status.Errorf(codes.NotFound, "cluster %q does not exist, or is not a kind cluster (%v)", req.GetName(), clusters)
-	}
-	args := []string{"delete", "cluster"}
-	if req.GetName() != "" {
-		args = append(args, "--name", req.GetName())
-	}
-	if err := execer.Exec("kind", args...); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to delete cluster using cli: %v", err)
-	}
-	log.Infof("Deleted kind cluster %q", req.GetName())
+	delete(s.deployments, req.GetName())
+	log.Infof("Deleted cluster %q", d.Cluster.GetName())
 	return &cpb.DeleteClusterResponse{}, nil
+}
+
+func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (*cpb.ShowClusterResponse, error) {
+	log.Infof("Received ShowCluster request: %v", req)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d, ok := s.deployments[req.GetName()]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only show clusters created using TopologyManager", req.GetName())
+	}
+	if err := d.Healthy(ctx); err != nil {
+		return &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_ERROR}, nil
+	}
+	return &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_RUNNING}, nil
 }
 
 func validatePath(path string) (string, error) {
@@ -243,7 +239,7 @@ func main() {
 	}
 	creds := alts.NewServerCreds(alts.DefaultServerOptions())
 	s := grpc.NewServer(grpc.Creds(creds))
-	cpb.RegisterTopologyManagerServer(s, &server{})
+	cpb.RegisterTopologyManagerServer(s, newServer())
 	log.Infof("Controller server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

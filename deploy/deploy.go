@@ -72,6 +72,9 @@ type execerInterface interface {
 
 type Cluster interface {
 	Deploy(context.Context) error
+	Delete() error
+	Healthy() error
+	GetName() string
 }
 
 type Ingress interface {
@@ -128,6 +131,35 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 		return err
 	}
 	d.CNI.SetKClient(kClient)
+	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	if err := d.CNI.Healthy(tCtx); err != nil {
+		return err
+	}
+	log.Infof("CNI healthy")
+	return nil
+}
+
+func (d *Deployment) Delete() error {
+	log.Infof("Deleting cluster...")
+	if err := d.Cluster.Delete(); err != nil {
+		return err
+	}
+	log.Infof("Cluster deleted")
+	return nil
+}
+
+func (d *Deployment) Healthy(ctx context.Context) error {
+	if err := d.Cluster.Healthy(); err != nil {
+		return err
+	}
+	log.Infof("Cluster healthy")
+	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	if err := d.Ingress.Healthy(tCtx); err != nil {
+		return err
+	}
+	log.Infof("Ingress healthy")
 	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
@@ -221,6 +253,37 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (k *KindSpec) Delete() error {
+	if _, err := execLookPath("kind"); err != nil {
+		return errors.Wrap(err, "install kind cli to delete")
+	}
+	args := []string{"delete", "cluster"}
+	if k.Name != "" {
+		args = append(args, "--name", k.Name)
+	}
+	if err := execer.Exec("kind", args...); err != nil {
+		return errors.Wrap(err, "failed to delete cluster using cli")
+	}
+	return nil
+}
+
+func (k *KindSpec) Healthy() error {
+	if _, err := exec.LookPath("kubectl"); err != nil {
+		return errors.Wrap(err, "install kubectl to check health")
+	}
+	if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
+		return errors.Wrap(err, "cluster not healthy")
+	}
+	return nil
+}
+
+func (k *KindSpec) GetName() string {
+	if k.Name != "" {
+		return k.Name
+	}
+	return "kind"
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
