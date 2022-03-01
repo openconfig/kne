@@ -47,7 +47,7 @@ var (
 func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
-		defaultTopoBasePath = filepath.Join(home, "kne-internal", "examples")
+		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
 		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 	}
@@ -197,7 +197,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request: missing topology protobuf")
 	}
 	if topoPb.GetName() == "" {
-		return nil, status.Errorf(codes.NotFound, "missing topology name")
+		return nil, status.Errorf(codes.InvalidArgument, "missing topology name")
 	}
 
 	s.muTopo.Lock()
@@ -208,17 +208,13 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 
 	log.Infof("Validating the topology protobuf...")
 	for _, node := range topoPb.Nodes {
-		if node.GetType() == tpb.Node_IXIA_TG {
+		if node.GetConfig() == nil || node.GetConfig().GetFile() == "" {
+			// A config section is not required: you are allowed to bring up a
+			// topology with no initial config).
 			continue
 		}
-		if node.GetConfig() == nil {
-			return nil, status.Errorf(codes.NotFound, "missing config field for node %q", node.GetName())
-		}
-		if node.GetConfig().GetFile() == "" {
-			return nil, status.Errorf(codes.NotFound, "config file not specified for node %q", node.GetName())
-		}
 		log.Infof("Check config path: %q", node.GetConfig().GetFile())
-		if _, err := validatePath(filepath.Join(defaultTopoBasePath, node.GetConfig().GetFile())); err != nil {
+		if _, err := validatePath(node.GetConfig().GetFile()); err != nil {
 			return nil, status.Errorf(codes.NotFound, "config file not found for node %q: %v", node.GetName(), err)
 		}
 	}
