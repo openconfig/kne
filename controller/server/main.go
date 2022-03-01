@@ -25,16 +25,19 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/kne/deploy"
 	cpb "github.com/google/kne/proto/controller"
+	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/alts"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/client-go/util/homedir"
 )
 
 var (
 	defaultKubeCfg            = ""
+	defaultTopoBasePath       = ""
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
 	// Flags.
@@ -44,6 +47,7 @@ var (
 func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
+		defaultTopoBasePath = filepath.Join(home, "kne-internal", "examples")
 		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 	}
@@ -52,12 +56,17 @@ func init() {
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
 
-	mu          sync.Mutex
+	muDeploy    sync.Mutex // guards deployements map
 	deployments map[string]*deploy.Deployment
+	muTopo      sync.Mutex        // guards topos map
+	topos       map[string][]byte // stores the topology protobuf from the initial topology creation request
 }
 
 func newServer() *server {
-	return &server{deployments: map[string]*deploy.Deployment{}}
+	return &server{
+		deployments: map[string]*deploy.Deployment{},
+		topos:       map[string][]byte{},
+	}
 }
 
 func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
@@ -123,8 +132,8 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 		return nil, status.Errorf(codes.InvalidArgument, "unable to parse request: %v", err)
 	}
 	log.Infof("Parsed request into deployment: %v", d)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.muDeploy.Lock()
+	defer s.muDeploy.Unlock()
 	if _, ok := s.deployments[d.Cluster.GetName()]; ok { // if OK
 		return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", d.Cluster.GetName())
 	}
@@ -142,8 +151,8 @@ func (s *server) CreateCluster(ctx context.Context, req *cpb.CreateClusterReques
 
 func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterRequest) (*cpb.DeleteClusterResponse, error) {
 	log.Infof("Received DeleteCluster request: %v", req)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.muDeploy.Lock()
+	defer s.muDeploy.Unlock()
 	d, ok := s.deployments[req.GetName()]
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only delete clusters created using TopologyManager", req.GetName())
@@ -158,8 +167,8 @@ func (s *server) DeleteCluster(ctx context.Context, req *cpb.DeleteClusterReques
 
 func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (*cpb.ShowClusterResponse, error) {
 	log.Infof("Received ShowCluster request: %v", req)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.muDeploy.Lock()
+	defer s.muDeploy.Unlock()
 	d, ok := s.deployments[req.GetName()]
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only show clusters created using TopologyManager", req.GetName())
@@ -183,35 +192,73 @@ func validatePath(path string) (string, error) {
 
 func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {
 	log.Infof("Received CreateTopology request: %v", req)
-	bp, err := validatePath(req.Topology.Name)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid topology path: %v", err)
+	topoPb := req.GetTopology()
+	if topoPb == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid request: missing topology protobuf")
 	}
-	p := topo.TopologyParams{
-		TopoName:       req.Topology.Name,
-		TopoNewOptions: []topo.Option{topo.WithBasePath(filepath.Dir(bp))},
-		Kubecfg:        req.Kubecfg,
+	if topoPb.GetName() == "" {
+		return nil, status.Errorf(codes.NotFound, "missing topology name")
 	}
 
-	if err = topo.CreateTopology(ctx, p); err != nil {
+	s.muTopo.Lock()
+	defer s.muTopo.Unlock()
+	if _, ok := s.topos[topoPb.GetName()]; ok {
+		return nil, status.Errorf(codes.AlreadyExists, "topology %q already exists", req.Topology.GetName())
+	}
+
+	log.Infof("Validating the topology protobuf...")
+	for _, node := range topoPb.Nodes {
+		if node.GetType() == tpb.Node_IXIA_TG {
+			continue
+		}
+		if node.GetConfig() == nil {
+			return nil, status.Errorf(codes.NotFound, "missing config field for node %q", node.GetName())
+		}
+		if node.GetConfig().GetFile() == "" {
+			return nil, status.Errorf(codes.NotFound, "config file not specified for node %q", node.GetName())
+		}
+		log.Infof("Check config path: %q", node.GetConfig().GetFile())
+		if _, err := validatePath(filepath.Join(defaultTopoBasePath, node.GetConfig().GetFile())); err != nil {
+			return nil, status.Errorf(codes.NotFound, "config file not found for node %q: %v", node.GetName(), err)
+		}
+	}
+	// Saves the original topology protobuf.
+	txtPb, err := prototext.Marshal(topoPb)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
+	}
+
+	if err := topo.CreateTopology(ctx, topo.TopologyParams{
+		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb), topo.WithBasePath(defaultTopoBasePath)},
+		Kubecfg:        req.Kubecfg,
+	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology: %v", err)
 	}
 
+	s.topos[topoPb.GetName()] = txtPb
 	return &cpb.CreateTopologyResponse{
 		TopologyName: req.Topology.GetName(),
 		State:        cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
 	}, nil
-
 }
 
 func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequest) (*cpb.DeleteTopologyResponse, error) {
 	log.Infof("Received DeleteTopology request: %v", req)
-	p := topo.TopologyParams{
-		TopoName: req.TopologyName,
-		Kubecfg:  defaultKubeCfg,
+	s.muTopo.Lock()
+	defer s.muTopo.Unlock()
+	txtPb, ok := s.topos[req.GetTopologyName()]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "topology %q not found", req.GetTopologyName())
+	}
+	topoPb := &tpb.Topology{}
+	if err := prototext.Unmarshal(txtPb, topoPb); err != nil {
+		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
 	}
 
-	if err := topo.DeleteTopology(ctx, p); err != nil {
+	if err := topo.DeleteTopology(ctx, topo.TopologyParams{
+		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb), topo.WithBasePath(defaultTopoBasePath)},
+		Kubecfg:        defaultKubeCfg,
+	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
 	}
 
@@ -220,9 +267,19 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 
 func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest) (*cpb.ShowTopologyResponse, error) {
 	log.Infof("Received ShowTopology request: %v", req)
+	s.muTopo.Lock()
+	defer s.muTopo.Unlock()
+	txtPb, ok := s.topos[req.GetTopologyName()]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "topology %q not found", req.GetTopologyName())
+	}
+	topoPb := &tpb.Topology{}
+	if err := prototext.Unmarshal(txtPb, topoPb); err != nil {
+		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
+	}
 	resp, err := topo.GetTopologyServices(ctx, topo.TopologyParams{
-		TopoName: req.TopologyName,
-		Kubecfg:  defaultKubeCfg,
+		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb), topo.WithBasePath(defaultTopoBasePath)},
+		Kubecfg:        defaultKubeCfg,
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
