@@ -68,6 +68,7 @@ type TopologyManager interface {
 	Nodes() []node.Node
 	Push(context.Context) error
 	Resources(context.Context) (*Resources, error)
+	TopologyProto() *tpb.Topology
 	Watch(context.Context) error
 }
 
@@ -116,10 +117,6 @@ func WithBasePath(s string) Option {
 
 // New creates a new topology manager based on the provided kubecfg and topology.
 func New(kubecfg string, pb *tpb.Topology, opts ...Option) (TopologyManager, error) {
-	if pb == nil {
-		return nil, fmt.Errorf("pb cannot be nil")
-	}
-	log.Infof("Creating manager for: %s", pb.Name)
 	m := &Manager{
 		kubecfg: kubecfg,
 		proto:   pb,
@@ -128,6 +125,10 @@ func New(kubecfg string, pb *tpb.Topology, opts ...Option) (TopologyManager, err
 	for _, o := range opts {
 		o(m)
 	}
+	if m.proto == nil {
+		return nil, fmt.Errorf("topology protobuf cannot be nil")
+	}
+	log.Infof("Creating manager for: %s", m.proto.Name)
 	if m.rCfg == nil {
 		// use the current context in kubeconfig try in-cluster first if not fallback to kubeconfig
 		log.Infof("Trying in-cluster configuration")
@@ -235,6 +236,11 @@ func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
 		return nil, fmt.Errorf("failed to get topology CRDs: %v", err)
 	}
 	return topology.Items, nil
+}
+
+// Topology returns the topology protobuf.
+func (m *Manager) TopologyProto() *tpb.Topology {
+	return m.proto
 }
 
 // Push pushes the current topology to k8s.
@@ -499,15 +505,19 @@ type TopologyParams struct {
 
 // CreateTopology creates the topology and configs it.
 func CreateTopology(ctx context.Context, params TopologyParams) error {
-	topopb, err := Load(params.TopoName)
-	if err != nil {
-		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	var topopb *tpb.Topology
+	var err error
+	if params.TopoName != "" {
+		topopb, err = Load(params.TopoName)
+		if err != nil {
+			return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+		}
 	}
 	t, err := New(params.Kubecfg, topopb, params.TopoNewOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to create topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%s\n", proto.MarshalTextString(topopb))
+	log.Infof("Topology:\n%s\n", proto.MarshalTextString(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
@@ -521,7 +531,7 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 	if err := t.CheckNodeStatus(ctx, params.Timeout); err != nil {
 		return err
 	}
-	log.Infof("Topology %q created\n", topopb.Name)
+	log.Infof("Topology %q created\n", t.TopologyProto().GetName())
 	r, err := t.Resources(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check resource %s: %+v", params.TopoName, err)
@@ -536,15 +546,19 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 
 // DeleteTopology deletes the topology.
 func DeleteTopology(ctx context.Context, params TopologyParams) error {
-	topopb, err := Load(params.TopoName)
-	if err != nil {
-		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	var topopb *tpb.Topology
+	var err error
+	if params.TopoName != "" {
+		topopb, err = Load(params.TopoName)
+		if err != nil {
+			return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+		}
 	}
 	t, err := New(params.Kubecfg, topopb, params.TopoNewOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to delete topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%+v\n", proto.MarshalTextString(topopb))
+	log.Infof("Topology:\n%+v\n", proto.MarshalTextString(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
@@ -552,7 +566,7 @@ func DeleteTopology(ctx context.Context, params TopologyParams) error {
 	if err := t.Delete(ctx); err != nil {
 		return fmt.Errorf("failed to delete %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Successfully deleted topology: %q", topopb.Name)
+	log.Infof("Successfully deleted topology: %q", t.TopologyProto().GetName())
 
 	return nil
 }
@@ -629,9 +643,13 @@ func (s *sMap) TopoState() cpb.TopologyState {
 
 // GetTopologyServices returns the topology information.
 func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowTopologyResponse, error) {
-	topopb, err := Load(params.TopoName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+	var topopb *tpb.Topology
+	var err error
+	if params.TopoName != "" {
+		topopb, err = Load(params.TopoName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
+		}
 	}
 
 	t, err := new(params.Kubecfg, topopb, params.TopoNewOptions...)
@@ -647,7 +665,7 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowT
 	if err != nil {
 		return nil, err
 	}
-	for _, n := range topopb.Nodes {
+	for _, n := range t.TopologyProto().Nodes {
 		if len(n.Services) == 0 {
 			n.Services = map[uint32]*tpb.Service{}
 		}
@@ -677,6 +695,6 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowT
 	}
 	return &cpb.ShowTopologyResponse{
 		State:    sMap.TopoState(),
-		Topology: topopb,
+		Topology: t.TopologyProto(),
 	}, nil
 }

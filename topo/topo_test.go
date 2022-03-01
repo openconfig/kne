@@ -174,6 +174,10 @@ func (f *defaultFakeTopology) Topology(context.Context) ([]topologyv1.Topology, 
 	return nil, nil
 }
 
+func (f *defaultFakeTopology) TopologyProto() *tpb.Topology {
+	return nil
+}
+
 func (f *defaultFakeTopology) Push(context.Context) error {
 	return nil
 }
@@ -314,12 +318,17 @@ func TestDeleteTopology(t *testing.T) {
 type fakeTopology struct {
 	defaultFakeTopology
 	resources *Resources
+	proto     *tpb.Topology
 	rErr      error
 	lErr      error
 }
 
 func (f *fakeTopology) Load(context.Context) error {
 	return f.lErr
+}
+
+func (f *fakeTopology) TopologyProto() *tpb.Topology {
+	return f.proto
 }
 
 func (f *fakeTopology) Resources(context.Context) (*Resources, error) {
@@ -335,6 +344,11 @@ func TestGetTopologyServices(t *testing.T) {
 		WithClusterConfig(&rest.Config{}),
 		WithKubeClient(kfake.NewSimpleClientset()),
 		WithTopoClient(tf),
+	}
+
+	validTopoIn, err := Load("testdata/valid_topo.pb.txt")
+	if err != nil {
+		t.Fatalf("cannot load the valid topoplogy proto as input: %v", err)
 	}
 	validTopoOut := &tpb.Topology{}
 	if err := prototext.Unmarshal([]byte(validPbTxt), validTopoOut); err != nil {
@@ -355,22 +369,15 @@ func TestGetTopologyServices(t *testing.T) {
 		wantErr: "no such file or directory",
 	}, {
 		desc: "empty resources",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/valid_topo.pb.txt",
-			TopoNewOptions: opts,
-		},
 		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
 			return &fakeTopology{
+				proto:     validTopoIn,
 				resources: &Resources{},
 			}, nil
 		},
 		wantErr: "not found",
 	}, {
 		desc: "load fail",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/valid_topo.pb.txt",
-			TopoNewOptions: opts,
-		},
 		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
 			return &fakeTopology{
 				lErr:      fmt.Errorf("load failed"),
@@ -380,12 +387,9 @@ func TestGetTopologyServices(t *testing.T) {
 		wantErr: "load failed",
 	}, {
 		desc: "valid case",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/valid_topo.pb.txt",
-			TopoNewOptions: opts,
-		},
 		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
 			return &fakeTopology{
+				proto: validTopoIn,
 				resources: &Resources{
 					Services: map[string]*corev1.Service{
 						"gnmi-service": {
