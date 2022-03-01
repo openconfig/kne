@@ -210,7 +210,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	for _, node := range topoPb.Nodes {
 		if node.GetConfig() == nil || node.GetConfig().GetFile() == "" {
 			// A config section is not required: you are allowed to bring up a
-			// topology with no initial config).
+			// topology with no initial config.
 			continue
 		}
 		log.Infof("Check config path: %q", node.GetConfig().GetFile())
@@ -225,7 +225,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	}
 
 	if err := topo.CreateTopology(ctx, topo.TopologyParams{
-		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb), topo.WithBasePath(defaultTopoBasePath)},
+		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
 		Kubecfg:        req.Kubecfg,
 	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology: %v", err)
@@ -252,7 +252,7 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	}
 
 	if err := topo.DeleteTopology(ctx, topo.TopologyParams{
-		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb), topo.WithBasePath(defaultTopoBasePath)},
+		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
 		Kubecfg:        defaultKubeCfg,
 	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
@@ -274,7 +274,7 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
 	}
 	resp, err := topo.GetTopologyServices(ctx, topo.TopologyParams{
-		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb), topo.WithBasePath(defaultTopoBasePath)},
+		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
 		Kubecfg:        defaultKubeCfg,
 	})
 	if err != nil {
