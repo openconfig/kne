@@ -206,7 +206,6 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 		return nil, status.Errorf(codes.AlreadyExists, "topology %q already exists", req.Topology.GetName())
 	}
 
-	log.Infof("Validating the topology protobuf...")
 	for _, node := range topoPb.Nodes {
 		if node.GetConfig() == nil || node.GetConfig().GetFile() == "" {
 			// A config section is not required: you are allowed to bring up a
@@ -223,10 +222,14 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
 	}
-
+	kcfg, err := validatePath(req.Kubecfg)
+	if err != nil {
+		log.Infof("Invalid Kubecfg: %v. Fall back to default.", err)
+		kcfg = defaultKubeCfg
+	}
 	if err := topo.CreateTopology(ctx, topo.TopologyParams{
 		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
-		Kubecfg:        req.Kubecfg,
+		Kubecfg:        kcfg,
 	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology: %v", err)
 	}
