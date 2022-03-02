@@ -220,7 +220,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	}
 	kcfg, err := validatePath(path)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "kubecfg at %q does not exist: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "kubecfg %q does not exist: %v", path, err)
 	}
 	if err := topo.CreateTopology(ctx, topo.TopologyParams{
 		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
@@ -250,7 +250,7 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	}
 	kcfg, err := validatePath(defaultKubeCfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "default kubecfg at %q does not exist: %v", err)
+		return nil, status.Errorf(codes.Internal, "default kubecfg %q does not exist: %v", defaultKubeCfg, err)
 	}
 	if err := topo.DeleteTopology(ctx, topo.TopologyParams{
 		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
@@ -275,7 +275,7 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 	}
 	kcfg, err := validatePath(defaultKubeCfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "default kubecfg at %q does not exist: %v", err)
+		return nil, status.Errorf(codes.Internal, "default kubecfg %q does not exist: %v", defaultKubeCfg, err)
 	}
 	resp, err := topo.GetTopologyServices(ctx, topo.TopologyParams{
 		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
