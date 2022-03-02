@@ -203,11 +203,11 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(defaultTopoBasePath, path)
 		}
-		node.GetConfig().ConfigData = &tpb.Config_File{File: path}
-		log.Infof("Checking config path: %q", node.GetConfig().GetFile())
-		if _, err := validatePath(node.GetConfig().GetFile()); err != nil {
+		log.Infof("Checking config path: %q", path)
+		if _, err := validatePath(path); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "config file not found for node %q: %v", node.GetName(), err)
 		}
+		node.GetConfig().ConfigData = &tpb.Config_File{File: path}
 	}
 	// Saves the original topology protobuf.
 	txtPb, err := prototext.Marshal(topoPb)
