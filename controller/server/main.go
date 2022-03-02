@@ -88,8 +88,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch metallb := req.IngressSpec.(type) {
 	case *cpb.CreateClusterRequest_Metallb:
 		l := &deploy.MetalLBSpec{}
-		var path string
-		path = defaultMetallbManifestDir
+		path := defaultMetallbManifestDir
 		if req.GetMetallb().ManifestDir != "" {
 			path = req.GetMetallb().ManifestDir
 		}
@@ -107,8 +106,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch meshnet := req.CniSpec.(type) {
 	case *cpb.CreateClusterRequest_Meshnet:
 		m := &deploy.MeshnetSpec{}
-		var path string
-		path = defaultMeshnetManifestDir
+		path := defaultMeshnetManifestDir
 		if req.GetMeshnet().ManifestDir != "" {
 			path = req.GetMeshnet().ManifestDir
 		}
@@ -179,17 +177,6 @@ func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (
 	return &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_RUNNING}, nil
 }
 
-func validatePath(path string) (string, error) {
-	path, err := filepath.Abs(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to evaluate absolute path: %q", path)
-	}
-	if _, err := os.Stat(path); err != nil {
-		return "", fmt.Errorf("path %q does not exist", path)
-	}
-	return path, nil
-}
-
 func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {
 	log.Infof("Received CreateTopology request: %v", req)
 	topoPb := req.GetTopology()
@@ -212,9 +199,14 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 			// topology with no initial config.
 			continue
 		}
-		log.Infof("Check config path: %q", node.GetConfig().GetFile())
+		path := node.GetConfig().GetFile()
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(defaultTopoBasePath, path)
+		}
+		node.GetConfig().ConfigData = &tpb.Config_File{File: path}
+		log.Infof("Checking config path: %q", node.GetConfig().GetFile())
 		if _, err := validatePath(node.GetConfig().GetFile()); err != nil {
-			return nil, status.Errorf(codes.NotFound, "config file not found for node %q: %v", node.GetName(), err)
+			return nil, status.Errorf(codes.InvalidArgument, "config file not found for node %q: %v", node.GetName(), err)
 		}
 	}
 	// Saves the original topology protobuf.
@@ -222,10 +214,13 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
 	}
-	kcfg, err := validatePath(req.Kubecfg)
+	path := defaultKubeCfg
+	if req.Kubecfg != "" {
+		path = req.Kubecfg
+	}
+	kcfg, err := validatePath(path)
 	if err != nil {
-		log.Infof("Invalid Kubecfg: %v. Fall back to default.", err)
-		kcfg = defaultKubeCfg
+		return nil, status.Errorf(codes.InvalidArgument, "kubecfg at %q does not exist: %v", err)
 	}
 	if err := topo.CreateTopology(ctx, topo.TopologyParams{
 		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
@@ -253,14 +248,16 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	if err := prototext.Unmarshal(txtPb, topoPb); err != nil {
 		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
 	}
-
+	kcfg, err := validatePath(defaultKubeCfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "default kubecfg at %q does not exist: %v", err)
+	}
 	if err := topo.DeleteTopology(ctx, topo.TopologyParams{
 		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
-		Kubecfg:        defaultKubeCfg,
+		Kubecfg:        kcfg,
 	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
 	}
-
 	return &cpb.DeleteTopologyResponse{}, nil
 }
 
@@ -276,14 +273,29 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 	if err := prototext.Unmarshal(txtPb, topoPb); err != nil {
 		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
 	}
+	kcfg, err := validatePath(defaultKubeCfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "default kubecfg at %q does not exist: %v", err)
+	}
 	resp, err := topo.GetTopologyServices(ctx, topo.TopologyParams{
 		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
-		Kubecfg:        defaultKubeCfg,
+		Kubecfg:        kcfg,
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
 	}
 	return resp, nil
+}
+
+func validatePath(path string) (string, error) {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to evaluate absolute path: %q", path)
+	}
+	if _, err := os.Stat(path); err != nil {
+		return "", fmt.Errorf("path %q does not exist", path)
+	}
+	return path, nil
 }
 
 func main() {
