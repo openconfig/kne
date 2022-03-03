@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/alts"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/client-go/util/homedir"
@@ -306,7 +307,10 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	creds := alts.NewServerCreds(alts.DefaultServerOptions())
-	s := grpc.NewServer(grpc.Creds(creds))
+	s := grpc.NewServer(
+		grpc.Creds(creds),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{PermitWithoutStream: true}),
+	)
 	cpb.RegisterTopologyManagerServer(s, newServer())
 	log.Infof("Controller server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
