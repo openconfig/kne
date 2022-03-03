@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	log "github.com/golang/glog"
 	"github.com/google/kne/deploy"
@@ -309,7 +310,10 @@ func main() {
 	creds := alts.NewServerCreds(alts.DefaultServerOptions())
 	s := grpc.NewServer(
 		grpc.Creds(creds),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{PermitWithoutStream: true}),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			PermitWithoutStream: true,
+			MinTime:             time.Second * 10,
+		}),
 	)
 	cpb.RegisterTopologyManagerServer(s, newServer())
 	log.Infof("Controller server listening at %v", lis.Addr())
