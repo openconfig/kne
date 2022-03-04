@@ -40,6 +40,7 @@ type Implementation interface {
 	Delete(context.Context) error
 	Pod(context.Context) (*corev1.Pod, error)
 	Service(context.Context) (*corev1.Service, error)
+	GetInterfaceDetails() ([]*InterfaceDetail, error)
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -61,6 +62,15 @@ type Resetter interface {
 type Node interface {
 	Interface
 	Implementation
+}
+
+type InterfaceDetail struct {
+	NodeName     string
+	PeerNodeName string
+	IfcName      string
+	PeerIfcName  string
+	PodName      string
+	Uid          int64
 }
 
 type NewNodeFn func(n *Impl) (Node, error)
@@ -120,6 +130,24 @@ func (n *Impl) GetProto() *tpb.Node {
 
 func (n *Impl) GetNamespace() string {
 	return n.Namespace
+}
+
+func (n *Impl) GetInterfaceDetails() ([]*InterfaceDetail, error) {
+	details := []*InterfaceDetail{}
+	nodeName := n.GetProto().Name
+
+	for ifcName, ifc := range n.GetProto().Interfaces {
+		details = append(details, &InterfaceDetail{
+			NodeName:     nodeName,
+			PeerNodeName: ifc.PeerName,
+			IfcName:      ifcName,
+			PeerIfcName:  ifc.PeerIntName,
+			PodName:      nodeName,
+			Uid:          ifc.Uid,
+		})
+	}
+
+	return details, nil
 }
 
 const (

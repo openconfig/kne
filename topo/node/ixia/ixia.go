@@ -155,6 +155,24 @@ func (n *Node) Delete(ctx context.Context) error {
 	return nil
 }
 
+// func (n *Node) GetInterfaceDetails() ([]*node.InterfaceDetail, error) {
+// 	details := []*node.InterfaceDetail{}
+// 	nodeName := n.GetProto().Name
+
+// 	for ifcName, ifc := range n.GetProto().Interfaces {
+// 		details = append(details, &node.InterfaceDetail{
+// 			NodeName:     nodeName,
+// 			PeerNodeName: ifc.PeerName,
+// 			IfcName:      ifcName,
+// 			PeerIfcName:  ifc.PeerIntName,
+// 			PodName:      nodeName + "-" + ifcName,
+// 			Uid:          ifc.Uid,
+// 		})
+// 	}
+
+// 	return details, nil
+// }
+
 func defaults(pb *tpb.Node) *tpb.Node {
 	return pb
 }

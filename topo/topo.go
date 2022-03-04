@@ -115,6 +115,79 @@ func WithBasePath(s string) Option {
 	}
 }
 
+func getMeshnetTopologies(nodeMap map[string]node.Node) ([]*topologyv1.Topology, error) {
+	topologies := []*topologyv1.Topology{}
+	npidMap := map[string]map[string][]*node.InterfaceDetail{}
+
+	for _, n := range nodeMap {
+		details, err := n.GetInterfaceDetails()
+		if err != nil {
+			return nil, fmt.Errorf("could not get interface details: %v", err)
+		}
+
+		pidMap := map[string][]*node.InterfaceDetail{}
+		for _, d := range details {
+			_, ok := pidMap[d.PodName]
+			if !ok {
+				pidMap[d.PodName] = []*node.InterfaceDetail{}
+			}
+
+			pidMap[d.PodName] = append(pidMap[d.PodName], d)
+		}
+
+		npidMap[n.GetProto().Name] = pidMap
+	}
+
+	for nodeName, pidMap := range npidMap {
+		for podName, ifcDetails := range pidMap {
+			t := &topologyv1.Topology{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: podName,
+				},
+				Spec: topologyv1.TopologySpec{
+					Links: []topologyv1.Link{},
+				},
+			}
+
+			for _, ifcDetail := range ifcDetails {
+				link := topologyv1.Link{
+					LocalIntf: ifcDetail.IfcName,
+					LocalIP:   "",
+					PeerIntf:  ifcDetail.PeerIfcName,
+					PeerIP:    "",
+					UID:       int(ifcDetail.Uid),
+				}
+
+				peerPidMap, ok := npidMap[ifcDetail.PeerNodeName]
+				if !ok {
+					return nil, fmt.Errorf("unknown peer node name %s for node %s pod %s", ifcDetail.PeerNodeName, nodeName, podName)
+				}
+
+				for peerPodName, peerIfcDetails := range peerPidMap {
+					for _, peerIfcDetail := range peerIfcDetails {
+						if peerIfcDetail.IfcName == ifcDetail.PeerIfcName && peerIfcDetail.PeerIfcName == ifcDetail.IfcName {
+							link.PeerPod = peerPodName
+							break
+						}
+					}
+					if link.PeerPod != "" {
+						break
+					}
+				}
+
+				if link.PeerPod == "" {
+					return nil, fmt.Errorf("could not determine peer pod name for node %s pod %s", nodeName, podName)
+				}
+				t.Spec.Links = append(t.Spec.Links, link)
+			}
+
+			topologies = append(topologies, t)
+		}
+	}
+
+	return topologies, nil
+}
+
 // New creates a new topology manager based on the provided kubecfg and topology.
 func New(kubecfg string, pb *tpb.Topology, opts ...Option) (TopologyManager, error) {
 	m := &Manager{
@@ -170,11 +243,6 @@ func (m *Manager) Load(ctx context.Context) error {
 				if n.Interfaces[k].IntName == "" {
 					n.Interfaces[k].IntName = k
 				}
-			}
-		}
-		for k := range n.Interfaces {
-			if n.Interfaces[k].IntName == "" {
-				n.Interfaces[k].IntName = k
 			}
 		}
 		nMap[n.Name] = n
@@ -260,32 +328,18 @@ func (m *Manager) Push(ctx context.Context) error {
 	}
 
 	log.Infof("Pushing Meshnet Node Topology to k8s: %q", m.proto.Name)
-	for _, n := range m.nodes {
-		t := &topologyv1.Topology{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: n.Name(),
-			},
-			Spec: topologyv1.TopologySpec{},
-		}
-		var links []topologyv1.Link
-		for k, intf := range n.GetProto().Interfaces {
-			link := topologyv1.Link{
-				LocalIntf: k,
-				LocalIP:   "",
-				PeerIntf:  intf.PeerIntName,
-				PeerIP:    "",
-				PeerPod:   intf.PeerName,
-				UID:       int(intf.Uid),
-			}
-			links = append(links, link)
-		}
-		t.Spec.Links = links
+	topologies, err := getMeshnetTopologies(m.nodes)
+	if err != nil {
+		return fmt.Errorf("could not get meshnet topologies: %v", err)
+	}
+	for _, t := range topologies {
 		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not create meshnet topology %v: %v", t, err)
 		}
 		log.Infof("Meshnet Node:\n%+v\n", sT)
 	}
+
 	log.Infof("Creating Node Pods")
 	for k, n := range m.nodes {
 		if err := n.Create(ctx); err != nil {
