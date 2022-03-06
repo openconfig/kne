@@ -16,7 +16,6 @@ package topo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -115,12 +114,12 @@ func WithBasePath(s string) Option {
 	}
 }
 
-func getMeshnetTopologies(nodeMap map[string]node.Node) ([]*topologyv1.Topology, error) {
+func getMeshnetTopologies(ctx context.Context, nodeMap map[string]node.Node) ([]*topologyv1.Topology, error) {
 	topologies := []*topologyv1.Topology{}
 	npidMap := map[string]map[string][]*node.InterfaceDetail{}
 
 	for _, n := range nodeMap {
-		details, err := n.GetInterfaceDetails()
+		details, err := n.GetInterfaceDetails(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("could not get interface details: %v", err)
 		}
@@ -328,7 +327,7 @@ func (m *Manager) Push(ctx context.Context) error {
 	}
 
 	log.Infof("Pushing Meshnet Node Topology to k8s: %q", m.proto.Name)
-	topologies, err := getMeshnetTopologies(m.nodes)
+	topologies, err := getMeshnetTopologies(ctx, m.nodes)
 	if err != nil {
 		return fmt.Errorf("could not get meshnet topologies: %v", err)
 	}
@@ -373,11 +372,11 @@ func (m *Manager) CheckNodeStatus(ctx context.Context, timeout time.Duration) er
 			}
 
 			phase, err := n.Status(ctx)
-			if err != nil || phase == "Failed" {
-				return errors.New(fmt.Sprintf("Node %q: Pod Status %s Reason %s", name, phase, err.Error()))
+			if err != nil || phase == node.NODE_FAILED {
+				return fmt.Errorf("Node %q: Status %s Reason %v", name, phase, err)
 			}
-			if phase == "Running" {
-				log.Infof("Node %q: Pod Status %s", name, phase)
+			if phase == node.NODE_RUNNING {
+				log.Infof("Node %q: Status %s", name, phase)
 				processed[name] = true
 			} else {
 				foundAll = false
@@ -660,16 +659,16 @@ var (
 
 // sMap keeps the POD state of all topology nodes.
 type sMap struct {
-	m map[string]corev1.PodPhase
+	m map[string]node.NodeStatus
 }
 
 func (s *sMap) Size() int {
 	return len(s.m)
 }
 
-func (s *sMap) SetNodeState(name string, state corev1.PodPhase) {
+func (s *sMap) SetNodeState(name string, state node.NodeStatus) {
 	if s.m == nil {
-		s.m = map[string]corev1.PodPhase{}
+		s.m = map[string]node.NodeStatus{}
 	}
 	s.m[name] = state
 }
@@ -678,18 +677,18 @@ func (s *sMap) TopoState() cpb.TopologyState {
 	if s == nil || len(s.m) == 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
 	}
-	cntTable := map[corev1.PodPhase]int{}
+	cntTable := map[node.NodeStatus]int{}
 	for _, gotState := range s.m {
 		cntTable[gotState]++
 	}
 
-	if cntTable[corev1.PodRunning] == s.Size() {
+	if cntTable[node.NODE_RUNNING] == s.Size() {
 		return cpb.TopologyState_TOPOLOGY_STATE_RUNNING
 	}
-	if cntTable[corev1.PodFailed] > 0 {
+	if cntTable[node.NODE_FAILED] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_ERROR
 	}
-	if cntTable[corev1.PodPending] > 0 {
+	if cntTable[node.NODE_PENDING] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_CREATING
 	}
 	return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN

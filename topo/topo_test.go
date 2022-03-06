@@ -28,6 +28,7 @@ import (
 	cpb "github.com/google/kne/proto/controller"
 	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	nd "github.com/google/kne/topo/node"
 	"github.com/h-fam/errdiff"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -494,7 +495,7 @@ func TestGetTopologyServices(t *testing.T) {
 func TestStateMap(t *testing.T) {
 	type node struct {
 		name  string
-		phase corev1.PodPhase
+		phase nd.NodeStatus
 	}
 
 	tests := []struct {
@@ -507,41 +508,41 @@ func TestStateMap(t *testing.T) {
 	}, {
 		desc: "one node failed",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodRunning},
-			{"n3", corev1.PodRunning},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_RUNNING},
+			{"n3", nd.NODE_RUNNING},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed with one node pending",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodPending},
-			{"n3", corev1.PodRunning},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_PENDING},
+			{"n3", nd.NODE_RUNNING},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed, one node pending, one node unknown",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodPending},
-			{"n3", corev1.PodUnknown},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_PENDING},
+			{"n3", nd.NODE_UNKNOWN},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "all nodes failed",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodFailed},
-			{"n3", corev1.PodFailed},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_FAILED},
+			{"n3", nd.NODE_FAILED},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node pending",
 		nodes: []*node{
-			{"n1", corev1.PodPending},
-			{"n2", corev1.PodRunning},
-			{"n3", corev1.PodRunning},
+			{"n1", nd.NODE_PENDING},
+			{"n2", nd.NODE_RUNNING},
+			{"n3", nd.NODE_RUNNING},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_CREATING,
 	},

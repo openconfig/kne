@@ -34,13 +34,13 @@ type Implementation interface {
 	Create(context.Context) error
 	// Status provides a custom implementation of accessing vendor node status.
 	// Requires context, Kubernetes client interface and namespace.
-	Status(context.Context) (corev1.PodPhase, error)
+	Status(context.Context) (NodeStatus, error)
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
 	Pod(context.Context) (*corev1.Pod, error)
 	Service(context.Context) (*corev1.Service, error)
-	GetInterfaceDetails() ([]*InterfaceDetail, error)
+	GetInterfaceDetails(context.Context) ([]*InterfaceDetail, error)
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -72,6 +72,15 @@ type InterfaceDetail struct {
 	PodName      string
 	Uid          int64
 }
+
+type NodeStatus string
+
+const (
+	NODE_PENDING NodeStatus = "PENDING"
+	NODE_RUNNING NodeStatus = "RUNNING"
+	NODE_FAILED  NodeStatus = "FAILED"
+	NODE_UNKNOWN NodeStatus = "UNKNOWN"
+)
 
 type NewNodeFn func(n *Impl) (Node, error)
 
@@ -132,7 +141,8 @@ func (n *Impl) GetNamespace() string {
 	return n.Namespace
 }
 
-func (n *Impl) GetInterfaceDetails() ([]*InterfaceDetail, error) {
+func (n *Impl) GetInterfaceDetails(ctx context.Context) ([]*InterfaceDetail, error) {
+	log.Infof("Getting interface details for node resource %s", n.Name())
 	details := []*InterfaceDetail{}
 	nodeName := n.GetProto().Name
 
@@ -146,7 +156,7 @@ func (n *Impl) GetInterfaceDetails() ([]*InterfaceDetail, error) {
 			Uid:          ifc.Uid,
 		})
 	}
-
+	log.Infof("Interface details for node resource %s: %q", n.Name(), details)
 	return details, nil
 }
 
@@ -434,13 +444,22 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 	})
 }
 
-// Status returns the current pod state for Node.
-func (n *Impl) Status(ctx context.Context) (corev1.PodPhase, error) {
+// Status returns the current node state.
+func (n *Impl) Status(ctx context.Context) (NodeStatus, error) {
 	p, err := n.Pod(ctx)
 	if err != nil {
-		return corev1.PodUnknown, err
+		return NODE_UNKNOWN, err
 	}
-	return p.Status.Phase, nil
+	switch p.Status.Phase {
+	case corev1.PodFailed:
+		return NODE_FAILED, nil
+	case corev1.PodRunning:
+		return NODE_RUNNING, nil
+	case corev1.PodPending:
+		fallthrough
+	default:
+		return NODE_PENDING, nil
+	}
 }
 
 // Name returns the name of the node.
