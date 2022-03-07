@@ -85,6 +85,8 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	n := &Node{
 		Impl: nodeImpl,
 	}
+
+	n.FixInterfaces()
 	return n, nil
 }
 
@@ -310,6 +312,12 @@ func (n *Node) Delete(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (n *Node) FixInterfaces() {
+	for _, v := range n.Proto.Interfaces {
+		v.Name = v.IntName
+	}
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {

@@ -486,12 +486,20 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		ConfigMaps: map[string]*corev1.ConfigMap{},
 		Topologies: map[string]*topologyv1.Topology{},
 	}
-	for _, n := range m.nodes {
-		p, err := n.Pod(ctx)
-		if err != nil {
-			return nil, err
-		}
-		r.Pods[p.Name] = p
+	// for _, n := range m.nodes {
+	// 	p, err := n.Pod(ctx)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	r.Pods[p.Name] = p
+	// }
+	pList, err := m.kClient.CoreV1().Pods(m.proto.Name).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range pList.Items {
+		pLocal := p
+		r.Pods[p.Name] = &pLocal
 	}
 	tList, err := m.Topology(ctx)
 	if err != nil {
@@ -733,6 +741,8 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowT
 			if grpcService, ok := r.Services["grpc-service"]; ok {
 				serviceToProto(grpcService, n.Services)
 			}
+
+			continue
 		}
 		sName := fmt.Sprintf("service-%s", n.Name)
 		s, ok := r.Services[sName]
