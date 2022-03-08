@@ -125,9 +125,10 @@ func (n *Node) getCrd(new bool) *IxiaTG {
 				Out: int32(svc.Outside),
 			}
 		}
-		for name := range n.GetProto().Interfaces {
+		for name, ifc := range n.GetProto().Interfaces {
 			ixiaCrd.Spec.Interfaces = append(ixiaCrd.Spec.Interfaces, IxiaTGIntf{
-				Name: name,
+				Name:  name,
+				Group: ifc.LinkGroup,
 			})
 		}
 
