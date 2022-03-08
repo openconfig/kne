@@ -66,6 +66,7 @@ type TopologyManager interface {
 	Node(string) (node.Node, error)
 	Nodes() []node.Node
 	TopologySpecs(context.Context) ([]*topologyv1.Topology, error)
+	TopologyResources(ctx context.Context) ([]*topologyv1.Topology, error)
 	Push(context.Context) error
 	Resources(context.Context) (*Resources, error)
 	TopologyProto() *tpb.Topology
@@ -226,13 +227,19 @@ func (m *Manager) Load(ctx context.Context) error {
 	return nil
 }
 
-// Topology gets the topology CRDs for the cluster.
-func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
+// TopologyResources gets the topology CRDs for the cluster.
+func (m *Manager) TopologyResources(ctx context.Context) ([]*topologyv1.Topology, error) {
 	topology, err := m.tClient.Topology(m.proto.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get topology CRDs: %v", err)
 	}
-	return topology.Items, nil
+
+	items := make([]*topologyv1.Topology, len(topology.Items))
+	for i := range items {
+		items[i] = &topology.Items[i]
+	}
+
+	return items, nil
 }
 
 // Topology returns the topology protobuf.
@@ -395,17 +402,26 @@ func (m *Manager) Delete(ctx context.Context) error {
 		return fmt.Errorf("topology %q does not exist in cluster", m.proto.Name)
 	}
 
-	// Delete topology pods
+	// Delete topology nodes
 	for _, n := range m.nodes {
 		// Delete Service for node
 		if err := n.Delete(ctx); err != nil {
 			log.Warnf("Error deleting node %q: %v", n.Name(), err)
 		}
-		// Delete Topology for node
-		if err := m.tClient.Topology(m.proto.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
-			log.Warnf("Error deleting topology %q: %v", n.Name(), err)
-		}
 	}
+	// Delete meshnet nodes
+	nodes, err := m.TopologyResources(ctx)
+	if err == nil {
+		for _, n := range nodes {
+			if err := m.tClient.Topology(m.proto.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
+				log.Warnf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
+			}
+		}
+	} else {
+		// no need to return warning as deleting meshnet namespace shall delete the resources too
+		log.Warnf("Error getting meshnet nodes: %v", err)
+	}
+
 	// Delete namespace
 	prop := metav1.DeletePropagationForeground
 	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.proto.Name, metav1.DeleteOptions{
@@ -470,13 +486,7 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		ConfigMaps: map[string]*corev1.ConfigMap{},
 		Topologies: map[string]*topologyv1.Topology{},
 	}
-	// for _, n := range m.nodes {
-	// 	p, err := n.Pod(ctx)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	r.Pods[p.Name] = p
-	// }
+
 	pList, err := m.kClient.CoreV1().Pods(m.proto.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -485,13 +495,12 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		pLocal := p
 		r.Pods[p.Name] = &pLocal
 	}
-	tList, err := m.Topology(ctx)
+	tList, err := m.TopologyResources(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, t := range tList {
-		v := t
-		r.Topologies[v.Name] = &v
+		r.Topologies[t.Name] = t
 	}
 	sList, err := m.kClient.CoreV1().Services(m.proto.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
