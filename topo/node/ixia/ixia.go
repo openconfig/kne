@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	topologyv1 "github.com/google/kne/api/types/v1beta1"
 	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
 )
@@ -130,7 +131,7 @@ func (n *Node) getCrd(new bool) *IxiaTG {
 			})
 		}
 
-		log.Infof("Created ixia CRD for node %v: %q", n.Name(), ixiaCrd)
+		log.Tracef("Created ixia CRD for node %s: %+q", n.Name(), ixiaCrd)
 	}
 
 	return ixiaCrd
@@ -186,8 +187,8 @@ func (n *Node) waitForState(ctx context.Context, state string, dur time.Duration
 	return nil, fmt.Errorf("timed out waiting for ixia CRD state to be %s", state)
 }
 
-func (n *Node) GetInterfaceDetails(ctx context.Context) ([]*node.InterfaceDetail, error) {
-	log.Infof("Getting interface details for node resource %s", n.Name())
+func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error) {
+	log.Infof("Getting interfaces for ixia node resource %s ...", n.Name())
 	desiredState := "INITIATED"
 
 	crd, err := json.Marshal(n.getCrd(true))
@@ -195,7 +196,7 @@ func (n *Node) GetInterfaceDetails(ctx context.Context) ([]*node.InterfaceDetail
 		return nil, fmt.Errorf("could not marshal ixia CRD to JSON: %v", err)
 	}
 
-	log.Infof("Creating ixia CRD (desiredState=%s) ...", desiredState)
+	log.Infof("Creating custom resource for ixia (desiredState=%s) ...", desiredState)
 	err = n.KubeClient.CoreV1().RESTClient().
 		Post().
 		AbsPath("/apis/network.keysight.com/v1alpha1").
@@ -206,34 +207,53 @@ func (n *Node) GetInterfaceDetails(ctx context.Context) ([]*node.InterfaceDetail
 		Error()
 
 	if err != nil {
-		return nil, fmt.Errorf("could not create ixia CRD: %v", err)
+		return nil, fmt.Errorf("could not create custom resource for ixia: %v", err)
 	}
 
 	status, err := n.waitForState(ctx, desiredState, 30*time.Second)
-
-	nodeInterfaces := n.GetProto().Interfaces
-	details := []*node.InterfaceDetail{}
-
-	for _, ifc := range status.Interfaces {
-		detail := &node.InterfaceDetail{
-			NodeName: n.Name(),
-			IfcName:  ifc.Name,
-			PodName:  ifc.PodName,
-		}
-
-		nodeIfc, ok := nodeInterfaces[ifc.Name]
-		if !ok {
-			return nil, fmt.Errorf("could not find interface %s in node %s interfaces", ifc.Name, detail.NodeName)
-		}
-
-		detail.PeerNodeName = nodeIfc.PeerName
-		detail.PeerIfcName = nodeIfc.PeerIntName
-		detail.Uid = nodeIfc.Uid
-		details = append(details, detail)
+	if err != nil {
+		return nil, fmt.Errorf("could not wait for state of custom resource for ixia: %v", err)
 	}
 
-	log.Infof("Interface details for node resource %s: %q", n.Name(), details)
-	return details, nil
+	proto := n.GetProto()
+	// this is needed since ixia node can consist of one or more pods and each
+	// pod may have one or more interfaces associated with it
+	podNameTopo := map[string]*topologyv1.Topology{}
+
+	for _, ifc := range status.Interfaces {
+		nodeIfc, ok := proto.Interfaces[ifc.Name]
+		if !ok {
+			return nil, fmt.Errorf("could not find '%s' in interface map of node %s", ifc.Name, proto.Name)
+		}
+
+		topo, ok := podNameTopo[ifc.PodName]
+		if !ok {
+			topo = &topologyv1.Topology{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: ifc.PodName,
+				},
+				Spec: topologyv1.TopologySpec{
+					Links: []topologyv1.Link{},
+				},
+			}
+			podNameTopo[ifc.PodName] = topo
+		}
+
+		topo.Spec.Links = append(topo.Spec.Links, topologyv1.Link{
+			UID:       int(nodeIfc.Uid),
+			LocalIntf: ifc.Name,
+			PeerIntf:  nodeIfc.PeerIntName,
+			PeerPod:   nodeIfc.PeerName,
+			LocalIP:   "",
+			PeerIP:    "",
+		})
+	}
+
+	topos := make([]*topologyv1.Topology, 0, len(podNameTopo))
+	for _, topo := range podNameTopo {
+		topos = append(topos, topo)
+	}
+	return topos, nil
 }
 
 func (n *Node) Create(ctx context.Context) error {

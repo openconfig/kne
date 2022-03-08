@@ -65,6 +65,7 @@ type TopologyManager interface {
 	Load(context.Context) error
 	Node(string) (node.Node, error)
 	Nodes() []node.Node
+	TopologySpecs(context.Context) ([]*topologyv1.Topology, error)
 	Push(context.Context) error
 	Resources(context.Context) (*Resources, error)
 	TopologyProto() *tpb.Topology
@@ -112,79 +113,6 @@ func WithBasePath(s string) Option {
 	return func(m *Manager) {
 		m.BasePath = s
 	}
-}
-
-func getMeshnetTopologies(ctx context.Context, nodeMap map[string]node.Node) ([]*topologyv1.Topology, error) {
-	topologies := []*topologyv1.Topology{}
-	npidMap := map[string]map[string][]*node.InterfaceDetail{}
-
-	for _, n := range nodeMap {
-		details, err := n.GetInterfaceDetails(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("could not get interface details: %v", err)
-		}
-
-		pidMap := map[string][]*node.InterfaceDetail{}
-		for _, d := range details {
-			_, ok := pidMap[d.PodName]
-			if !ok {
-				pidMap[d.PodName] = []*node.InterfaceDetail{}
-			}
-
-			pidMap[d.PodName] = append(pidMap[d.PodName], d)
-		}
-
-		npidMap[n.GetProto().Name] = pidMap
-	}
-
-	for nodeName, pidMap := range npidMap {
-		for podName, ifcDetails := range pidMap {
-			t := &topologyv1.Topology{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: podName,
-				},
-				Spec: topologyv1.TopologySpec{
-					Links: []topologyv1.Link{},
-				},
-			}
-
-			for _, ifcDetail := range ifcDetails {
-				link := topologyv1.Link{
-					LocalIntf: ifcDetail.IfcName,
-					LocalIP:   "",
-					PeerIntf:  ifcDetail.PeerIfcName,
-					PeerIP:    "",
-					UID:       int(ifcDetail.Uid),
-				}
-
-				peerPidMap, ok := npidMap[ifcDetail.PeerNodeName]
-				if !ok {
-					return nil, fmt.Errorf("unknown peer node name %s for node %s pod %s", ifcDetail.PeerNodeName, nodeName, podName)
-				}
-
-				for peerPodName, peerIfcDetails := range peerPidMap {
-					for _, peerIfcDetail := range peerIfcDetails {
-						if peerIfcDetail.IfcName == ifcDetail.PeerIfcName && peerIfcDetail.PeerIfcName == ifcDetail.IfcName {
-							link.PeerPod = peerPodName
-							break
-						}
-					}
-					if link.PeerPod != "" {
-						break
-					}
-				}
-
-				if link.PeerPod == "" {
-					return nil, fmt.Errorf("could not determine peer pod name for node %s pod %s", nodeName, podName)
-				}
-				t.Spec.Links = append(t.Spec.Links, link)
-			}
-
-			topologies = append(topologies, t)
-		}
-	}
-
-	return topologies, nil
 }
 
 // New creates a new topology manager based on the provided kubecfg and topology.
@@ -310,6 +238,58 @@ func (m *Manager) TopologyProto() *tpb.Topology {
 	return m.proto
 }
 
+func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error) {
+	nodeSpecs := map[string]*[]*topologyv1.Topology{}
+	topos := []*topologyv1.Topology{}
+
+	// get topology specs from all nodes
+	for _, n := range m.nodes {
+		log.Infof("Getting topology specs for node %s", n.Name())
+		specs, err := n.TopologySpecs(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch topology specs for node %s: %v", n.Name(), err)
+		}
+
+		log.Tracef("Topology specs for node %s: %+q", n.Name(), specs)
+		nodeSpecs[n.Name()] = &specs
+	}
+
+	// replace node name with pod name, for peer pod attribute in each link
+	for nodeName, specs := range nodeSpecs {
+		for _, spec := range *specs {
+			for l := range spec.Spec.Links {
+				link := &spec.Spec.Links[l]
+				peerSpecs, ok := nodeSpecs[link.PeerPod]
+				if !ok {
+					return nil, fmt.Errorf("specs do not exist for node %s", link.PeerPod)
+				}
+
+				foundPeer := false
+				for _, peerSpec := range *peerSpecs {
+					for _, peerLink := range peerSpec.Spec.Links {
+						if peerLink.UID == link.UID {
+							link.PeerPod = peerSpec.ObjectMeta.Name
+							foundPeer = true
+							break
+						}
+					}
+					if foundPeer {
+						break
+					}
+				}
+
+				if !foundPeer {
+					return nil, fmt.Errorf("could not find peer for node %s pod %s link UID %d", nodeName, spec.ObjectMeta.Name, link.UID)
+				}
+			}
+
+			topos = append(topos, spec)
+		}
+	}
+
+	return topos, nil
+}
+
 // Push pushes the current topology to k8s.
 func (m *Manager) Push(ctx context.Context) error {
 	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.proto.Name, metav1.GetOptions{}); err != nil {
@@ -326,15 +306,17 @@ func (m *Manager) Push(ctx context.Context) error {
 		log.Infof("Server Namespace: %+v", sNs)
 	}
 
-	log.Infof("Pushing Meshnet Node Topology to k8s: %q", m.proto.Name)
-	topologies, err := getMeshnetTopologies(ctx, m.nodes)
+	log.Infof("Getting topology specs for namespace %s", m.proto.Name)
+	topologies, err := m.TopologySpecs(ctx)
 	if err != nil {
 		return fmt.Errorf("could not get meshnet topologies: %v", err)
 	}
+	log.Tracef("Got topology specs for namespace %s: %+q", m.proto.Name, topologies)
 	for _, t := range topologies {
+		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
 		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
 		if err != nil {
-			return fmt.Errorf("could not create meshnet topology %v: %v", t, err)
+			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
 		}
 		log.Infof("Meshnet Node:\n%+v\n", sT)
 	}

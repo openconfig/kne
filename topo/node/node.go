@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/pointer"
 
+	topologyv1 "github.com/google/kne/api/types/v1beta1"
 	tpb "github.com/google/kne/proto/topo"
 )
 
@@ -29,6 +30,9 @@ type Interface interface {
 }
 
 type Implementation interface {
+	// TopologySpecs provides a custom implementation for providing
+	// one or more meshnet resource spec for a node type
+	TopologySpecs(context.Context) ([]*topologyv1.Topology, error)
 	// Create provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Create(context.Context) error
@@ -40,7 +44,6 @@ type Implementation interface {
 	Delete(context.Context) error
 	Pod(context.Context) (*corev1.Pod, error)
 	Service(context.Context) (*corev1.Service, error)
-	GetInterfaceDetails(context.Context) ([]*InterfaceDetail, error)
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -62,15 +65,6 @@ type Resetter interface {
 type Node interface {
 	Interface
 	Implementation
-}
-
-type InterfaceDetail struct {
-	NodeName     string
-	PeerNodeName string
-	IfcName      string
-	PeerIfcName  string
-	PodName      string
-	Uid          int64
 }
 
 type NodeStatus string
@@ -141,23 +135,33 @@ func (n *Impl) GetNamespace() string {
 	return n.Namespace
 }
 
-func (n *Impl) GetInterfaceDetails(ctx context.Context) ([]*InterfaceDetail, error) {
-	log.Infof("Getting interface details for node resource %s", n.Name())
-	details := []*InterfaceDetail{}
-	nodeName := n.GetProto().Name
+func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
+	proto := n.GetProto()
 
-	for ifcName, ifc := range n.GetProto().Interfaces {
-		details = append(details, &InterfaceDetail{
-			NodeName:     nodeName,
-			PeerNodeName: ifc.PeerName,
-			IfcName:      ifcName,
-			PeerIfcName:  ifc.PeerIntName,
-			PodName:      nodeName,
-			Uid:          ifc.Uid,
-		})
+	t := topologyv1.Topology{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: proto.Name,
+		},
+		Spec: topologyv1.TopologySpec{
+			Links: make([]topologyv1.Link, len(proto.Interfaces)),
+		},
 	}
-	log.Infof("Interface details for node resource %s: %q", n.Name(), details)
-	return details, nil
+
+	i := 0
+	for ifcName, ifc := range proto.Interfaces {
+		link := &t.Spec.Links[i]
+		link.UID = int(ifc.Uid)
+		link.LocalIntf = ifcName
+		link.PeerIntf = ifc.PeerIntName
+		link.PeerPod = ifc.PeerName
+		link.LocalIP = ""
+		link.PeerIP = ""
+		i++
+	}
+
+	// by default each node will result in exactly one topology resource
+	// with multiple links
+	return []*topologyv1.Topology{&t}, nil
 }
 
 const (
