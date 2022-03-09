@@ -42,8 +42,8 @@ type Implementation interface {
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
-	Pod(context.Context) (*corev1.Pod, error)
-	Service(context.Context) (*corev1.Service, error)
+	Pods(context.Context) ([]*corev1.Pod, error)
+	Services(context.Context) ([]*corev1.Service, error)
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -450,11 +450,14 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 
 // Status returns the current node state.
 func (n *Impl) Status(ctx context.Context) (NodeStatus, error) {
-	p, err := n.Pod(ctx)
+	p, err := n.Pods(ctx)
 	if err != nil {
 		return NODE_UNKNOWN, err
 	}
-	switch p.Status.Phase {
+	if len(p) != 1 {
+		return NODE_UNKNOWN, fmt.Errorf("expected exactly one pod for node %s", n.Name())
+	}
+	switch p[0].Status.Phase {
 	case corev1.PodFailed:
 		return NODE_FAILED, nil
 	case corev1.PodRunning:
@@ -472,13 +475,23 @@ func (n *Impl) Name() string {
 }
 
 // Pod returns the pod definition for the node.
-func (n *Impl) Pod(ctx context.Context) (*corev1.Pod, error) {
-	return n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+func (n *Impl) Pods(ctx context.Context) ([]*corev1.Pod, error) {
+	p, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return []*corev1.Pod{p}, nil
 }
 
 // Service returns the service definition for the node.
-func (n *Impl) Service(ctx context.Context) (*corev1.Service, error) {
-	return n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
+func (n *Impl) Services(ctx context.Context) ([]*corev1.Service, error) {
+	s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return []*corev1.Service{s}, nil
 }
 
 func getImpl(impl *Impl) (Node, error) {

@@ -161,16 +161,20 @@ func showFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	fmt.Fprintf(out, "Pods:\n")
-	for _, p := range r.Pods {
-		fmt.Fprintf(out, "%s:%s IP:%s\n", topopb.Name, p.Name, p.Status.PodIP)
+	for _, pods := range r.Pods {
+		for _, p := range pods {
+			fmt.Fprintf(out, "%s:%s IP:%s\n", topopb.Name, p.Name, p.Status.PodIP)
+		}
 	}
 	fmt.Fprintf(out, "Topologies:\n")
 	for _, p := range r.Topologies {
 		fmt.Fprintf(out, "%s:%s\nSpec:\n%s\nStatus:\n%s\n", topopb.Name, p.Name, pretty.Sprint(p.Spec), pretty.Sprint(p.Status))
 	}
 	fmt.Fprintf(out, "Services:\n")
-	for _, s := range r.Services {
-		fmt.Fprintf(out, "%s:%s\nSpec:\n%s\nStatus:\n%s\n", topopb.Name, s.Name, pretty.Sprint(s.Spec), pretty.Sprint(s.Status))
+	for _, svcs := range r.Services {
+		for _, s := range svcs {
+			fmt.Fprintf(out, "%s:%s\nSpec:\n%s\nStatus:\n%s\n", topopb.Name, s.Name, pretty.Sprint(s.Spec), pretty.Sprint(s.Status))
+		}
 	}
 	return nil
 }

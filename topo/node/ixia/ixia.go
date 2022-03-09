@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	ixiatg "github.com/open-traffic-generator/ixia-c-operator/api/v1alpha1"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -15,63 +17,6 @@ import (
 	"github.com/google/kne/topo/node"
 )
 
-type IxiaTGSvcPort struct {
-	In  int32 `json:"in"`
-	Out int32 `json:"out,omitempty"`
-	//InIp     string `json:"inside_ip,omitempty"`
-	//OutIp    string `json:"outside_ip,omitempty"`
-	//NodePort int32 `json:"node_port,omitempty"`
-}
-
-type IxiaTGIntf struct {
-	Name  string `json:"name"`
-	Group string `json:"group,omitempty"`
-}
-
-type IxiaTGIntfStatus struct {
-	PodName string `json:"pod_name"`
-	Name    string `json:"name"`
-}
-
-// IxiaTGSpec defines the desired state of IxiaTG
-type IxiaTGSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Version of the node
-	Release string `json:"release,omitempty"`
-	// Desired state by network emulation (KNE)
-	DesiredState string `json:"desired_state,omitempty"`
-	// ApiEndPoint as define in OTG config
-	ApiEndPoint map[string]IxiaTGSvcPort `json:"api_endpoint_map,omitempty"`
-	// Interfaces with DUT
-	Interfaces []IxiaTGIntf `json:"interfaces,omitempty"`
-}
-
-// IxiaTGStatus defines the observed state of IxiaTG
-type IxiaTGStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	//Pod    string `json:"pod,omitempty"`
-	State      string             `json:"state,omitempty"`
-	Reason     string             `json:"reason,omitempty"`
-	Interfaces []IxiaTGIntfStatus `json:"interfaces,omitempty"`
-}
-
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-
-// IxiaTG is the Schema for the ixiacs API
-//+kubebuilder:subresource:status
-type IxiaTG struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   IxiaTGSpec   `json:"spec,omitempty"`
-	Status IxiaTGStatus `json:"status,omitempty"`
-}
-
-var ixiaCrd *IxiaTG
 var ixiaResource = "Ixiatgs"
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -95,50 +40,43 @@ type Node struct {
 	*node.Impl
 }
 
-func (n *Node) getCrd(new bool) *IxiaTG {
-	if new {
-		ixiaCrd = nil
+func (n *Node) newCRD() *ixiatg.IxiaTG {
+	log.Infof("Creating new ixia CRD for node: %v", n.Name())
+	ixiaCRD := &ixiatg.IxiaTG{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "network.keysight.com/v1alpha1",
+			Kind:       "IxiaTG",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name(),
+			Namespace: n.Namespace,
+		},
+		Spec: ixiatg.IxiaTGSpec{
+			Release:      n.Proto.Version,
+			DesiredState: "INITIATED",
+			ApiEndPoint:  map[string]ixiatg.IxiaTGSvcPort{},
+			Interfaces:   []ixiatg.IxiaTGIntf{},
+		},
 	}
 
-	if ixiaCrd == nil {
-		log.Infof("Creating ixia CRD for node: %v", n.Name())
-		ixiaCrd = &IxiaTG{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "network.keysight.com/v1alpha1",
-				Kind:       "IxiaTG",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      n.Name(),
-				Namespace: n.Namespace,
-			},
-			Spec: IxiaTGSpec{
-				Release:      n.Proto.Version,
-				DesiredState: "INITIATED",
-				ApiEndPoint:  map[string]IxiaTGSvcPort{},
-				Interfaces:   []IxiaTGIntf{},
-			},
+	for _, svc := range n.GetProto().Services {
+		ixiaCRD.Spec.ApiEndPoint[svc.Name] = ixiatg.IxiaTGSvcPort{
+			In:  int32(svc.Inside),
+			Out: int32(svc.Outside),
 		}
-
-		for _, svc := range n.GetProto().Services {
-			ixiaCrd.Spec.ApiEndPoint[svc.Name] = IxiaTGSvcPort{
-				In:  int32(svc.Inside),
-				Out: int32(svc.Outside),
-			}
-		}
-		for name, ifc := range n.GetProto().Interfaces {
-			ixiaCrd.Spec.Interfaces = append(ixiaCrd.Spec.Interfaces, IxiaTGIntf{
-				Name:  name,
-				Group: ifc.LinkGroup,
-			})
-		}
-
-		log.Tracef("Created ixia CRD for node %s: %+q", n.Name(), ixiaCrd)
+	}
+	for name, ifc := range n.GetProto().Interfaces {
+		ixiaCRD.Spec.Interfaces = append(ixiaCRD.Spec.Interfaces, ixiatg.IxiaTGIntf{
+			Name:  name,
+			Group: ifc.LinkGroup,
+		})
 	}
 
-	return ixiaCrd
+	log.Tracef("Created new ixia CRD for node %s: %+q", n.Name(), ixiaCRD)
+	return ixiaCRD
 }
 
-func (n *Node) getStatus(ctx context.Context) (*IxiaTGStatus, error) {
+func (n *Node) getCRD(ctx context.Context) (*ixiatg.IxiaTG, error) {
 	r := n.KubeClient.CoreV1().RESTClient().
 		Get().
 		AbsPath("/apis/network.keysight.com/v1alpha1").
@@ -156,15 +94,23 @@ func (n *Node) getStatus(ctx context.Context) (*IxiaTGStatus, error) {
 		return nil, fmt.Errorf("could not get raw ixia CRD response: %v", err)
 	}
 
-	crd := &IxiaTG{}
+	crd := &ixiatg.IxiaTG{}
 	if err := json.Unmarshal(rBytes, crd); err != nil {
 		return nil, fmt.Errorf("could not unmarshal ixia CRD: %v", err)
 	}
 
+	return crd, nil
+}
+
+func (n *Node) getStatus(ctx context.Context) (*ixiatg.IxiaTGStatus, error) {
+	crd, err := n.getCRD(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return &crd.Status, nil
 }
 
-func (n *Node) waitForState(ctx context.Context, state string, dur time.Duration) (*IxiaTGStatus, error) {
+func (n *Node) waitForState(ctx context.Context, state string, dur time.Duration) (*ixiatg.IxiaTGStatus, error) {
 	start := time.Now()
 
 	log.Infof("Waiting for ixia CRD state to be %s ... (timeout: %v)", state, dur)
@@ -192,7 +138,7 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 	log.Infof("Getting interfaces for ixia node resource %s ...", n.Name())
 	desiredState := "INITIATED"
 
-	crd, err := json.Marshal(n.getCrd(true))
+	crd, err := json.Marshal(n.newCRD())
 	if err != nil {
 		return nil, fmt.Errorf("could not marshal ixia CRD to JSON: %v", err)
 	}
@@ -261,8 +207,12 @@ func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating deployment for node resource %s", n.Name())
 	desiredState := "DEPLOYED"
 
-	crd := n.getCrd(false)
+	crd, err := n.getCRD(ctx)
+	if err != nil {
+		return err
+	}
 	crd.Spec.DesiredState = desiredState
+	crd.Status = ixiatg.IxiaTGStatus{}
 
 	crdBytes, err := json.Marshal(crd)
 	if err != nil {
@@ -270,17 +220,6 @@ func (n *Node) Create(ctx context.Context) error {
 	}
 
 	log.Infof("Updating ixia CRD (desiredState=%s) ...", desiredState)
-
-	// patch := jsonpatch.Patch{}
-	// bytes := json.RawMessage([]byte(`{"path": "/spec/desired_state", "value": "DEPLOYED"}`))
-	// patch = append(patch, jsonpatch.Operation{
-	// 	"replace": &bytes,
-	// })
-
-	// patchBytes, err := json.Marshal(patch)
-	// if err != nil {
-	// 	return fmt.Errorf("could not marshal patch object: %v", err)
-	// }
 
 	err = n.KubeClient.CoreV1().RESTClient().
 		Patch(types.MergePatchType).
@@ -297,6 +236,60 @@ func (n *Node) Create(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Pods returns the pod definitions for the node.
+func (n *Node) Pods(ctx context.Context) ([]*corev1.Pod, error) {
+	crd, err := n.getCRD(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	pods := make([]*corev1.Pod, len(crd.Status.Interfaces)+1)
+	for i := range crd.Status.Interfaces {
+		for j := range pod.Items {
+			if pod.Items[j].Name == crd.Status.Interfaces[i].PodName {
+				pods[i+1] = &pod.Items[j]
+			}
+		}
+	}
+
+	for i := range pod.Items {
+		if pod.Items[i].Name == crd.Status.ApiEndPoint.PodName {
+			pods[0] = &pod.Items[i]
+		}
+	}
+
+	return pods, nil
+}
+
+// Services returns the service definition for the node.
+func (n *Node) Services(ctx context.Context) ([]*corev1.Service, error) {
+	crd, err := n.getCRD(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	svc, err := n.KubeClient.CoreV1().Services(n.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	svcs := make([]*corev1.Service, len(crd.Spec.ApiEndPoint))
+	for i := range crd.Status.ApiEndPoint.ServiceName {
+		for j := range svc.Items {
+			if svc.Items[j].Name == crd.Status.ApiEndPoint.ServiceName[i] {
+				svcs[i] = &svc.Items[j]
+			}
+		}
+	}
+
+	return svcs, nil
 }
 
 func (n *Node) Status(ctx context.Context) (node.NodeStatus, error) {

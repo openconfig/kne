@@ -458,8 +458,8 @@ func Load(fName string) (*tpb.Topology, error) {
 }
 
 type Resources struct {
-	Services   map[string]*corev1.Service
-	Pods       map[string]*corev1.Pod
+	Services   map[string][]*corev1.Service
+	Pods       map[string][]*corev1.Pod
 	ConfigMaps map[string]*corev1.ConfigMap
 	Topologies map[string]*topologyv1.Topology
 }
@@ -481,20 +481,26 @@ func (m *Manager) Nodes() []node.Node {
 // Resources gets the currently configured resources from the topology.
 func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 	r := Resources{
-		Services:   map[string]*corev1.Service{},
-		Pods:       map[string]*corev1.Pod{},
+		Services:   map[string][]*corev1.Service{},
+		Pods:       map[string][]*corev1.Pod{},
 		ConfigMaps: map[string]*corev1.ConfigMap{},
 		Topologies: map[string]*topologyv1.Topology{},
 	}
 
-	pList, err := m.kClient.CoreV1().Pods(m.proto.Name).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
+	for nodeName, n := range m.nodes {
+		pods, err := n.Pods(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("could not get pods for node %s: %v", nodeName, err)
+		}
+		r.Pods[nodeName] = pods
+
+		services, err := n.Services(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("could not get services for node %s: %v", nodeName, err)
+		}
+		r.Services[nodeName] = services
 	}
-	for _, p := range pList.Items {
-		pLocal := p
-		r.Pods[p.Name] = &pLocal
-	}
+
 	tList, err := m.TopologyResources(ctx)
 	if err != nil {
 		return nil, err
@@ -502,14 +508,7 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 	for _, t := range tList {
 		r.Topologies[t.Name] = t
 	}
-	sList, err := m.kClient.CoreV1().Services(m.proto.Name).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, s := range sList.Items {
-		sLocal := s
-		r.Services[sLocal.Name] = &sLocal
-	}
+
 	return &r, nil
 }
 
@@ -591,8 +590,10 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 		return fmt.Errorf("failed to check resource %s: %+v", params.TopoName, err)
 	}
 	log.Infof("Pods:")
-	for _, p := range r.Pods {
-		log.Infof("%s\n", p.Name)
+	for _, pods := range r.Pods {
+		for _, pod := range pods {
+			log.Infof("%v\n", pod.Name)
+		}
 	}
 
 	return nil
@@ -723,26 +724,15 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowT
 		if len(n.Services) == 0 {
 			n.Services = map[uint32]*tpb.Service{}
 		}
-		// (TODO:hines): Remove type once deprecated
-		if n.Vendor == tpb.Vendor_KEYSIGHT || n.Type == tpb.Node_IXIA_TG {
-			// Add Keysight gnmi and grpc global services until
-			// they have a better registration mechanism for global
-			// services
-			if gnmiService, ok := r.Services["gnmi-service"]; ok {
-				serviceToProto(gnmiService, n.Services)
-			}
-			if grpcService, ok := r.Services["grpc-service"]; ok {
-				serviceToProto(grpcService, n.Services)
-			}
 
+		services, ok := r.Services[n.Name]
+		if !ok {
 			continue
 		}
-		sName := fmt.Sprintf("service-%s", n.Name)
-		s, ok := r.Services[sName]
-		if !ok {
-			return nil, fmt.Errorf("service %s not found", sName)
+
+		for _, svc := range services {
+			serviceToProto(svc, n.Services)
 		}
-		serviceToProto(s, n.Services)
 	}
 	sMap := &sMap{}
 	for _, n := range t.Nodes() {
