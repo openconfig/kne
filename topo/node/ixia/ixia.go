@@ -129,6 +129,8 @@ func (n *Node) waitForState(ctx context.Context, state string, dur time.Duration
 			log.Infof("Attained ixia CRD state %s", state)
 			return status, nil
 		}
+
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	return nil, fmt.Errorf("timed out waiting for ixia CRD state to be %s", state)
@@ -255,6 +257,7 @@ func (n *Node) Pods(ctx context.Context) ([]*corev1.Pod, error) {
 		for j := range pod.Items {
 			if pod.Items[j].Name == crd.Status.Interfaces[i].PodName {
 				pods[i+1] = &pod.Items[j]
+				break
 			}
 		}
 	}
@@ -262,6 +265,7 @@ func (n *Node) Pods(ctx context.Context) ([]*corev1.Pod, error) {
 	for i := range pod.Items {
 		if pod.Items[i].Name == crd.Status.ApiEndPoint.PodName {
 			pods[0] = &pod.Items[i]
+			break
 		}
 	}
 
@@ -285,6 +289,7 @@ func (n *Node) Services(ctx context.Context) ([]*corev1.Service, error) {
 		for j := range svc.Items {
 			if svc.Items[j].Name == crd.Status.ApiEndPoint.ServiceName[i] {
 				svcs[i] = &svc.Items[j]
+				break
 			}
 		}
 	}
@@ -294,6 +299,7 @@ func (n *Node) Services(ctx context.Context) ([]*corev1.Service, error) {
 
 func (n *Node) Status(ctx context.Context) (node.NodeStatus, error) {
 	state := node.NODE_FAILED
+	var err error
 
 	status, err := n.getStatus(ctx)
 	if err != nil {
@@ -305,9 +311,11 @@ func (n *Node) Status(ctx context.Context) (node.NodeStatus, error) {
 		state = node.NODE_RUNNING
 	case "INITIATED":
 		state = node.NODE_PENDING
+	case "FAILED":
+		err = fmt.Errorf("got failure in ixia CRD status: %s", status.Reason)
 	}
 
-	return state, nil
+	return state, err
 }
 
 func (n *Node) Delete(ctx context.Context) error {
