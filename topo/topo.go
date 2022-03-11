@@ -274,7 +274,7 @@ func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 				foundPeer := false
 				for _, peerSpec := range *peerSpecs {
 					for _, peerLink := range peerSpec.Spec.Links {
-						if peerLink.UID == link.UID {
+						if peerLink.UID == link.UID && peerLink.LocalIntf == link.PeerIntf {
 							link.PeerPod = peerSpec.ObjectMeta.Name
 							foundPeer = true
 							break
