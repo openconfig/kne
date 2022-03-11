@@ -209,11 +209,9 @@ func (m *Manager) Load(ctx context.Context) error {
 		aInt.PeerName = l.ZNode
 		aInt.PeerIntName = l.ZInt
 		aInt.Uid = int64(uid)
-		aInt.LinkGroup = l.Group
 		zInt.PeerName = l.ANode
 		zInt.PeerIntName = l.AInt
 		zInt.Uid = int64(uid)
-		zInt.LinkGroup = l.Group
 		uid++
 	}
 	for k, n := range nMap {

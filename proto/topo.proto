@@ -99,8 +99,8 @@ message Interface {
   string peer_int_name = 5;
   // Uid is the internal link identifier used by Meshnet.
   int64 uid = 6;
-  // Name of link group to which this interface belongs
-  string link_group = 7;
+  // Name of group to which this interface belongs
+  string group = 7;
 }
 
 // Link is single link between nodes in the topology.
@@ -110,7 +110,6 @@ message Link {
   string a_int = 2;
   string z_node = 3;
   string z_int = 4;
-  string group = 5;
 }
 
 // Config is the k8s pod specific configuration for a node.
