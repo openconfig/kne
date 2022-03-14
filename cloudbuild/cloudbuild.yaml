@@ -13,7 +13,7 @@ steps:
     args: ["go", "test", "-v", "./..."]
 
   - id: packer_build
-    name: "gcr.io/gep-kne/packer"
+    name: "us-west1-docker.pkg.dev/gep-kne/packer"
     args: ["build", "cloudbuild/ubuntu.pkr.hcl"]
     env: [
       "PKR_VAR_build_id=$BUILD_ID",
