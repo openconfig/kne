@@ -99,7 +99,7 @@ nodes: {
   services: {
 	key: 1002
 	value: {
-  name: "ssh"
+  	  name: "ssh"
 	  inside: 1002
 	  outside: 22
 	  inside_ip: "1.1.1.2"
@@ -129,28 +129,6 @@ nodes: {
 	  inside_ip: "1.1.1.1"
 	  outside_ip: "100.100.100.100"
 	  node_port: 20001
-	}
-  }
-  services: {
-	key: 5555
-	value: {
-	  name: "port-5555"
-	  inside: 5555
-	  outside: 5555
-	  inside_ip: "1.1.1.3"
-	  outside_ip: "100.100.100.102"
-	  node_port: 30010
-	}
-  }
-  services: {
-	key: 50071
-	value: {
-	  name: "port-50071"
-	  inside: 50071
-	  outside: 50071
-	  inside_ip: "1.1.1.3"
-	  outside_ip: "100.100.100.102"
-	  node_port: 30011
 	}
   }
   version: "0.0.1-9999"
@@ -208,6 +186,14 @@ func (f *defaultFakeTopology) ConfigPush(context.Context, string, io.Reader) err
 }
 
 func (f *defaultFakeTopology) Node(string) (node.Node, error) {
+	return nil, nil
+}
+
+func (f *defaultFakeTopology) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
+	return nil, nil
+}
+
+func (f *defaultFakeTopology) TopologyResources(context.Context) ([]*topologyv1.Topology, error) {
 	return nil, nil
 }
 
@@ -361,112 +347,99 @@ func TestGetTopologyServices(t *testing.T) {
 		topoNewFunc func(string, *tpb.Topology, ...Option) (TopologyManager, error)
 		want        *tpb.Topology
 		wantErr     string
-	}{{
-		desc: "load topology error",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/not_there.pb.txt",
-			TopoNewOptions: opts,
+	}{
+		{
+			desc: "load topology error",
+			inputParam: TopologyParams{
+				TopoName:       "testdata/not_there.pb.txt",
+				TopoNewOptions: opts,
+			},
+			wantErr: "no such file or directory",
 		},
-		wantErr: "no such file or directory",
-	}, {
-		desc: "empty resources",
-		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-			return &fakeTopology{
-				proto:     validTopoIn,
-				resources: &Resources{},
-			}, nil
+		{
+			desc: "empty resources",
+			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+				return &fakeTopology{
+					proto:     validTopoIn,
+					resources: &Resources{},
+				}, nil
+			},
+			wantErr: "not found",
 		},
-		wantErr: "not found",
-	}, {
-		desc: "load fail",
-		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-			return &fakeTopology{
-				lErr:      fmt.Errorf("load failed"),
-				resources: &Resources{},
-			}, nil
+		{
+			desc: "load fail",
+			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+				return &fakeTopology{
+					lErr:      fmt.Errorf("load failed"),
+					resources: &Resources{},
+				}, nil
+			},
+			wantErr: "load failed",
 		},
-		wantErr: "load failed",
-	}, {
-		desc: "valid case",
-		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-			return &fakeTopology{
-				proto: validTopoIn,
-				resources: &Resources{
-					Services: map[string]*corev1.Service{
-						"gnmi-service": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.1",
-								Ports: []corev1.ServicePort{{
-									Port:     1000,
-									NodePort: 20000,
-									Name:     "gnmi",
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
+		{
+			desc: "valid case",
+			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+				return &fakeTopology{
+					proto: validTopoIn,
+					resources: &Resources{
+						Services: map[string][]*corev1.Service{
+							"ate1": {
+								{
+									Spec: corev1.ServiceSpec{
+										ClusterIP: "1.1.1.1",
+										Ports: []corev1.ServicePort{{
+											Port:     1001,
+											NodePort: 20001,
+											Name:     "grpc",
+										}},
+									},
+									Status: corev1.ServiceStatus{
+										LoadBalancer: corev1.LoadBalancerStatus{
+											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
+										},
+									},
+								},
+								{
+									Spec: corev1.ServiceSpec{
+										ClusterIP: "1.1.1.1",
+										Ports: []corev1.ServicePort{{
+											Port:     1000,
+											NodePort: 20000,
+											Name:     "gnmi",
+										}},
+									},
+									Status: corev1.ServiceStatus{
+										LoadBalancer: corev1.LoadBalancerStatus{
+											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
+										},
+									},
 								},
 							},
-						},
-						"grpc-service": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.1",
-								Ports: []corev1.ServicePort{{
-									Port:     1001,
-									NodePort: 20001,
-									Name:     "grpc",
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
-								},
-							},
-						},
-						"service-r1": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.2",
-								Ports: []corev1.ServicePort{{
-									Port:       1002,
-									NodePort:   22,
-									Name:       "ssh",
-									TargetPort: intstr.IntOrString{IntVal: 22},
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.101"}},
-								},
-							},
-						},
-						"service-ate1": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.3",
-								Ports: []corev1.ServicePort{{
-									Port:       5555,
-									NodePort:   30010,
-									Name:       "port-5555",
-									TargetPort: intstr.IntOrString{IntVal: 5555},
-								}, {
-									Port:       50071,
-									NodePort:   30011,
-									Name:       "port-50071",
-									TargetPort: intstr.IntOrString{IntVal: 50071},
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.102"}},
+							"r1": {
+								{
+									Spec: corev1.ServiceSpec{
+										ClusterIP: "1.1.1.2",
+										Ports: []corev1.ServicePort{{
+											Port:       1002,
+											NodePort:   22,
+											Name:       "ssh",
+											TargetPort: intstr.IntOrString{IntVal: 22},
+										}},
+									},
+									Status: corev1.ServiceStatus{
+										LoadBalancer: corev1.LoadBalancerStatus{
+											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.101"}},
+										},
+									},
 								},
 							},
 						},
 					},
-				},
-			}, nil
+				}, nil
+			},
+			wantErr: "",
+			want:    validTopoOut,
 		},
-		wantErr: "",
-		want:    validTopoOut,
-	},
 	}
 
 	for _, tc := range tests {
@@ -480,13 +453,13 @@ func TestGetTopologyServices(t *testing.T) {
 			}
 			got, err := GetTopologyServices(context.Background(), tc.inputParam)
 			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
-				t.Fatalf("failed: %+v", err)
+				t.Fatalf("get topology service returned unexpected error: gotErr: %+v, wantErr: %+v", err, tc.wantErr)
 			}
 			if tc.wantErr != "" {
 				return
 			}
 			if !proto.Equal(got.Topology, tc.want) {
-				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got, tc.want)
+				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got.Topology, tc.want)
 			}
 		})
 	}

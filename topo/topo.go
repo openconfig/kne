@@ -257,7 +257,7 @@ func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 			return nil, fmt.Errorf("could not fetch topology specs for node %s: %v", n.Name(), err)
 		}
 
-		log.Tracef("Topology specs for node %s: %+q", n.Name(), specs)
+		log.Tracef("Topology specs for node %s: %+v", n.Name(), specs)
 		nodeSpecs[n.Name()] = &specs
 	}
 
@@ -318,7 +318,7 @@ func (m *Manager) Push(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not get meshnet topologies: %v", err)
 	}
-	log.Tracef("Got topology specs for namespace %s: %+q", m.proto.Name, topologies)
+	log.Tracef("Got topology specs for namespace %s: %+v", m.proto.Name, topologies)
 	for _, t := range topologies {
 		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
 		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
@@ -725,7 +725,7 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowT
 
 		services, ok := r.Services[n.Name]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("services for node %s not found", n.Name)
 		}
 
 		for _, svc := range services {

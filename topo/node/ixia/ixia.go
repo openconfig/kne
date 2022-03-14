@@ -72,7 +72,7 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 		})
 	}
 
-	log.Tracef("Created new ixia CRD for node %s: %+q", n.Name(), ixiaCRD)
+	log.Tracef("Created new ixia CRD for node %s: %+v", n.Name(), ixiaCRD)
 	return ixiaCRD
 }
 

@@ -8,15 +8,17 @@ nodes: {
     type: IXIA_TG
     version: "0.0.1-9999"
     services: {
-        key: 5555
+        key: 1000
         value: {
-            inside: 5555
+            name: "gnmi"
+            inside: 1000
         }
     }
     services: {
-        key: 50071
+        key: 1001
         value: {
-            inside: 50071
+            name: "grpc"
+            inside: 1001
         }
     }
 }
