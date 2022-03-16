@@ -19,15 +19,14 @@ source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
   source_image = "ubuntu-2004-focal-v20210927"
   disk_size    = 50
-  image_name   = "kne-{{timestamp}}"
-  image_family = "kne-untested"
+  image_name   = "kne-external-${var.build_id}"
+  image_family = "kne-external-untested"
   image_labels = {
-    "tested" : "false",
     "kne_gh_commit_sha" : "${var.short_sha}",
     "kne_gh_branch_name" : "${var.branch_name}",
     "cloud_build_id" : "${var.build_id}",
   }
-  image_description     = "Ubuntu based linux VM image with KNE and all dependencies installed."
+  image_description     = "Ubuntu based linux VM image with KNE and all external dependencies installed."
   ssh_username          = "user"
   machine_type          = "e2-medium"
   zone                  = "${var.zone}"
@@ -63,7 +62,6 @@ build {
       "sudo apt-get install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "gcloud auth configure-docker us-west1-docker.pkg.dev -q",
     ]
   }
 
@@ -100,13 +98,8 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Cloning internal cloud source repos...",
-      "gcloud source repos clone keysight --project=gep-kne",
-      "gcloud source repos clone kne-internal --project=gep-kne",
-      "cd kne-internal",
-      "/usr/local/go/bin/go get -d ./...",
-      "cd proxy/gnmi/server",
-      "/usr/local/go/bin/go build -v",
+      "echo Cloning openconfig/ondatra github repo...",
+      "git clone https://github.com/openconfig/ondatra.git",
     ]
   }
 }
