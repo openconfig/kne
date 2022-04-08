@@ -22,17 +22,17 @@ option go_package = "github.com/google/kne/proto/controller";
 // Topology manager service definition.
 service TopologyManager {
   // Creates a topology with and responds with topology name and state.
-  rpc CreateTopology (CreateTopologyRequest) returns(CreateTopologyResponse) {}
+  rpc CreateTopology(CreateTopologyRequest) returns (CreateTopologyResponse) {}
   // Deletes a topology.
-  rpc DeleteTopology (DeleteTopologyRequest) returns(DeleteTopologyResponse) {}
+  rpc DeleteTopology(DeleteTopologyRequest) returns (DeleteTopologyResponse) {}
   // Shows the topology info and responds with the current topology state.
-  rpc ShowTopology (ShowTopologyRequest) returns(ShowTopologyResponse) {}
+  rpc ShowTopology(ShowTopologyRequest) returns (ShowTopologyResponse) {}
   // Creates kind cluster and responds with cluster name and state.
-  rpc CreateCluster (CreateClusterRequest) returns(CreateClusterResponse) {}
+  rpc CreateCluster(CreateClusterRequest) returns (CreateClusterResponse) {}
   // Deletes a kind cluster by cluster name.
-  rpc DeleteCluster (DeleteClusterRequest) returns(DeleteClusterResponse) {}
+  rpc DeleteCluster(DeleteClusterRequest) returns (DeleteClusterResponse) {}
   // Shows cluster state and topologies deployed in the cluster.
-  rpc ShowCluster (ShowClusterRequest) returns(ShowClusterResponse) {}
+  rpc ShowCluster(ShowClusterRequest) returns (ShowClusterResponse) {}
 }
 
 // Kind cluster specifications
@@ -68,6 +68,32 @@ message MeshnetSpec {
   string manifest_dir = 2;
 }
 
+// Controller specifications
+message ControllerSpec {
+  oneof spec {
+    IxiaTGSpec ixiatg = 1;
+  }
+}
+
+// IxiaTG specifications
+message IxiaTGSpec {
+  string manifest_dir = 1;
+  IxiaTGConfigMap config_map = 2;
+}
+
+// IxiaTG config map values
+message IxiaTGConfigMap {
+  string release = 1;
+  repeated IxiaTGImage images = 2;
+}
+
+// IxiaTG image identifier
+message IxiaTGImage {
+  string name = 1;
+  string path = 2;
+  string tag = 3;
+}
+
 // Request message to create a cluster.
 message CreateClusterRequest {
   oneof cluster_spec {
@@ -79,6 +105,7 @@ message CreateClusterRequest {
   oneof cni_spec {
     MeshnetSpec meshnet = 3;
   }
+  repeated ControllerSpec controller_specs = 4;
 }
 
 enum ClusterState {
@@ -100,8 +127,7 @@ message DeleteClusterRequest {
 }
 
 // Returns delete cluster response.
-message DeleteClusterResponse {
-}
+message DeleteClusterResponse {}
 
 // Request message to show cluster by name.
 message ShowClusterRequest {
@@ -126,7 +152,7 @@ message CreateTopologyRequest {
   topo.Topology topology = 1;
   string kubecfg = 2;
 }
-  
+
 // Returns create topology response.
 message CreateTopologyResponse {
   string topology_name = 1;
@@ -139,8 +165,7 @@ message DeleteTopologyRequest {
 }
 
 // Returns delete topology response.
-message DeleteTopologyResponse {   
-}
+message DeleteTopologyResponse {}
 
 // Request message to view topology info
 message ShowTopologyRequest {
@@ -152,6 +177,3 @@ message ShowTopologyResponse {
   TopologyState state = 1;
   topo.Topology topology = 2;
 }
-  
-  
-  
