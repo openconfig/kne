@@ -127,7 +127,8 @@ message DeleteClusterRequest {
 }
 
 // Returns delete cluster response.
-message DeleteClusterResponse {}
+message DeleteClusterResponse {
+}
 
 // Request message to show cluster by name.
 message ShowClusterRequest {
@@ -165,7 +166,8 @@ message DeleteTopologyRequest {
 }
 
 // Returns delete topology response.
-message DeleteTopologyResponse {}
+message DeleteTopologyResponse {
+}
 
 // Request message to view topology info
 message ShowTopologyRequest {
