@@ -284,7 +284,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 
 //go:generate mockgen -destination=mocks/mock_dnetwork.go -package=mocks github.com/docker/docker/client  NetworkAPIClient
 
-func TestMetalbSpec(t *testing.T) {
+func TestMetalLBSpec(t *testing.T) {
 	nl := []dtypes.NetworkResource{{
 		Name: "kind",
 		IPAM: network.IPAM{
@@ -568,6 +568,170 @@ func TestMeshnetSpec(t *testing.T) {
 				tt.ctx = context.Background()
 			}
 			err = tt.m.Healthy(tt.ctx)
+			if s := errdiff.Substring(err, tt.hErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func TestIxiaTGSpec(t *testing.T) {
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	deploymentName := "foo"
+	deploymentNS := "ixiatg-op-system"
+	d := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: deploymentNS,
+		},
+	}
+	tests := []struct {
+		desc        string
+		i           *IxiaTGSpec
+		execer      execerInterface
+		dErr        string
+		hErr        string
+		ctx         context.Context
+		mockKClient func(*fake.Clientset)
+	}{{
+		desc:   "no configmap",
+		i:      &IxiaTGSpec{},
+		execer: exec.NewFakeExecer(nil),
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}, {
+		desc: "configmap specified",
+		i: &IxiaTGSpec{
+			ConfigMap: &IxiaTGConfigMap{
+				Release: "from-arg",
+				Images: []*IxiaTGImage{{
+					Name: "controller",
+					Path: "some/path",
+					Tag:  "latest",
+				}},
+			},
+		},
+		execer: exec.NewFakeExecer(nil, nil),
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}, {
+		desc:   "operator deploy error",
+		i:      &IxiaTGSpec{},
+		execer: exec.NewFakeExecer(errors.New("failed to apply operator")),
+		dErr:   "failed to apply operator",
+	}, {
+		desc: "configmap deploy error",
+		i: &IxiaTGSpec{
+			ConfigMap: &IxiaTGConfigMap{
+				Release: "from-arg",
+				Images: []*IxiaTGImage{{
+					Name: "controller",
+					Path: "some/path",
+					Tag:  "latest",
+				}},
+			},
+		},
+		execer: exec.NewFakeExecer(nil, errors.New("failed to apply configmap")),
+		dErr:   "failed to apply configmap",
+	}, {
+		desc:   "context canceled",
+		i:      &IxiaTGSpec{},
+		execer: exec.NewFakeExecer(nil, nil),
+		ctx:    canceledCtx,
+		hErr:   "context canceled",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset(d)
+			if tt.mockKClient != nil {
+				tt.mockKClient(ki)
+			}
+			tt.i.SetKClient(ki)
+			if tt.execer != nil {
+				execer = tt.execer
+			}
+			err := tt.i.Deploy(context.Background())
+			if s := errdiff.Substring(err, tt.dErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			if tt.ctx == nil {
+				tt.ctx = context.Background()
+			}
+			err = tt.i.Healthy(tt.ctx)
 			if s := errdiff.Substring(err, tt.hErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
