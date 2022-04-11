@@ -162,7 +162,7 @@ func showFn(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Fprintf(out, "Pods:\n")
 	for k, pods := range r.Pods {
-		fmt.Fprintf(out, "Pod %s:\n", k)
+		fmt.Fprintf(out, "Container %s:\n", k)
 		for _, p := range pods {
 			if p == nil {
 				fmt.Fprintf(out, "pod in unknown state: nil\n")
