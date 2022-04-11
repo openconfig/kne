@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -580,6 +581,7 @@ func TestIxiaTGSpec(t *testing.T) {
 	cancel()
 	deploymentName := "foo"
 	deploymentNS := "ixiatg-op-system"
+	var replicas int32 = 2
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploymentName,
@@ -592,12 +594,13 @@ func TestIxiaTGSpec(t *testing.T) {
 		execer      execerInterface
 		dErr        string
 		hErr        string
+		cmNotFound  bool
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc:   "no configmap",
+		desc:   "configmap file found - 2 replicas",
 		i:      &IxiaTGSpec{},
-		execer: exec.NewFakeExecer(nil),
+		execer: exec.NewFakeExecer(nil, nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -607,11 +610,14 @@ func TestIxiaTGSpec(t *testing.T) {
 							Name:      deploymentName,
 							Namespace: deploymentNS,
 						},
+						Spec: appsv1.DeploymentSpec{
+							Replicas: &replicas,
+						},
 						Status: appsv1.DeploymentStatus{
 							AvailableReplicas:   0,
 							ReadyReplicas:       0,
 							Replicas:            0,
-							UnavailableReplicas: 1,
+							UnavailableReplicas: replicas,
 							UpdatedReplicas:     0,
 						},
 					},
@@ -622,12 +628,15 @@ func TestIxiaTGSpec(t *testing.T) {
 							Name:      deploymentName,
 							Namespace: deploymentNS,
 						},
+						Spec: appsv1.DeploymentSpec{
+							Replicas: &replicas,
+						},
 						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   1,
-							ReadyReplicas:       1,
-							Replicas:            1,
+							AvailableReplicas:   replicas,
+							ReadyReplicas:       replicas,
+							Replicas:            replicas,
 							UnavailableReplicas: 0,
-							UpdatedReplicas:     1,
+							UpdatedReplicas:     replicas,
 						},
 					},
 				}})
@@ -636,7 +645,7 @@ func TestIxiaTGSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "configmap specified",
+		desc: "configmap specified - 1 replica",
 		i: &IxiaTGSpec{
 			ConfigMap: &IxiaTGConfigMap{
 				Release: "from-arg",
@@ -685,6 +694,12 @@ func TestIxiaTGSpec(t *testing.T) {
 			}
 			k.PrependWatchReactor("deployments", reaction)
 		},
+	}, {
+		desc:   "no configmap",
+		i:      &IxiaTGSpec{},
+		execer: exec.NewFakeExecer(nil),
+		cmNotFound: true,
+		dErr:   "ixia configmap not found",
 	}, {
 		desc:   "operator deploy error",
 		i:      &IxiaTGSpec{},
@@ -720,6 +735,13 @@ func TestIxiaTGSpec(t *testing.T) {
 			tt.i.SetKClient(ki)
 			if tt.execer != nil {
 				execer = tt.execer
+			}
+			var cmNotFoundErr error
+			if tt.cmNotFound {
+				cmNotFoundErr = errors.New("file not found")
+			}
+			osStat = func(_ string) (os.FileInfo, error) {
+				return nil, cmNotFoundErr
 			}
 			err := tt.i.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {

@@ -53,6 +53,7 @@ data:
 var (
 	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
 	logOut               = log.StandardLogger().Out
+	healthTimeout = time.Minute
 
 	// execer handles all execs on host.
 	execer execerInterface = kexec.NewExecer(logOut, logOut)
@@ -60,6 +61,7 @@ var (
 	// Stubs for testing.
 	newProvider  = defaultProvider
 	execLookPath = exec.LookPath
+	osStat = os.Stat
 )
 
 //go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
@@ -135,7 +137,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	if err := d.Ingress.Deploy(ctx); err != nil {
 		return err
 	}
-	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.Ingress.Healthy(tCtx); err != nil {
 		return err
@@ -146,7 +148,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 		return err
 	}
 	d.CNI.SetKClient(kClient)
-	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
 		return err
@@ -158,7 +160,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 			return err
 		}
 		c.SetKClient(kClient)
-		tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 		defer cancel()
 		if err := c.Healthy(tCtx); err != nil {
 			return err
@@ -182,20 +184,20 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Cluster healthy")
-	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.Ingress.Healthy(tCtx); err != nil {
 		return err
 	}
 	log.Infof("Ingress healthy")
-	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
 		return err
 	}
 	log.Infof("CNI healthy")
 	for _, c := range d.Controllers {
-		tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 		defer cancel()
 		if err := c.Healthy(tCtx); err != nil {
 			return err
@@ -632,11 +634,12 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 	}
 	if i.ConfigMap == nil {
 		path := filepath.Join(i.ManifestDir, "ixia-configmap.yaml")
-		if _, err := os.Stat(path); err == nil {
-			log.Infof("Deploying IxiaTG configmap from: %s", path)
-			if err := execer.Exec("kubectl", "apply", "-f", path); err != nil {
-				return err
-			}
+		if _, err := osStat(path); err != nil {
+			return fmt.Errorf("ixia configmap not found: %v", err)
+		}
+		log.Infof("Deploying IxiaTG configmap from: %s", path)
+		if err := execer.Exec("kubectl", "apply", "-f", path); err != nil {
+			return err
 		}
 		log.Infof("IxiaTG controller Deployed")
 		return nil
@@ -685,11 +688,15 @@ func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string)
 			if !ok {
 				return fmt.Errorf("invalid object type: %T", d)
 			}
-			if d.Status.AvailableReplicas == 1 &&
-				d.Status.ReadyReplicas == 1 &&
+			var r int32 = 1
+			if d.Spec.Replicas != nil {
+				r = *d.Spec.Replicas
+			}
+			if d.Status.AvailableReplicas == r &&
+				d.Status.ReadyReplicas == r &&
 				d.Status.UnavailableReplicas == 0 &&
-				d.Status.Replicas == 1 &&
-				d.Status.UpdatedReplicas == 1 {
+				d.Status.Replicas == r &&
+				d.Status.UpdatedReplicas == r {
 				log.Infof("Deployment %q healthy", name)
 				return nil
 			}
