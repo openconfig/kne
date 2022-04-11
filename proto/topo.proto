@@ -17,16 +17,14 @@ package topo;
 
 option go_package = "github.com/google/kne/proto/topo";
 
-
 // Build with protoc -I=proto --go_out=proto/topo proto/topo.proto
-
 
 // Topology message defines what nodes and links will be created
 // inside the mesh.
 message Topology {
-  string name = 1; // Name of the topology - will be linked to the cluster name
-  repeated Node nodes = 2; // List of nodes in the topology
-  repeated Link links = 3; // connections between Nodes.
+  string name = 1;  // Name of the topology - will be linked to the cluster name
+  repeated Node nodes = 2;  // List of nodes in the topology
+  repeated Link links = 3;  // connections between Nodes.
 }
 
 // Vendor of the node. Topology manager uses this enum to dispatch the node to
@@ -43,7 +41,6 @@ enum Vendor {
   GOBGP = 8;
   NOKIA = 9;
 }
-
 
 // Node is a single container inside the topology
 message Node {
@@ -64,18 +61,18 @@ message Node {
     CISCO_E8000 = 13;
   }
 
-  string name = 1; // Name of the node in the topology. Must be unique.
+  string name = 1;  // Name of the node in the topology. Must be unique.
   // Type of node to create. (Will be deprecated).
   // If type is set vendor / model / version will not be evaluated.
   Type type = 2;
-  map<string,string> labels = 4; // Metadata labels describing the node.
-  Config config = 5; // Pod specific configuration of the node.
-  map<uint32, Service> services = 6; // Map of services to enable on the node.
-  map<string, string> constraints = 7; // Any k8s constraints required by node.
-  Vendor vendor = 8; // Vendor enum replaces type.
-  string model = 9;  // Model of the node.
-  string version = 10; // Version string used to identify a software release.
-  string os = 11; // Operating system type.
+  map<string, string> labels = 4;     // Metadata labels describing the node.
+  Config config = 5;                  // Pod specific configuration of the node.
+  map<uint32, Service> services = 6;  // Map of services to enable on the node.
+  map<string, string> constraints = 7;  // Any k8s constraints required by node.
+  Vendor vendor = 8;                    // Vendor enum replaces type.
+  string model = 9;                     // Model of the node.
+  string version = 10;  // Version string used to identify a software release.
+  string os = 11;       // Operating system type.
   // Interfaces is a map of container interfaces used by the node.
   // If interfaces is empty the interfaces defined in the links portion of the
   // topology will be populated into the node.
@@ -92,7 +89,7 @@ message Interface {
   // Internal device name. This name matches the key in the Node interface map.
   // It will be returned by the operator. Assigned by KNE.
   string int_name = 2;
-  uint32 mtu = 3; // Desired MTU for the interface.
+  uint32 mtu = 3;  // Desired MTU for the interface.
   // Peer node name. Assigned by KNE.
   string peer_name = 4;
   // Peer interface name. Assigned by KNE.
@@ -123,7 +120,7 @@ message Config {
   string config_path = 6;
   // Default configuration file name for the pod.
   string config_file = 7;
-  uint32 sleep = 8;             // Sleeptime before starting the pod.
+  uint32 sleep = 8;  // Sleeptime before starting the pod.
   // Certificate configuration
   CertificateCfg cert = 9;
   oneof config_data {
@@ -164,10 +161,10 @@ message SelfSignedCertCfg {
 // listen on. The outside port if provided will be the load balanced advertised
 // port.  If no outsideport is provided the inside port will be used.
 message Service {
-  string name = 1; // Name of the service (optional)
-  uint32 inside = 2; // Inside port to map Node (container listening port)
-  uint32 outside = 3; // Outside port to map (target port on loadbalancer)
-  string inside_ip = 4; // Assigned by KNE.
-  string outside_ip = 5; // Assigned by KNE.
-  uint32 node_port = 6; // Assigned by KNE.
+  string name = 1;        // Name of the service (optional)
+  uint32 inside = 2;      // Inside port to map Node (container listening port)
+  uint32 outside = 3;     // Outside port to map (target port on loadbalancer)
+  string inside_ip = 4;   // Assigned by KNE.
+  string outside_ip = 5;  // Assigned by KNE.
+  uint32 node_port = 6;   // Assigned by KNE.
 }
