@@ -53,7 +53,7 @@ data:
 var (
 	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
 	logOut               = log.StandardLogger().Out
-	healthTimeout = time.Minute
+	healthTimeout        = time.Minute
 
 	// execer handles all execs on host.
 	execer execerInterface = kexec.NewExecer(logOut, logOut)
@@ -61,7 +61,7 @@ var (
 	// Stubs for testing.
 	newProvider  = defaultProvider
 	execLookPath = exec.LookPath
-	osStat = os.Stat
+	osStat       = os.Stat
 )
 
 //go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider

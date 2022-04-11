@@ -695,11 +695,11 @@ func TestIxiaTGSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:   "no configmap",
-		i:      &IxiaTGSpec{},
-		execer: exec.NewFakeExecer(nil),
+		desc:       "no configmap",
+		i:          &IxiaTGSpec{},
+		execer:     exec.NewFakeExecer(nil),
 		cmNotFound: true,
-		dErr:   "ixia configmap not found",
+		dErr:       "ixia configmap not found",
 	}, {
 		desc:   "operator deploy error",
 		i:      &IxiaTGSpec{},
