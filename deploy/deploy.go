@@ -40,11 +40,20 @@ const (
 {{end}}  }
 }
 `
+	ixiaTGConfigMapHeader = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ixiatg-release-config
+  namespace: ixiatg-op-system
+data:
+  versions: |
+    `
 )
 
 var (
 	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
 	logOut               = log.StandardLogger().Out
+	healthTimeout        = time.Minute
 
 	// execer handles all execs on host.
 	execer execerInterface = kexec.NewExecer(logOut, logOut)
@@ -52,6 +61,7 @@ var (
 	// Stubs for testing.
 	newProvider  = defaultProvider
 	execLookPath = exec.LookPath
+	osStat       = os.Stat
 )
 
 //go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
@@ -89,10 +99,17 @@ type CNI interface {
 	Healthy(context.Context) error
 }
 
+type Controller interface {
+	Deploy(context.Context) error
+	SetKClient(kubernetes.Interface)
+	Healthy(context.Context) error
+}
+
 type Deployment struct {
-	Cluster Cluster
-	Ingress Ingress
-	CNI     CNI
+	Cluster     Cluster
+	Ingress     Ingress
+	CNI         CNI
+	Controllers []Controller
 }
 
 func (d *Deployment) String() string {
@@ -120,7 +137,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	if err := d.Ingress.Deploy(ctx); err != nil {
 		return err
 	}
-	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.Ingress.Healthy(tCtx); err != nil {
 		return err
@@ -131,12 +148,25 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 		return err
 	}
 	d.CNI.SetKClient(kClient)
-	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
 		return err
 	}
 	log.Infof("CNI healthy")
+	for _, c := range d.Controllers {
+		log.Infof("Deploying controller...")
+		if err := c.Deploy(ctx); err != nil {
+			return err
+		}
+		c.SetKClient(kClient)
+		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
+		defer cancel()
+		if err := c.Healthy(tCtx); err != nil {
+			return err
+		}
+	}
+	log.Infof("Controllers deployed and healthy")
 	return nil
 }
 
@@ -154,18 +184,26 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Cluster healthy")
-	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.Ingress.Healthy(tCtx); err != nil {
 		return err
 	}
 	log.Infof("Ingress healthy")
-	tCtx, cancel = context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
 		return err
 	}
 	log.Infof("CNI healthy")
+	for _, c := range d.Controllers {
+		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
+		defer cancel()
+		if err := c.Healthy(tCtx); err != nil {
+			return err
+		}
+	}
+	log.Infof("Controllers healthy")
 	return nil
 }
 
@@ -517,34 +555,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 }
 
 func (m *MetalLBSpec) Healthy(ctx context.Context) error {
-	log.Infof("Waiting on Metallb to be Healthy")
-	w, err := m.kClient.AppsV1().Deployments("metallb-system").Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	ch := w.ResultChan()
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context canceled before healthy")
-		case e, ok := <-ch:
-			if !ok {
-				return fmt.Errorf("watch channel closed before healthy")
-			}
-			d, ok := e.Object.(*appsv1.Deployment)
-			if !ok {
-				return fmt.Errorf("invalid object type: %T", d)
-			}
-			if d.Status.AvailableReplicas == 1 &&
-				d.Status.ReadyReplicas == 1 &&
-				d.Status.UnavailableReplicas == 0 &&
-				d.Status.Replicas == 1 &&
-				d.Status.UpdatedReplicas == 1 {
-				log.Infof("Metallb Healthy")
-				return nil
-			}
-		}
-	}
+	return deploymentHealthy(ctx, m.kClient, "metallb-system")
 }
 
 type MeshnetSpec struct {
@@ -589,6 +600,104 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 			if d.Status.NumberReady == d.Status.DesiredNumberScheduled &&
 				d.Status.NumberUnavailable == 0 {
 				log.Infof("Meshnet Healthy")
+				return nil
+			}
+		}
+	}
+}
+
+type IxiaTGSpec struct {
+	ManifestDir string           `yaml:"manifests"`
+	ConfigMap   *IxiaTGConfigMap `yaml:"configMap"`
+	kClient     kubernetes.Interface
+}
+
+type IxiaTGConfigMap struct {
+	Release string         `yaml:"release" json:"release"`
+	Images  []*IxiaTGImage `yaml:"images" json:"images"`
+}
+
+type IxiaTGImage struct {
+	Name string `yaml:"name" json:"name"`
+	Path string `yaml:"path" json:"path"`
+	Tag  string `yaml:"tag" json:"tag"`
+}
+
+func (i *IxiaTGSpec) SetKClient(c kubernetes.Interface) {
+	i.kClient = c
+}
+
+func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
+	log.Infof("Deploying IxiaTG controller from: %s", i.ManifestDir)
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")); err != nil {
+		return err
+	}
+	if i.ConfigMap == nil {
+		path := filepath.Join(i.ManifestDir, "ixia-configmap.yaml")
+		if _, err := osStat(path); err != nil {
+			return fmt.Errorf("ixia configmap not found: %v", err)
+		}
+		log.Infof("Deploying IxiaTG configmap from: %s", path)
+		if err := execer.Exec("kubectl", "apply", "-f", path); err != nil {
+			return err
+		}
+		log.Infof("IxiaTG controller Deployed")
+		return nil
+	}
+	b, err := json.MarshalIndent(i.ConfigMap, "    ", "  ")
+	if err != nil {
+		return err
+	}
+	b = append([]byte(ixiaTGConfigMapHeader), b...)
+	f, err := os.CreateTemp("", "ixiatg-configmap-*.yaml")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.Write(b); err != nil {
+		return err
+	}
+	log.Infof("Deploying IxiaTG configmap from: %s", f.Name())
+	if err := execer.Exec("kubectl", "apply", "-f", f.Name()); err != nil {
+		return err
+	}
+	log.Infof("IxiaTG controller Deployed")
+	return nil
+}
+
+func (i *IxiaTGSpec) Healthy(ctx context.Context) error {
+	return deploymentHealthy(ctx, i.kClient, "ixiatg-op-system")
+}
+
+func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string) error {
+	log.Infof("Waiting on deployment %q to be healthy", name)
+	w, err := c.AppsV1().Deployments(name).Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	ch := w.ResultChan()
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context canceled before healthy")
+		case e, ok := <-ch:
+			if !ok {
+				return fmt.Errorf("watch channel closed before healthy")
+			}
+			d, ok := e.Object.(*appsv1.Deployment)
+			if !ok {
+				return fmt.Errorf("invalid object type: %T", d)
+			}
+			var r int32 = 1
+			if d.Spec.Replicas != nil {
+				r = *d.Spec.Replicas
+			}
+			if d.Status.AvailableReplicas == r &&
+				d.Status.ReadyReplicas == r &&
+				d.Status.UnavailableReplicas == 0 &&
+				d.Status.Replicas == r &&
+				d.Status.UpdatedReplicas == r {
+				log.Infof("Deployment %q healthy", name)
 				return nil
 			}
 		}

@@ -76,6 +76,63 @@ cni:
   kind: InvalidCNI
   spec:
     manifests: ../../manifests/meshnet/base`
+	invalidControllers = `
+cluster:
+  kind: Kind
+  spec:
+    name: kne
+    recycle: True
+    version: 0.11.1
+    image: kindest/node:v1.22.0
+ingress:
+  kind: MetalLB
+  spec:
+    manifests: ../../manifests/metallb
+    ip_count: 100
+cni:
+  kind: Meshnet
+  spec:
+    manifests: ../../manifests/meshnet/base
+controllers:
+  - kind: IxiaTG
+    spec:
+      manifests: path/to/manifest
+      configMap:
+        release: some-value
+        images:
+          - name: controller
+          - path: some/path
+          - tag: latest
+  - kind: InvalidController
+    spec:
+      manifests: path/to/manifest`
+	validControllers = `
+cluster:
+  kind: Kind
+  spec:
+    name: kne
+    recycle: True
+    version: 0.11.1
+    image: kindest/node:v1.22.0
+ingress:
+  kind: MetalLB
+  spec:
+    manifests: ../../manifests/metallb
+    ip_count: 100
+cni:
+  kind: Meshnet
+  spec:
+    manifests: ../../manifests/meshnet/base
+controllers:
+  - kind: IxiaTG
+    spec:
+      manifests: path/to/manifest
+      configMap:
+        release: some-value
+        images:
+          - name: controller
+            path: some/path
+            tag: latest`
 )
 
 func TestNew(t *testing.T) {
@@ -103,6 +160,13 @@ func TestNewDeployment(t *testing.T) {
 		desc:    "invalid cni",
 		cfg:     invalidCNI,
 		wantErr: "CNI type not supported",
+	}, {
+		desc:    "invalid controllers",
+		cfg:     invalidControllers,
+		wantErr: "controller type not supported",
+	}, {
+		desc: "valid controllers",
+		cfg:  validControllers,
 	}, {
 		desc: "kind example",
 		cfg:  "",
