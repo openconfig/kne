@@ -42,6 +42,7 @@ var (
 	defaultTopoBasePath       = ""
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
+	defaultIxiaTGManifestDir  = ""
 	// Flags.
 	port = flag.Int("port", 50051, "Controller server port")
 )
@@ -52,6 +53,7 @@ func init() {
 		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
 		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
+		defaultIxiaTGManifestDir = filepath.Join(home, "keysight", "athena", "operator")
 	}
 }
 
@@ -73,7 +75,7 @@ func newServer() *server {
 
 func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	d := &deploy.Deployment{}
-	switch kind := req.ClusterSpec.(type) {
+	switch t := req.ClusterSpec.(type) {
 	case *cpb.CreateClusterRequest_Kind:
 		d.Cluster = &deploy.KindSpec{
 			Name:                     req.GetKind().Name,
@@ -85,11 +87,11 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			ContainerImages:          req.GetKind().ContainerImages,
 		}
 	default:
-		return nil, fmt.Errorf("cluster type not supported: %T", kind)
+		return nil, fmt.Errorf("cluster type not supported: %T", t)
 	}
-	switch metallb := req.IngressSpec.(type) {
+	switch t := req.IngressSpec.(type) {
 	case *cpb.CreateClusterRequest_Metallb:
-		l := &deploy.MetalLBSpec{}
+		m := &deploy.MetalLBSpec{}
 		path := defaultMetallbManifestDir
 		if req.GetMetallb().ManifestDir != "" {
 			path = req.GetMetallb().ManifestDir
@@ -98,14 +100,14 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate path %q", path)
 		}
-		l.ManifestDir = p
-		l.IPCount = int(req.GetMetallb().IpCount)
-		l.Version = req.GetMetallb().Version
-		d.Ingress = l
+		m.ManifestDir = p
+		m.IPCount = int(req.GetMetallb().IpCount)
+		m.Version = req.GetMetallb().Version
+		d.Ingress = m
 	default:
-		return nil, fmt.Errorf("ingress spec not supported: %T", metallb)
+		return nil, fmt.Errorf("ingress spec not supported: %T", t)
 	}
-	switch meshnet := req.CniSpec.(type) {
+	switch t := req.CniSpec.(type) {
 	case *cpb.CreateClusterRequest_Meshnet:
 		m := &deploy.MeshnetSpec{}
 		path := defaultMeshnetManifestDir
@@ -120,7 +122,41 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		m.ManifestDir = p
 		d.CNI = m
 	default:
-		return nil, fmt.Errorf("cni type not supported: %T", meshnet)
+		return nil, fmt.Errorf("cni type not supported: %T", t)
+	}
+	if len(req.ControllerSpecs) != 0 {
+		d.Controllers = []deploy.Controller{}
+	}
+	for _, cs := range req.ControllerSpecs {
+		switch t := cs.Spec.(type) {
+		case *cpb.ControllerSpec_Ixiatg:
+			i := &deploy.IxiaTGSpec{}
+			path := defaultIxiaTGManifestDir
+			if cs.GetIxiatg().ManifestDir != "" {
+				path = cs.GetIxiatg().ManifestDir
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			i.ManifestDir = p
+			if cs.GetIxiatg().ConfigMap != nil {
+				i.ConfigMap = &deploy.IxiaTGConfigMap{
+					Release: cs.GetIxiatg().GetConfigMap().Release,
+					Images:  []*deploy.IxiaTGImage{},
+				}
+				for _, image := range cs.GetIxiatg().GetConfigMap().Images {
+					i.ConfigMap.Images = append(i.ConfigMap.Images, &deploy.IxiaTGImage{
+						Name: image.Name,
+						Path: image.Path,
+						Tag:  image.Tag,
+					})
+				}
+			}
+			d.Controllers = append(d.Controllers, i)
+		default:
+			return nil, fmt.Errorf("controller type not supported: %T", t)
+		}
 	}
 	return d, nil
 }
