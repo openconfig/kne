@@ -237,6 +237,11 @@ func (n *Node) Create(ctx context.Context) error {
 		return fmt.Errorf("could not update ixia CRD: %v", err)
 	}
 
+	_, err = n.waitForState(ctx, desiredState, 60*time.Second)
+	if err != nil {
+		return fmt.Errorf("could not wait for state of custom resource for ixia: %v", err)
+	}
+
 	return nil
 }
 
