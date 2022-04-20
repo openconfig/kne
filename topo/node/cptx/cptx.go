@@ -96,6 +96,7 @@ func (n *Node) PatchCLIConnOpen(ns string) error {
 		return ErrIncompatibleCliConn
 	}
 
+	t.SetExecCmd("kubectl")
 	var args []string
 	if n.Kubecfg != "" {
 		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))

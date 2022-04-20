@@ -50,10 +50,16 @@ type CNISpec struct {
 	Spec yaml.Node `yaml:"spec"`
 }
 
+type ControllerSpec struct {
+	Kind string    `yaml:"kind"`
+	Spec yaml.Node `yaml:"spec"`
+}
+
 type DeploymentConfig struct {
-	Cluster ClusterSpec `yaml:"cluster"`
-	Ingress IngressSpec `yaml:"ingress"`
-	CNI     CNISpec     `yaml:"cni"`
+	Cluster     ClusterSpec       `yaml:"cluster"`
+	Ingress     IngressSpec       `yaml:"ingress"`
+	CNI         CNISpec           `yaml:"cni"`
+	Controllers []*ControllerSpec `yaml:"controllers"`
 }
 
 func newDeployment(cfgPath string) (*deploy.Deployment, error) {
@@ -107,6 +113,22 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		d.Ingress = v
 	default:
 		return nil, fmt.Errorf("ingress type not supported: %s", cfg.Ingress.Kind)
+	}
+	if len(cfg.Controllers) != 0 {
+		d.Controllers = []deploy.Controller{}
+	}
+	for _, c := range cfg.Controllers {
+		switch c.Kind {
+		case "IxiaTG":
+			v := &deploy.IxiaTGSpec{}
+			if err := c.Spec.Decode(v); err != nil {
+				return nil, err
+			}
+			v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+			d.Controllers = append(d.Controllers, v)
+		default:
+			return nil, fmt.Errorf("controller type not supported: %s", c.Kind)
+		}
 	}
 	return d, nil
 }
