@@ -44,7 +44,7 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 	log.Infof("Creating new ixia CRD for node: %v", n.Name())
 	ixiaCRD := &ixiatg.IxiaTG{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "network.keysight.com/v1alpha1",
+			APIVersion: "network.keysight.com/v1beta1",
 			Kind:       "IxiaTG",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -79,7 +79,7 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 func (n *Node) getCRD(ctx context.Context) (*ixiatg.IxiaTG, error) {
 	r := n.KubeClient.CoreV1().RESTClient().
 		Get().
-		AbsPath("/apis/network.keysight.com/v1alpha1").
+		AbsPath("/apis/network.keysight.com/v1beta1").
 		Namespace(n.Namespace).
 		Resource(ixiaResource).
 		Name(n.Name()).
@@ -148,7 +148,7 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 	log.Infof("Creating custom resource for ixia (desiredState=%s) ...", desiredState)
 	err = n.KubeClient.CoreV1().RESTClient().
 		Post().
-		AbsPath("/apis/network.keysight.com/v1alpha1").
+		AbsPath("/apis/network.keysight.com/v1beta1").
 		Namespace(n.Namespace).
 		Resource(ixiaResource).
 		Body(crd).
@@ -225,7 +225,7 @@ func (n *Node) Create(ctx context.Context) error {
 
 	err = n.KubeClient.CoreV1().RESTClient().
 		Patch(types.MergePatchType).
-		AbsPath("/apis/network.keysight.com/v1alpha1").
+		AbsPath("/apis/network.keysight.com/v1beta1").
 		Namespace(n.Namespace).
 		Resource(ixiaResource).
 		Name(n.Name()).
@@ -235,11 +235,6 @@ func (n *Node) Create(ctx context.Context) error {
 
 	if err != nil {
 		return fmt.Errorf("could not update ixia CRD: %v", err)
-	}
-
-	_, err = n.waitForState(ctx, desiredState, 60*time.Second)
-	if err != nil {
-		return fmt.Errorf("could not wait for state of custom resource for ixia: %v", err)
 	}
 
 	return nil
@@ -327,7 +322,7 @@ func (n *Node) Delete(ctx context.Context) error {
 	log.Infof("Deleting IxiaTG node resource %s", n.Name())
 	err := n.KubeClient.CoreV1().RESTClient().
 		Delete().
-		AbsPath("/apis/network.keysight.com/v1alpha1").
+		AbsPath("/apis/network.keysight.com/v1beta1").
 		Namespace(n.Namespace).
 		Resource(ixiaResource).
 		Name(n.Name()).
