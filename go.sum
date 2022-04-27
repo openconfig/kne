@@ -387,7 +387,6 @@ github.com/google/gofuzz v1.1.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/
 github.com/google/gofuzz v1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
 github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f/go.mod h1:nOFQdrUlIlx6M6ODdSpBj1NVA+VgLC6kmw60mkw34H4=
-github.com/google/kne v0.0.0-20210520181145-85670fdcebce/go.mod h1:CAkH5kTAU6sEpenUHojJSsaUbq3L8qkaMmRRepXWfLw=
 github.com/google/kne v0.0.0-20210729182439-570083e95d00/go.mod h1:SPR3ccXGsi5QIkxuSKdC+Lox63Rfg23HrlUldK2sOqg=
 github.com/google/kne v0.0.0-20211025172831-8c56d03dfbb6/go.mod h1:KWLSJWWQdKxjBr9fjCajpLpgeOM4o7T6qZW9G2izTq8=
 github.com/google/martian v2.1.0+incompatible/go.mod h1:9I4somxYTbIHy5NJKHRl3wXiIaQGbYVAs8BPL6v8lEs=
@@ -438,6 +437,7 @@ github.com/hashicorp/go-sockaddr v1.0.0/go.mod h1:7Xibr9yA9JjQq1JpNB2Vw7kxv8xerX
 github.com/hashicorp/go-syslog v1.0.0/go.mod h1:qPfqrKkXGihmCqbJM2mZgkZGvKG1dFdvsLplgctolz4=
 github.com/hashicorp/go-uuid v1.0.0/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
 github.com/hashicorp/go-uuid v1.0.1/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
+github.com/hashicorp/go-version v1.4.0/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
 github.com/hashicorp/go.net v0.0.1/go.mod h1:hjKkEWcCURg++eb33jQU7oqQcI9XDCnUzHA0oac0k90=
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
@@ -574,8 +574,8 @@ github.com/onsi/gomega v1.10.2/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.10.3/go.mod h1:V9xEwhxec5O8UDM77eCW8vLymOMltsqPVYWrpDsH8xc=
 github.com/onsi/gomega v1.13.0 h1:7lLHu94wT9Ij0o6EWWclhu0aOh32VxhkwEJvzuWPeak=
 github.com/onsi/gomega v1.13.0/go.mod h1:lRk9szgn8TxENtWd0Tp4c3wjlRfMTMH27I+3Je41yGY=
-github.com/open-traffic-generator/ixia-c-operator v0.0.76-0.20220309152315-73724d469171 h1:uRT2mnZfDtKijf07tMPwPyYNjLcj4Va/KLwBFPwuIuw=
-github.com/open-traffic-generator/ixia-c-operator v0.0.76-0.20220309152315-73724d469171/go.mod h1:ru6WvGnMrKxH8C1m/Up4Ofz7B8mvnX2i7ckiO1EmF5c=
+github.com/open-traffic-generator/ixia-c-operator v0.1.85 h1:7KfZb6Wi+cX6Z2IZR/1uC3d42Izp17+FiQrhf9AQcwU=
+github.com/open-traffic-generator/ixia-c-operator v0.1.85/go.mod h1:qHIu+7E0sxr7tAa42qJPyrYvhYAKSMerS8NrDo2OZb8=
 github.com/openconfig/gnmi v0.0.0-20210707145734-c69a5df04b53 h1:xT/AVinvSf+uP/amEFrU1JJYBZXqikEyNtBPnfyefoE=
 github.com/openconfig/gnmi v0.0.0-20210707145734-c69a5df04b53/go.mod h1:h365Ifq35G6kLZDQlRvrccTt2LKK90VpjZLMNGxJRYc=
 github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=

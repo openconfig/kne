@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	ixiatg "github.com/open-traffic-generator/ixia-c-operator/api/v1alpha1"
+	ixiatg "github.com/open-traffic-generator/ixia-c-operator/api/v1beta1"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -190,7 +190,7 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 
 		topo.Spec.Links = append(topo.Spec.Links, topologyv1.Link{
 			UID:       int(nodeIfc.Uid),
-			LocalIntf: ifc.Name,
+			LocalIntf: ifc.Intf,
 			PeerIntf:  nodeIfc.PeerIntName,
 			PeerPod:   nodeIfc.PeerName,
 			LocalIP:   "",

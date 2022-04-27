@@ -274,8 +274,10 @@ func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 				foundPeer := false
 				for _, peerSpec := range *peerSpecs {
 					for _, peerLink := range peerSpec.Spec.Links {
-						if peerLink.UID == link.UID && peerLink.LocalIntf == link.PeerIntf {
+						// make sure self ifc and peer ifc belong to same link (and hence UID) but are not the same interfaces
+						if peerLink.UID == link.UID && !(nodeName == link.PeerPod && peerLink.LocalIntf == link.LocalIntf) {
 							link.PeerPod = peerSpec.ObjectMeta.Name
+							link.PeerIntf = peerLink.LocalIntf
 							foundPeer = true
 							break
 						}
