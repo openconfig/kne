@@ -73,8 +73,8 @@ func TestLoad(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{name: "pb", args: args{fName: "../examples/2node-ixia.pb.txt"}, wantErr: false},
-		{name: "yaml", args: args{fName: "../examples/2node-ixia.yaml"}, wantErr: false},
+		{name: "pb", args: args{fName: "../examples/2node-ixiatg-ceos.pb.txt"}, wantErr: false},
+		{name: "yaml", args: args{fName: "../examples/2node-ixiatg-ceos.yaml"}, wantErr: false},
 		{name: "invalid-pb", args: args{fName: invalidPb.Name()}, wantErr: true},
 		{name: "invalid-yaml", args: args{fName: invalidYaml.Name()}, wantErr: true},
 	}
