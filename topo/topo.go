@@ -16,7 +16,6 @@ package topo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -66,6 +65,8 @@ type TopologyManager interface {
 	Load(context.Context) error
 	Node(string) (node.Node, error)
 	Nodes() []node.Node
+	TopologySpecs(context.Context) ([]*topologyv1.Topology, error)
+	TopologyResources(ctx context.Context) ([]*topologyv1.Topology, error)
 	Push(context.Context) error
 	Resources(context.Context) (*Resources, error)
 	TopologyProto() *tpb.Topology
@@ -172,11 +173,6 @@ func (m *Manager) Load(ctx context.Context) error {
 				}
 			}
 		}
-		for k := range n.Interfaces {
-			if n.Interfaces[k].IntName == "" {
-				n.Interfaces[k].IntName = k
-			}
-		}
 		nMap[n.Name] = n
 	}
 	uid := 0
@@ -229,18 +225,78 @@ func (m *Manager) Load(ctx context.Context) error {
 	return nil
 }
 
-// Topology gets the topology CRDs for the cluster.
-func (m *Manager) Topology(ctx context.Context) ([]topologyv1.Topology, error) {
+// TopologyResources gets the topology CRDs for the cluster.
+func (m *Manager) TopologyResources(ctx context.Context) ([]*topologyv1.Topology, error) {
 	topology, err := m.tClient.Topology(m.proto.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get topology CRDs: %v", err)
 	}
-	return topology.Items, nil
+
+	items := make([]*topologyv1.Topology, len(topology.Items))
+	for i := range items {
+		items[i] = &topology.Items[i]
+	}
+
+	return items, nil
 }
 
 // Topology returns the topology protobuf.
 func (m *Manager) TopologyProto() *tpb.Topology {
 	return m.proto
+}
+
+func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error) {
+	nodeSpecs := map[string]*[]*topologyv1.Topology{}
+	topos := []*topologyv1.Topology{}
+
+	// get topology specs from all nodes
+	for _, n := range m.nodes {
+		log.Infof("Getting topology specs for node %s", n.Name())
+		specs, err := n.TopologySpecs(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch topology specs for node %s: %v", n.Name(), err)
+		}
+
+		log.Tracef("Topology specs for node %s: %+v", n.Name(), specs)
+		nodeSpecs[n.Name()] = &specs
+	}
+
+	// replace node name with pod name, for peer pod attribute in each link
+	for nodeName, specs := range nodeSpecs {
+		for _, spec := range *specs {
+			for l := range spec.Spec.Links {
+				link := &spec.Spec.Links[l]
+				peerSpecs, ok := nodeSpecs[link.PeerPod]
+				if !ok {
+					return nil, fmt.Errorf("specs do not exist for node %s", link.PeerPod)
+				}
+
+				foundPeer := false
+				for _, peerSpec := range *peerSpecs {
+					for _, peerLink := range peerSpec.Spec.Links {
+						// make sure self ifc and peer ifc belong to same link (and hence UID) but are not the same interfaces
+						if peerLink.UID == link.UID && !(nodeName == link.PeerPod && peerLink.LocalIntf == link.LocalIntf) {
+							link.PeerPod = peerSpec.ObjectMeta.Name
+							link.PeerIntf = peerLink.LocalIntf
+							foundPeer = true
+							break
+						}
+					}
+					if foundPeer {
+						break
+					}
+				}
+
+				if !foundPeer {
+					return nil, fmt.Errorf("could not find peer for node %s pod %s link UID %d", nodeName, spec.ObjectMeta.Name, link.UID)
+				}
+			}
+
+			topos = append(topos, spec)
+		}
+	}
+
+	return topos, nil
 }
 
 // Push pushes the current topology to k8s.
@@ -259,33 +315,21 @@ func (m *Manager) Push(ctx context.Context) error {
 		log.Infof("Server Namespace: %+v", sNs)
 	}
 
-	log.Infof("Pushing Meshnet Node Topology to k8s: %q", m.proto.Name)
-	for _, n := range m.nodes {
-		t := &topologyv1.Topology{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: n.Name(),
-			},
-			Spec: topologyv1.TopologySpec{},
-		}
-		var links []topologyv1.Link
-		for k, intf := range n.GetProto().Interfaces {
-			link := topologyv1.Link{
-				LocalIntf: k,
-				LocalIP:   "",
-				PeerIntf:  intf.PeerIntName,
-				PeerIP:    "",
-				PeerPod:   intf.PeerName,
-				UID:       int(intf.Uid),
-			}
-			links = append(links, link)
-		}
-		t.Spec.Links = links
+	log.Infof("Getting topology specs for namespace %s", m.proto.Name)
+	topologies, err := m.TopologySpecs(ctx)
+	if err != nil {
+		return fmt.Errorf("could not get meshnet topologies: %v", err)
+	}
+	log.Tracef("Got topology specs for namespace %s: %+v", m.proto.Name, topologies)
+	for _, t := range topologies {
+		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
 		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
 		}
 		log.Infof("Meshnet Node:\n%+v\n", sT)
 	}
+
 	log.Infof("Creating Node Pods")
 	for k, n := range m.nodes {
 		if err := n.Create(ctx); err != nil {
@@ -319,11 +363,11 @@ func (m *Manager) CheckNodeStatus(ctx context.Context, timeout time.Duration) er
 			}
 
 			phase, err := n.Status(ctx)
-			if err != nil || phase == "Failed" {
-				return errors.New(fmt.Sprintf("Node %q: Pod Status %s Reason %s", name, phase, err.Error()))
+			if err != nil || phase == node.NODE_FAILED {
+				return fmt.Errorf("Node %q: Status %s Reason %v", name, phase, err)
 			}
-			if phase == "Running" {
-				log.Infof("Node %q: Pod Status %s", name, phase)
+			if phase == node.NODE_RUNNING {
+				log.Infof("Node %q: Status %s", name, phase)
 				processed[name] = true
 			} else {
 				foundAll = false
@@ -358,17 +402,26 @@ func (m *Manager) Delete(ctx context.Context) error {
 		return fmt.Errorf("topology %q does not exist in cluster", m.proto.Name)
 	}
 
-	// Delete topology pods
+	// Delete topology nodes
 	for _, n := range m.nodes {
 		// Delete Service for node
 		if err := n.Delete(ctx); err != nil {
 			log.Warnf("Error deleting node %q: %v", n.Name(), err)
 		}
-		// Delete Topology for node
-		if err := m.tClient.Topology(m.proto.Name).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
-			log.Warnf("Error deleting topology %q: %v", n.Name(), err)
-		}
 	}
+	// Delete meshnet nodes
+	nodes, err := m.TopologyResources(ctx)
+	if err == nil {
+		for _, n := range nodes {
+			if err := m.tClient.Topology(m.proto.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
+				log.Warnf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
+			}
+		}
+	} else {
+		// no need to return warning as deleting meshnet namespace shall delete the resources too
+		log.Warnf("Error getting meshnet nodes: %v", err)
+	}
+
 	// Delete namespace
 	prop := metav1.DeletePropagationForeground
 	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.proto.Name, metav1.DeleteOptions{
@@ -405,8 +458,8 @@ func Load(fName string) (*tpb.Topology, error) {
 }
 
 type Resources struct {
-	Services   map[string]*corev1.Service
-	Pods       map[string]*corev1.Pod
+	Services   map[string][]*corev1.Service
+	Pods       map[string][]*corev1.Pod
 	ConfigMaps map[string]*corev1.ConfigMap
 	Topologies map[string]*topologyv1.Topology
 }
@@ -428,34 +481,34 @@ func (m *Manager) Nodes() []node.Node {
 // Resources gets the currently configured resources from the topology.
 func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 	r := Resources{
-		Services:   map[string]*corev1.Service{},
-		Pods:       map[string]*corev1.Pod{},
+		Services:   map[string][]*corev1.Service{},
+		Pods:       map[string][]*corev1.Pod{},
 		ConfigMaps: map[string]*corev1.ConfigMap{},
 		Topologies: map[string]*topologyv1.Topology{},
 	}
-	for _, n := range m.nodes {
-		p, err := n.Pod(ctx)
+
+	for nodeName, n := range m.nodes {
+		pods, err := n.Pods(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not get pods for node %s: %v", nodeName, err)
 		}
-		r.Pods[p.Name] = p
+		r.Pods[nodeName] = pods
+
+		services, err := n.Services(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("could not get services for node %s: %v", nodeName, err)
+		}
+		r.Services[nodeName] = services
 	}
-	tList, err := m.Topology(ctx)
+
+	tList, err := m.TopologyResources(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, t := range tList {
-		v := t
-		r.Topologies[v.Name] = &v
+		r.Topologies[t.Name] = t
 	}
-	sList, err := m.kClient.CoreV1().Services(m.proto.Name).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, s := range sList.Items {
-		sLocal := s
-		r.Services[sLocal.Name] = &sLocal
-	}
+
 	return &r, nil
 }
 
@@ -537,8 +590,10 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 		return fmt.Errorf("failed to check resource %s: %+v", params.TopoName, err)
 	}
 	log.Infof("Pods:")
-	for _, p := range r.Pods {
-		log.Infof("%s\n", p.Name)
+	for _, pods := range r.Pods {
+		for _, pod := range pods {
+			log.Infof("%v\n", pod.Name)
+		}
 	}
 
 	return nil
@@ -606,16 +661,16 @@ var (
 
 // sMap keeps the POD state of all topology nodes.
 type sMap struct {
-	m map[string]corev1.PodPhase
+	m map[string]node.NodeStatus
 }
 
 func (s *sMap) Size() int {
 	return len(s.m)
 }
 
-func (s *sMap) SetNodeState(name string, state corev1.PodPhase) {
+func (s *sMap) SetNodeState(name string, state node.NodeStatus) {
 	if s.m == nil {
-		s.m = map[string]corev1.PodPhase{}
+		s.m = map[string]node.NodeStatus{}
 	}
 	s.m[name] = state
 }
@@ -624,18 +679,18 @@ func (s *sMap) TopoState() cpb.TopologyState {
 	if s == nil || len(s.m) == 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
 	}
-	cntTable := map[corev1.PodPhase]int{}
+	cntTable := map[node.NodeStatus]int{}
 	for _, gotState := range s.m {
 		cntTable[gotState]++
 	}
 
-	if cntTable[corev1.PodRunning] == s.Size() {
+	if cntTable[node.NODE_RUNNING] == s.Size() {
 		return cpb.TopologyState_TOPOLOGY_STATE_RUNNING
 	}
-	if cntTable[corev1.PodFailed] > 0 {
+	if cntTable[node.NODE_FAILED] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_ERROR
 	}
-	if cntTable[corev1.PodPending] > 0 {
+	if cntTable[node.NODE_PENDING] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_CREATING
 	}
 	return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
@@ -669,24 +724,15 @@ func GetTopologyServices(ctx context.Context, params TopologyParams) (*cpb.ShowT
 		if len(n.Services) == 0 {
 			n.Services = map[uint32]*tpb.Service{}
 		}
-		// (TODO:hines): Remove type once deprecated
-		if n.Vendor == tpb.Vendor_KEYSIGHT || n.Type == tpb.Node_IXIA_TG {
-			// Add Keysight gnmi and grpc global services until
-			// they have a better registration mechanism for global
-			// services
-			if gnmiService, ok := r.Services["gnmi-service"]; ok {
-				serviceToProto(gnmiService, n.Services)
-			}
-			if grpcService, ok := r.Services["grpc-service"]; ok {
-				serviceToProto(grpcService, n.Services)
-			}
-		}
-		sName := fmt.Sprintf("service-%s", n.Name)
-		s, ok := r.Services[sName]
+
+		services, ok := r.Services[n.Name]
 		if !ok {
-			return nil, fmt.Errorf("service %s not found", sName)
+			return nil, fmt.Errorf("services for node %s not found", n.Name)
 		}
-		serviceToProto(s, n.Services)
+
+		for _, svc := range services {
+			serviceToProto(svc, n.Services)
+		}
 	}
 	sMap := &sMap{}
 	for _, n := range t.Nodes() {

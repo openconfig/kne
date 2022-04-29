@@ -288,28 +288,6 @@ nodes: {
 	  node_port: 20001
 	}
   }
-  services: {
-	key: 5555
-	value: {
-	  name: "port-5555"
-	  inside: 5555
-	  outside: 5555
-	  inside_ip: "1.1.1.3"
-	  outside_ip: "100.100.100.102"
-	  node_port: 30010
-	}
-  }
-  services: {
-	key: 50071
-	value: {
-	  name: "port-50071"
-	  inside: 50071
-	  outside: 50071
-	  inside_ip: "1.1.1.3"
-	  outside_ip: "100.100.100.102"
-	  node_port: 30011
-	}
-  }
   version: "0.0.1-9999"
 }
 links: {

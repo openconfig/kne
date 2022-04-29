@@ -96,6 +96,8 @@ message Interface {
   string peer_int_name = 5;
   // Uid is the internal link identifier used by Meshnet.
   int64 uid = 6;
+  // Name of group to which this interface belongs
+  string group = 7;
 }
 
 // Link is single link between nodes in the topology.
