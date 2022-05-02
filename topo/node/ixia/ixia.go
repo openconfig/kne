@@ -262,11 +262,17 @@ func (n *Node) Pods(ctx context.Context) ([]*corev1.Pod, error) {
 		}
 	}
 
+	found := false
 	for i := range pod.Items {
 		if pod.Items[i].Name == crd.Status.ApiEndPoint.PodName {
 			pods[0] = &pod.Items[i]
+			found = true
 			break
 		}
+	}
+
+	if !found {
+		pods = pods[1:]
 	}
 
 	return pods, nil
