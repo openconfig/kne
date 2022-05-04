@@ -109,34 +109,34 @@ nodes: {
   }
 }
 nodes: {
-  name: "ate1"
-  type: IXIA_TG
-  services: {
-	key: 1000
-	value: {
-	  name: "gnmi"
-	  inside: 1000
-	  inside_ip: "1.1.1.1"
-	  outside_ip: "100.100.100.100"
-	  node_port: 20000
-	}
-  }
-  services: {
-	key: 1001
-	value: {
-	  name: "grpc"
-	  inside: 1001
-	  inside_ip: "1.1.1.1"
-	  outside_ip: "100.100.100.100"
-	  node_port: 20001
-	}
-  }
-  version: "0.0.1-9999"
+    name: "otg"
+    type: IXIA_TG
+    version: "0.0.1-9999"
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+			inside_ip: "1.1.1.1"
+			outside_ip: "100.100.100.100"
+			node_port: 20001
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+			inside_ip: "1.1.1.1"
+			outside_ip: "100.100.100.100"
+			node_port: 20000
+        }
+    }
 }
 links: {
   a_node: "r1"
   a_int: "eth9"
-  z_node: "ate1"
+  z_node: "otg"
   z_int: "eth1"
 }
 `
@@ -383,12 +383,12 @@ func TestGetTopologyServices(t *testing.T) {
 					proto: validTopoIn,
 					resources: &Resources{
 						Services: map[string][]*corev1.Service{
-							"ate1": {
+							"otg": {
 								{
 									Spec: corev1.ServiceSpec{
 										ClusterIP: "1.1.1.1",
 										Ports: []corev1.ServicePort{{
-											Port:     1001,
+											Port:     40051,
 											NodePort: 20001,
 											Name:     "grpc",
 										}},
@@ -403,7 +403,7 @@ func TestGetTopologyServices(t *testing.T) {
 									Spec: corev1.ServiceSpec{
 										ClusterIP: "1.1.1.1",
 										Ports: []corev1.ServicePort{{
-											Port:     1000,
+											Port:     50051,
 											NodePort: 20000,
 											Name:     "gnmi",
 										}},

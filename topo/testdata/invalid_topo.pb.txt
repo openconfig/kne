@@ -6,6 +6,6 @@ nodes: {
 links: {
     a_node: "r1"
     a_int: "eth9"
-    z_node: "ate1"
+    z_node: "otg"
     z_int: "eth1"
 }

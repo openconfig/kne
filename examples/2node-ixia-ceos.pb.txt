@@ -2,7 +2,7 @@ name: "ixia-c"
 nodes: {
     name: "otg"
     type: IXIA_TG
-    version: "0.0.1-2770"
+    version: "0.0.1-9999"
     services: {
         key: 40051
         value: {
