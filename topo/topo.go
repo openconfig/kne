@@ -245,8 +245,24 @@ func (m *Manager) TopologyProto() *tpb.Topology {
 	return m.proto
 }
 
+// setLinkPeer finds the peer pod name and peer interface name for a given interface
+func setLinkPeer(nodeName string, podName string, link *topologyv1.Link, peerSpecs []*topologyv1.Topology) error {
+	for _, peerSpec := range peerSpecs {
+		for _, peerLink := range peerSpec.Spec.Links {
+			// make sure self ifc and peer ifc belong to same link (and hence UID) but are not the same interfaces
+			if peerLink.UID == link.UID && !(nodeName == link.PeerPod && peerLink.LocalIntf == link.LocalIntf) {
+				link.PeerPod = peerSpec.ObjectMeta.Name
+				link.PeerIntf = peerLink.LocalIntf
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("could not find peer for node %s pod %s link UID %d", nodeName, podName, link.UID)
+}
+
 func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error) {
-	nodeSpecs := map[string]*[]*topologyv1.Topology{}
+	nodeSpecs := map[string][]*topologyv1.Topology{}
 	topos := []*topologyv1.Topology{}
 
 	// get topology specs from all nodes
@@ -258,12 +274,12 @@ func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 		}
 
 		log.Tracef("Topology specs for node %s: %+v", n.Name(), specs)
-		nodeSpecs[n.Name()] = &specs
+		nodeSpecs[n.Name()] = specs
 	}
 
 	// replace node name with pod name, for peer pod attribute in each link
 	for nodeName, specs := range nodeSpecs {
-		for _, spec := range *specs {
+		for _, spec := range specs {
 			for l := range spec.Spec.Links {
 				link := &spec.Spec.Links[l]
 				peerSpecs, ok := nodeSpecs[link.PeerPod]
@@ -271,27 +287,10 @@ func (m *Manager) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 					return nil, fmt.Errorf("specs do not exist for node %s", link.PeerPod)
 				}
 
-				foundPeer := false
-				for _, peerSpec := range *peerSpecs {
-					for _, peerLink := range peerSpec.Spec.Links {
-						// make sure self ifc and peer ifc belong to same link (and hence UID) but are not the same interfaces
-						if peerLink.UID == link.UID && !(nodeName == link.PeerPod && peerLink.LocalIntf == link.LocalIntf) {
-							link.PeerPod = peerSpec.ObjectMeta.Name
-							link.PeerIntf = peerLink.LocalIntf
-							foundPeer = true
-							break
-						}
-					}
-					if foundPeer {
-						break
-					}
-				}
-
-				if !foundPeer {
-					return nil, fmt.Errorf("could not find peer for node %s pod %s link UID %d", nodeName, spec.ObjectMeta.Name, link.UID)
+				if err := setLinkPeer(nodeName, spec.ObjectMeta.Name, link, peerSpecs); err != nil {
+					return nil, err
 				}
 			}
-
 			topos = append(topos, spec)
 		}
 	}

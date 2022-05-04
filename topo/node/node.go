@@ -138,30 +138,30 @@ func (n *Impl) GetNamespace() string {
 func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
 	proto := n.GetProto()
 
-	t := topologyv1.Topology{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: proto.Name,
-		},
-		Spec: topologyv1.TopologySpec{
-			Links: make([]topologyv1.Link, len(proto.Interfaces)),
-		},
-	}
-
-	i := 0
+	var links []topologyv1.Link
 	for ifcName, ifc := range proto.Interfaces {
-		link := &t.Spec.Links[i]
-		link.UID = int(ifc.Uid)
-		link.LocalIntf = ifcName
-		link.PeerIntf = ifc.PeerIntName
-		link.PeerPod = ifc.PeerName
-		link.LocalIP = ""
-		link.PeerIP = ""
-		i++
+		links = append(links, topologyv1.Link{
+			UID:       int(ifc.Uid),
+			LocalIntf: ifcName,
+			PeerIntf:  ifc.PeerIntName,
+			PeerPod:   ifc.PeerName,
+			LocalIP:   "",
+			PeerIP:    "",
+		})
 	}
 
 	// by default each node will result in exactly one topology resource
 	// with multiple links
-	return []*topologyv1.Topology{&t}, nil
+	return []*topologyv1.Topology{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: proto.Name,
+			},
+			Spec: topologyv1.TopologySpec{
+				Links: links,
+			},
+		},
+	}, nil
 }
 
 const (
@@ -463,7 +463,7 @@ func (n *Impl) Status(ctx context.Context) (NodeStatus, error) {
 	case corev1.PodRunning:
 		return NODE_RUNNING, nil
 	case corev1.PodPending:
-		fallthrough
+		return NODE_PENDING, nil
 	default:
 		return NODE_PENDING, nil
 	}
