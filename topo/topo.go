@@ -314,19 +314,8 @@ func (m *Manager) Push(ctx context.Context) error {
 		log.Infof("Server Namespace: %+v", sNs)
 	}
 
-	log.Infof("Getting topology specs for namespace %s", m.proto.Name)
-	topologies, err := m.TopologySpecs(ctx)
-	if err != nil {
-		return fmt.Errorf("could not get meshnet topologies: %v", err)
-	}
-	log.Tracef("Got topology specs for namespace %s: %+v", m.proto.Name, topologies)
-	for _, t := range topologies {
-		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
-		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
-		if err != nil {
-			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
-		}
-		log.Infof("Meshnet Node:\n%+v\n", sT)
+	if err := m.CreateMeshnetTopologies(ctx); err != nil {
+		return err
 	}
 
 	log.Infof("Creating Node Pods")
@@ -344,6 +333,43 @@ func (m *Manager) Push(ctx context.Context) error {
 		case err == nil, status.Code(err) == codes.Unimplemented:
 		}
 	}
+	return nil
+}
+
+// CreateMeshnetTopologies creates meshnet resources for all available nodes
+func (m *Manager) CreateMeshnetTopologies(ctx context.Context) error {
+	log.Infof("Getting topology specs for namespace %s", m.proto.Name)
+	topologies, err := m.TopologySpecs(ctx)
+	if err != nil {
+		return fmt.Errorf("could not get meshnet topologies: %v", err)
+	}
+	log.Tracef("Got topology specs for namespace %s: %+v", m.proto.Name, topologies)
+	for _, t := range topologies {
+		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
+		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
+		if err != nil {
+			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
+		}
+		log.Infof("Meshnet Node:\n%+v\n", sT)
+	}
+
+	return nil
+}
+
+// DeleteMeshnetTopologies deletes meshnet resources for all available nodes
+func (m *Manager) DeleteMeshnetTopologies(ctx context.Context) error {
+	nodes, err := m.TopologyResources(ctx)
+	if err == nil {
+		for _, n := range nodes {
+			if err := m.tClient.Topology(m.proto.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
+				log.Warnf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
+			}
+		}
+	} else {
+		// no need to return warning as deleting meshnet namespace shall delete the resources too
+		log.Warnf("Error getting meshnet nodes: %v", err)
+	}
+
 	return nil
 }
 
@@ -408,17 +434,9 @@ func (m *Manager) Delete(ctx context.Context) error {
 			log.Warnf("Error deleting node %q: %v", n.Name(), err)
 		}
 	}
-	// Delete meshnet nodes
-	nodes, err := m.TopologyResources(ctx)
-	if err == nil {
-		for _, n := range nodes {
-			if err := m.tClient.Topology(m.proto.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
-				log.Warnf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
-			}
-		}
-	} else {
-		// no need to return warning as deleting meshnet namespace shall delete the resources too
-		log.Warnf("Error getting meshnet nodes: %v", err)
+
+	if err := m.DeleteMeshnetTopologies(ctx); err != nil {
+		return err
 	}
 
 	// Delete namespace
