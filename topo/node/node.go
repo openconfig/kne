@@ -42,7 +42,11 @@ type Implementation interface {
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
+	// Pods provides a custom implementation for querying all pods created for
+	// for a node. Requires context, Kubernetes client interface and namespace.
 	Pods(context.Context) ([]*corev1.Pod, error)
+	// Services provides a custom implementation for querying all services created for
+	// for a node. Requires context, Kubernetes client interface and namespace.
 	Services(context.Context) ([]*corev1.Service, error)
 }
 

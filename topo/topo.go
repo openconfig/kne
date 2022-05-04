@@ -65,7 +65,13 @@ type TopologyManager interface {
 	Load(context.Context) error
 	Node(string) (node.Node, error)
 	Nodes() []node.Node
+	// TopologySpecs provides a custom implementation for constructing
+	// meshnet resource specs (before meshnet topology creation)
+	// for all configured nodes
 	TopologySpecs(context.Context) ([]*topologyv1.Topology, error)
+	// TopologySpecs provides a custom implementation for querying
+	// meshnet resource specs+status (after meshnet topology creation)
+	// for all configured nodes
 	TopologyResources(ctx context.Context) ([]*topologyv1.Topology, error)
 	Push(context.Context) error
 	Resources(context.Context) (*Resources, error)
