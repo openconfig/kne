@@ -111,7 +111,7 @@ build {
       "gcloud source repos clone kne-internal --project=gep-kne",
       "cd kne-internal",
       "/usr/local/go/bin/go get -d ./...",
-      "cd proxy/gnmi/server",
+      "cd proxy/server",
       "/usr/local/go/bin/go build -v",
     ]
   }
