@@ -17,8 +17,6 @@ package topo;
 
 option go_package = "github.com/google/kne/proto/topo";
 
-// Build with protoc -I=proto --go_out=proto/topo proto/topo.proto
-
 // Topology message defines what nodes and links will be created
 // inside the mesh.
 message Topology {
