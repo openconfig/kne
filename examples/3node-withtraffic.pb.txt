@@ -48,36 +48,21 @@ nodes: {
     }
 }
 nodes: {
-    name: "ate1"
+    name: "otg"
     type: IXIA_TG
     version: "0.0.1-9999"
     services: {
-        key: 5555
+        key: 40051
         value: {
-            inside: 5555
+            name: "grpc"
+            inside: 40051
         }
     }
     services: {
-        key: 50071
+        key: 50051
         value: {
-            inside: 50071
-        }
-    }
-}
-nodes: {
-    name: "ate2"
-    type: IXIA_TG
-    version: "0.0.1-9999"
-    services: {
-        key: 5555
-        value: {
-            inside: 5555
-        }
-    }
-    services: {
-        key: 50071
-        value: {
-            inside: 50071
+            name: "gnmi"
+            inside: 50051
         }
     }
 }
@@ -138,12 +123,12 @@ links: {
 links: {
     a_node: "r1"
     a_int: "eth9"
-    z_node: "ate1"
+    z_node: "otg"
     z_int: "eth1"
 }
 links: {
     a_node: "r3"
     a_int: "eth9"
-    z_node: "ate2"
-    z_int: "eth1"
+    z_node: "otg"
+    z_int: "eth2"
 }

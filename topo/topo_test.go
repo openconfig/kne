@@ -28,6 +28,7 @@ import (
 	cpb "github.com/google/kne/proto/controller"
 	tpb "github.com/google/kne/proto/topo"
 	"github.com/google/kne/topo/node"
+	nd "github.com/google/kne/topo/node"
 	"github.com/h-fam/errdiff"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -72,8 +73,8 @@ func TestLoad(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{name: "pb", args: args{fName: "../examples/2node-ixia.pb.txt"}, wantErr: false},
-		{name: "yaml", args: args{fName: "../examples/2node-ixia.yaml"}, wantErr: false},
+		{name: "pb", args: args{fName: "../examples/2node-ixia-ceos.pb.txt"}, wantErr: false},
+		{name: "yaml", args: args{fName: "../examples/2node-ixia-ceos.yaml"}, wantErr: false},
 		{name: "invalid-pb", args: args{fName: invalidPb.Name()}, wantErr: true},
 		{name: "invalid-yaml", args: args{fName: invalidYaml.Name()}, wantErr: true},
 	}
@@ -98,7 +99,7 @@ nodes: {
   services: {
 	key: 1002
 	value: {
-  name: "ssh"
+  	  name: "ssh"
 	  inside: 1002
 	  outside: 22
 	  inside_ip: "1.1.1.2"
@@ -108,56 +109,34 @@ nodes: {
   }
 }
 nodes: {
-  name: "ate1"
-  type: IXIA_TG
-  services: {
-	key: 1000
-	value: {
-	  name: "gnmi"
-	  inside: 1000
-	  inside_ip: "1.1.1.1"
-	  outside_ip: "100.100.100.100"
-	  node_port: 20000
-	}
-  }
-  services: {
-	key: 1001
-	value: {
-	  name: "grpc"
-	  inside: 1001
-	  inside_ip: "1.1.1.1"
-	  outside_ip: "100.100.100.100"
-	  node_port: 20001
-	}
-  }
-  services: {
-	key: 5555
-	value: {
-	  name: "port-5555"
-	  inside: 5555
-	  outside: 5555
-	  inside_ip: "1.1.1.3"
-	  outside_ip: "100.100.100.102"
-	  node_port: 30010
-	}
-  }
-  services: {
-	key: 50071
-	value: {
-	  name: "port-50071"
-	  inside: 50071
-	  outside: 50071
-	  inside_ip: "1.1.1.3"
-	  outside_ip: "100.100.100.102"
-	  node_port: 30011
-	}
-  }
-  version: "0.0.1-9999"
+    name: "otg"
+    type: IXIA_TG
+    version: "0.0.1-9999"
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+			inside_ip: "1.1.1.1"
+			outside_ip: "100.100.100.100"
+			node_port: 20001
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+			inside_ip: "1.1.1.1"
+			outside_ip: "100.100.100.100"
+			node_port: 20000
+        }
+    }
 }
 links: {
   a_node: "r1"
   a_int: "eth9"
-  z_node: "ate1"
+  z_node: "otg"
   z_int: "eth1"
 }
 `
@@ -207,6 +186,14 @@ func (f *defaultFakeTopology) ConfigPush(context.Context, string, io.Reader) err
 }
 
 func (f *defaultFakeTopology) Node(string) (node.Node, error) {
+	return nil, nil
+}
+
+func (f *defaultFakeTopology) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
+	return nil, nil
+}
+
+func (f *defaultFakeTopology) TopologyResources(context.Context) ([]*topologyv1.Topology, error) {
 	return nil, nil
 }
 
@@ -360,112 +347,99 @@ func TestGetTopologyServices(t *testing.T) {
 		topoNewFunc func(string, *tpb.Topology, ...Option) (TopologyManager, error)
 		want        *tpb.Topology
 		wantErr     string
-	}{{
-		desc: "load topology error",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/not_there.pb.txt",
-			TopoNewOptions: opts,
+	}{
+		{
+			desc: "load topology error",
+			inputParam: TopologyParams{
+				TopoName:       "testdata/not_there.pb.txt",
+				TopoNewOptions: opts,
+			},
+			wantErr: "no such file or directory",
 		},
-		wantErr: "no such file or directory",
-	}, {
-		desc: "empty resources",
-		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-			return &fakeTopology{
-				proto:     validTopoIn,
-				resources: &Resources{},
-			}, nil
+		{
+			desc: "empty resources",
+			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+				return &fakeTopology{
+					proto:     validTopoIn,
+					resources: &Resources{},
+				}, nil
+			},
+			wantErr: "not found",
 		},
-		wantErr: "not found",
-	}, {
-		desc: "load fail",
-		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-			return &fakeTopology{
-				lErr:      fmt.Errorf("load failed"),
-				resources: &Resources{},
-			}, nil
+		{
+			desc: "load fail",
+			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+				return &fakeTopology{
+					lErr:      fmt.Errorf("load failed"),
+					resources: &Resources{},
+				}, nil
+			},
+			wantErr: "load failed",
 		},
-		wantErr: "load failed",
-	}, {
-		desc: "valid case",
-		topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-			return &fakeTopology{
-				proto: validTopoIn,
-				resources: &Resources{
-					Services: map[string]*corev1.Service{
-						"gnmi-service": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.1",
-								Ports: []corev1.ServicePort{{
-									Port:     1000,
-									NodePort: 20000,
-									Name:     "gnmi",
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
+		{
+			desc: "valid case",
+			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
+				return &fakeTopology{
+					proto: validTopoIn,
+					resources: &Resources{
+						Services: map[string][]*corev1.Service{
+							"otg": {
+								{
+									Spec: corev1.ServiceSpec{
+										ClusterIP: "1.1.1.1",
+										Ports: []corev1.ServicePort{{
+											Port:     40051,
+											NodePort: 20001,
+											Name:     "grpc",
+										}},
+									},
+									Status: corev1.ServiceStatus{
+										LoadBalancer: corev1.LoadBalancerStatus{
+											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
+										},
+									},
+								},
+								{
+									Spec: corev1.ServiceSpec{
+										ClusterIP: "1.1.1.1",
+										Ports: []corev1.ServicePort{{
+											Port:     50051,
+											NodePort: 20000,
+											Name:     "gnmi",
+										}},
+									},
+									Status: corev1.ServiceStatus{
+										LoadBalancer: corev1.LoadBalancerStatus{
+											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
+										},
+									},
 								},
 							},
-						},
-						"grpc-service": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.1",
-								Ports: []corev1.ServicePort{{
-									Port:     1001,
-									NodePort: 20001,
-									Name:     "grpc",
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
-								},
-							},
-						},
-						"service-r1": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.2",
-								Ports: []corev1.ServicePort{{
-									Port:       1002,
-									NodePort:   22,
-									Name:       "ssh",
-									TargetPort: intstr.IntOrString{IntVal: 22},
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.101"}},
-								},
-							},
-						},
-						"service-ate1": {
-							Spec: corev1.ServiceSpec{
-								ClusterIP: "1.1.1.3",
-								Ports: []corev1.ServicePort{{
-									Port:       5555,
-									NodePort:   30010,
-									Name:       "port-5555",
-									TargetPort: intstr.IntOrString{IntVal: 5555},
-								}, {
-									Port:       50071,
-									NodePort:   30011,
-									Name:       "port-50071",
-									TargetPort: intstr.IntOrString{IntVal: 50071},
-								}},
-							},
-							Status: corev1.ServiceStatus{
-								LoadBalancer: corev1.LoadBalancerStatus{
-									Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.102"}},
+							"r1": {
+								{
+									Spec: corev1.ServiceSpec{
+										ClusterIP: "1.1.1.2",
+										Ports: []corev1.ServicePort{{
+											Port:       1002,
+											NodePort:   22,
+											Name:       "ssh",
+											TargetPort: intstr.IntOrString{IntVal: 22},
+										}},
+									},
+									Status: corev1.ServiceStatus{
+										LoadBalancer: corev1.LoadBalancerStatus{
+											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.101"}},
+										},
+									},
 								},
 							},
 						},
 					},
-				},
-			}, nil
+				}, nil
+			},
+			wantErr: "",
+			want:    validTopoOut,
 		},
-		wantErr: "",
-		want:    validTopoOut,
-	},
 	}
 
 	for _, tc := range tests {
@@ -479,13 +453,13 @@ func TestGetTopologyServices(t *testing.T) {
 			}
 			got, err := GetTopologyServices(context.Background(), tc.inputParam)
 			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
-				t.Fatalf("failed: %+v", err)
+				t.Fatalf("get topology service returned unexpected error: gotErr: %+v, wantErr: %+v", err, tc.wantErr)
 			}
 			if tc.wantErr != "" {
 				return
 			}
 			if !proto.Equal(got.Topology, tc.want) {
-				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got, tc.want)
+				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got.Topology, tc.want)
 			}
 		})
 	}
@@ -494,7 +468,7 @@ func TestGetTopologyServices(t *testing.T) {
 func TestStateMap(t *testing.T) {
 	type node struct {
 		name  string
-		phase corev1.PodPhase
+		phase nd.NodeStatus
 	}
 
 	tests := []struct {
@@ -507,41 +481,41 @@ func TestStateMap(t *testing.T) {
 	}, {
 		desc: "one node failed",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodRunning},
-			{"n3", corev1.PodRunning},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_RUNNING},
+			{"n3", nd.NODE_RUNNING},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed with one node pending",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodPending},
-			{"n3", corev1.PodRunning},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_PENDING},
+			{"n3", nd.NODE_RUNNING},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed, one node pending, one node unknown",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodPending},
-			{"n3", corev1.PodUnknown},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_PENDING},
+			{"n3", nd.NODE_UNKNOWN},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "all nodes failed",
 		nodes: []*node{
-			{"n1", corev1.PodFailed},
-			{"n2", corev1.PodFailed},
-			{"n3", corev1.PodFailed},
+			{"n1", nd.NODE_FAILED},
+			{"n2", nd.NODE_FAILED},
+			{"n3", nd.NODE_FAILED},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node pending",
 		nodes: []*node{
-			{"n1", corev1.PodPending},
-			{"n2", corev1.PodRunning},
-			{"n3", corev1.PodRunning},
+			{"n1", nd.NODE_PENDING},
+			{"n2", nd.NODE_RUNNING},
+			{"n3", nd.NODE_RUNNING},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_CREATING,
 	},

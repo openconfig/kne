@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/pointer"
 
+	topologyv1 "github.com/google/kne/api/types/v1beta1"
 	tpb "github.com/google/kne/proto/topo"
 )
 
@@ -29,17 +30,24 @@ type Interface interface {
 }
 
 type Implementation interface {
+	// TopologySpecs provides a custom implementation for providing
+	// one or more meshnet resource spec for a node type
+	TopologySpecs(context.Context) ([]*topologyv1.Topology, error)
 	// Create provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Create(context.Context) error
 	// Status provides a custom implementation of accessing vendor node status.
 	// Requires context, Kubernetes client interface and namespace.
-	Status(context.Context) (corev1.PodPhase, error)
+	Status(context.Context) (NodeStatus, error)
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
-	Pod(context.Context) (*corev1.Pod, error)
-	Service(context.Context) (*corev1.Service, error)
+	// Pods provides a custom implementation for querying all pods created for
+	// for a node. Requires context, Kubernetes client interface and namespace.
+	Pods(context.Context) ([]*corev1.Pod, error)
+	// Services provides a custom implementation for querying all services created for
+	// for a node. Requires context, Kubernetes client interface and namespace.
+	Services(context.Context) ([]*corev1.Service, error)
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -62,6 +70,15 @@ type Node interface {
 	Interface
 	Implementation
 }
+
+type NodeStatus string
+
+const (
+	NODE_PENDING NodeStatus = "PENDING"
+	NODE_RUNNING NodeStatus = "RUNNING"
+	NODE_FAILED  NodeStatus = "FAILED"
+	NODE_UNKNOWN NodeStatus = "UNKNOWN"
+)
 
 type NewNodeFn func(n *Impl) (Node, error)
 
@@ -120,6 +137,35 @@ func (n *Impl) GetProto() *tpb.Node {
 
 func (n *Impl) GetNamespace() string {
 	return n.Namespace
+}
+
+func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
+	proto := n.GetProto()
+
+	var links []topologyv1.Link
+	for ifcName, ifc := range proto.Interfaces {
+		links = append(links, topologyv1.Link{
+			UID:       int(ifc.Uid),
+			LocalIntf: ifcName,
+			PeerIntf:  ifc.PeerIntName,
+			PeerPod:   ifc.PeerName,
+			LocalIP:   "",
+			PeerIP:    "",
+		})
+	}
+
+	// by default each node will result in exactly one topology resource
+	// with multiple links
+	return []*topologyv1.Topology{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: proto.Name,
+			},
+			Spec: topologyv1.TopologySpec{
+				Links: links,
+			},
+		},
+	}, nil
 }
 
 const (
@@ -406,13 +452,25 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 	})
 }
 
-// Status returns the current pod state for Node.
-func (n *Impl) Status(ctx context.Context) (corev1.PodPhase, error) {
-	p, err := n.Pod(ctx)
+// Status returns the current node state.
+func (n *Impl) Status(ctx context.Context) (NodeStatus, error) {
+	p, err := n.Pods(ctx)
 	if err != nil {
-		return corev1.PodUnknown, err
+		return NODE_UNKNOWN, err
 	}
-	return p.Status.Phase, nil
+	if len(p) != 1 {
+		return NODE_UNKNOWN, fmt.Errorf("expected exactly one pod for node %s", n.Name())
+	}
+	switch p[0].Status.Phase {
+	case corev1.PodFailed:
+		return NODE_FAILED, nil
+	case corev1.PodRunning:
+		return NODE_RUNNING, nil
+	case corev1.PodPending:
+		return NODE_PENDING, nil
+	default:
+		return NODE_PENDING, nil
+	}
 }
 
 // Name returns the name of the node.
@@ -421,13 +479,23 @@ func (n *Impl) Name() string {
 }
 
 // Pod returns the pod definition for the node.
-func (n *Impl) Pod(ctx context.Context) (*corev1.Pod, error) {
-	return n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+func (n *Impl) Pods(ctx context.Context) ([]*corev1.Pod, error) {
+	p, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return []*corev1.Pod{p}, nil
 }
 
 // Service returns the service definition for the node.
-func (n *Impl) Service(ctx context.Context) (*corev1.Service, error) {
-	return n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
+func (n *Impl) Services(ctx context.Context) ([]*corev1.Service, error) {
+	s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return []*corev1.Service{s}, nil
 }
 
 func getImpl(impl *Impl) (Node, error) {

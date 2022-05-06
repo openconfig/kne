@@ -1,0 +1,30 @@
+name: 2node-ixia
+nodes:
+  - name: otg
+    type: IXIA_TG
+    version: 0.0.1-9999
+    services:
+      40051:
+        name: grpc
+        inside: 40051
+      50051:
+        name: gnmi
+        inside: 50051
+  - name: arista
+    type: ARISTA_CEOS
+    services:
+      22:
+        name: ssh
+        inside: 22
+      6030:
+        name: gnmi
+        inside: 6030
+links:
+  - a_node: otg
+    a_int: eth1
+    z_node: arista
+    z_int: eth1
+  - a_node: otg
+    a_int: eth2
+    z_node: arista
+    z_int: eth2

@@ -50,59 +50,21 @@ nodes: {
     }
 }
 nodes: {
-    name: "ixia1"
-    type: IXIA_TG
-    version: "0.0.1-2185"
-    services: {
-        key: 5555
-        value: {
-            inside: 5555
-            outside: 0
-        }
-    }
-    services: {
-        key: 50071
-        value: {
-            inside: 50071
-            outside: 0
-        }
-    }
-}
-nodes: {
-    name: "ixia2"
+    name: "otg"
     type: IXIA_TG
     version: "0.0.1-9999"
     services: {
-        key: 5555
+        key: 40051
         value: {
-            inside: 5555
-            outside: 0
+            name: "grpc"
+            inside: 40051
         }
     }
     services: {
-        key: 50071
+        key: 50051
         value: {
-            inside: 50071
-            outside: 0
-        }
-    }
-}
-nodes: {
-    name: "ixia3"
-    type: IXIA_TG
-    version: "0.0.1-9999"
-    services: {
-        key: 5555
-        value: {
-            inside: 5555
-            outside: 0
-        }
-    }
-    services: {
-        key: 50071
-        value: {
-            inside: 50071
-            outside: 0
+            name: "gnmi"
+            inside: 50051
         }
     }
 }
@@ -113,7 +75,7 @@ links: {
     z_int: "eth1"
 }
 links: {
-    a_node: "ixia1"
+    a_node: "otg"
     a_int: "eth1"
     z_node: "r1"
     z_int: "eth2"
@@ -121,12 +83,12 @@ links: {
 links: {
     a_node: "r2"
     a_int: "eth2"
-    z_node: "ixia2"
+    z_node: "otg"
     z_int: "eth1"
 }
 links: {
     a_node: "r3"
     a_int: "eth3"
-    z_node: "ixia3"
+    z_node: "otg"
     z_int: "eth1"
 }
