@@ -65,12 +65,12 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 			Out: int32(svc.Outside),
 		}
 	}
-	for name := range n.GetProto().Interfaces {
+	for name, ifc := range n.GetProto().Interfaces {
 		ixiaCRD.Spec.Interfaces = append(ixiaCRD.Spec.Interfaces, ixiatg.IxiaTGIntf{
-			Name: name,
+			Name:  name,
+			Group: ifc.Group,
 		})
 	}
-
 	log.Tracef("Created new ixia CRD for node %s: %+v", n.Name(), ixiaCRD)
 	return ixiaCRD
 }
