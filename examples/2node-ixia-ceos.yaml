@@ -12,13 +12,15 @@ nodes:
         inside: 50051
   - name: arista
     type: ARISTA_CEOS
-    services:
-      22:
-        name: ssh
-        inside: 22
-      6030:
-        name: gnmi
-        inside: 6030
+    config:
+      config_path: /mnt/flash
+      config_file: startup-config
+      file: ceos-withtraffic/r1-config
+      cert:
+        self_signed:
+          cert_name: gnmiCert.pem
+          key_name: gnmiCertKey.pem
+          key_size: 4096
 links:
   - a_node: otg
     a_int: eth1

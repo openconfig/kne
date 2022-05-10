@@ -21,18 +21,16 @@ nodes: {
 nodes: {
     name: "arista"
     type: ARISTA_CEOS
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 6030 
-        value: {
-            name: "gnmi"
-            inside: 6030
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "ceos-withtraffic/r1-config"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
         }
     }
 }
