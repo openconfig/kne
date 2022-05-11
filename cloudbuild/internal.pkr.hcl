@@ -68,19 +68,21 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Installing kind...",
-      "/usr/local/go/bin/go get -u sigs.k8s.io/kind",
-      "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
-      "/home/$USER/go/bin/kind version",
+      "echo Installing kubectl...",
+      "sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
+      "echo \"deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+      "sudo apt-get update",
+      "sudo apt-get install kubectl -y",
+      "kubectl version --client",
     ]
   }
 
   provisioner "shell" {
     inline = [
-      "echo Installing kubectl...",
-      "curl -LO \"https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"",
-      "sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl",
-      "kubectl version --client",
+      "echo Installing kind...",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind",
+      "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
+      "/home/$USER/go/bin/kind version",
     ]
   }
 
