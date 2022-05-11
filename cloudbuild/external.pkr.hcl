@@ -80,7 +80,7 @@ build {
     inline = [
       "echo Installing golang license tool...",
       "go install github.com/google/go-licenses@latest",
-      "mkdir -p third_party/licenses"
+      "mkdir -p third_party/licenses",
       "go-licenses check github.com/google/go-licenses",
       "go-licenses save github.com/google/go-licenses --save_path=\"../third_party/licenses/go-licenses\"",
     ]
