@@ -227,8 +227,9 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		return errors.Wrap(err, `install "kind" to deploy`)
 	}
 	if k.Recycle {
+		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
 		if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
-			log.Infof("Recycling existing cluster: %s", k.Name)
+			log.Infof("Recycling existing cluster %q", k.Name)
 			return nil
 		}
 	}
