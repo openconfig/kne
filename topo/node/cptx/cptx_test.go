@@ -193,16 +193,16 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
-					Name:     "ssl",
-					Inside:   443,
+					Name:   "ssl",
+					Inside: 443,
 				},
 				22: {
-					Name:     "ssh",
-					Inside:   22,
+					Name:   "ssh",
+					Inside: 22,
 				},
 				50051: {
-					Name:     "gnmi",
-					Inside:   50051,
+					Name:   "gnmi",
+					Inside: 50051,
 				},
 			},
 			Labels: map[string]string{
@@ -239,16 +239,16 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
-					Name:     "ssl",
-					Inside:   443,
+					Name:   "ssl",
+					Inside: 443,
 				},
 				22: {
-					Name:     "ssh",
-					Inside:   22,
+					Name:   "ssh",
+					Inside: 22,
 				},
 				50051: {
-					Name:     "gnmi",
-					Inside:   50051,
+					Name:   "gnmi",
+					Inside: 50051,
 				},
 			},
 			Labels: map[string]string{

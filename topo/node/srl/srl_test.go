@@ -87,16 +87,16 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
-					Name:     "ssl",
-					Inside:   443,
+					Name:   "ssl",
+					Inside: 443,
 				},
 				22: {
-					Name:     "ssh",
-					Inside:   22,
+					Name:   "ssh",
+					Inside: 22,
 				},
 				57400: {
-					Name:     "gnmi",
-					Inside:   57400,
+					Name:   "gnmi",
+					Inside: 57400,
 				},
 			},
 		},
