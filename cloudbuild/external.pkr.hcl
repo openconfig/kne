@@ -77,6 +77,9 @@ build {
   }
 
   provisioner "shell" {
+    environment_vars = [
+      "PATH=$PATH:/usr/local/go/bin",
+    ]
     inline = [
       "echo Installing golang license tool...",
       "/usr/local/go/bin/go install github.com/google/go-licenses@latest",
@@ -96,6 +99,9 @@ build {
   }
 
   provisioner "shell" {
+    environment_vars = [
+      "PATH=$PATH:/usr/local/go/bin",
+    ]
     inline = [
       "echo Cloning google/kne github repo...",
       "sudo apt-get install git -y",
@@ -112,6 +118,9 @@ build {
   }
 
   provisioner "shell" {
+    environment_vars = [
+      "PATH=$PATH:/usr/local/go/bin",
+    ]
     inline = [
       "echo Cloning openconfig/ondatra github repo...",
       "git clone https://github.com/openconfig/ondatra.git",
