@@ -79,10 +79,10 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing golang license tool...",
-      "go install github.com/google/go-licenses@latest",
+      "/usr/local/go/bin/go install github.com/google/go-licenses@latest",
       "mkdir -p third_party/licenses",
-      "go-licenses check github.com/google/go-licenses",
-      "go-licenses save github.com/google/go-licenses --save_path=\"../third_party/licenses/go-licenses\"",
+      "/home/$USER/go/bin/go-licenses check github.com/google/go-licenses",
+      "/home/$USER/go/bin/go-licenses save github.com/google/go-licenses --save_path=\"../third_party/licenses/go-licenses\"",
     ]
   }
 
@@ -100,9 +100,10 @@ build {
       "echo Cloning google/kne github repo...",
       "sudo apt-get install git -y",
       "git clone -b ${var.branch_name} https://github.com/google/kne.git",
-      "go-licenses check github.com/google/kne/kne_cli",
-      "go-licenses save github.com/google/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\"",
-      "cd kne/kne_cli",
+      "cd kne",
+      "/home/$USER/go/bin/go-licenses check github.com/google/kne/kne_cli",
+      "/home/$USER/go/bin/go-licenses save github.com/google/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\"",
+      "cd kne_cli",
       "/usr/local/go/bin/go build -v",
       "sudo cp kne_cli /usr/local/bin/",
       "cd ../controller/server",
@@ -114,8 +115,8 @@ build {
     inline = [
       "echo Cloning openconfig/ondatra github repo...",
       "git clone https://github.com/openconfig/ondatra.git",
-      "go-licenses check github.com/openconfig/ondatra",
-      "go-licenses save github.com/openconfig/ondatra --save_path=\"../third_party/licenses/ondatra\"",
+      "/home/$USER/go/bin/go-licenses check github.com/openconfig/ondatra",
+      "/home/$USER/go/bin/go-licenses save github.com/openconfig/ondatra --save_path=\"../third_party/licenses/ondatra\"",
     ]
   }
 }
