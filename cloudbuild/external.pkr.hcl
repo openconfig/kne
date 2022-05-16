@@ -77,11 +77,9 @@ build {
   }
 
   provisioner "shell" {
-    environment_vars = [
-      "PATH=$PATH:/usr/local/go/bin",
-    ]
     inline = [
       "echo Installing golang license tool...",
+      "PATH=$PATH:/usr/local/go/bin",
       "/usr/local/go/bin/go install github.com/google/go-licenses@latest",
       "mkdir -p third_party/licenses",
       "/home/$USER/go/bin/go-licenses check github.com/google/go-licenses",
@@ -99,11 +97,9 @@ build {
   }
 
   provisioner "shell" {
-    environment_vars = [
-      "PATH=$PATH:/usr/local/go/bin",
-    ]
     inline = [
       "echo Cloning google/kne github repo...",
+      "PATH=$PATH:/usr/local/go/bin",
       "sudo apt-get install git -y",
       "git clone -b ${var.branch_name} https://github.com/google/kne.git",
       "cd kne",
@@ -118,11 +114,9 @@ build {
   }
 
   provisioner "shell" {
-    environment_vars = [
-      "PATH=$PATH:/usr/local/go/bin",
-    ]
     inline = [
       "echo Cloning openconfig/ondatra github repo...",
+      "PATH=$PATH:/usr/local/go/bin",
       "git clone https://github.com/openconfig/ondatra.git",
       "/home/$USER/go/bin/go-licenses check github.com/openconfig/ondatra",
       "/home/$USER/go/bin/go-licenses save github.com/openconfig/ondatra --save_path=\"../third_party/licenses/ondatra\"",
