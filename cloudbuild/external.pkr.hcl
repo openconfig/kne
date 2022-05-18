@@ -80,7 +80,7 @@ build {
     inline = [
       "echo Installing golang license tool...",
       "/usr/local/go/bin/go install github.com/google/go-licenses@latest",
-      "mkdir -p third_party/licenses",
+      "curl --create-dirs -o third_party/licenses/go-licenses/LICENSE https://raw.githubusercontent.com/google/go-licenses/master/LICENSE",
     ]
   }
 
@@ -88,6 +88,7 @@ build {
     inline = [
       "echo Installing kind...",
       "/usr/local/go/bin/go install sigs.k8s.io/kind@latest",
+      "curl --create-dirs -o third_party/licenses/kind/LICENSE https://raw.githubusercontent.com/kubernetes-sigs/kind/main/LICENSE",
       "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",
     ]
