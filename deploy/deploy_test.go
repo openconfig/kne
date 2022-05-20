@@ -29,8 +29,6 @@ import (
 
 func TestKindSpec(t *testing.T) {
 	ctx := context.Background()
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 
 	tests := []struct {
 		desc        string
@@ -38,7 +36,6 @@ func TestKindSpec(t *testing.T) {
 		execer      execerInterface
 		execPathErr bool
 		wantErr     string
-		mockExpects func(m *mocks.Mockprovider)
 	}{{
 		desc: "create cluster with cli",
 		k: &KindSpec{
@@ -46,69 +43,33 @@ func TestKindSpec(t *testing.T) {
 		},
 		execer: exec.NewFakeExecer(nil),
 	}, {
-		desc: "create cluster with client",
-		k: &KindSpec{
-			Name:             "test",
-			DeployWithClient: true,
-		},
-		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().Create("test", gomock.Any()).Return(nil)
-		},
-	}, {
 		desc: "create cluster with recycle",
 		k: &KindSpec{
 			Name:    "test",
 			Recycle: true,
 		},
-		execer: exec.NewFakeExecer(nil),
-		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().List().Return([]string{"test1"}, nil)
-		},
-	}, {
-		desc: "create cluster with recycle with client",
-		k: &KindSpec{
-			Name:             "test",
-			Recycle:          true,
-			DeployWithClient: true,
-		},
-		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().Create("test", gomock.Any()).Return(nil)
-			m.EXPECT().List().Return([]string{"test1"}, nil)
-		},
+		execer: exec.NewFakeExecer(nil, nil),
 	}, {
 		desc: "exists cluster with recycle",
 		k: &KindSpec{
 			Name:    "test",
 			Recycle: true,
 		},
-		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().List().Return([]string{"test"}, nil)
-		},
+		execer: exec.NewFakeExecer(nil),
 	}, {
 		desc: "unable to find kind cli",
 		k: &KindSpec{
 			Name: "test",
 		},
-		execer:      exec.NewFakeExecer(nil),
 		execPathErr: true,
-		wantErr:     "install kind cli to deploy",
+		wantErr:     `install dependency "kind" to deploy`,
 	}, {
-		desc: "create cluster with cli fail",
+		desc: "create cluster fail",
 		k: &KindSpec{
 			Name: "test",
 		},
 		execer:  exec.NewFakeExecer(errors.New("cmd failed")),
-		wantErr: "failed to create cluster using cli",
-	}, {
-		desc: "create cluster with client fail",
-		k: &KindSpec{
-			Name:             "test",
-			DeployWithClient: true,
-		},
-		mockExpects: func(m *mocks.Mockprovider) {
-			m.EXPECT().Create("test", gomock.Any()).Return(fmt.Errorf("create failed"))
-		},
-		wantErr: "failed to create cluster using kind client",
+		wantErr: "failed to create cluster",
 	}, {
 		desc: "create cluster with GAR - 1 reg",
 		k: &KindSpec{
@@ -164,15 +125,6 @@ func TestKindSpec(t *testing.T) {
 		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, errors.New("failed to restart kubelet")),
 		wantErr: "failed to restart kubelet",
 	}, {
-		desc: "create cluster with GAR - requires CLI",
-		k: &KindSpec{
-			Name:                     "test",
-			DeployWithClient:         true,
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
-		},
-		execer:  exec.NewFakeExecer(nil),
-		wantErr: "requires unsetting the deployWithClient field",
-	}, {
 		desc: "create cluster load containers",
 		k: &KindSpec{
 			Name: "test",
@@ -212,29 +164,11 @@ func TestKindSpec(t *testing.T) {
 		},
 		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("unable to load")),
 		wantErr: "loading",
-	}, {
-		desc: "create cluster load containers - requires CLI",
-		k: &KindSpec{
-			Name:             "test",
-			DeployWithClient: true,
-			ContainerImages: map[string]string{
-				"docker": "local",
-			},
-		},
-		execer:  exec.NewFakeExecer(nil),
-		wantErr: "requires unsetting the deployWithClient field",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			m := mocks.NewMockprovider(mockCtrl)
-			if tt.mockExpects != nil {
-				tt.mockExpects(m)
-			}
 			if tt.execer != nil {
 				execer = tt.execer
-			}
-			newProvider = func() provider {
-				return m
 			}
 			execLookPath = func(_ string) (string, error) {
 				if tt.execPathErr {

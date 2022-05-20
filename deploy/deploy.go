@@ -19,6 +19,7 @@ import (
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	kexec "github.com/google/kne/os/exec"
+	"github.com/openconfig/gnmi/errlist"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -28,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/kind/pkg/cluster"
 )
 
 const (
@@ -59,20 +59,9 @@ var (
 	execer execerInterface = kexec.NewExecer(logOut, logOut)
 
 	// Stubs for testing.
-	newProvider  = defaultProvider
 	execLookPath = exec.LookPath
 	osStat       = os.Stat
 )
-
-//go:generate mockgen -source=specs.go -destination=mocks/mock_provider.go -package=mocks provider
-type provider interface {
-	List() ([]string, error)
-	Create(name string, options ...cluster.CreateOption) error
-}
-
-func defaultProvider() provider {
-	return cluster.NewProvider(cluster.ProviderWithLogger(&logAdapter{log.StandardLogger()}))
-}
 
 type execerInterface interface {
 	Exec(string, ...string) error
@@ -117,13 +106,26 @@ func (d *Deployment) String() string {
 	return string(b)
 }
 
+func (d *Deployment) checkDependencies() error {
+	var errs errlist.List
+	for _, bin := range []string{"docker", "kubectl"} {
+		if _, err := execLookPath(bin); err != nil {
+			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
+		}
+	}
+	return errs.Err()
+}
+
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
+	if err := d.checkDependencies(); err != nil {
+		return err
+	}
 	log.Infof("Deploying cluster...")
 	if err := d.Cluster.Deploy(ctx); err != nil {
 		return err
 	}
 	log.Infof("Cluster deployed")
-	// Once cluster is up set kClient
+	// Once cluster is up, set kClient
 	rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
 	if err != nil {
 		return err
@@ -215,48 +217,34 @@ type KindSpec struct {
 	Retain                   bool              `yaml:"retain"`
 	Wait                     time.Duration     `yaml:"wait"`
 	Kubecfg                  string            `yaml:"kubecfg"`
-	DeployWithClient         bool              `yaml:"deployWithClient"`
 	GoogleArtifactRegistries []string          `yaml:"googleArtifactRegistries"`
 	ContainerImages          map[string]string `yaml:"containerImages"`
 }
 
+func (k *KindSpec) checkDependencies() error {
+	var errs errlist.List
+	bins := []string{"kind"}
+	if len(k.GoogleArtifactRegistries) != 0 {
+		bins = append(bins, "gcloud")
+	}
+	for _, bin := range bins {
+		if _, err := execLookPath(bin); err != nil {
+			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
+		}
+	}
+	return errs.Err()
+}
+
 func (k *KindSpec) Deploy(ctx context.Context) error {
-	provider := newProvider()
+	if err := k.checkDependencies(); err != nil {
+		return err
+	}
 	if k.Recycle {
-		clusters, err := provider.List()
-		if err != nil {
-			return err
+		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
+		if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
+			log.Infof("Recycling existing cluster %q", k.Name)
+			return nil
 		}
-		for _, v := range clusters {
-			if k.Name == v {
-				log.Infof("Recycling existing cluster: %s", v)
-				return nil
-			}
-		}
-	}
-	if k.DeployWithClient {
-		if len(k.GoogleArtifactRegistries) != 0 {
-			return fmt.Errorf("setting up access to artifact registries %v requires unsetting the deployWithClient field", k.GoogleArtifactRegistries)
-		}
-		if len(k.ContainerImages) != 0 {
-			return fmt.Errorf("loading container images requires unsetting the deployWithClient field")
-		}
-		if err := provider.Create(
-			k.Name,
-			cluster.CreateWithNodeImage(k.Image),
-			cluster.CreateWithRetain(k.Retain),
-			cluster.CreateWithWaitForReady(k.Wait),
-			cluster.CreateWithKubeconfigPath(k.Kubecfg),
-			cluster.CreateWithDisplayUsage(true),
-			cluster.CreateWithDisplaySalutation(true),
-		); err != nil {
-			return errors.Wrap(err, "failed to create cluster using kind client")
-		}
-		log.Infof("Deployed kind cluster using kind client: %s", k.Name)
-		return nil
-	}
-	if _, err := execLookPath("kind"); err != nil {
-		return errors.Wrap(err, "install kind cli to deploy, or set the deployWithClient field")
 	}
 	args := []string{"create", "cluster"}
 	if k.Name != "" {
@@ -275,7 +263,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		args = append(args, "--kubeconfig", k.Kubecfg)
 	}
 	if err := execer.Exec("kind", args...); err != nil {
-		return errors.Wrap(err, "failed to create cluster using cli")
+		return errors.Wrap(err, "failed to create cluster")
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
 	if len(k.GoogleArtifactRegistries) != 0 {
@@ -294,9 +282,6 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 }
 
 func (k *KindSpec) Delete() error {
-	if _, err := execLookPath("kind"); err != nil {
-		return errors.Wrap(err, "install kind cli to delete")
-	}
 	args := []string{"delete", "cluster"}
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
@@ -308,9 +293,6 @@ func (k *KindSpec) Delete() error {
 }
 
 func (k *KindSpec) Healthy() error {
-	if _, err := exec.LookPath("kubectl"); err != nil {
-		return errors.Wrap(err, "install kubectl to check health")
-	}
 	if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
 		return errors.Wrap(err, "cluster not healthy")
 	}
@@ -325,12 +307,6 @@ func (k *KindSpec) GetName() string {
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
-	if _, err := execLookPath("gcloud"); err != nil {
-		return errors.Wrap(err, "install gcloud cli to setup Google Artifact Registry access")
-	}
-	if _, err := execLookPath("docker"); err != nil {
-		return errors.Wrap(err, "install docker cli to setup Google Artifact Registry access")
-	}
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
 	// the temporary docker config.
@@ -388,9 +364,6 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 }
 
 func (k *KindSpec) loadContainerImages() error {
-	if _, err := execLookPath("docker"); err != nil {
-		return errors.Wrap(err, "install docker cli to load container images")
-	}
 	for s, d := range k.ContainerImages {
 		log.Infof("Loading %q as %q", s, d)
 		if err := execer.Exec("docker", "pull", s); err != nil {
