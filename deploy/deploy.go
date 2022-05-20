@@ -106,10 +106,9 @@ func (d *Deployment) String() string {
 	return string(b)
 }
 
-func checkDependencies() error {
-	bins := []string{"docker", "kubectl"}
+func (d *Deployment) checkDependencies() error {
 	var errs errlist.List
-	for _, bin := range bins {
+	for _, bin := range []string{"docker", "kubectl"} {
 		if _, err := execLookPath(bin); err != nil {
 			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
 		}
@@ -118,7 +117,7 @@ func checkDependencies() error {
 }
 
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
-	if err := checkDependencies(); err != nil {
+	if err := d.checkDependencies(); err != nil {
 		return err
 	}
 	log.Infof("Deploying cluster...")
@@ -222,9 +221,23 @@ type KindSpec struct {
 	ContainerImages          map[string]string `yaml:"containerImages"`
 }
 
+func (k *KindSpec) checkDependencies() error {
+	var errs errlist.List
+	bins := []string{"kind"}
+	if len(k.GoogleArtifactRegistries) != 0 {
+		bins = append(bins, "gcloud")
+	}
+	for _, bin := range bins {
+		if _, err := execLookPath(bin); err != nil {
+			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
+		}
+	}
+	return errs.Err()
+}
+
 func (k *KindSpec) Deploy(ctx context.Context) error {
-	if _, err := execLookPath("kind"); err != nil {
-		return errors.Wrap(err, `install "kind" to deploy`)
+	if err := k.checkDependencies(); err != nil {
+		return err
 	}
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
@@ -294,9 +307,6 @@ func (k *KindSpec) GetName() string {
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
-	if _, err := execLookPath("gcloud"); err != nil {
-		return errors.Wrap(err, `install "gcloud" to setup Google Artifact Registry access`)
-	}
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
 	// the temporary docker config.

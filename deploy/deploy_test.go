@@ -62,7 +62,7 @@ func TestKindSpec(t *testing.T) {
 			Name: "test",
 		},
 		execPathErr: true,
-		wantErr:     `install "kind" to deploy`,
+		wantErr:     `install dependency "kind" to deploy`,
 	}, {
 		desc: "create cluster fail",
 		k: &KindSpec{
