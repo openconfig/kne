@@ -42,9 +42,9 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing golang...",
-      "curl -O https://dl.google.com/go/go1.17.7.linux-amd64.tar.gz",
-      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.17.7.linux-amd64.tar.gz",
-      "rm go1.17.7.linux-amd64.tar.gz",
+      "curl -O https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz",
+      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.2.linux-amd64.tar.gz",
+      "rm go1.18.2.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",
@@ -68,19 +68,21 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Installing kind...",
-      "/usr/local/go/bin/go get -u sigs.k8s.io/kind",
-      "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
-      "/home/$USER/go/bin/kind version",
+      "echo Installing kubectl...",
+      "sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
+      "echo \"deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+      "sudo apt-get update",
+      "sudo apt-get install kubectl -y",
+      "kubectl version --client",
     ]
   }
 
   provisioner "shell" {
     inline = [
-      "echo Installing kubectl...",
-      "curl -LO \"https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"",
-      "sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl",
-      "kubectl version --client",
+      "echo Installing kind...",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind@latest",
+      "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
+      "/home/$USER/go/bin/kind version",
     ]
   }
 
