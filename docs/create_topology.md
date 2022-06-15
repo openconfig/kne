@@ -41,7 +41,7 @@ A deployment yaml file specifies 4 things (*optional in italics*):
 1.  *A list of controller specs*
 
 The basic deployment yaml file can be found in the GitHub repo at
-[deploy/kne/kind.yaml](https://github.com/google/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/deploy/kne/kind.yaml).
+[deploy/kne/kind.yaml](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/deploy/kne/kind.yaml).
 
 This config specifies `kind` as the cluster, `metallb` as the ingress, and
 `meshnet` as the CNI. This spec can be deployed using the following command:
@@ -123,15 +123,15 @@ Global Flags:
 ```
 
 A topology file is a textproto of the `Topology`
-[message](https://github.com/google/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L26).
+[message](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L26).
 This file specifies all of the nodes and links of your desired topology. In the
 node definitions interfaces, services, and initial configs can be specified.
 
 An example topology containing 3 Arista `cEOS` nodes and 2 Keysight `ixia-tg`
 ATEs can be found at
-[examples/3node-withtraffic.pb.txt](https://github.com/google/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt).
+[examples/3node-withtraffic.pb.txt](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt).
 The initial vendor router configs referenced in the topology are found
-[here](https://github.com/google/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/ceos-withtraffic/).
+[here](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/ceos-withtraffic/).
 See the [push config](interact_topology.md#push_config) section for details
 about pushing config after initial creation.
 
@@ -151,7 +151,7 @@ Container images can be hosted in multiple locations. For example
 [DockerHub](https://hub.docker.com/) hosts open sourced containers.
 [Google Artifact Registries](https://cloud.google.com/artifact-registry) can be
 used to host images with access control. The
-[KNE topology proto](https://github.com/google/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L117),
+[KNE topology proto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L117),
 the manifests, and controllers can all specify containers that get pulled from
 their source locations and get used in the cluster.
 
@@ -239,7 +239,7 @@ If anything is unexpected check the [Troubleshooting](troubleshoot.md) guide.
 To delete a topology use `kne_cli delete`:
 
 ```bash
-$ kne_cli delete ../../kne-internal/examples/3node-withtraffic.pb.txt
+$ kne_cli delete examples/3node-withtraffic.pb.txt
 ```
 
 To delete a cluster use `kind delete cluster`:
