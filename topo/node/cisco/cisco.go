@@ -201,19 +201,18 @@ func fmtInt400(eid int) string {
 func setE8000Env(pb *tpb.Node) error {
 	interfaceList := "MgmtEther0/RP0/CPU0/0"
 	interfaceMap := "MgmtEther0/RP0/CPU0/0:eth0"
-	eths := make([]string, 0)
+	eths := []string{}
 	for k := range pb.Interfaces {
 		eths = append(eths, k)
 	}
 	sort.Strings(eths)
 	for _, eth := range eths {
 		ciscoInterfaceID, err := getCiscoInterfaceID(pb, eth)
-		if err == nil {
-			interfaceList = fmt.Sprintf("%s,%s", interfaceList, ciscoInterfaceID)
-			interfaceMap = fmt.Sprintf("%s,%s:%s", interfaceMap, ciscoInterfaceID, eth)
-		} else {
+		if err != nil {
 			return err
 		}
+		interfaceList = fmt.Sprintf("%s,%s", interfaceList, ciscoInterfaceID)
+		interfaceMap = fmt.Sprintf("%s,%s:%s", interfaceMap, ciscoInterfaceID, eth)
 	}
 	if pb.Config.Env == nil {
 		pb.Config.Env = map[string]string{
@@ -237,44 +236,38 @@ func setE8000Env(pb *tpb.Node) error {
 
 func setXRDEnv(pb *tpb.Node) error {
 	interfaceMap := ""
-	eths := make([]string, 0)
+	eths := []string{}
 	for k := range pb.Interfaces {
 		eths = append(eths, k)
 	}
 	sort.Strings(eths)
 	for _, eth := range eths {
 		ciscoInterfaceID, err := getCiscoInterfaceID(pb, eth)
-		if err == nil {
-			if interfaceMap == "" {
-				interfaceMap = fmt.Sprintf("linux:%s,xr_name=%s", eth, ciscoInterfaceID)
-			} else {
-				interfaceMap = fmt.Sprintf("%s;linux:%s,xr_name=%s", interfaceMap, eth, ciscoInterfaceID)
-			}
-		} else {
+		if err != nil {
 			return err
+		}
+		if interfaceMap == "" {
+			interfaceMap = fmt.Sprintf("linux:%s,xr_name=%s", eth, ciscoInterfaceID)
+		} else {
+			interfaceMap = fmt.Sprintf("%s;linux:%s,xr_name=%s", interfaceMap, eth, ciscoInterfaceID)
 		}
 	}
 	if pb.Config.Env == nil {
-		pb.Config.Env = map[string]string{
-			"XR_INTERFACES":        interfaceMap,
-			"XR_EVERY_BOOT_CONFIG": filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile),
-		}
-	} else {
-		if pb.Config.Env["XR_INTERFACES"] == "" {
-			pb.Config.Env["XR_INTERFACES"] = interfaceMap
-		}
-		if pb.Config.Env["XR_EVERY_BOOT_CONFIG"] == "" {
-			pb.Config.Env["XR_EVERY_BOOT_CONFIG"] = filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile)
-		}
+		pb.Config.Env = map[string]string{}
+	}
+	if pb.Config.Env["XR_INTERFACES"] == "" {
+		pb.Config.Env["XR_INTERFACES"] = interfaceMap
+	}
+	if pb.Config.Env["XR_EVERY_BOOT_CONFIG"] == "" {
+		pb.Config.Env["XR_EVERY_BOOT_CONFIG"] = filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile)
 	}
 	pb.Config.Env["XR_MGMT_INTERFACES"] = "linux:eth0,xr_name=MgmtEth0/RP0/CPU0/0,chksum,snoop_v4,snoop_v6"
 	return nil
-
 }
 
 func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 	ethWithIDRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)\d+`) // check for e|et|eth|....
-	ethRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)`)          // check for e|et|eth|....
+	ethRegx := regexp.MustCompile(`e(t(h(e(r(n(e(t)*)*)*)*)*)*)`)
 	if !ethWithIDRegx.MatchString(eth) {
 		return "", fmt.Errorf("interface '%s' is invalid", eth)
 	}
@@ -369,14 +362,15 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name)
 	}
-	if pb.Model == "xrd" {
-		err := setXRDEnv(pb)
-		if err != nil {
+	switch pb.Model {
+	default:
+		return nil, fmt.Errorf("unexpected model %q", pb.Model)
+	case "xrd":
+		if err := setXRDEnv(pb); err != nil {
 			return nil, err
 		}
-	} else {
-		err := setE8000Env(pb)
-		if err != nil {
+	case "8201", "8202", "8201-32FH", "8102-64H","8101-32H":
+		if err := setE8000Env(pb); err != nil {
 			return nil, err
 		}
 	}
