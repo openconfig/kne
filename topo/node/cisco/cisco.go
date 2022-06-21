@@ -236,7 +236,7 @@ func setE8000Env(pb *tpb.Node) error {
 
 func setXRDEnv(pb *tpb.Node) error {
 	interfaceMap := ""
-	eths := []string{}
+	var eths []string
 	for k := range pb.Interfaces {
 		eths = append(eths, k)
 	}
