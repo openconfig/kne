@@ -80,7 +80,7 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "xrd",
 				Interfaces: map[string]*tpb.Interface{
-					"eeth": &tpb.Interface{},
+					"eeth": {},
 				},
 			},
 		},
@@ -135,10 +135,9 @@ func TestNew(t *testing.T) {
 			Config: &tpb.Config{
 				Image: "ios-xr:latest",
 				Env: map[string]string{
-					"XR_INTERFACES":                  "test/interface",
-					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "MgmtEther0/RP0/CPU0/0",
-					"XR_EVERY_BOOT_CONFIG":           "/foo",
-					"XR_SNOOP_IP_INTERFACES":         "MgmtEther0/RP0/CPU0/0",
+					"XR_INTERFACES":        "test/interface",
+					"XR_EVERY_BOOT_CONFIG": "/foo",
+					"XR_MGMT_INTERFACES":   "linux:eth0,xr_name=MgmtEth0/RP0/CPU0/0,chksum,snoop_v4,snoop_v6",
 				},
 				EntryCommand: "kubectl exec -it pod1 -- bash",
 				ConfigPath:   "/",
@@ -157,11 +156,11 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "xrd",
 				Interfaces: map[string]*tpb.Interface{
-					"eth1": &tpb.Interface{},
-					"eth2": &tpb.Interface{
+					"eth1": {},
+					"eth2": {
 						Name: "GIG1",
 					},
-					"eth3": &tpb.Interface{},
+					"eth3": {},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -176,11 +175,11 @@ func TestNew(t *testing.T) {
 			Name:  "pod1",
 			Model: "xrd",
 			Interfaces: map[string]*tpb.Interface{
-				"eth1": &tpb.Interface{},
-				"eth2": &tpb.Interface{
+				"eth1": {},
+				"eth2": {
 					Name: "GIG1",
 				},
-				"eth3": &tpb.Interface{},
+				"eth3": {},
 			},
 			Constraints: map[string]string{
 				"cpu":    "1",
@@ -206,10 +205,9 @@ func TestNew(t *testing.T) {
 			Config: &tpb.Config{
 				Image: "ios-xr:latest",
 				Env: map[string]string{
-					"XR_INTERFACES":                  "MgmtEther0/RP0/CPU0/0:eth0,GigabitEthernet0/0/0/0:eth1,GIG1:eth2,GigabitEthernet0/0/0/2:eth3",
-					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "MgmtEther0/RP0/CPU0/0,GigabitEthernet0/0/0/0,GIG1,GigabitEthernet0/0/0/2",
-					"XR_EVERY_BOOT_CONFIG":           "/foo",
-					"XR_SNOOP_IP_INTERFACES":         "MgmtEther0/RP0/CPU0/0",
+					"XR_INTERFACES":        "linux:eth1,xr_name=GigabitEthernet0/0/0/0;linux:eth2,xr_name=GIG1;linux:eth3,xr_name=GigabitEthernet0/0/0/2",
+					"XR_EVERY_BOOT_CONFIG": "/foo",
+					"XR_MGMT_INTERFACES":   "linux:eth0,xr_name=MgmtEth0/RP0/CPU0/0,chksum,snoop_v4,snoop_v6",
 				},
 				EntryCommand: "kubectl exec -it pod1 -- bash",
 				ConfigPath:   "/",
@@ -228,13 +226,13 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8201",
 				Interfaces: map[string]*tpb.Interface{
-					"eth1": &tpb.Interface{},
-					"eth2": &tpb.Interface{
+					"eth1": {},
+					"eth2": {
 						Name: "GIG1",
 					},
-					"eth24": &tpb.Interface{},
-					"eth25": &tpb.Interface{},
-					"eth36": &tpb.Interface{},
+					"eth24": {},
+					"eth25": {},
+					"eth36": {},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -249,13 +247,13 @@ func TestNew(t *testing.T) {
 			Name:  "pod1",
 			Model: "8201",
 			Interfaces: map[string]*tpb.Interface{
-				"eth1": &tpb.Interface{},
-				"eth2": &tpb.Interface{
+				"eth1": {},
+				"eth2": {
 					Name: "GIG1",
 				},
-				"eth24": &tpb.Interface{},
-				"eth25": &tpb.Interface{},
-				"eth36": &tpb.Interface{},
+				"eth24": {},
+				"eth25": {},
+				"eth36": {},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -302,7 +300,7 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8201",
 				Interfaces: map[string]*tpb.Interface{
-					"eth37": &tpb.Interface{},
+					"eth37": {},
 				},
 			},
 		},
@@ -317,15 +315,15 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8202",
 				Interfaces: map[string]*tpb.Interface{
-					"eth1": &tpb.Interface{},
-					"eth2": &tpb.Interface{
+					"eth1": {},
+					"eth2": {
 						Name: "GIG1",
 					},
-					"eth48": &tpb.Interface{},
-					"eth49": &tpb.Interface{},
-					"eth60": &tpb.Interface{},
-					"eth61": &tpb.Interface{},
-					"eth72": &tpb.Interface{},
+					"eth48": {},
+					"eth49": {},
+					"eth60": {},
+					"eth61": {},
+					"eth72": {},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -340,15 +338,15 @@ func TestNew(t *testing.T) {
 			Name:  "pod1",
 			Model: "8202",
 			Interfaces: map[string]*tpb.Interface{
-				"eth1": &tpb.Interface{},
-				"eth2": &tpb.Interface{
+				"eth1": {},
+				"eth2": {
 					Name: "GIG1",
 				},
-				"eth48": &tpb.Interface{},
-				"eth49": &tpb.Interface{},
-				"eth60": &tpb.Interface{},
-				"eth61": &tpb.Interface{},
-				"eth72": &tpb.Interface{},
+				"eth48": {},
+				"eth49": {},
+				"eth60": {},
+				"eth61": {},
+				"eth72": {},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -395,7 +393,7 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8202",
 				Interfaces: map[string]*tpb.Interface{
-					"eth73": &tpb.Interface{},
+					"eth73": {},
 				},
 			},
 		},
@@ -410,7 +408,7 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8201-32FH",
 				Interfaces: map[string]*tpb.Interface{
-					"eth33": &tpb.Interface{},
+					"eth33": {},
 				},
 			},
 		},
@@ -425,11 +423,11 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8201-32FH",
 				Interfaces: map[string]*tpb.Interface{
-					"eth1": &tpb.Interface{},
-					"eth2": &tpb.Interface{
+					"eth1": {},
+					"eth2": {
 						Name: "GIG1",
 					},
-					"eth32": &tpb.Interface{},
+					"eth32": {},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -444,11 +442,11 @@ func TestNew(t *testing.T) {
 			Name:  "pod1",
 			Model: "8201-32FH",
 			Interfaces: map[string]*tpb.Interface{
-				"eth1": &tpb.Interface{},
-				"eth2": &tpb.Interface{
+				"eth1": {},
+				"eth2": {
 					Name: "GIG1",
 				},
-				"eth32": &tpb.Interface{},
+				"eth32": {},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -495,11 +493,11 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8101-32H",
 				Interfaces: map[string]*tpb.Interface{
-					"eth1": &tpb.Interface{},
-					"eth2": &tpb.Interface{
+					"eth1": {},
+					"eth2": {
 						Name: "GIG1",
 					},
-					"eth32": &tpb.Interface{},
+					"eth32": {},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -514,11 +512,11 @@ func TestNew(t *testing.T) {
 			Name:  "pod1",
 			Model: "8101-32H",
 			Interfaces: map[string]*tpb.Interface{
-				"eth1": &tpb.Interface{},
-				"eth2": &tpb.Interface{
+				"eth1": {},
+				"eth2": {
 					Name: "GIG1",
 				},
-				"eth32": &tpb.Interface{},
+				"eth32": {},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -565,7 +563,7 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8101-32H",
 				Interfaces: map[string]*tpb.Interface{
-					"eth33": &tpb.Interface{},
+					"eth33": {},
 				},
 			},
 		},
@@ -580,7 +578,7 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8102-64H",
 				Interfaces: map[string]*tpb.Interface{
-					"eth65": &tpb.Interface{},
+					"eth65": {},
 				},
 			},
 		},
@@ -595,11 +593,11 @@ func TestNew(t *testing.T) {
 				Name:  "pod1",
 				Model: "8102-64H",
 				Interfaces: map[string]*tpb.Interface{
-					"eth1": &tpb.Interface{},
-					"eth2": &tpb.Interface{
+					"eth1": {},
+					"eth2": {
 						Name: "GIG1",
 					},
-					"eth64": &tpb.Interface{},
+					"eth64": {},
 				},
 				Config: &tpb.Config{
 					ConfigFile: "foo",
@@ -614,11 +612,11 @@ func TestNew(t *testing.T) {
 			Name:  "pod1",
 			Model: "8102-64H",
 			Interfaces: map[string]*tpb.Interface{
-				"eth1": &tpb.Interface{},
-				"eth2": &tpb.Interface{
+				"eth1": {},
+				"eth2": {
 					Name: "GIG1",
 				},
-				"eth64": &tpb.Interface{},
+				"eth64": {},
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
