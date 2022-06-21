@@ -96,13 +96,13 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Cloning google/kne github repo...",
+      "echo Cloning openconfig/kne github repo...",
       "sudo apt-get install git -y",
-      "git clone -b ${var.branch_name} https://github.com/google/kne.git",
+      "git clone -b ${var.branch_name} https://github.com/openconfig/kne.git",
       "cd kne",
       "PATH=$PATH:/usr/local/go/bin",
-      "/home/$USER/go/bin/go-licenses check github.com/google/kne/kne_cli",
-      "/home/$USER/go/bin/go-licenses save github.com/google/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\"",
+      "/home/$USER/go/bin/go-licenses check github.com/openconfig/kne/kne_cli",
+      "/home/$USER/go/bin/go-licenses save github.com/openconfig/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\"",
       "cd kne_cli",
       "/usr/local/go/bin/go build -v",
       "sudo cp kne_cli /usr/local/bin/",

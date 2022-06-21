@@ -41,12 +41,12 @@ $ mv kubectl ~/go/bin/kubectl
 $ go install sigs.k8s.io/kind@latest
 ```
 
-## Clone google/kne GitHub repo
+## Clone openconfig/kne GitHub repo
 
 Clone the repo:
 
 ```bash
-$ git clone https://github.com/google/kne.git
+$ git clone https://github.com/openconfig/kne.git
 ```
 
 Build the `kne_cli`:
