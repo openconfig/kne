@@ -201,7 +201,7 @@ func fmtInt400(eid int) string {
 func setE8000Env(pb *tpb.Node) error {
 	interfaceList := "MgmtEther0/RP0/CPU0/0"
 	interfaceMap := "MgmtEther0/RP0/CPU0/0:eth0"
-	eths := []string{}
+	var eths []string
 	for k := range pb.Interfaces {
 		eths = append(eths, k)
 	}
@@ -215,22 +215,18 @@ func setE8000Env(pb *tpb.Node) error {
 		interfaceMap = fmt.Sprintf("%s,%s:%s", interfaceMap, ciscoInterfaceID, eth)
 	}
 	if pb.Config.Env == nil {
-		pb.Config.Env = map[string]string{
-			"XR_INTERFACES":                  interfaceMap,
-			"XR_CHECKSUM_OFFLOAD_COUNTERACT": interfaceList,
-			"XR_EVERY_BOOT_CONFIG":           filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile),
-		}
-	} else {
-		if pb.Config.Env["XR_INTERFACES"] == "" {
-			pb.Config.Env["XR_INTERFACES"] = interfaceMap
-		}
-		if pb.Config.Env["XR_CHECKSUM_OFFLOAD_COUNTERACT"] == "" {
-			pb.Config.Env["XR_CHECKSUM_OFFLOAD_COUNTERACT"] = interfaceList
-		}
-		if pb.Config.Env["XR_EVERY_BOOT_CONFIG"] == "" {
-			pb.Config.Env["XR_EVERY_BOOT_CONFIG"] = filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile)
-		}
+		pb.Config.Env = map[string]string{}
 	}
+	if pb.Config.Env["XR_INTERFACES"] == "" {
+		pb.Config.Env["XR_INTERFACES"] = interfaceMap
+	}
+	if pb.Config.Env["XR_CHECKSUM_OFFLOAD_COUNTERACT"] == "" {
+		pb.Config.Env["XR_CHECKSUM_OFFLOAD_COUNTERACT"] = interfaceList
+	}
+	if pb.Config.Env["XR_EVERY_BOOT_CONFIG"] == "" {
+		pb.Config.Env["XR_EVERY_BOOT_CONFIG"] = filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile)
+	}
+	
 	return nil
 }
 
