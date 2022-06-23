@@ -17,3 +17,12 @@ system {
         }
     }
 }
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet {
+                address FXP0ADDR;
+            }
+        }
+    }
+}
