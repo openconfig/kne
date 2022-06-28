@@ -219,6 +219,8 @@ type KindSpec struct {
 	Kubecfg                  string            `yaml:"kubecfg"`
 	GoogleArtifactRegistries []string          `yaml:"googleArtifactRegistries"`
 	ContainerImages          map[string]string `yaml:"containerImages"`
+	KindConfigFile           string            `yaml:"config"`
+	AdditionalManifests      []string          `yaml:"additionalManifests"`
 }
 
 func (k *KindSpec) checkDependencies() error {
@@ -262,10 +264,20 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if k.Kubecfg != "" {
 		args = append(args, "--kubeconfig", k.Kubecfg)
 	}
+	if k.KindConfigFile != "" {
+		args = append(args, "--config", k.KindConfigFile)
+	}
+	log.Infof("Creating kind cluster with: %s", args)
 	if err := execer.Exec("kind", args...); err != nil {
 		return errors.Wrap(err, "failed to create cluster")
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
+	for _, s := range k.AdditionalManifests {
+		log.Infof("Found manifest %q", s)
+		if err := execer.Exec("kubectl", "apply", "-f", s); err != nil {
+			return errors.Wrap(err, "failed to deploy kindnet bridge")
+		}
+	}
 	if len(k.GoogleArtifactRegistries) != 0 {
 		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
 		if err := k.setupGoogleArtifactRegistryAccess(); err != nil {
