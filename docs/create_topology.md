@@ -40,6 +40,9 @@ A deployment yaml file specifies 4 things (*optional in italics*):
 1.  A CNI spec
 1.  *A list of controller specs*
 
+A full definition for valid fields in the deployment yaml can be found within
+[deploy/deploy.go](https://github.com/openconfig/kne/blob/816133f1cb563555bcdcb12eb27874b77dd41d1d/deploy/deploy.go#L212).
+
 The basic deployment yaml file can be found in the GitHub repo at
 [deploy/kne/kind.yaml](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/deploy/kne/kind.yaml).
 
