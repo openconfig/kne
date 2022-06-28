@@ -18,7 +18,7 @@ import (
 
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
-	kexec "github.com/google/kne/os/exec"
+	kexec "github.com/openconfig/kne/os/exec"
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"

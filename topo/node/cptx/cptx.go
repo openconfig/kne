@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	tpb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
+	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 	scraplicfg "github.com/scrapli/scrapligo/cfg"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"

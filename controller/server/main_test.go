@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/kne/deploy"
-	cpb "github.com/google/kne/proto/controller"
+	"github.com/openconfig/kne/deploy"
+	cpb "github.com/openconfig/kne/proto/controller"
 	"github.com/h-fam/errdiff"
 )
 

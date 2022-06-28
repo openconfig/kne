@@ -20,7 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/google/kne/deploy"
+	"github.com/openconfig/kne/deploy"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"

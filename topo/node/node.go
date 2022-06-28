@@ -19,8 +19,8 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/pointer"
 
-	topologyv1 "github.com/google/kne/api/types/v1beta1"
-	tpb "github.com/google/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 type Interface interface {

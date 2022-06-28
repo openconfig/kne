@@ -21,13 +21,13 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/google/kne/topo/node"
+	"github.com/openconfig/kne/topo/node"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
-	tpb "github.com/google/kne/proto/topo"
+	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
