@@ -266,7 +266,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if k.KindConfigFile != "" {
 		args = append(args, "--config", k.KindConfigFile)
 	}
-	log.Infof("Creating kind cluster with: %s", args)
+	log.Infof("Creating kind cluster with: %v", args)
 	if err := execer.Exec("kind", args...); err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}
