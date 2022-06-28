@@ -20,7 +20,6 @@ import (
 	dclient "github.com/docker/docker/client"
 	kexec "github.com/google/kne/os/exec"
 	"github.com/openconfig/gnmi/errlist"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -269,25 +268,25 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Creating kind cluster with: %s", args)
 	if err := execer.Exec("kind", args...); err != nil {
-		return errors.Wrap(err, "failed to create cluster")
+		return fmt.Errorf("failed to create cluster: %w", err)
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
 	for _, s := range k.AdditionalManifests {
 		log.Infof("Found manifest %q", s)
 		if err := execer.Exec("kubectl", "apply", "-f", s); err != nil {
-			return errors.Wrap(err, "failed to deploy kindnet bridge")
+			return fmt.Errorf("failed to deploy manifest: %w", err)
 		}
 	}
 	if len(k.GoogleArtifactRegistries) != 0 {
 		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
 		if err := k.setupGoogleArtifactRegistryAccess(); err != nil {
-			return errors.Wrap(err, "setting up google artifact registry access")
+			return fmt.Errorf("failed to setup Google artifact registry access: %w", err)
 		}
 	}
 	if len(k.ContainerImages) != 0 {
 		log.Infof("Loading container images")
 		if err := k.loadContainerImages(); err != nil {
-			return errors.Wrap(err, "loading container images")
+			return fmt.Errorf("failed to load container images: %w", err)
 		}
 	}
 	return nil
@@ -299,14 +298,14 @@ func (k *KindSpec) Delete() error {
 		args = append(args, "--name", k.Name)
 	}
 	if err := execer.Exec("kind", args...); err != nil {
-		return errors.Wrap(err, "failed to delete cluster using cli")
+		return fmt.Errorf("failed to delete cluster using cli: %w", err)
 	}
 	return nil
 }
 
 func (k *KindSpec) Healthy() error {
 	if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
-		return errors.Wrap(err, "cluster not healthy")
+		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
 }
@@ -379,17 +378,17 @@ func (k *KindSpec) loadContainerImages() error {
 	for s, d := range k.ContainerImages {
 		log.Infof("Loading %q as %q", s, d)
 		if err := execer.Exec("docker", "pull", s); err != nil {
-			return errors.Wrapf(err, "pulling %q", s)
+			return fmt.Errorf("failed to pull %q: %w", s, err)
 		}
 		if err := execer.Exec("docker", "tag", s, d); err != nil {
-			return errors.Wrapf(err, "tagging %q with %q", s, d)
+			return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
 		}
 		args := []string{"load", "docker-image", d}
 		if k.Name != "" {
 			args = append(args, "--name", k.Name)
 		}
 		if err := execer.Exec("kind", args...); err != nil {
-			return errors.Wrapf(err, "loading %q", d)
+			return fmt.Errorf("failed to load %q: %w", d, err)
 		}
 	}
 	log.Infof("Loaded all container images")

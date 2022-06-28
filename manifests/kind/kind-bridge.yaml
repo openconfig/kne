@@ -84,6 +84,8 @@ spec:
               fieldPath: status.podIP
         - name: CNI_BRIDGE
           value: "true"
+        - name: DISABLE_CNI_BRIDGE_OFFLOAD
+          value: "true"
         volumeMounts:
         - name: cni-cfg
           mountPath: /etc/cni/net.d
