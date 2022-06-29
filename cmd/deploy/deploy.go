@@ -88,6 +88,10 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		if err := cfg.Cluster.Spec.Decode(v); err != nil {
 			return nil, err
 		}
+		// make sure manifests are correct relative to configuration.
+		for i, s := range v.AdditionalManifests {
+			v.AdditionalManifests[i] = cleanPath(s, basePath)
+		}
 		d.Cluster = v
 	default:
 		return nil, fmt.Errorf("cluster type not supported: %s", cfg.Cluster.Kind)

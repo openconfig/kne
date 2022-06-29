@@ -144,6 +144,12 @@ func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
 
 	var links []topologyv1.Link
 	for ifcName, ifc := range proto.Interfaces {
+		if ifc.PeerIntName == "" {
+			return nil, fmt.Errorf("interface %q PeerIntName canot be empty", ifcName)
+		}
+		if ifc.PeerName == "" {
+			return nil, fmt.Errorf("interface %q PeerName canot be empty", ifcName)
+		}
 		links = append(links, topologyv1.Link{
 			UID:       int(ifc.Uid),
 			LocalIntf: ifcName,
