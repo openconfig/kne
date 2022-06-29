@@ -21,9 +21,9 @@ import (
 	"os"
 	"path/filepath"
 
-	tpb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo"
-	"github.com/google/kne/topo/node"
+	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo"
+	"github.com/openconfig/kne/topo/node"
 	"github.com/openconfig/gnmi/errlist"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

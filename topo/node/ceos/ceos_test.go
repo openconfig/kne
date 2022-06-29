@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	topopb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
+	topopb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"

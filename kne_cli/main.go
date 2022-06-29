@@ -18,7 +18,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/google/kne/cmd"
+	"github.com/openconfig/kne/cmd"
 )
 
 func main() {

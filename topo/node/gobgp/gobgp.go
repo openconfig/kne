@@ -16,8 +16,8 @@ package gobgp
 import (
 	"fmt"
 
-	tpb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
+	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {

@@ -17,7 +17,7 @@ package controller;
 
 import "topo.proto";
 
-option go_package = "github.com/google/kne/proto/controller";
+option go_package = "github.com/openconfig/kne/proto/controller";
 
 // Topology manager service definition.
 service TopologyManager {

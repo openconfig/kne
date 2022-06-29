@@ -18,13 +18,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/kne/topo/node"
+	"github.com/openconfig/kne/topo/node"
 	"github.com/h-fam/errdiff"
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 
-	tpb "github.com/google/kne/proto/topo"
+	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 type fakeWatch struct {

@@ -15,7 +15,7 @@ syntax = "proto3";
 
 package topo;
 
-option go_package = "github.com/google/kne/proto/topo";
+option go_package = "github.com/openconfig/kne/proto/topo";
 
 // Topology message defines what nodes and links will be created
 // inside the mesh.

@@ -1,4 +1,4 @@
-module github.com/google/kne
+module github.com/openconfig/kne
 
 go 1.18
 
