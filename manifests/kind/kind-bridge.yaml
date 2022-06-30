@@ -65,14 +65,14 @@ spec:
       serviceAccountName: kindnet
       initContainers:
       - name: install-cni-bin
-        image: aojea/kindnetd:v1.0.0
+        image: aojea/kindnetd:v1.0.1
         command: ['sh', '-c', 'cp -f /opt/cni/bin/* /cni/ ']
         volumeMounts:
         - name: cni-bin
           mountPath: /cni
       containers:
       - name: kindnet-cni
-        image: aojea/kindnetd:v1.0.0
+        image: aojea/kindnetd:v1.0.1
         env:
         - name: HOST_IP
           valueFrom:
@@ -83,8 +83,6 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: CNI_BRIDGE
-          value: "true"
-        - name: DISABLE_CNI_BRIDGE_OFFLOAD
           value: "true"
         volumeMounts:
         - name: cni-cfg
