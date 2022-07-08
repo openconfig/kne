@@ -209,7 +209,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 }
 
 func (n *Node) ResetCfg(ctx context.Context) error {
-	log.Infof("%s resetting config", n.Name())
+	log.Infof("%s - resetting config", n.Name())
 
 	err := n.SpawnCLIConn(n.Namespace)
 	if err != nil {
