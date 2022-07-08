@@ -221,8 +221,10 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	cfgs := []string{
 		"load factory-default",
 		"delete system commit factory-settings",
+		// Plaintext password is 'Google123'
+		// Setting a plaintext password would require an interactive prompt to enter the password.
 		"set system root-authentication encrypted-password $6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/",
-		// SSH is necessary to connect and control the client (kubectl exec)
+		// Without SSH enabled the cli binary returns with the message 'ssh is disabled'
 		"set system services ssh root-login allow",
 		"commit",
 	}
