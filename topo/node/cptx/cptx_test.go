@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -134,6 +135,44 @@ func TestConfigPush(t *testing.T) {
 			err = n.ConfigPush(ctx, fp)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("config push test failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestCustomPrivilegeLevel(t *testing.T) {
+	tests := []struct {
+		desc        string
+		hostname    string
+		shouldMatch bool
+	}{
+		{
+			desc:        "basic case",
+			hostname:    "testexample",
+			shouldMatch: true,
+		},
+		{
+			desc:        "hostname with '.'",
+			hostname:    "test.example",
+			shouldMatch: true,
+		},
+	}
+
+	privilegePromptMap := map[string]string{
+		"exec":          "root@%s>",
+		"configuration": "root@%s#",
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			for privilege, prompt := range privilegePromptMap {
+				match, err := regexp.Match(privLevels[privilege].Pattern, []byte(fmt.Sprintf(prompt, tt.hostname)))
+				if err != nil {
+					t.Fatalf("error while matching regexp: %s", err.Error())
+				}
+				if match != tt.shouldMatch {
+					t.Fatalf("regexp match result not as expected. expected: %t, match result: %t", tt.shouldMatch, match)
+				}
 			}
 		})
 	}
