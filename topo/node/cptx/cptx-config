@@ -1,6 +1,7 @@
+# Plaintext Password is 'Google123'
 system {
     root-authentication {
-        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"; ## SECRET-DATA. Plaintext password is Google123
+        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"; ## SECRET-DATA
     }
     services {
         ssh {

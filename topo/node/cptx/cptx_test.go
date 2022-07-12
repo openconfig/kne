@@ -4,6 +4,7 @@
 package cptx
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -11,9 +12,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/h-fam/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
@@ -129,9 +130,15 @@ func TestConfigPush(t *testing.T) {
 			}
 			defer fp.Close()
 
+			/* Using scrapl_cfg_testing results in an EOF error when config includes comments.
+			 * We remove the first line of the sample config, which holds the plaintext password.
+			 * Comments in config files are not problematic when using kne_cli. */
+			fbuf := bufio.NewReader(fp)
+			_, _ = fbuf.ReadBytes('\n')
+
 			ctx := context.Background()
 
-			err = n.ConfigPush(ctx, fp)
+			err = n.ConfigPush(ctx, fbuf)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("config push test failed, error: %+v\n", err)
 			}
