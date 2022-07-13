@@ -5,8 +5,9 @@ import (
 )
 
 // https://github.com/openconfig/kne/issues/163
-// Custom privilege levels to include names that include '.' in them.
-// Remove after fast-forwarding version to scrapli.
+// Default privilege levels in scrapli do not recognize hostnames with '.' in them and would hang.
+// Define custom privilege levels here to include such usecases.
+// Remove after fast-forwarding scrapli version.
 const (
 	execPrivLevel     = "exec"
 	privExecPrivLevel = "privilege_exec"
