@@ -5,9 +5,12 @@ package cptx
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -43,6 +46,33 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 		}
 	}()
 	return eCh
+}
+
+// removeCommentsFromConfig removes comment lines from a JunOS config file
+// and returns the remaining config in an io.Reader.
+// Using scrapl_cfg_testing results in an EOF error when config includes comments.
+// Comments in config files are not problematic when using kne_cli (not testing).
+// This is a simple implementation that only removes lines that are entirely comments.
+func removeCommentsFromConfig(f *os.File) (io.Reader, error) {
+	var buf bytes.Buffer
+	br := bufio.NewReader(f)
+	regexp := regexp.MustCompile(`^\s*(?:(?:\/\*)|[#\*])`)
+	for {
+		line, err := br.ReadBytes('\n')
+		if err != nil && err != io.EOF {
+			return nil, fmt.Errorf("br.ReadBytes() failed: %+v\n", err)
+		}
+
+		if regexp.Find(line) != nil {
+			continue
+		}
+		fmt.Fprint(&buf, string(line))
+
+		if err == io.EOF {
+			break
+		}
+	}
+	return &buf, nil
 }
 
 func TestConfigPush(t *testing.T) {
@@ -92,7 +122,7 @@ func TestConfigPush(t *testing.T) {
 			testConf: "cptx-config",
 		},
 		{
-			// We encounter unqxpected response -- we expect to fail
+			// We encounter unexpected response -- we expect to fail
 			desc:    "failure",
 			wantErr: true,
 			ni: &node.Impl{
@@ -130,13 +160,11 @@ func TestConfigPush(t *testing.T) {
 			}
 			defer fp.Close()
 
-			/* Using scrapl_cfg_testing results in an EOF error when config includes comments.
-			 * We remove the first line of the sample config, which holds the plaintext password.
-			 * Comments in config files are not problematic when using kne_cli. */
-			fbuf := bufio.NewReader(fp)
-			_, _ = fbuf.ReadBytes('\n')
-
 			ctx := context.Background()
+			fbuf, err := removeCommentsFromConfig(fp)
+			if err != nil {
+				t.Fatalf("removeCommentsFromConfig() failed for config file %s: %+v\n", tt.testConf, err)
+			}
 
 			err = n.ConfigPush(ctx, fbuf)
 			if err != nil && !tt.wantErr {
