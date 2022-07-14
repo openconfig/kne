@@ -208,6 +208,38 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	return nil
 }
 
+func (n *Node) ResetCfg(ctx context.Context) error {
+	log.Infof("%s - resetting config", n.Name())
+
+	err := n.SpawnCLIConn(n.Namespace)
+	if err != nil {
+		return err
+	}
+
+	defer n.cliConn.Close()
+
+	cfgs := []string{
+		"load factory-default",
+		"delete system commit factory-settings",
+		// Plaintext password is 'Google123'
+		// Setting a plaintext password would require an interactive prompt to enter the password.
+		"set system root-authentication encrypted-password $6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/",
+		// Without SSH enabled the cli binary returns with the message 'ssh is disabled'
+		"set system services ssh root-login allow",
+		"commit",
+	}
+	resp, err := n.cliConn.SendConfigs(cfgs)
+	if err != nil {
+		return err
+	}
+
+	if resp.Failed == nil {
+		log.Infof("%s - finshed resetting config", n.Name())
+	}
+
+	return resp.Failed
+}
+
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating cPTX node resource %s", n.Name())
 
