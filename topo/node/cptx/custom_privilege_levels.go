@@ -14,7 +14,7 @@ const (
 	configPrivLevel   = "configuration"
 )
 
-var privLevels = map[string]*scraplibase.PrivilegeLevel{
+var customPrivLevels = map[string]*scraplibase.PrivilegeLevel{
 	"exec": {
 		Pattern:        `(?im)^({\w+:\d}\n){0,1}[\w\-@()./:]{1,63}>\s?$`,
 		Name:           execPrivLevel,

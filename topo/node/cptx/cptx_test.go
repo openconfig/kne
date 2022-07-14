@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/h-fam/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
@@ -141,6 +141,11 @@ func TestConfigPush(t *testing.T) {
 }
 
 func TestCustomPrivilegeLevel(t *testing.T) {
+	privilegePromptMap := map[string]string{
+		"exec":          "root@%s>",
+		"configuration": "root@%s#",
+	}
+
 	tests := []struct {
 		desc        string
 		hostname    string
@@ -156,22 +161,27 @@ func TestCustomPrivilegeLevel(t *testing.T) {
 			hostname:    "test.example",
 			shouldMatch: true,
 		},
-	}
-
-	privilegePromptMap := map[string]string{
-		"exec":          "root@%s>",
-		"configuration": "root@%s#",
+		{
+			desc:        "failure",
+			hostname:    "Test^Example",
+			shouldMatch: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			for privilege, prompt := range privilegePromptMap {
-				match, err := regexp.Match(privLevels[privilege].Pattern, []byte(fmt.Sprintf(prompt, tt.hostname)))
+			for privilegeName, prompt := range privilegePromptMap {
+				fullPrompt := fmt.Sprintf(prompt, tt.hostname)
+				privLevel, ok := customPrivLevels[privilegeName]
+				if !ok {
+					t.Fatalf("privilege %q not defined in custom privilege", privilegeName)
+				}
+				match, err := regexp.Match(privLevel.Pattern, []byte(fullPrompt))
 				if err != nil {
-					t.Fatalf("error while matching regexp: %s", err.Error())
+					t.Fatalf("regexp.MatchString() failed: %+v", err.Error())
 				}
 				if match != tt.shouldMatch {
-					t.Fatalf("regexp match result not as expected. expected: %t, match result: %t", tt.shouldMatch, match)
+					t.Fatalf("regexp.MatchString() unexpected result (got %v, wanted %v) for prompt %q and privilege level %q", match, tt.shouldMatch, fullPrompt, privilegeName)
 				}
 			}
 		})
