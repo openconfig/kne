@@ -176,7 +176,7 @@ func TestCustomPrivilegeLevel(t *testing.T) {
 				if !ok {
 					t.Fatalf("privilege %q not defined in custom privilege", privilegeName)
 				}
-				match, err := regexp.Match(privLevel.Pattern, []byte(fullPrompt))
+				match, err := regexp.MatchString(privLevel.Pattern, fullPrompt)
 				if err != nil {
 					t.Fatalf("regexp.MatchString() failed: %+v", err.Error())
 				}
