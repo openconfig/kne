@@ -50,20 +50,21 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 
 // removeCommentsFromConfig removes comment lines from a JunOS config file
 // and returns the remaining config in an io.Reader.
-// Using scrapl_cfg_testing results in an EOF error when config includes comments.
+// Using scrapli_cfg_testing results in an EOF error when config includes comments.
 // Comments in config files are not problematic when using kne_cli (not testing).
 // This is a simple implementation that only removes lines that are entirely comments.
-func removeCommentsFromConfig(f *os.File) (io.Reader, error) {
+func removeCommentsFromConfig(t *testing.T, r io.Reader) io.Reader {
+	t.Helper()
 	var buf bytes.Buffer
-	br := bufio.NewReader(f)
-	regexp := regexp.MustCompile(`^\s*(?:(?:\/\*)|[#\*])`)
+	br := bufio.NewReader(r)
+	re := regexp.MustCompile(`^\s*(?:(?:\/\*)|[#\*])`)
 	for {
 		line, err := br.ReadBytes('\n')
 		if err != nil && err != io.EOF {
-			return nil, fmt.Errorf("br.ReadBytes() failed: %+v\n", err)
+			t.Fatalf("br.ReadBytes() failed: %+v\n", err)
 		}
 
-		if regexp.Find(line) != nil {
+		if re.Find(line) != nil {
 			continue
 		}
 		fmt.Fprint(&buf, string(line))
@@ -72,7 +73,7 @@ func removeCommentsFromConfig(f *os.File) (io.Reader, error) {
 			break
 		}
 	}
-	return &buf, nil
+	return &buf
 }
 
 func TestConfigPush(t *testing.T) {
@@ -161,10 +162,7 @@ func TestConfigPush(t *testing.T) {
 			defer fp.Close()
 
 			ctx := context.Background()
-			fbuf, err := removeCommentsFromConfig(fp)
-			if err != nil {
-				t.Fatalf("removeCommentsFromConfig() failed for config file %s: %+v\n", tt.testConf, err)
-			}
+			fbuf := removeCommentsFromConfig(t, fp)
 
 			err = n.ConfigPush(ctx, fbuf)
 			if err != nil && !tt.wantErr {
@@ -252,7 +250,7 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"CPTX": "1",
 				},
-				EntryCommand: fmt.Sprintf("kubectl exec -it pod1 -- cli -c"),
+				EntryCommand: "kubectl exec -it pod1 -- cli -c",
 				ConfigPath:   "/",
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
@@ -298,7 +296,7 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"CPTX": "1",
 				},
-				EntryCommand: fmt.Sprintf("kubectl exec -it  -- cli -c"),
+				EntryCommand: "kubectl exec -it  -- cli -c",
 				ConfigPath:   "/home/evo/configdisk",
 				ConfigFile:   "juniper.conf",
 			},
