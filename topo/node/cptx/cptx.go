@@ -117,6 +117,8 @@ func (n *Node) SpawnCLIConn(ns string) error {
 		// disable transport timeout
 		scraplibase.WithTimeoutTransport(0),
 		scraplibase.WithTimeoutOps(scrapliOperationTimeout),
+		// replace default privilege levels to include a wider range of hostnames in prompt pattern.
+		scraplibase.WithPrivilegeLevels(customPrivLevels),
 	)
 	if err != nil {
 		return err
