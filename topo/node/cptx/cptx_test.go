@@ -64,10 +64,9 @@ func removeCommentsFromConfig(t *testing.T, r io.Reader) io.Reader {
 			t.Fatalf("br.ReadBytes() failed: %+v\n", err)
 		}
 
-		if re.Find(line) != nil {
-			continue
+		if re.Find(line) == nil {
+			fmt.Fprint(&buf, string(line))
 		}
-		fmt.Fprint(&buf, string(line))
 
 		if err == io.EOF {
 			break
