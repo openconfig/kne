@@ -239,7 +239,6 @@ func defaults(pb *topopb.Node) *topopb.Node {
 func (n *Node) SpawnCLIConn() error {
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
-		scrapliopts.WithAuthNoStrictKey(),
 		// jacked up terminal width to allow for long strings
 		// such as cert and key to not break the terminal
 		scrapliopts.WithTermWidth(5000),

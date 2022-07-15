@@ -78,7 +78,6 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 func (n *Node) SpawnCLIConn() error {
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
-		scrapliopts.WithAuthNoStrictKey(),
 	}
 
 	// add options defined in test package

@@ -99,7 +99,6 @@ func (n *Node) WaitCLIReady(ctx context.Context) error {
 func (n *Node) SpawnCLIConn() error {
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
-		scrapliopts.WithAuthNoStrictKey(),
 	}
 
 	// add options defined in test package
