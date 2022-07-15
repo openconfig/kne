@@ -7,7 +7,12 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sync"
+	"time"
 
+	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scrapliplatform "github.com/scrapli/scrapligo/platform"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -523,4 +528,55 @@ func getImpl(impl *Impl) (Node, error) {
 		return nil, fmt.Errorf("impl not found: %v", impl.Proto.Type)
 	}
 	return fn(impl)
+}
+
+// PatchCLIConnOpen sets up scrapligo options to work with a tty
+// provided by the combination of the bin binary, namespace and the name of the node plus cliCMd command.
+// In the context of kne this command is typically `kubectl exec cliCmd`.
+func (impl *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliutil.Option) error {
+
+	opts = append(opts, scrapliopts.WithSystemTransportOpenBin(bin))
+
+	var args []string
+	if impl.Kubecfg != "" {
+		args = append(args, fmt.Sprintf("--kubeconfig=%s", impl.Kubecfg))
+	}
+	args = append(args, "exec", "-it", "-n", impl.GetNamespace(), impl.Name(), "--")
+	args = append(args, cliCmd...)
+
+	opts = append(opts, scrapliopts.WithSystemTransportOpenArgsOverride(args))
+
+	return nil
+}
+
+// GetCLIConn attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
+// for a given platform. Retries indefinitely till success and returns a scrapligo network driver instance.
+func (impl *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplinetwork.Driver, error) {
+	for {
+		p, err := scrapliplatform.NewPlatform(
+			platform,
+			impl.Name(),
+			opts...,
+		)
+		if err != nil {
+			log.Errorf("failed to fetch platform instance for device %s; error: %+v\n", err, impl.Name())
+			return nil, err
+		}
+
+		d, err := p.GetNetworkDriver()
+		if err != nil {
+			log.Errorf("failed to create driver for device %s; error: %+v\n", err, impl.Name())
+			return nil, err
+		}
+
+		if err = d.Open(); err != nil {
+			log.Debugf("%s - Cli not ready (%s) - waiting.", impl.Name(), err)
+			time.Sleep(time.Second * 2)
+			continue
+		}
+
+		log.Debugf("%s - Cli ready.", impl.Name())
+
+		return d, nil
+	}
 }
