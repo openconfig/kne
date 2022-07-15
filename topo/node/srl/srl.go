@@ -84,9 +84,12 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 
 	defer n.cliConn.Close()
 
-	if err := srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false); err == nil {
-		log.Infof("%s - finshed cert generation", n.Name())
+	err = srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false)
+	if err != nil {
+		return err
 	}
+
+	log.Infof("%s - finished cert generation", n.Name())
 
 	return err
 }
