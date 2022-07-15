@@ -163,54 +163,6 @@ func TestConfigPush(t *testing.T) {
 	}
 }
 
-func TestCustomPrivilegeLevel(t *testing.T) {
-	privilegePromptMap := map[string]string{
-		"exec":          "root@%s>",
-		"configuration": "root@%s#",
-	}
-
-	tests := []struct {
-		desc        string
-		hostname    string
-		shouldMatch bool
-	}{
-		{
-			desc:        "basic case",
-			hostname:    "testexample",
-			shouldMatch: true,
-		},
-		{
-			desc:        "hostname with '.'",
-			hostname:    "test.example",
-			shouldMatch: true,
-		},
-		{
-			desc:        "failure",
-			hostname:    "Test^Example",
-			shouldMatch: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			for privilegeName, prompt := range privilegePromptMap {
-				fullPrompt := fmt.Sprintf(prompt, tt.hostname)
-				privLevel, ok := customPrivLevels[privilegeName]
-				if !ok {
-					t.Fatalf("privilege %q not defined in custom privilege", privilegeName)
-				}
-				match, err := regexp.MatchString(privLevel.Pattern, fullPrompt)
-				if err != nil {
-					t.Fatalf("regexp.MatchString() failed: %+v", err.Error())
-				}
-				if match != tt.shouldMatch {
-					t.Fatalf("regexp.MatchString() unexpected result (got %v, wanted %v) for prompt %q and privilege level %q", match, tt.shouldMatch, fullPrompt, privilegeName)
-				}
-			}
-		})
-	}
-}
-
 // Test custom cptx
 func TestNew(t *testing.T) {
 	tests := []struct {
