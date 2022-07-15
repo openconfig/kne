@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	topopb "github.com/openconfig/kne/proto/topo"
@@ -15,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
 	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
-	srlinux "github.com/srl-labs/srlinux-scrapli"
+	"github.com/srl-labs/srlinux-scrapli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -265,7 +264,7 @@ func (n *Node) SpawnCLIConn() error {
 		return err
 	}
 
-	return n.waitSRLMgmtSrvReady(context.TODO(), n.cliConn)
+	return srlinux.WaitSRLMgmtSrv(context.TODO(), n.cliConn)
 }
 
 // isConfigDataPresent is a helper function that returns true
@@ -276,48 +275,6 @@ func (n *Node) isConfigDataPresent() bool {
 	}
 
 	return false
-}
-
-// waitSRLMgmtSrvReady returns when the node boot sequence reaches the stage when it is ready to accept config commands
-// returns an error if not ready by readyTimeout.
-func (n *Node) waitSRLMgmtSrvReady(ctx context.Context, d *scraplinetwork.Driver) error {
-	ctx, cancel := context.WithTimeout(ctx, readyTimeout)
-	defer cancel()
-
-	var err error
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for SR Linux node %s to boot: %v", n.Name(), err)
-		default:
-			// two commands are checked, first if the mgmt_server is running
-			resp, err := d.SendCommand(mgmtServerRdyCmd)
-			if err != nil || resp.Failed != nil {
-				time.Sleep(retryTimer)
-				continue
-			}
-
-			if !strings.Contains(resp.Result, "running") {
-				time.Sleep(retryTimer)
-				continue
-			}
-
-			// and then if the initial commit completes
-			resp, err = d.SendCommand(commitCompleteCmd)
-			if err != nil || resp.Failed != nil {
-				time.Sleep(retryTimer)
-				continue
-			}
-
-			if !strings.Contains(resp.Result, "complete") {
-				time.Sleep(retryTimer)
-				continue
-			}
-
-			return nil
-		}
-	}
 }
 
 func init() {
