@@ -134,7 +134,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	// use a static candidate file name for test transport
 	var candidateConfigFile string
-	if len(n.testOpts != 0) {
+	if len(n.testOpts) != 0 {
 		candidateConfigFile = "scrapli_cfg_testing"
 	}
 
