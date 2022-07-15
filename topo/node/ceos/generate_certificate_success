@@ -1,10 +1,11 @@
 spine1>enable
 spine1#
 spine1#
-spine1#terminal length 0
-Pagination disabled.
 spine1#terminal width 32767
 Width set to 32767 columns.
+spine1#
+spine1#terminal length 0
+Pagination disabled.
 spine1#
 spine1#configure terminal
 spine1(config)#
