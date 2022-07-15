@@ -137,13 +137,11 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	if len(n.testOpts != 0) {
 		candidateConfigFile = "scrapli_cfg_testing"
 	}
-	
-	}
 
-	c, err := scraplicfg.NewCfgDriver(
+	c, err := scraplicfg.NewCfg(
 		n.cliConn,
 		"juniper_junos",
-		scraplicfg.WithCandidateConfigFilename(candidateConfigFile),
+		scraplicfg.WithCandidateName(candidateConfigFile),
 	)
 	if err != nil {
 		return err
