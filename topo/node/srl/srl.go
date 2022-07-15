@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
@@ -22,12 +21,6 @@ import (
 
 const (
 	scrapliPlatformName = "nokia_srl"
-
-	readyTimeout = 3 * time.Minute
-	retryTimer   = 2 * time.Second
-
-	mgmtServerRdyCmd  = "info from state system app-management application mgmt_server state | grep running"
-	commitCompleteCmd = "info from state system configuration commit 1 status | grep complete"
 )
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
