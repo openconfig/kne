@@ -24,14 +24,17 @@ import (
 
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scraplibase "github.com/scrapli/scrapligo/driver/base"
-	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
-	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+)
+
+const (
+	scrapliPlatformName = "arista_eos"
 )
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
@@ -40,6 +43,9 @@ var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 type Node struct {
 	*node.Impl
 	cliConn *scraplinetwork.Driver
+
+	// scrapli options used in testing
+	testOpts []scrapliutil.Option
 }
 
 // Add validations for interfaces the node provides
@@ -65,68 +71,25 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	return n, nil
 }
 
-// WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
-// for a given platform. Retries indefinitely till success.
-func (n *Node) WaitCLIReady() error {
-	transportReady := false
-	for !transportReady {
-		if err := n.cliConn.Open(); err != nil {
-			log.Debugf("%s - Cli not ready - waiting.", n.Name())
-			time.Sleep(time.Second * 2)
-			continue
-		}
-		transportReady = true
-		log.Debugf("%s - Cli ready.", n.Name())
-	}
-	return nil
-}
-
-// PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
-func (n *Node) PatchCLIConnOpen() error {
-	t, ok := n.cliConn.Transport.Impl.(scraplitransport.SystemTransport)
-	if !ok {
-		return ErrIncompatibleCliConn
-	}
-
-	t.SetExecCmd("kubectl")
-	var args []string
-	if n.Kubecfg != "" {
-		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
-	}
-	args = append(args, "exec", "-it", "-n", n.Namespace, n.Name(), "--", "Cli")
-	t.SetOpenCmd(args)
-	return nil
-}
-
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
 // to accept inputs.
+// scrapligo options can be provided to this function for a caller to modify scrapligo platform.
+// For example, mock transport can be set via options
 func (n *Node) SpawnCLIConn() error {
-	d, err := scraplicore.NewCoreDriver(
-		n.Name(),
-		"arista_eos",
-		scraplibase.WithAuthBypass(true),
-		// disable transport timeout
-		scraplibase.WithTimeoutTransport(0),
-	)
-	if err != nil {
-		return err
+	opts := []scrapliutil.Option{
+		scrapliopts.WithAuthBypass(),
+		scrapliopts.WithAuthNoStrictKey(),
 	}
 
-	n.cliConn = d
+	// add options defined in test package
+	opts = append(opts, n.testOpts...)
 
-	err = n.PatchCLIConnOpen()
-	if err != nil {
-		n.cliConn = nil
+	n.PatchCLIConnOpen("kubectl", []string{"Cli"}, opts)
 
-		return err
-	}
+	var err error
+	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 
-	err = n.WaitCLIReady()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
@@ -230,7 +193,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	// this takes a long time sometimes, so we crank timeouts up
 	resp, err := n.cliConn.SendCommand(
 		"configure replace clean-config",
-		scraplibase.WithSendTimeoutOps(300*time.Second),
+		scrapliopts.WithTimeoutOps(300*time.Second),
 	)
 	if err != nil {
 		return err
