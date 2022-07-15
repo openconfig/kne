@@ -14,12 +14,10 @@ import (
 
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scraplicfg "github.com/scrapli/scrapligo/cfg"
-	scraplibase "github.com/scrapli/scrapligo/driver/base"
-	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
-	scraplitransport "github.com/scrapli/scrapligo/transport"
-	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scrapliutil "github.com/scrapli/scrapligo/util"
+	scraplicfg "github.com/scrapli/scrapligocfg"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +36,8 @@ var (
 
 const (
 	defaultInitContainerImage = "networkop/init-wait:latest"
+
+	scrapliPlatformName = "juniper_junos"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -58,6 +58,9 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 type Node struct {
 	*node.Impl
 	cliConn *scraplinetwork.Driver
+
+	// scrapli options used in testing
+	testOpts []scrapliutil.Option
 }
 
 // Add validations for interfaces the node provides
@@ -89,58 +92,25 @@ func (n *Node) WaitCLIReady(ctx context.Context) error {
 	}
 }
 
-// PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
-func (n *Node) PatchCLIConnOpen(ns string) error {
-	t, ok := n.cliConn.Transport.Impl.(scraplitransport.SystemTransport)
-	if !ok {
-		return ErrIncompatibleCliConn
-	}
-
-	t.SetExecCmd("kubectl")
-	var args []string
-	if n.Kubecfg != "" {
-		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
-	}
-	args = append(args, "exec", "-it", "-n", n.Namespace, n.Name(), "--", "cli", "-c")
-	t.SetOpenCmd(args)
-
-	return nil
-}
-
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
 // to accept inputs.
-func (n *Node) SpawnCLIConn(ns string) error {
-	d, err := scraplicore.NewCoreDriver(
-		n.Name(),
-		"juniper_junos",
-		scraplibase.WithAuthBypass(true),
-		// disable transport timeout
-		scraplibase.WithTimeoutTransport(0),
-		scraplibase.WithTimeoutOps(scrapliOperationTimeout),
-		// replace default privilege levels to include a wider range of hostnames in prompt pattern.
-		scraplibase.WithPrivilegeLevels(customPrivLevels),
-	)
-	if err != nil {
-		return err
+// scrapligo options can be provided to this function for a caller to modify scrapligo platform.
+// For example, mock transport can be set via options
+func (n *Node) SpawnCLIConn() error {
+	opts := []scrapliutil.Option{
+		scrapliopts.WithAuthBypass(),
+		scrapliopts.WithAuthNoStrictKey(),
 	}
 
-	n.cliConn = d
+	// add options defined in test package
+	opts = append(opts, n.testOpts...)
 
-	err = n.PatchCLIConnOpen(ns)
-	if err != nil {
-		n.cliConn = nil
+	n.PatchCLIConnOpen("kubectl", []string{"Cli", "-c"}, opts)
 
-		return err
-	}
+	var err error
+	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForCLITimeout)
-	defer cancel()
-	err = n.WaitCLIReady(ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
@@ -155,7 +125,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 		return err
 	}
 
-	err = n.SpawnCLIConn(n.Namespace)
+	err = n.SpawnCLIConn()
 	if err != nil {
 		return err
 	}
@@ -164,12 +134,10 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	// use a static candidate file name for test transport
 	var candidateConfigFile string
-	switch interface{}(n.cliConn.Transport.Impl).(type) {
-	case *scraplitest.TestingTransport:
+	if len(n.testOpts != 0) {
 		candidateConfigFile = "scrapli_cfg_testing"
-	default:
-		// non testing transport
-		candidateConfigFile = ""
+	}
+	
 	}
 
 	c, err := scraplicfg.NewCfgDriver(
@@ -213,7 +181,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Infof("%s - resetting config", n.Name())
 
-	err := n.SpawnCLIConn(n.Namespace)
+	err := n.SpawnCLIConn()
 	if err != nil {
 		return err
 	}

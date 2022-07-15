@@ -18,10 +18,8 @@ import (
 	"github.com/h-fam/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scraplibase "github.com/scrapli/scrapligo/driver/base"
-	scraplicore "github.com/scrapli/scrapligo/driver/core"
-	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
-	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,15 +141,9 @@ func TestConfigPush(t *testing.T) {
 			}
 			n, _ := nImpl.(*Node)
 
-			oldNewCoreDriver := scraplicore.NewCoreDriver
-			defer func() { scraplicore.NewCoreDriver = oldNewCoreDriver }()
-			scraplicore.NewCoreDriver = func(host, platform string, options ...scraplibase.Option) (*scraplinetwork.Driver, error) {
-				return scraplicore.NewJUNOSDriver(
-					host,
-					scraplibase.WithAuthBypass(true),
-					scraplibase.WithTimeoutOps(1*time.Second),
-					scraplitest.WithPatchedTransport(tt.testFile),
-				)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
 			}
 
 			fp, err := os.Open(tt.testConf)
