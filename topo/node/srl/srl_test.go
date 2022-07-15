@@ -23,7 +23,7 @@ import (
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
-	"github.com/scrapli/scrapligo/logging"
+	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -177,7 +177,10 @@ func TestGenerateSelfSigned(t *testing.T) {
 			testFile: "generate_certificate_failure",
 		},
 	}
-	logging.WithLogger(log.Print)
+
+	scraplilogging.WithLogger(log.Print)
+	scraplilogging.WithLevel(scraplilogging.Debug)
+
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			nImpl, err := New(tt.ni)
