@@ -259,7 +259,7 @@ func (n *Node) SpawnCLIConn() error {
 		return err
 	}
 
-	return srlinux.WaitSRLMgmtSrv(context.TODO(), n.cliConn)
+	return srlinux.WaitSRLMgmtSrvReady(context.TODO(), n.cliConn)
 }
 
 // isConfigDataPresent is a helper function that returns true
