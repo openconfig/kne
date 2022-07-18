@@ -1,0 +1,54 @@
+---
+#########################
+#########################
+## Golang Linter rules ##
+#########################
+#########################
+
+# configure golangci-lint
+# see https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
+run:
+  timeout: 5m
+  skip-dirs:
+    - gnmi/internal/config
+    - gnmi/internal/telemetry
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - goconst
+linters:
+  disable-all: true
+  enable:
+    - gosec
+    - unconvert
+    - goconst
+    - goimports
+    - gofmt
+    - gocritic
+    - govet
+    - revive
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - wastedassign
+    - whitespace
+linters-settings:
+  errcheck:
+    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
+    # default is false: such cases aren't reported by default.
+    check-blank: true
+  govet:
+    # report about shadowed variables
+    check-shadowing: false
+  maligned:
+    # print struct with more effective memory layout or not, false by default
+    suggest-new: true
+  gocritic:
+    disabled-checks:
+      - singleCaseSwitch
+      - appendAssign
