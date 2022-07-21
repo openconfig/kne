@@ -579,6 +579,28 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 	}
 }
 
+type SRLinuxSpec struct {
+	ManifestDir string `yaml:"manifests"`
+	kClient     kubernetes.Interface
+}
+
+func (s *SRLinuxSpec) SetKClient(c kubernetes.Interface) {
+	s.kClient = c
+}
+
+func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
+	log.Infof("Deploying SRLinux controller from: %s", s.ManifestDir)
+	if err := execer.Exec("kubectl", "apply", "-k", s.ManifestDir); err != nil {
+		return err
+	}
+	log.Infof("SRLinux controller deployed")
+	return nil
+}
+
+func (s *SRLinuxSpec) Healthy(ctx context.Context) error {
+	return deploymentHealthy(ctx, s.kClient, "srlinux-controller")
+}
+
 type IxiaTGSpec struct {
 	ManifestDir string           `yaml:"manifests"`
 	ConfigMap   *IxiaTGConfigMap `yaml:"configMap"`
@@ -634,7 +656,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 	if err := execer.Exec("kubectl", "apply", "-f", f.Name()); err != nil {
 		return err
 	}
-	log.Infof("IxiaTG controller Deployed")
+	log.Infof("IxiaTG controller deployed")
 	return nil
 }
 

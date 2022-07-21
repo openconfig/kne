@@ -129,6 +129,18 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	}
 	for _, cs := range req.ControllerSpecs {
 		switch t := cs.Spec.(type) {
+		case *cpb.ControllerSpec_SRLinux:
+			s := &deploy.SRLinuxSpec{}
+			path := defaultSRLinuxManifestDir
+			if cs.GetSRLinux().ManifestDir != "" {
+				path = cs.GetSRLinux().ManifestDir
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			s.ManifestDir = p
+			d.Controllers = append(d.Controllers, s)
 		case *cpb.ControllerSpec_Ixiatg:
 			i := &deploy.IxiaTGSpec{}
 			path := defaultIxiaTGManifestDir
