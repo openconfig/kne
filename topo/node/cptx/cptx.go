@@ -28,8 +28,6 @@ import (
 var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
 var (
-	// Approx timeout while we wait for cli to get ready
-	waitForCLITimeout = 500 * time.Second
 	// For committing a very large config
 	scrapliOperationTimeout = 300 * time.Second
 )
@@ -75,6 +73,7 @@ var (
 func (n *Node) SpawnCLIConn() error {
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
+		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
 	}
 
 	// add options defined in test package
