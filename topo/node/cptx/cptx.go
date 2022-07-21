@@ -68,30 +68,6 @@ var (
 	_ node.ConfigPusher = (*Node)(nil)
 )
 
-// WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
-// for a given platform. Retries with exponential backoff.
-func (n *Node) WaitCLIReady(ctx context.Context) error {
-	var err error
-	sleep := 1 * time.Second
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debugf("%s - Timed out - cli still not ready.", n.Name())
-			return fmt.Errorf("context cancelled for target %q with cli not ready: %w", n.Name(), err)
-		default:
-		}
-
-		err = n.cliConn.Open()
-		if err == nil {
-			log.Debugf("%s - cli ready.", n.Name())
-			return nil
-		}
-		log.Debugf("%s - cli not ready - waiting %d seconds.", n.Name(), sleep)
-		time.Sleep(sleep)
-		sleep *= 2
-	}
-}
-
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
 // to accept inputs.
 // scrapligo options can be provided to this function for a caller to modify scrapligo platform.
