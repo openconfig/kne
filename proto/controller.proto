@@ -72,6 +72,7 @@ message MeshnetSpec {
 message ControllerSpec {
   oneof spec {
     IxiaTGSpec ixiatg = 1;
+    SRLinuxSpec srlinux = 2;
   }
 }
 
@@ -92,6 +93,11 @@ message IxiaTGImage {
   string name = 1;
   string path = 2;
   string tag = 3;
+}
+
+// SRLinux specifications
+message SRLinuxSpec {
+  string manifest_dir = 1;
 }
 
 // Request message to create a cluster.
