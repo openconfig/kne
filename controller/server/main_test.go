@@ -23,6 +23,10 @@ func TestNewDeployment(t *testing.T) {
 	defer func() {
 		defaultIxiaTGManifestDir = itg
 	}()
+	srl := defaultSRLinuxManifestDir
+	defer func() {
+		defaultSRLinuxManifestDir = srl
+	}()
 
 	tests := []struct {
 		desc                         string
@@ -30,6 +34,7 @@ func TestNewDeployment(t *testing.T) {
 		defaultMeshnetManifestDirDNE bool
 		defaultMetallbManifestDirDNE bool
 		defaultIxiaTGManifestDirDNE  bool
+		defaultSRLinuxManifestDirDNE bool
 		want                         *deploy.Deployment
 		wantErr                      string
 	}{{
@@ -116,6 +121,118 @@ func TestNewDeployment(t *testing.T) {
 			},
 			Controllers: []deploy.Controller{
 				&deploy.IxiaTGSpec{
+					ManifestDir: "/home",
+				},
+			},
+		},
+	}, {
+		desc: "request spec - with srlinux controller",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kind{
+				&cpb.KindSpec{
+					Name:    "kne",
+					Recycle: true,
+					Version: "0.11.1",
+					Image:   "kindest/node:v1.22.1",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				&cpb.MetallbSpec{
+					ManifestDir: "/home",
+					IpCount:     100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				&cpb.MeshnetSpec{
+					ManifestDir: "/home",
+				},
+			},
+			ControllerSpecs: []*cpb.ControllerSpec{{
+				Spec: &cpb.ControllerSpec_Srlinux{
+					&cpb.SRLinuxSpec{
+						ManifestDir: "/home",
+					},
+				},
+			}},
+		},
+		want: &deploy.Deployment{
+			Cluster: &deploy.KindSpec{
+				Name:    "kne",
+				Recycle: true,
+				Version: "0.11.1",
+				Image:   "kindest/node:v1.22.1",
+			},
+			Ingress: &deploy.MetalLBSpec{
+				ManifestDir: "/home",
+				IPCount:     100,
+			},
+			CNI: &deploy.MeshnetSpec{
+				ManifestDir: "/home",
+			},
+			Controllers: []deploy.Controller{
+				&deploy.SRLinuxSpec{
+					ManifestDir: "/home",
+				},
+			},
+		},
+	}, {
+		desc: "request spec - with multiple controllers",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kind{
+				&cpb.KindSpec{
+					Name:    "kne",
+					Recycle: true,
+					Version: "0.11.1",
+					Image:   "kindest/node:v1.22.1",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				&cpb.MetallbSpec{
+					ManifestDir: "/home",
+					IpCount:     100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				&cpb.MeshnetSpec{
+					ManifestDir: "/home",
+				},
+			},
+			ControllerSpecs: []*cpb.ControllerSpec{
+				{
+					Spec: &cpb.ControllerSpec_Ixiatg{
+						&cpb.IxiaTGSpec{
+							ManifestDir: "/home",
+						},
+					},
+				},
+				{
+					Spec: &cpb.ControllerSpec_Srlinux{
+						&cpb.SRLinuxSpec{
+							ManifestDir: "/home",
+						},
+					},
+				},
+			},
+		},
+		want: &deploy.Deployment{
+			Cluster: &deploy.KindSpec{
+				Name:    "kne",
+				Recycle: true,
+				Version: "0.11.1",
+				Image:   "kindest/node:v1.22.1",
+			},
+			Ingress: &deploy.MetalLBSpec{
+				ManifestDir: "/home",
+				IPCount:     100,
+			},
+			CNI: &deploy.MeshnetSpec{
+				ManifestDir: "/home",
+			},
+			Controllers: []deploy.Controller{
+				&deploy.IxiaTGSpec{
+					ManifestDir: "/home",
+				},
+				&deploy.SRLinuxSpec{
 					ManifestDir: "/home",
 				},
 			},
@@ -382,6 +499,34 @@ func TestNewDeployment(t *testing.T) {
 			}},
 		},
 		wantErr: `failed to validate path "/foo"`,
+	}, {
+		desc: "bad srlinux manifest dir",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kind{
+				&cpb.KindSpec{
+					Name:    "kne",
+					Recycle: true,
+					Version: "0.11.1",
+					Image:   "kindest/node:v1.22.1",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				&cpb.MetallbSpec{
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				&cpb.MeshnetSpec{},
+			},
+			ControllerSpecs: []*cpb.ControllerSpec{{
+				Spec: &cpb.ControllerSpec_Srlinux{
+					&cpb.SRLinuxSpec{
+						ManifestDir: "/foo",
+					},
+				},
+			}},
+		},
+		wantErr: `failed to validate path "/foo"`,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -397,6 +542,10 @@ func TestNewDeployment(t *testing.T) {
 			if tt.defaultIxiaTGManifestDirDNE {
 				defaultIxiaTGManifestDir = "/this/path/dne"
 			}
+			defaultSRLinuxManifestDir = "/"
+			if tt.defaultSRLinuxManifestDirDNE {
+				defaultSRLinuxManifestDir = "/this/path/dne"
+			}
 			got, err := newDeployment(tt.req)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("newDeployment() unexpected error: %s", s)
@@ -406,6 +555,7 @@ func TestNewDeployment(t *testing.T) {
 				deploy.MeshnetSpec{},
 				deploy.MetalLBSpec{},
 				deploy.IxiaTGSpec{},
+				deploy.SRLinuxSpec{},
 			)
 			if s := cmp.Diff(tt.want, got, ignore); s != "" {
 				t.Errorf("newDeployment() unexpected diff (-want +got):\n%s", s)

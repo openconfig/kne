@@ -94,15 +94,6 @@ cni:
   spec:
     manifests: ../../manifests/meshnet/base
 controllers:
-  - kind: IxiaTG
-    spec:
-      manifests: path/to/manifest
-      configMap:
-        release: some-value
-        images:
-          - name: controller
-          - path: some/path
-          - tag: latest
   - kind: InvalidController
     spec:
       manifests: path/to/manifest`
@@ -132,7 +123,10 @@ controllers:
         images:
           - name: controller
             path: some/path
-            tag: latest`
+            tag: latest
+  - kind: SRLinux
+    spec:
+      manifests: path/to/manifest`
 )
 
 func TestNew(t *testing.T) {
