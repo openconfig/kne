@@ -2,3 +2,5 @@
 .idea
 
 kne_cli/kne_cli
+go.work
+go.work.sum
