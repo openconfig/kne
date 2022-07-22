@@ -717,8 +717,8 @@ func TestSRLinuxSpec(t *testing.T) {
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc: "1 replica",
-		srl: &SRLinuxSpec{},
+		desc:   "1 replica",
+		srl:    &SRLinuxSpec{},
 		execer: exec.NewFakeExecer(nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -758,8 +758,8 @@ func TestSRLinuxSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "2 replicas",
-		srl: &SRLinuxSpec{},
+		desc:   "2 replicas",
+		srl:    &SRLinuxSpec{},
 		execer: exec.NewFakeExecer(nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
