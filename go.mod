@@ -32,6 +32,8 @@ require (
 	sigs.k8s.io/kind v0.11.1
 )
 
+replace github.com/scrapli/scrapligo v1.1.1 => github.com/hellt/scrapligo v0.0.0-20220722143125-7bc748095323
+
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/Microsoft/go-winio v0.4.17 // indirect
