@@ -44,13 +44,13 @@ A full definition for valid fields in the deployment yaml can be found within
 [deploy/deploy.go](https://github.com/openconfig/kne/blob/816133f1cb563555bcdcb12eb27874b77dd41d1d/deploy/deploy.go#L212).
 
 The basic deployment yaml file can be found in the GitHub repo at
-[deploy/kne/kind.yaml](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/deploy/kne/kind.yaml).
+[deploy/kne/kind.yaml](https://github.com/openconfig/kne/blob/5e6cf1cbc0748bb48ebf49039bd0ad592378357a/deploy/kne/kind-bridge.yaml).
 
 This config specifies `kind` as the cluster, `metallb` as the ingress, and
-`meshnet` as the CNI. This spec can be deployed using the following command:
+`meshnet` as the CNI. Additionally, the config instructs `kindnet` CNI to use `bridge` CNI, instead of a default `ptp`. This spec can be deployed using the following command:
 
 ```bash
-$ kne_cli deploy deploy/kne/kind.yaml
+$ kne_cli deploy deploy/kne/kind-bridge.yaml
 ```
 
 ## Deploying additional vendor controllers
@@ -84,24 +84,15 @@ Keysight controller yaml:
 $ kubectl apply -f ixiatg-operator.yaml
 ```
 
-### SRLinux
+### SR Linux
 
-Follow the [instructions](https://github.com/srl-labs/srl-controller#readme) on
-the `srlinux` GitHub repo.
-
-This should require the following steps:
-
-1.  Flip the ptp CNI plugin to bridge:
+Apply the latest version of SR Linux controller:
 
     ```bash
-    $ docker exec kne-control-plane bash -c "curl https://gist.githubusercontent.com/hellt/806e6cc8d6ae49e2958f11b4a1fc3091/raw/8f45ad34f60b6128af78b4766aa4cae7b54bf881/bridge.sh |  /bin/bash"
+    kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
     ```
 
-1.  Apply the controller:
-
-    ```bash
-    $ kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
-    ```
+Read more on Nokia SR Linux controller operations and capabilities at [srl-labs/srl-controller GitHub repo](https://github.com/srl-labs/srl-controller).
 
 ## Create a topology
 
