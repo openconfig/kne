@@ -90,11 +90,13 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			KindConfigFile:           req.GetKind().Config,
 			AdditionalManifests:      req.GetKind().AdditionalManifests,
 		}
-		p, err := validatePath(k.Config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate path %q", path)
+		if k.KindConfigFile != "" {
+			p, err := validatePath(k.KindConfigFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", p)
+			}
+			k.KindConfigFile = p
 		}
-		k.Config = p
 		for i, path := range k.AdditionalManifests {
 			p, err := validatePath(path)
 			if err != nil {
@@ -146,11 +148,11 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	}
 	for _, cs := range req.ControllerSpecs {
 		switch t := cs.Spec.(type) {
-		case *cpb.ControllerSpec_SRLinux:
+		case *cpb.ControllerSpec_Srlinux:
 			s := &deploy.SRLinuxSpec{}
 			path := defaultSRLinuxManifestDir
-			if cs.GetSRLinux().ManifestDir != "" {
-				path = cs.GetSRLinux().ManifestDir
+			if cs.GetSrlinux().ManifestDir != "" {
+				path = cs.GetSrlinux().ManifestDir
 			}
 			p, err := validatePath(path)
 			if err != nil {
