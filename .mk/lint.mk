@@ -6,6 +6,6 @@ LINTDIR := $$(pwd)
 super-lint:
 	docker run -e RUN_LOCAL=true -e USE_FIND_ALGORITHM=true \
 	  -v $(LINTDIR):/tmp/lint \
-	  -v $$(pwd)/.github/linters:/tmp/linters \
-	  -e LINTER_RULES_PATH=/tmp/linters \
+	  -v $$(pwd)/.github/linters:/tmp/lint/linters \
+	  -e LINTER_RULES_PATH=linters \
 	  ghcr.io/github/super-linter:slim-v4
