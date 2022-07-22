@@ -11,6 +11,7 @@ import (
 
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scrapliplatform "github.com/scrapli/scrapligo/platform"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	log "github.com/sirupsen/logrus"
@@ -533,7 +534,7 @@ func getImpl(impl *Impl) (Node, error) {
 // PatchCLIConnOpen sets up scrapligo options to work with a tty
 // provided by the combination of the bin binary, namespace and the name of the node plus cliCMd command.
 // In the context of kne this command is typically `kubectl exec cliCmd`.
-func (impl *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliutil.Option) error {
+func (impl *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliutil.Option) []scrapliutil.Option {
 
 	opts = append(opts, scrapliopts.WithSystemTransportOpenBin(bin))
 
@@ -546,12 +547,14 @@ func (impl *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliut
 
 	opts = append(opts, scrapliopts.WithSystemTransportOpenArgsOverride(args))
 
-	return nil
+	return opts
 }
 
 // GetCLIConn attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
 // for a given platform. Retries indefinitely till success and returns a scrapligo network driver instance.
 func (impl *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplinetwork.Driver, error) {
+	li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"), scraplilogging.WithLogger(log.Print))
+	opts = append(opts, scrapliopts.WithLogger(li))
 	for {
 		p, err := scrapliplatform.NewPlatform(
 			platform,

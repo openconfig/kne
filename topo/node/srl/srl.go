@@ -250,7 +250,7 @@ func (n *Node) SpawnCLIConn() error {
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
 
-	n.PatchCLIConnOpen("kubectl", []string{"sr_cli", "-d"}, opts)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"sr_cli", "-d"}, opts)
 
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
