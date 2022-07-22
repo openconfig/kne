@@ -7,10 +7,10 @@ to work with your Linux distro.
 
 The following dependencies and required to use KNE:
 
-*   Golang
-*   Docker
-*   Kubectl
-*   Kind
+* Golang
+* Docker
+* Kubectl
+* Kind
 
 ## Install Golang
 
@@ -19,11 +19,11 @@ The following dependencies and required to use KNE:
 1. Install the new version:
 
   ```bash
-  $ curl -O https://dl.google.com/go/go1.17.7.linux-amd64.tar.gz
-  $ sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.17.7.linux-amd64.tar.gz
-  $ rm go1.17.7.linux-amd64.tar.gz
-  $ export PATH=$PATH:/usr/local/go/bin
-  $ export PATH=$PATH:$(go env GOPATH)/bin
+  curl -O https://dl.google.com/go/go1.17.7.linux-amd64.tar.gz
+  sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.17.7.linux-amd64.tar.gz
+  rm go1.17.7.linux-amd64.tar.gz
+  export PATH=$PATH:/usr/local/go/bin
+  export PATH=$PATH:$(go env GOPATH)/bin
   ```
 
   Consider adding the `export` commands to `~/.bashrc` or similar.
@@ -34,16 +34,16 @@ NOTE: This will install version `20.10.16` which was known to work with KNE at
 some point in time. You can instead install a newer version if you need new
 features or are having problems.
 
-1.  Follow the installation [instructions](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) using version string `5:20.10.16~3-0~ubuntu-focal` or the equivalent `20.10.16` version for the corresponding OS.
+1. Follow the installation [instructions](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) using version string `5:20.10.16~3-0~ubuntu-focal` or the equivalent `20.10.16` version for the corresponding OS.
 
-1.  Follow the
+1. Follow the
     [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user)
     for Linux. Specifically
     [manager docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
 
     ```bash
-    $ sudo groupadd docker
-    $ sudo usermod -aG docker $USER
+    sudo groupadd docker
+    sudo usermod -aG docker $USER
     ```
 
 ## Install Kubectl
@@ -53,8 +53,8 @@ some point in time. You can instead install a newer version if you need new
 features or are having problems.
 
 ```bash
-$ curl -LO https://dl.k8s.io/release/v1.24.1/bin/linux/amd64/kubectl
-$ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+curl -LO https://dl.k8s.io/release/v1.24.1/bin/linux/amd64/kubectl
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 ```
 
 ## Install Kind
@@ -64,7 +64,7 @@ some point in time. You can instead install a newer version if you need new
 features or are having problems.
 
 ```bash
-$ go install sigs.k8s.io/kind@v0.14.0
+go install sigs.k8s.io/kind@v0.14.0
 ```
 
 ## Clone openconfig/kne GitHub repo
@@ -72,21 +72,21 @@ $ go install sigs.k8s.io/kind@v0.14.0
 Clone the repo:
 
 ```bash
-$ git clone https://github.com/openconfig/kne.git
+git clone https://github.com/openconfig/kne.git
 ```
 
 Build the `kne_cli`:
 
 ```bash
-$ cd kne/kne_cli
-$ go install
+cd kne/kne_cli
+go install
 ```
 
 This will build the `kne_cli` in your `$GOPATH/bin` (which should be in your
 `$PATH`). Now run:
 
 ```bash
-$ kne_cli --help
+kne_cli --help
 ```
 
 To verify that the `kne_cli` is built and accessible from your `$PATH`.

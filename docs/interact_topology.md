@@ -9,7 +9,7 @@ The `kne_cli topology push` command can be used to push configuration to a node
 in a topology. For example:
 
 ```bash
-$ kne_cli topology push examples/3node-ceos.pb.txt r1 examples/ceos-withtraffic/r1-config
+kne_cli topology push examples/3node-ceos.pb.txt r1 examples/ceos-withtraffic/r1-config
 ```
 
 TIP: Specify the config file in the
@@ -41,7 +41,7 @@ username/passwords can be found in the config files. Often times the password is
 written as a hash. Try `admin` as a username or password if unknown.
 
 ```bash
-$ ssh <username>@<service ip>
+ssh <username>@<service ip>
 ```
 
 Here is an example based on the configured Arista `cEOS` node configured in the
@@ -102,7 +102,7 @@ source `gnmi_cli` tool for the examples in this doc. Install by running the
 following command:
 
 ```bash
-$ go install github.com/openconfig/gnmi/cmd/gnmi_cli@latest
+go install github.com/openconfig/gnmi/cmd/gnmi_cli@latest
 ```
 
 gNMI should be running on your nodes on the default port (6030), so you can
@@ -112,9 +112,9 @@ NOTE: The `--tls_skip_verify` flag is important, because our self-signed keys
 cannot be verified.
 
 ```bash
-$ export GNMI_USER=admin
-$ export GNMI_PASS=admin
-$ gnmi_cli -a 192.168.18.100:6030 -q "/interfaces/interface/state" -tls_skip_verify -with_user_pass
+export GNMI_USER=admin
+export GNMI_PASS=admin
+gnmi_cli -a 192.168.18.100:6030 -q "/interfaces/interface/state" -tls_skip_verify -with_user_pass
 ```
 
 ### gNMI over gRPC in go

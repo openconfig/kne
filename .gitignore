@@ -2,3 +2,4 @@
 .idea
 
 kne_cli/kne_cli
+**/super-linter.log
