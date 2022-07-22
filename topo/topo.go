@@ -25,8 +25,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/proto"
-	cpb "github.com/google/kne/proto/controller"
-	"github.com/google/kne/topo/node"
+	cpb "github.com/openconfig/kne/proto/controller"
+	"github.com/openconfig/kne/topo/node"
 	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -39,17 +39,17 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	topologyclientv1 "github.com/google/kne/api/clientset/v1beta1"
-	topologyv1 "github.com/google/kne/api/types/v1beta1"
-	tpb "github.com/google/kne/proto/topo"
+	topologyclientv1 "github.com/openconfig/kne/api/clientset/v1beta1"
+	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	tpb "github.com/openconfig/kne/proto/topo"
 
-	_ "github.com/google/kne/topo/node/ceos"
-	_ "github.com/google/kne/topo/node/cisco"
-	_ "github.com/google/kne/topo/node/cptx"
-	_ "github.com/google/kne/topo/node/gobgp"
-	_ "github.com/google/kne/topo/node/host"
-	_ "github.com/google/kne/topo/node/ixia"
-	_ "github.com/google/kne/topo/node/srl"
+	_ "github.com/openconfig/kne/topo/node/ceos"
+	_ "github.com/openconfig/kne/topo/node/cisco"
+	_ "github.com/openconfig/kne/topo/node/cptx"
+	_ "github.com/openconfig/kne/topo/node/gobgp"
+	_ "github.com/openconfig/kne/topo/node/host"
+	_ "github.com/openconfig/kne/topo/node/ixia"
+	_ "github.com/openconfig/kne/topo/node/srl"
 )
 
 var protojsonUnmarshaller = protojson.UnmarshalOptions{

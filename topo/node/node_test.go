@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	topopb "github.com/google/kne/proto/topo"
+	topopb "github.com/openconfig/kne/proto/topo"
 )
 
 func NewNR(impl *Impl) (Node, error) {

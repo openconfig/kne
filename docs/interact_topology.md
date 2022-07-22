@@ -13,7 +13,7 @@ $ kne_cli topology push examples/3node-ceos.pb.txt r1 examples/ceos-withtraffic/
 ```
 
 TIP: Specify the config file in the
-[topology textproto](https://github.com/google/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt#L8)
+[topology textproto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt#L8)
 so initial config will be pushed during topology creation.
 
 ## SSH to pod
@@ -36,7 +36,7 @@ $ kubectl exec -it -n 3node-ceos r1 -- Cli
 ### Connect via the external IP
 
 TIP: For the default configs found in the
-[KNE GitHub repo](https://github.com/google/kne/tree/main/examples) the
+[KNE GitHub repo](https://github.com/openconfig/kne/tree/main/examples) the
 username/passwords can be found in the config files. Often times the password is
 written as a hash. Try `admin` as a username or password if unknown.
 
@@ -149,7 +149,7 @@ func someFunc(ctx context.Context) {
 implemented by using the `kne_cli` within the ondatra framework. Currently the
 expectation is the user has already brought up a cluster and now wants to
 develop tests against that cluster for use in vendor certification. See the
-[README](https://source.corp.google.com/piper///depot/google3/third_party/openconfig/ondatra/knebind/README.md)
+[README](https://github.com/openconfig/ondatra/blob/main/knebind/README.md)
 for details.
 
 Ondatra will manage a gNMI connection to each device, so you can use Ondatra's

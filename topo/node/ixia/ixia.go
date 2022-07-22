@@ -12,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	topologyv1 "github.com/google/kne/api/types/v1beta1"
-	tpb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
+	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 )
 
 var ixiaResource = "Ixiatgs"

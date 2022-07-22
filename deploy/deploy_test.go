@@ -11,8 +11,8 @@ import (
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
-	"github.com/google/kne/deploy/mocks"
-	"github.com/google/kne/os/exec"
+	"github.com/openconfig/kne/deploy/mocks"
+	"github.com/openconfig/kne/os/exec"
 	"github.com/h-fam/errdiff"
 	"github.com/kylelemons/godebug/diff"
 	"github.com/pkg/errors"
@@ -143,7 +143,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		execer:  exec.NewFakeExecer(nil, errors.New("unable to pull")),
-		wantErr: "pulling",
+		wantErr: "failed to pull",
 	}, {
 		desc: "create cluster load containers - failed tag",
 		k: &KindSpec{
@@ -153,7 +153,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		execer:  exec.NewFakeExecer(nil, nil, errors.New("unable to tag")),
-		wantErr: "tagging",
+		wantErr: "failed to tag",
 	}, {
 		desc: "create cluster load containers - failed load",
 		k: &KindSpec{
@@ -163,7 +163,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("unable to load")),
-		wantErr: "loading",
+		wantErr: "failed to load",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {

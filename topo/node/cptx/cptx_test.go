@@ -4,16 +4,20 @@
 package cptx
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	tpb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
 	"github.com/h-fam/errdiff"
+	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
@@ -42,6 +46,33 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 		}
 	}()
 	return eCh
+}
+
+// removeCommentsFromConfig removes comment lines from a JunOS config file
+// and returns the remaining config in an io.Reader.
+// Using scrapli_cfg_testing results in an EOF error when config includes comments.
+// Comments in config files are not problematic when using kne_cli (not testing).
+// This is a simple implementation that only removes lines that are entirely comments.
+func removeCommentsFromConfig(t *testing.T, r io.Reader) io.Reader {
+	t.Helper()
+	var buf bytes.Buffer
+	br := bufio.NewReader(r)
+	re := regexp.MustCompile(`^\s*(?:(?:\/\*)|[#\*])`)
+	for {
+		line, err := br.ReadBytes('\n')
+		if err != nil && err != io.EOF {
+			t.Fatalf("br.ReadBytes() failed: %+v\n", err)
+		}
+
+		if re.Find(line) == nil {
+			fmt.Fprint(&buf, string(line))
+		}
+
+		if err == io.EOF {
+			break
+		}
+	}
+	return &buf
 }
 
 func TestConfigPush(t *testing.T) {
@@ -91,7 +122,7 @@ func TestConfigPush(t *testing.T) {
 			testConf: "cptx-config",
 		},
 		{
-			// We encounter unqxpected response -- we expect to fail
+			// We encounter unexpected response -- we expect to fail
 			desc:    "failure",
 			wantErr: true,
 			ni: &node.Impl{
@@ -130,10 +161,59 @@ func TestConfigPush(t *testing.T) {
 			defer fp.Close()
 
 			ctx := context.Background()
+			fbuf := removeCommentsFromConfig(t, fp)
 
-			err = n.ConfigPush(ctx, fp)
+			err = n.ConfigPush(ctx, fbuf)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("config push test failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestCustomPrivilegeLevel(t *testing.T) {
+	privilegePromptMap := map[string]string{
+		"exec":          "root@%s>",
+		"configuration": "root@%s#",
+	}
+
+	tests := []struct {
+		desc        string
+		hostname    string
+		shouldMatch bool
+	}{
+		{
+			desc:        "basic case",
+			hostname:    "testexample",
+			shouldMatch: true,
+		},
+		{
+			desc:        "hostname with '.'",
+			hostname:    "test.example",
+			shouldMatch: true,
+		},
+		{
+			desc:        "failure",
+			hostname:    "Test^Example",
+			shouldMatch: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			for privilegeName, prompt := range privilegePromptMap {
+				fullPrompt := fmt.Sprintf(prompt, tt.hostname)
+				privLevel, ok := customPrivLevels[privilegeName]
+				if !ok {
+					t.Fatalf("privilege %q not defined in custom privilege", privilegeName)
+				}
+				match, err := regexp.MatchString(privLevel.Pattern, fullPrompt)
+				if err != nil {
+					t.Fatalf("regexp.MatchString() failed: %+v", err.Error())
+				}
+				if match != tt.shouldMatch {
+					t.Fatalf("regexp.MatchString() unexpected result (got %v, wanted %v) for prompt %q and privilege level %q", match, tt.shouldMatch, fullPrompt, privilegeName)
+				}
 			}
 		})
 	}
@@ -217,7 +297,7 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"CPTX": "1",
 				},
-				EntryCommand: fmt.Sprintf("kubectl exec -it pod1 -- cli -c"),
+				EntryCommand: "kubectl exec -it pod1 -- cli -c",
 				ConfigPath:   "/",
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
@@ -263,7 +343,7 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"CPTX": "1",
 				},
-				EntryCommand: fmt.Sprintf("kubectl exec -it  -- cli -c"),
+				EntryCommand: "kubectl exec -it  -- cli -c",
 				ConfigPath:   "/home/evo/configdisk",
 				ConfigFile:   "juniper.conf",
 			},

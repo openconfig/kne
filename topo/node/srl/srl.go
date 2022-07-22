@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	topopb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
+	topopb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scraplitransport "github.com/scrapli/scrapligo/transport"

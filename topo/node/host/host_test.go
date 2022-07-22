@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	topopb "github.com/google/kne/proto/topo"
-	"github.com/google/kne/topo/node"
+	topopb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 	"github.com/h-fam/errdiff"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"

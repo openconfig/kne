@@ -19,8 +19,8 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/pointer"
 
-	topologyv1 "github.com/google/kne/api/types/v1beta1"
-	tpb "github.com/google/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 type Interface interface {
@@ -144,6 +144,12 @@ func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
 
 	var links []topologyv1.Link
 	for ifcName, ifc := range proto.Interfaces {
+		if ifc.PeerIntName == "" {
+			return nil, fmt.Errorf("interface %q PeerIntName canot be empty", ifcName)
+		}
+		if ifc.PeerName == "" {
+			return nil, fmt.Errorf("interface %q PeerName canot be empty", ifcName)
+		}
 		links = append(links, topologyv1.Link{
 			UID:       int(ifc.Uid),
 			LocalIntf: ifcName,

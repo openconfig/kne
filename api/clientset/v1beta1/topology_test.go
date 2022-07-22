@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	topologyv1 "github.com/google/kne/api/types/v1beta1"
+	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	"github.com/h-fam/errdiff"
 	"github.com/kr/pretty"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

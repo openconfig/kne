@@ -20,7 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/google/kne/deploy"
+	"github.com/openconfig/kne/deploy"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -87,6 +87,10 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		v := &deploy.KindSpec{}
 		if err := cfg.Cluster.Spec.Decode(v); err != nil {
 			return nil, err
+		}
+		// make sure manifests are correct relative to configuration.
+		for i, s := range v.AdditionalManifests {
+			v.AdditionalManifests[i] = cleanPath(s, basePath)
 		}
 		d.Cluster = v
 	default:

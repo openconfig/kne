@@ -21,9 +21,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/google/kne/cmd/deploy"
-	"github.com/google/kne/cmd/topology"
-	"github.com/google/kne/topo"
+	"github.com/openconfig/kne/cmd/deploy"
+	"github.com/openconfig/kne/cmd/topology"
+	"github.com/openconfig/kne/topo"
 	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

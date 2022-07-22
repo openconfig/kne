@@ -21,7 +21,7 @@
 package controller
 
 import (
-	topo "github.com/google/kne/proto/topo"
+	topo "github.com/openconfig/kne/proto/topo"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
