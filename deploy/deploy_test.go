@@ -11,10 +11,10 @@ import (
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
-	"github.com/openconfig/kne/deploy/mocks"
-	"github.com/openconfig/kne/os/exec"
 	"github.com/h-fam/errdiff"
 	"github.com/kylelemons/godebug/diff"
+	"github.com/openconfig/kne/deploy/mocks"
+	"github.com/openconfig/kne/os/exec"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -717,8 +717,8 @@ func TestSRLinuxSpec(t *testing.T) {
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc: "1 replica",
-		srl: &SRLinuxSpec{},
+		desc:   "1 replica",
+		srl:    &SRLinuxSpec{},
 		execer: exec.NewFakeExecer(nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -758,8 +758,8 @@ func TestSRLinuxSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "2 replicas",
-		srl: &SRLinuxSpec{},
+		desc:   "2 replicas",
+		srl:    &SRLinuxSpec{},
 		execer: exec.NewFakeExecer(nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {

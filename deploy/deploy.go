@@ -18,8 +18,8 @@ import (
 
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
-	kexec "github.com/openconfig/kne/os/exec"
 	"github.com/openconfig/gnmi/errlist"
+	kexec "github.com/openconfig/kne/os/exec"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"

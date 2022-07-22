@@ -21,10 +21,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/openconfig/gnmi/errlist"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/openconfig/gnmi/errlist"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"

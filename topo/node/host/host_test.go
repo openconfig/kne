@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/h-fam/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/h-fam/errdiff"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )

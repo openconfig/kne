@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/h-fam/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	"github.com/scrapli/scrapligo/logging"

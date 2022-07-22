@@ -21,10 +21,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/kr/pretty"
 	"github.com/openconfig/kne/cmd/deploy"
 	"github.com/openconfig/kne/cmd/topology"
 	"github.com/openconfig/kne/topo"
-	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/homedir"

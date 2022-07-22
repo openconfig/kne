@@ -226,7 +226,7 @@ func setE8000Env(pb *tpb.Node) error {
 	if pb.Config.Env["XR_EVERY_BOOT_CONFIG"] == "" {
 		pb.Config.Env["XR_EVERY_BOOT_CONFIG"] = filepath.Join(pb.Config.ConfigPath, pb.Config.ConfigFile)
 	}
-	
+
 	return nil
 }
 
@@ -365,7 +365,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if err := setXRDEnv(pb); err != nil {
 			return nil, err
 		}
-	case "8201", "8202", "8201-32FH", "8102-64H","8101-32H":
+	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
 		if err := setE8000Env(pb); err != nil {
 			return nil, err
 		}
