@@ -1,0 +1,6 @@
+---
+rules:
+  terminology:
+    exclude:
+      - repo
+      - node

@@ -11,20 +11,20 @@ The first step in troubleshooting general issues is familiarizing yourself with
 common `kubectl`
 [commands](https://kubernetes.io/docs/reference/kubectl/cheatsheet/).
 
--   `get pods/services`: Useful for determining basic state info
+- `get pods/services`: Useful for determining basic state info
 
--   `describe pods`: Useful for more verbose state info
+- `describe pods`: Useful for more verbose state info
 
--   `logs`: Useful to get a dump of all pod logs
+- `logs`: Useful to get a dump of all pod logs
 
 The `-n <namespace>` flag is necessary to specify the namespace to inspect. In
 KNE there are several namespaces:
 
--   one namespace per topology
--   one namespace for `meshnet` CNI
--   one namespace for `metallb` ingress
--   one namespace per vendor controller
--   default kube namespace
+- one namespace per topology
+- one namespace for `meshnet` CNI
+- one namespace for `metallb` ingress
+- one namespace per vendor controller
+- default kube namespace
 
 For an exhaustive list use the `-A` flag instead of `-n`.
 

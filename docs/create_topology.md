@@ -7,11 +7,11 @@ deployment and topology creation.
 
 Creating a topology takes 3 main steps:
 
-1.  Cluster deployment
+1. Cluster deployment
 
-1.  Additional controller deployment
+1. Additional controller deployment
 
-1.  Topology creation
+1. Topology creation
 
 ## Deploy a cluster
 
@@ -35,10 +35,10 @@ Global Flags:
 
 A deployment yaml file specifies 4 things (*optional in italics*):
 
-1.  A cluster spec
-1.  An ingress spec
-1.  A CNI spec
-1.  *A list of controller specs*
+1. A cluster spec
+1. An ingress spec
+1. A CNI spec
+1. *A list of controller specs*
 
 A full definition for valid fields in the deployment yaml can be found within
 [deploy/deploy.go](https://github.com/openconfig/kne/blob/816133f1cb563555bcdcb12eb27874b77dd41d1d/deploy/deploy.go#L212).
@@ -50,7 +50,7 @@ This config specifies `kind` as the cluster, `metallb` as the ingress, and
 `meshnet` as the CNI. Additionally, the config instructs `kindnet` CNI to use `bridge` CNI, instead of a default `ptp`. This spec can be deployed using the following command:
 
 ```bash
-$ kne_cli deploy deploy/kne/kind-bridge.yaml
+kne_cli deploy deploy/kne/kind-bridge.yaml
 ```
 
 ## Deploying additional vendor controllers
@@ -60,13 +60,13 @@ nodes. These controllers need to be created **after** deploying a cluster and
 **before** deploying a topology. Currently the following vendors use a
 controller:
 
--   Keysight: `ixia-tg`
--   Nokia: `srlinux`
+- Keysight: `ixia-tg`
+- Nokia: `srlinux`
 
 Currently the following vendor controllers can be deployed as part of
 [cluster deployment](#deploy_a_cluster):
 
--   Keysight: `ixia-tg`
+- Keysight: `ixia-tg`
 
 ### IxiaTG
 
@@ -81,16 +81,16 @@ To manually apply the controller run the following command after cloning the
 Keysight controller yaml:
 
 ```bash
-$ kubectl apply -f ixiatg-operator.yaml
+kubectl apply -f ixiatg-operator.yaml
 ```
 
 ### SR Linux
 
 Apply the latest version of SR Linux controller:
 
-    ```bash
-    kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
-    ```
+```bash
+kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
+```
 
 Read more on Nokia SR Linux controller operations and capabilities at [srl-labs/srl-controller GitHub repo](https://github.com/srl-labs/srl-controller).
 
@@ -132,7 +132,7 @@ about pushing config after initial creation.
 This topology can be created using the following command.
 
 ```bash
-$ kne_cli create examples/3node-withtraffic.pb.txt
+kne_cli create examples/3node-withtraffic.pb.txt
 ```
 
 IMPORTANT: Wait for the command to fully complete, do not use Ctrl-C to cancel
@@ -151,22 +151,22 @@ their source locations and get used in the cluster.
 
 To load an image into a `kind` cluster there is a 3 step process:
 
-1.  Pull the desired image:
+1. Pull the desired image:
 
     ```bash
-    $ docker pull src_image:src_tag
+    docker pull src_image:src_tag
     ```
 
-1.  Tag the image with the desired in-cluster name:
+2. Tag the image with the desired in-cluster name:
 
     ```bash
-    $ docker tag src_image:src_tag dst_image:dst_tag
+    docker tag src_image:src_tag dst_image:dst_tag
     ```
 
-1.  Load the image into the `kind` cluster:
+3. Load the image into the `kind` cluster:
 
     ```bash
-    $ kind load docker-image dst_image:dst_tag --name=kne
+    kind load docker-image dst_image:dst_tag --name=kne
     ```
 
 Now the `dst_image:dst_tag` image will be present for use in the `kind` cluster.
@@ -179,7 +179,7 @@ textproto. Contact Arista to get access to the cEOS image.
 You can check a full list of images loaded in your `kind` cluster using:
 
 ```bash
-$ docker exec -it kne-control-plane crictl images
+docker exec -it kne-control-plane crictl images
 ```
 
 ## Verify topology health
@@ -233,11 +233,11 @@ If anything is unexpected check the [Troubleshooting](troubleshoot.md) guide.
 To delete a topology use `kne_cli delete`:
 
 ```bash
-$ kne_cli delete examples/3node-withtraffic.pb.txt
+kne_cli delete examples/3node-withtraffic.pb.txt
 ```
 
 To delete a cluster use `kind delete cluster`:
 
 ```bash
-$ kind delete cluster --name=kne
+kind delete cluster --name=kne
 ```
