@@ -136,6 +136,13 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 			}
 			v.ManifestDir = cleanPath(v.ManifestDir, basePath)
 			d.Controllers = append(d.Controllers, v)
+		case "SRLinux":
+			v := &deploy.SRLinuxSpec{}
+			if err := c.Spec.Decode(v); err != nil {
+				return nil, err
+			}
+			v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+			d.Controllers = append(d.Controllers, v)
 		default:
 			return nil, fmt.Errorf("controller type not supported: %s", c.Kind)
 		}

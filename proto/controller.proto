@@ -53,6 +53,8 @@ message KindSpec {
   // Would load images "pkg/a:latest" and "pkg/b:v0.8.0" into the cluster
   // after fetching their source images from "us-west1-docker.pkg.dev".
   map<string, string> container_images = 8;
+  string config = 9;
+  repeated string additional_manifests = 10;
 }
 
 // Metallb specifications
