@@ -92,6 +92,10 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		for i, s := range v.AdditionalManifests {
 			v.AdditionalManifests[i] = cleanPath(s, basePath)
 		}
+
+		// make sure kind config file is relative to configuration.
+		v.KindConfigFile = cleanPath(v.KindConfigFile, basePath)
+
 		d.Cluster = v
 	default:
 		return nil, fmt.Errorf("cluster type not supported: %s", cfg.Cluster.Kind)
