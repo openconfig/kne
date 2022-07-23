@@ -38,7 +38,7 @@ type Implementation interface {
 	Create(context.Context) error
 	// Status provides a custom implementation of accessing vendor node status.
 	// Requires context, Kubernetes client interface and namespace.
-	Status(context.Context) (NodeStatus, error)
+	Status(context.Context) (Status, error)
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
@@ -71,13 +71,13 @@ type Node interface {
 	Implementation
 }
 
-type NodeStatus string
+type Status string
 
 const (
-	NODE_PENDING NodeStatus = "PENDING"
-	NODE_RUNNING NodeStatus = "RUNNING"
-	NODE_FAILED  NodeStatus = "FAILED"
-	NODE_UNKNOWN NodeStatus = "UNKNOWN"
+	NODE_PENDING Status = "PENDING"
+	NODE_RUNNING Status = "RUNNING"
+	NODE_FAILED  Status = "FAILED"
+	NODE_UNKNOWN Status = "UNKNOWN"
 )
 
 type NewNodeFn func(n *Impl) (Node, error)
@@ -459,7 +459,7 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 }
 
 // Status returns the current node state.
-func (n *Impl) Status(ctx context.Context) (NodeStatus, error) {
+func (n *Impl) Status(ctx context.Context) (Status, error) {
 	p, err := n.Pods(ctx)
 	if err != nil {
 		return NODE_UNKNOWN, err

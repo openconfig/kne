@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/golang/protobuf/proto"
 	"github.com/kr/pretty"
 	cpb "github.com/openconfig/kne/proto/controller"
 	"github.com/openconfig/kne/topo/node"
@@ -43,13 +42,13 @@ import (
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
 
-	_ "github.com/openconfig/kne/topo/node/ceos"
-	_ "github.com/openconfig/kne/topo/node/cisco"
-	_ "github.com/openconfig/kne/topo/node/cptx"
-	_ "github.com/openconfig/kne/topo/node/gobgp"
-	_ "github.com/openconfig/kne/topo/node/host"
-	_ "github.com/openconfig/kne/topo/node/ixia"
-	_ "github.com/openconfig/kne/topo/node/srl"
+	_ "github.com/openconfig/kne/topo/node/ceos"  // ceos node implementation
+	_ "github.com/openconfig/kne/topo/node/cisco" // cisco node implementation
+	_ "github.com/openconfig/kne/topo/node/cptx"  // cptx node implementation
+	_ "github.com/openconfig/kne/topo/node/gobgp" // gobgp node implementation
+	_ "github.com/openconfig/kne/topo/node/host"  // host node implementation
+	_ "github.com/openconfig/kne/topo/node/ixia"  // ixia node implementation
+	_ "github.com/openconfig/kne/topo/node/srl"   // srl node implementation
 )
 
 var protojsonUnmarshaller = protojson.UnmarshalOptions{
@@ -593,7 +592,7 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to create topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%s\n", proto.MarshalTextString(t.TopologyProto()))
+	log.Infof("Topology:\n%v\n", prototext.Format(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
@@ -636,7 +635,7 @@ func DeleteTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%+v\n", proto.MarshalTextString(t.TopologyProto()))
+	log.Infof("Topology:\n%v\n", prototext.Format(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
@@ -684,16 +683,16 @@ var (
 
 // sMap keeps the POD state of all topology nodes.
 type sMap struct {
-	m map[string]node.NodeStatus
+	m map[string]node.Status
 }
 
 func (s *sMap) Size() int {
 	return len(s.m)
 }
 
-func (s *sMap) SetNodeState(name string, state node.NodeStatus) {
+func (s *sMap) SetNodeState(name string, state node.Status) {
 	if s.m == nil {
-		s.m = map[string]node.NodeStatus{}
+		s.m = map[string]node.Status{}
 	}
 	s.m[name] = state
 }
@@ -702,7 +701,7 @@ func (s *sMap) TopoState() cpb.TopologyState {
 	if s == nil || len(s.m) == 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
 	}
-	cntTable := map[node.NodeStatus]int{}
+	cntTable := map[node.Status]int{}
 	for _, gotState := range s.m {
 		cntTable[gotState]++
 	}

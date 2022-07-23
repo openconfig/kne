@@ -302,7 +302,7 @@ func (n *Node) Services(ctx context.Context) ([]*corev1.Service, error) {
 	return svcs, nil
 }
 
-func (n *Node) Status(ctx context.Context) (node.NodeStatus, error) {
+func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	state := node.NODE_FAILED
 	var err error
 

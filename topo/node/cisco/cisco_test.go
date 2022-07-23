@@ -21,30 +21,12 @@ import (
 	"github.com/h-fam/errdiff"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/testing/protocmp"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
-type fakeWatch struct {
-	e []watch.Event
-}
-
-func (f *fakeWatch) Stop() {}
-
-func (f *fakeWatch) ResultChan() <-chan watch.Event {
-	eCh := make(chan watch.Event)
-	go func() {
-		for len(f.e) != 0 {
-			e := f.e[0]
-			f.e = f.e[1:]
-			eCh <- e
-		}
-	}()
-	return eCh
-}
-func deafultNode(pb *tpb.Node) *tpb.Node {
+func defaultNode(pb *tpb.Node) *tpb.Node {
 	node, _ := defaults(pb)
 	return node
 }
@@ -68,7 +50,7 @@ func TestNew(t *testing.T) {
 				Name: "pod1",
 			},
 		},
-		want: deafultNode(&tpb.Node{
+		want: defaultNode(&tpb.Node{
 			Name: "pod1",
 		}),
 	}, {
@@ -78,7 +60,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "xrd",
+				Model: modelXRD,
 				Interfaces: map[string]*tpb.Interface{
 					"eeth": {},
 				},
@@ -110,7 +92,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "xrd",
+			Model: modelXRD,
 			Constraints: map[string]string{
 				"cpu":    "2",
 				"memory": "2Gi",
@@ -154,7 +136,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "xrd",
+				Model: modelXRD,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -173,7 +155,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "xrd",
+			Model: modelXRD,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -224,7 +206,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8201",
+				Model: model8201,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -245,7 +227,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "8201",
+			Model: model8201,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -298,7 +280,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8201",
+				Model: model8201,
 				Interfaces: map[string]*tpb.Interface{
 					"eth37": {},
 				},
@@ -313,7 +295,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8202",
+				Model: model8202,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -336,7 +318,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "8202",
+			Model: model8202,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -391,7 +373,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8202",
+				Model: model8202,
 				Interfaces: map[string]*tpb.Interface{
 					"eth73": {},
 				},
@@ -406,7 +388,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8201-32FH",
+				Model: model820132FH,
 				Interfaces: map[string]*tpb.Interface{
 					"eth33": {},
 				},
@@ -421,7 +403,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8201-32FH",
+				Model: model820132FH,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -440,7 +422,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "8201-32FH",
+			Model: model820132FH,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -485,13 +467,13 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "8101-32H",
+		desc: model810132H,
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8101-32H",
+				Model: model810132H,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -510,7 +492,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "8101-32H",
+			Model: model810132H,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -561,7 +543,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8101-32H",
+				Model: model810132H,
 				Interfaces: map[string]*tpb.Interface{
 					"eth33": {},
 				},
@@ -576,7 +558,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8102-64H",
+				Model: model810264H,
 				Interfaces: map[string]*tpb.Interface{
 					"eth65": {},
 				},
@@ -585,13 +567,13 @@ func TestNew(t *testing.T) {
 		want:    nil,
 		wantErr: "interface id 65 can not be mapped to a cisco interface, eth1..eth64 is supported on 8102-64H",
 	}, {
-		desc: "8102-64H",
+		desc: model810264H,
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "8102-64H",
+				Model: model810264H,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -610,7 +592,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "8102-64H",
+			Model: model810264H,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {

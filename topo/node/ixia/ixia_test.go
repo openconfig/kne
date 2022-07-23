@@ -51,6 +51,5 @@ func TestNew(t *testing.T) {
 				t.Fatalf("New() failed: got\n%swant\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
 			}
 		})
-
 	}
 }

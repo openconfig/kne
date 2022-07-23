@@ -197,7 +197,6 @@ func TestNew(t *testing.T) {
 			if !proto.Equal(n.GetProto(), tt.want) {
 				t.Fatalf("New() failed: got\n\n%swant\n\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
 			}
-
 		})
 	}
 }

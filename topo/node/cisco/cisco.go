@@ -30,6 +30,15 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
+const (
+	modelXRD      = "xrd"
+	model8201     = "8201"
+	model820132FH = "8201-32FH"
+	model8202     = "8202"
+	model810132H  = "8101-32H"
+	model810264H  = "8102-64H"
+)
+
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
@@ -63,7 +72,7 @@ func (n *Node) Create(ctx context.Context) error {
 	secContext := &corev1.SecurityContext{
 		Privileged: pointer.Bool(true),
 	}
-	if pb.Model == "xrd" {
+	if pb.Model == modelXRD {
 		secContext = &corev1.SecurityContext{
 			Privileged: pointer.Bool(true),
 			RunAsUser:  pointer.Int64(0),
@@ -172,7 +181,7 @@ func constraints(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = map[string]string{}
 	}
 	switch pb.Model {
-	case "8201", "8201-32FH", "8202", "8101-32H", "8102-64H":
+	case model8201, model820132FH, model8202, model810132H, model810264H:
 		if pb.Constraints["cpu"] == "" {
 			pb.Constraints["cpu"] = "4"
 		}
@@ -274,7 +283,7 @@ func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 	ethID, _ := strconv.Atoi(ethRegx.Split(eth, -1)[1])
 	eid := ethID - 1
 	switch pb.Model {
-	case "8201":
+	case model8201:
 		switch {
 		case eid <= 23:
 			return fmtInt400(eid), nil
@@ -282,7 +291,7 @@ func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 			return fmtInt100(eid), nil
 		}
 		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth36 is supported on %s ", ethID, pb.Model)
-	case "8202":
+	case model8202:
 		switch {
 		case eid <= 47:
 			return fmtInt100(eid), nil
@@ -292,17 +301,17 @@ func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 			return fmtInt100(eid), nil
 		}
 		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth72 is supported on %s ", ethID, pb.Model)
-	case "8201-32FH":
+	case model820132FH:
 		if eid <= 31 {
 			return fmtInt400(eid), nil
 		}
 		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethID, pb.Model)
-	case "8101-32H":
+	case model810132H:
 		if eid <= 31 {
 			return fmtInt100(eid), nil
 		}
 		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth32 is supported on %s ", ethID, pb.Model)
-	case "8102-64H":
+	case model810264H:
 		if eid <= 63 {
 			return fmtInt100(eid), nil
 		}
@@ -328,7 +337,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		pb.Config.ConfigPath = "/"
 	}
 	if pb.Model == "" {
-		pb.Model = "xrd"
+		pb.Model = modelXRD
 	}
 	pb = constraints(pb)
 	if pb.Services == nil {
@@ -361,11 +370,11 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	switch pb.Model {
 	default:
 		return nil, fmt.Errorf("unexpected model %q", pb.Model)
-	case "xrd":
+	case modelXRD:
 		if err := setXRDEnv(pb); err != nil {
 			return nil, err
 		}
-	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
+	case model8201, model8202, model820132FH, model810264H, model810132H:
 		if err := setE8000Env(pb); err != nil {
 			return nil, err
 		}

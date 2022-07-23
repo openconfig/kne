@@ -468,7 +468,7 @@ func TestGetTopologyServices(t *testing.T) {
 func TestStateMap(t *testing.T) {
 	type node struct {
 		name  string
-		phase nd.NodeStatus
+		phase nd.Status
 	}
 
 	tests := []struct {

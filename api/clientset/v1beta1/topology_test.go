@@ -249,7 +249,6 @@ func TestDelete(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestWatch(t *testing.T) {

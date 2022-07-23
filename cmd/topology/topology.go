@@ -258,19 +258,6 @@ func certFn(cmd *cobra.Command, args []string) error {
 }
 
 var (
-	topoNew = defaultNewTopo
-)
-
-type resourcer interface {
-	Load(context.Context) error
-	Resources(context.Context) (*topo.Resources, error)
-}
-
-func defaultNewTopo(kubeCfg string, t *tpb.Topology, opts ...topo.Option) (resourcer, error) {
-	return topo.New(kubeCfg, t, opts...)
-}
-
-var (
 	getTopologyServices = topo.GetTopologyServices
 )
 
