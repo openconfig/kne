@@ -51,7 +51,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 // removeCommentsFromConfig removes comment lines from a JunOS config file
 // and returns the remaining config in an io.Reader.
 // Using scrapli_cfg_testing results in an EOF error when config includes comments.
-// Comments in config files are not problematic when using kne_cli (not testing).
+// Comments in config files are not problematic when using kne (not testing).
 // This is a simple implementation that only removes lines that are entirely comments.
 func removeCommentsFromConfig(t *testing.T, r io.Reader) io.Reader {
 	t.Helper()

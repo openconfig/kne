@@ -92,8 +92,8 @@ build {
       "sudo apt-get install git -y",
       "git clone -b ${var.branch_name} https://github.com/openconfig/kne.git",
       "cd kne/kne_cli",
-      "/usr/local/go/bin/go build -v",
-      "sudo cp kne_cli /usr/local/bin/",
+      "/usr/local/go/bin/go build -v -o kne",
+      "sudo cp kne /usr/local/bin/",
       "cd ../controller/server",
       "/usr/local/go/bin/go build -v",
     ]

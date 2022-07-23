@@ -21,10 +21,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/kr/pretty"
 	"github.com/openconfig/kne/cmd/deploy"
 	"github.com/openconfig/kne/cmd/topology"
 	"github.com/openconfig/kne/topo"
-	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/homedir"
@@ -39,7 +39,7 @@ var (
 	logLevel       = "info"
 
 	rootCmd = &cobra.Command{
-		Use:   "kne_cli",
+		Use:   "kne",
 		Short: "Kubernetes Network Emulation CLI",
 		Long: `Kubernetes Network Emulation CLI.  Works with meshnet to create 
 layer 2 topology used by containers to layout networks in a k8s

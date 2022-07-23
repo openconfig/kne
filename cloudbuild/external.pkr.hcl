@@ -104,8 +104,8 @@ build {
       "/home/$USER/go/bin/go-licenses check github.com/openconfig/kne/kne_cli",
       "/home/$USER/go/bin/go-licenses save github.com/openconfig/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\"",
       "cd kne_cli",
-      "/usr/local/go/bin/go build -v",
-      "sudo cp kne_cli /usr/local/bin/",
+      "/usr/local/go/bin/go build -v -o kne",
+      "sudo cp kne /usr/local/bin/",
       "cd ../controller/server",
       "/usr/local/go/bin/go build -v",
     ]

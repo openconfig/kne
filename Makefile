@@ -1,6 +1,7 @@
 MESHNET_DOCKER_IMAGE := hfam/meshnet
 GOPATH ?= ${HOME}/go
 KNE_CLI_BIN := kne
+INSTALL_DIR := /usr/local/bin
 
 COMMIT := $(shell git describe --dirty --always)
 TAG := $(shell git describe --tags --abbrev=0 || echo latest)
@@ -30,4 +31,9 @@ down: kind-stop
 .PHONY: build
 ## Build kne
 build:
-	go build -o $(KNE_CLI_BIN) -ldflags="-s -w" kne_cli/main.go
+	CGO_ENABLED=0 go build -o $(KNE_CLI_BIN) -ldflags="-s -w" kne_cli/main.go
+
+.PHONY: install
+## Install kne cli binary to user's local bin dir
+install: build
+	mv $(KNE_CLI_BIN) $(INSTALL_DIR)

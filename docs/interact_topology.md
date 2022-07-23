@@ -5,11 +5,11 @@ with a KNE topology after creation.
 
 ## Push config
 
-The `kne_cli topology push` command can be used to push configuration to a node
+The `kne topology push` command can be used to push configuration to a node
 in a topology. For example:
 
 ```bash
-kne_cli topology push examples/3node-ceos.pb.txt r1 examples/ceos-withtraffic/r1-config
+kne topology push examples/3node-ceos.pb.txt r1 examples/ceos-withtraffic/r1-config
 ```
 
 TIP: Specify the config file in the
@@ -146,7 +146,7 @@ func someFunc(ctx context.Context) {
 ### gNMI over gRPC with Ondatra
 
 [KNEBind](https://github.com/openconfig/ondatra/blob/main/knebind/knebind.go) is
-implemented by using the `kne_cli` within the ondatra framework. Currently the
+implemented by using the `kne` within the ondatra framework. Currently the
 expectation is the user has already brought up a cluster and now wants to
 develop tests against that cluster for use in vendor certification. See the
 [README](https://github.com/openconfig/ondatra/blob/main/knebind/README.md)

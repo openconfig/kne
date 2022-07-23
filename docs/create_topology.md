@@ -16,14 +16,14 @@ Creating a topology takes 3 main steps:
 ## Deploy a cluster
 
 The first step when using KNE is to deploy a kubernetes cluster. This can be
-done using the `kne_cli deploy` command.
+done using the `kne deploy` command.
 
 ```bash
-$ kne_cli help deploy
+$ kne help deploy
 Deploy cluster.
 
 Usage:
-  kne_cli deploy <deployment yaml> [flags]
+  kne deploy <deployment yaml> [flags]
 
 Flags:
   -h, --help   help for deploy
@@ -36,9 +36,9 @@ Global Flags:
 A deployment yaml file specifies 4 things (*optional in italics*):
 
 1. A cluster spec
-1. An ingress spec
-1. A CNI spec
-1. *A list of controller specs*
+2. An ingress spec
+3. A CNI spec
+4. *A list of controller specs*
 
 A full definition for valid fields in the deployment yaml can be found within
 [deploy/deploy.go](https://github.com/openconfig/kne/blob/816133f1cb563555bcdcb12eb27874b77dd41d1d/deploy/deploy.go#L212).
@@ -50,7 +50,7 @@ This config specifies `kind` as the cluster, `metallb` as the ingress, and
 `meshnet` as the CNI. Additionally, the config instructs `kindnet` CNI to use `bridge` CNI, instead of a default `ptp`. This spec can be deployed using the following command:
 
 ```bash
-kne_cli deploy deploy/kne/kind-bridge.yaml
+kne deploy deploy/kne/kind-bridge.yaml
 ```
 
 ## Deploying additional vendor controllers
@@ -97,14 +97,14 @@ Read more on Nokia SR Linux controller operations and capabilities at [srl-labs/
 ## Create a topology
 
 After cluster deployment, a topology can be created inside of it. This can be
-done using the `kne_cli create` command.
+done using the `kne create` command.
 
 ```bash
-$ kne_cli help create
+$ kne help create
 Create Topology
 
 Usage:
-  kne_cli create <topology file> [flags]
+  kne create <topology file> [flags]
 
 Flags:
       --dryrun             Generate topology but do not push to k8s
@@ -132,7 +132,7 @@ about pushing config after initial creation.
 This topology can be created using the following command.
 
 ```bash
-kne_cli create examples/3node-withtraffic.pb.txt
+kne create examples/3node-withtraffic.pb.txt
 ```
 
 IMPORTANT: Wait for the command to fully complete, do not use Ctrl-C to cancel
@@ -230,10 +230,10 @@ If anything is unexpected check the [Troubleshooting](troubleshoot.md) guide.
 
 ## Clean up KNE
 
-To delete a topology use `kne_cli delete`:
+To delete a topology use `kne delete`:
 
 ```bash
-kne_cli delete examples/3node-withtraffic.pb.txt
+kne delete examples/3node-withtraffic.pb.txt
 ```
 
 To delete a cluster use `kind delete cluster`:

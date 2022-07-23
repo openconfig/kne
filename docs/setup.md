@@ -11,6 +11,7 @@ The following dependencies and required to use KNE:
 * Docker
 * Kubectl
 * Kind
+* Make
 
 ## Install Golang
 
@@ -75,18 +76,17 @@ Clone the repo:
 git clone https://github.com/openconfig/kne.git
 ```
 
-Build the `kne_cli`:
+Install the `kne` binary:
 
 ```bash
-cd kne/kne_cli
-go install
+make install
 ```
 
-This will build the `kne_cli` in your `$GOPATH/bin` (which should be in your
+This will build the `kne` binary and move it to `/usr/local/bin` (which should be in your
 `$PATH`). Now run:
 
 ```bash
-kne_cli --help
+kne help
 ```
 
-To verify that the `kne_cli` is built and accessible from your `$PATH`.
+To verify that the `kne` is built and accessible from your `$PATH`.
