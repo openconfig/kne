@@ -129,7 +129,7 @@ func TestNewDeployment(t *testing.T) {
 		desc: "request spec - with srlinux controller",
 		req: &cpb.CreateClusterRequest{
 			ClusterSpec: &cpb.CreateClusterRequest_Kind{
-				&cpb.KindSpec{
+				Kind: &cpb.KindSpec{
 					Name:    "kne",
 					Recycle: true,
 					Version: "0.11.1",
@@ -137,19 +137,19 @@ func TestNewDeployment(t *testing.T) {
 				},
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
-				&cpb.MetallbSpec{
+				Metallb: &cpb.MetallbSpec{
 					ManifestDir: "/home",
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
-				&cpb.MeshnetSpec{
+				Meshnet: &cpb.MeshnetSpec{
 					ManifestDir: "/home",
 				},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{{
 				Spec: &cpb.ControllerSpec_Srlinux{
-					&cpb.SRLinuxSpec{
+					Srlinux: &cpb.SRLinuxSpec{
 						ManifestDir: "/home",
 					},
 				},
@@ -179,7 +179,7 @@ func TestNewDeployment(t *testing.T) {
 		desc: "request spec - with multiple controllers",
 		req: &cpb.CreateClusterRequest{
 			ClusterSpec: &cpb.CreateClusterRequest_Kind{
-				&cpb.KindSpec{
+				Kind: &cpb.KindSpec{
 					Name:    "kne",
 					Recycle: true,
 					Version: "0.11.1",
@@ -187,27 +187,27 @@ func TestNewDeployment(t *testing.T) {
 				},
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
-				&cpb.MetallbSpec{
+				Metallb: &cpb.MetallbSpec{
 					ManifestDir: "/home",
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
-				&cpb.MeshnetSpec{
+				Meshnet: &cpb.MeshnetSpec{
 					ManifestDir: "/home",
 				},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{
 				{
 					Spec: &cpb.ControllerSpec_Ixiatg{
-						&cpb.IxiaTGSpec{
+						Ixiatg: &cpb.IxiaTGSpec{
 							ManifestDir: "/home",
 						},
 					},
 				},
 				{
 					Spec: &cpb.ControllerSpec_Srlinux{
-						&cpb.SRLinuxSpec{
+						Srlinux: &cpb.SRLinuxSpec{
 							ManifestDir: "/home",
 						},
 					},
@@ -503,7 +503,7 @@ func TestNewDeployment(t *testing.T) {
 		desc: "bad srlinux manifest dir",
 		req: &cpb.CreateClusterRequest{
 			ClusterSpec: &cpb.CreateClusterRequest_Kind{
-				&cpb.KindSpec{
+				Kind: &cpb.KindSpec{
 					Name:    "kne",
 					Recycle: true,
 					Version: "0.11.1",
@@ -511,16 +511,16 @@ func TestNewDeployment(t *testing.T) {
 				},
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
-				&cpb.MetallbSpec{
+				Metallb: &cpb.MetallbSpec{
 					IpCount: 100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
-				&cpb.MeshnetSpec{},
+				Meshnet: &cpb.MeshnetSpec{},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{{
 				Spec: &cpb.ControllerSpec_Srlinux{
-					&cpb.SRLinuxSpec{
+					Srlinux: &cpb.SRLinuxSpec{
 						ManifestDir: "/foo",
 					},
 				},

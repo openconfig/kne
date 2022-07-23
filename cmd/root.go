@@ -76,7 +76,10 @@ func init() {
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(topology.New())
 	rootCmd.AddCommand(deploy.New())
+<<<<<<< HEAD
 	// rootCmd.AddCommand(graphCmd)
+=======
+>>>>>>> Linter
 }
 
 var (
