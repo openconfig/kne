@@ -1,4 +1,4 @@
-# build kne_cli and push it as an OCI artifact to ttl.sh
+# build kne and push it as an OCI artifact to ttl.sh
 # to obtain the pushed artifact use:
 # docker run --rm -v $(pwd):/workspace ghcr.io/deislabs/oras:v0.11.1 pull ttl.sh/<image-name>
 .PHONY: oci-push
