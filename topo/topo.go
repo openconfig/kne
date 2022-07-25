@@ -707,7 +707,7 @@ func (s *sMap) SetNodeState(name string, state node.Status) {
 
 func (s *sMap) TopoState() cpb.TopologyState {
 	if s == nil || len(s.m) == 0 {
-		return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
+		return cpb.TopologyState_TOPOLOGY_STATE_UNSPECIFIED
 	}
 	cntTable := map[node.Status]int{}
 	for _, gotState := range s.m {
@@ -723,7 +723,7 @@ func (s *sMap) TopoState() cpb.TopologyState {
 	if cntTable[node.StatusPending] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_CREATING
 	}
-	return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
+	return cpb.TopologyState_TOPOLOGY_STATE_UNSPECIFIED
 }
 
 // GetTopologyServices returns the topology information.
