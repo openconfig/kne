@@ -477,7 +477,7 @@ func TestStateMap(t *testing.T) {
 		want  cpb.TopologyState
 	}{{
 		desc: "no nodes",
-		want: cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN,
+		want: cpb.TopologyState_TOPOLOGY_STATE_UNSPECIFIED,
 	}, {
 		desc: "one node failed",
 		nodes: []*node{
