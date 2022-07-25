@@ -15,7 +15,7 @@ require (
 	github.com/open-traffic-generator/ixia-c-operator v0.1.89
 	github.com/openconfig/gnmi v0.0.0-20210707145734-c69a5df04b53
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.1.1
+	github.com/scrapli/scrapligo v1.1.2
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
@@ -31,8 +31,6 @@ require (
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
 	sigs.k8s.io/kind v0.11.1
 )
-
-replace github.com/scrapli/scrapligo v1.1.1 => github.com/hellt/scrapligo v0.0.0-20220722143125-7bc748095323
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
