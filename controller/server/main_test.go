@@ -5,9 +5,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/h-fam/errdiff"
 	"github.com/openconfig/kne/deploy"
 	cpb "github.com/openconfig/kne/proto/controller"
-	"github.com/h-fam/errdiff"
 )
 
 func TestNewDeployment(t *testing.T) {

@@ -11,12 +11,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/h-fam/errdiff"
 	tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/h-fam/errdiff"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	kfake "k8s.io/client-go/kubernetes/fake"

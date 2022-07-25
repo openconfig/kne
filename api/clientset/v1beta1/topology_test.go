@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"testing"
 
-	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	"github.com/h-fam/errdiff"
 	"github.com/kr/pretty"
+	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"

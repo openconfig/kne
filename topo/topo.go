@@ -25,9 +25,9 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/proto"
+	"github.com/kr/pretty"
 	cpb "github.com/openconfig/kne/proto/controller"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
