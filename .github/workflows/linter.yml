@@ -32,9 +32,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Lint Code Base
-        uses: github/super-linter/slim@v4
+        uses: github/super-linter/slim@v4.9.5
         env:
-          VALIDATE_ALL_CODEBASE: true
+          VALIDATE_ALL_CODEBASE: false
           VALIDATE_HTML: false
           VALIDATE_JSCPD: false
           IGNORE_GENERATED_FILES: true
