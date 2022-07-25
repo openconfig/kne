@@ -94,7 +94,9 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		}
 
 		// make sure kind config file is relative to configuration.
-		v.KindConfigFile = cleanPath(v.KindConfigFile, basePath)
+		if v.KindConfigFile != "" {
+			v.KindConfigFile = cleanPath(v.KindConfigFile, basePath)
+		}
 
 		d.Cluster = v
 	default:
