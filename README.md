@@ -2,6 +2,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/openconfig/kne)](https://goreportcard.com/report/github.com/openconfig/kne)
 [![GoDoc](https://godoc.org/istio.io/istio?status.svg)](https://pkg.go.dev/github.com/openconfig/kne)
 [![License: BSD](https://img.shields.io/badge/license-Apache%202-blue)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub Super-Linter](https://github.com/openconfig/kne/workflows/Lint%20Code%20Base/badge.svg)](https://github.com/marketplace/actions/super-linter)
 
 # Kubernetes based network emulation
 

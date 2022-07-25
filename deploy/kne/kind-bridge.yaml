@@ -1,3 +1,6 @@
+# kind-bridge.yaml cluster config file sets up a kind cluster where default PTP CNI plugin
+# is swapped with the Bridge CNI plugin.
+# Bridge CNI plugin is required by some Network OSes to operate.
 cluster:
   kind: Kind
   spec:
@@ -5,7 +8,7 @@ cluster:
     recycle: True
     version: 0.11.1
     image: kindest/node:v1.22.1
-    config: ../kind/kind-no-cni.yaml
+    config: ../../kind/kind-no-cni.yaml
     additionalManifests:
       - ../../manifests/kind/kind-bridge.yaml
 ingress:

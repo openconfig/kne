@@ -6,6 +6,7 @@ TAG := $(shell git describe --tags --abbrev=0 || echo latest)
 
 
 include .mk/kind.mk
+include .mk/lint.mk
 
 .PHONY: all
 all: docker
