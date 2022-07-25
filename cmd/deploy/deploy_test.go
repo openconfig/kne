@@ -14,7 +14,6 @@
 package deploy
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -175,7 +174,7 @@ func TestNewDeployment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if tt.path == "" {
-				f, err := ioutil.TempFile("", "dtest")
+				f, err := os.CreateTemp("", "dtest")
 				if err != nil {
 					t.Fatalf("failed to create tempfile: %v", err)
 				}

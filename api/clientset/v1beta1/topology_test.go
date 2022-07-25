@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"testing"
@@ -107,7 +107,7 @@ func TestCreate(t *testing.T) {
 		fakeClient.Resp = tt.resp
 		if tt.want != nil {
 			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = ioutil.NopCloser(bytes.NewReader(b))
+			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
 		}
 		t.Run(tt.desc, func(t *testing.T) {
 			tc := cs.Topology("foo")
@@ -154,7 +154,7 @@ func TestList(t *testing.T) {
 		fakeClient.Resp = tt.resp
 		if tt.want != nil {
 			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = ioutil.NopCloser(bytes.NewReader(b))
+			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
 		}
 		t.Run(tt.desc, func(t *testing.T) {
 			tc := cs.Topology("foo")
@@ -197,7 +197,7 @@ func TestGet(t *testing.T) {
 		fakeClient.Resp = tt.resp
 		if tt.want != nil {
 			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = ioutil.NopCloser(bytes.NewReader(b))
+			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
 		}
 		t.Run(tt.desc, func(t *testing.T) {
 			tc := cs.Topology("foo")
@@ -249,7 +249,6 @@ func TestDelete(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestWatch(t *testing.T) {
@@ -271,7 +270,7 @@ func TestWatch(t *testing.T) {
 		fakeClient.Resp = tt.resp
 		if tt.want != nil {
 			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = ioutil.NopCloser(bytes.NewReader(b))
+			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
 		}
 		t.Run(tt.desc, func(t *testing.T) {
 			tc := cs.Topology("foo")

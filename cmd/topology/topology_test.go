@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -41,7 +40,7 @@ type notResettable struct {
 }
 
 func (nr *notResettable) ConfigPush(_ context.Context, r io.Reader) error {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
@@ -65,7 +64,7 @@ func NewR(impl *node.Impl) (node.Node, error) {
 
 func writeTopology(t *testing.T, topo *tpb.Topology) (*os.File, func()) {
 	t.Helper()
-	f, err := ioutil.TempFile("", "reset")
+	f, err := os.CreateTemp("", "reset")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,7 +79,7 @@ func writeTopology(t *testing.T, topo *tpb.Topology) (*os.File, func()) {
 }
 
 func TestReset(t *testing.T) {
-	confFile, err := ioutil.TempFile("", "reset")
+	confFile, err := os.CreateTemp("", "reset")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -375,7 +374,7 @@ func TestService(t *testing.T) {
 }
 
 func TestPush(t *testing.T) {
-	confFile, err := ioutil.TempFile("", "push")
+	confFile, err := os.CreateTemp("", "push")
 	if err != nil {
 		log.Fatal(err)
 	}

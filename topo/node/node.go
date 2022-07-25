@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -38,7 +38,7 @@ type Implementation interface {
 	Create(context.Context) error
 	// Status provides a custom implementation of accessing vendor node status.
 	// Requires context, Kubernetes client interface and namespace.
-	Status(context.Context) (NodeStatus, error)
+	Status(context.Context) (Status, error)
 	// Delete provides a custom implementation of pod creation
 	// for a node type. Requires context, Kubernetes client interface and namespace.
 	Delete(context.Context) error
@@ -71,13 +71,13 @@ type Node interface {
 	Implementation
 }
 
-type NodeStatus string
+type Status string
 
 const (
-	NODE_PENDING NodeStatus = "PENDING"
-	NODE_RUNNING NodeStatus = "RUNNING"
-	NODE_FAILED  NodeStatus = "FAILED"
-	NODE_UNKNOWN NodeStatus = "UNKNOWN"
+	StatusPending Status = "PENDING"
+	StatusRunning Status = "RUNNING"
+	StatusFailed  Status = "FAILED"
+	StatusUnknown Status = "UNKNOWN"
 )
 
 type NewNodeFn func(n *Impl) (Node, error)
@@ -224,7 +224,7 @@ func (n *Impl) CreateConfig(ctx context.Context) error {
 	switch v := pb.Config.GetConfigData().(type) {
 	case *tpb.Config_File:
 		var err error
-		data, err = ioutil.ReadFile(filepath.Join(n.BasePath, v.File))
+		data, err = os.ReadFile(filepath.Join(n.BasePath, v.File))
 		if err != nil {
 			return err
 		}
@@ -459,23 +459,23 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 }
 
 // Status returns the current node state.
-func (n *Impl) Status(ctx context.Context) (NodeStatus, error) {
+func (n *Impl) Status(ctx context.Context) (Status, error) {
 	p, err := n.Pods(ctx)
 	if err != nil {
-		return NODE_UNKNOWN, err
+		return StatusUnknown, err
 	}
 	if len(p) != 1 {
-		return NODE_UNKNOWN, fmt.Errorf("expected exactly one pod for node %s", n.Name())
+		return StatusUnknown, fmt.Errorf("expected exactly one pod for node %s", n.Name())
 	}
 	switch p[0].Status.Phase {
 	case corev1.PodFailed:
-		return NODE_FAILED, nil
+		return StatusFailed, nil
 	case corev1.PodRunning:
-		return NODE_RUNNING, nil
+		return StatusRunning, nil
 	case corev1.PodPending:
-		return NODE_PENDING, nil
+		return StatusPending, nil
 	default:
-		return NODE_PENDING, nil
+		return StatusPending, nil
 	}
 }
 

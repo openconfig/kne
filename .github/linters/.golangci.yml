@@ -16,6 +16,9 @@ issues:
         - dupl
         - gosec
         - goconst
+    - linters:
+      - revive
+      text: "var-naming: don't use leading k"
 linters:
   disable-all: true
   enable:
@@ -49,3 +52,6 @@ linters-settings:
     disabled-checks:
       - singleCaseSwitch
       - appendAssign
+  revive:
+    ignore-generated-header: true
+    severity: warning

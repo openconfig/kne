@@ -30,6 +30,10 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
+const (
+	ModelXRD = "xrd"
+)
+
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
@@ -63,7 +67,7 @@ func (n *Node) Create(ctx context.Context) error {
 	secContext := &corev1.SecurityContext{
 		Privileged: pointer.Bool(true),
 	}
-	if pb.Model == "xrd" {
+	if pb.Model == ModelXRD {
 		secContext = &corev1.SecurityContext{
 			Privileged: pointer.Bool(true),
 			RunAsUser:  pointer.Int64(0),
@@ -172,6 +176,7 @@ func constraints(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = map[string]string{}
 	}
 	switch pb.Model {
+	//nolint:goconst
 	case "8201", "8201-32FH", "8202", "8101-32H", "8102-64H":
 		if pb.Constraints["cpu"] == "" {
 			pb.Constraints["cpu"] = "4"
@@ -292,7 +297,7 @@ func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 			return fmtInt100(eid), nil
 		}
 		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth72 is supported on %s ", ethID, pb.Model)
-	case "8201-32FH":
+	case "8201-32FH": //nolint:goconst
 		if eid <= 31 {
 			return fmtInt400(eid), nil
 		}
@@ -328,7 +333,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		pb.Config.ConfigPath = "/"
 	}
 	if pb.Model == "" {
-		pb.Model = "xrd"
+		pb.Model = ModelXRD
 	}
 	pb = constraints(pb)
 	if pb.Services == nil {
@@ -361,10 +366,11 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	switch pb.Model {
 	default:
 		return nil, fmt.Errorf("unexpected model %q", pb.Model)
-	case "xrd":
+	case ModelXRD:
 		if err := setXRDEnv(pb); err != nil {
 			return nil, err
 		}
+	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
 		if err := setE8000Env(pb); err != nil {
 			return nil, err

@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -161,7 +160,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 			}
 			log.Infof("Pushing configuration %q to %q", cPath, n.Name())
 			var err error
-			b, err = ioutil.ReadFile(cPath)
+			b, err = os.ReadFile(cPath)
 			if err != nil {
 				errList.Add(err)
 				continue
@@ -255,19 +254,6 @@ func certFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	return topo.GenerateSelfSigned(cmd.Context(), n)
-}
-
-var (
-	topoNew = defaultNewTopo
-)
-
-type resourcer interface {
-	Load(context.Context) error
-	Resources(context.Context) (*topo.Resources, error)
-}
-
-func defaultNewTopo(kubeCfg string, t *tpb.Topology, opts ...topo.Option) (resourcer, error) {
-	return topo.New(kubeCfg, t, opts...)
 }
 
 var (

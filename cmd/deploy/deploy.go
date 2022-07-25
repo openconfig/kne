@@ -16,7 +16,7 @@ package deploy
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -68,7 +68,7 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		return nil, err
 	}
 	log.Infof("Reading deployment config: %q", p)
-	b, err := ioutil.ReadFile(p)
+	b, err := os.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}

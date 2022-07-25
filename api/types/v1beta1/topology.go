@@ -30,8 +30,8 @@ type TopologyStatus struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Skipped []string `json:"skipped"`
-	SrcIp   string   `json:"src_ip"`
-	NetNs   string   `json:"net_ns"`
+	SrcIP   string   `json:"src_ip"`
+	NetNS   string   `json:"net_ns"`
 }
 
 type Link struct {

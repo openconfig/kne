@@ -33,7 +33,6 @@ import (
 var (
 	defaultKubeCfg = ""
 	kubecfg        string
-	topofile       string
 	dryrun         bool
 	timeout        time.Duration
 	logLevel       = "info"
@@ -77,7 +76,7 @@ func init() {
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(topology.New())
 	rootCmd.AddCommand(deploy.New())
-	//rootCmd.AddCommand(graphCmd)
+	// rootCmd.AddCommand(graphCmd)
 }
 
 var (

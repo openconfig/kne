@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -43,13 +42,13 @@ func TestLoad(t *testing.T) {
 		fName string
 	}
 
-	invalidPb, err := ioutil.TempFile(".", "invalid*.pb.txt")
+	invalidPb, err := os.CreateTemp(".", "invalid*.pb.txt")
 	if err != nil {
 		t.Errorf("failed creating tmp pb: %v", err)
 	}
 	defer os.Remove(invalidPb.Name())
 
-	invalidYaml, err := ioutil.TempFile(".", "invalid*.yaml")
+	invalidYaml, err := os.CreateTemp(".", "invalid*.yaml")
 	if err != nil {
 		t.Errorf("failed creating tmp yaml: %v", err)
 	}
@@ -468,7 +467,7 @@ func TestGetTopologyServices(t *testing.T) {
 func TestStateMap(t *testing.T) {
 	type node struct {
 		name  string
-		phase nd.NodeStatus
+		phase nd.Status
 	}
 
 	tests := []struct {
@@ -481,41 +480,41 @@ func TestStateMap(t *testing.T) {
 	}, {
 		desc: "one node failed",
 		nodes: []*node{
-			{"n1", nd.NODE_FAILED},
-			{"n2", nd.NODE_RUNNING},
-			{"n3", nd.NODE_RUNNING},
+			{"n1", nd.StatusFailed},
+			{"n2", nd.StatusRunning},
+			{"n3", nd.StatusRunning},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed with one node pending",
 		nodes: []*node{
-			{"n1", nd.NODE_FAILED},
-			{"n2", nd.NODE_PENDING},
-			{"n3", nd.NODE_RUNNING},
+			{"n1", nd.StatusFailed},
+			{"n2", nd.StatusRunning},
+			{"n3", nd.StatusRunning},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed, one node pending, one node unknown",
 		nodes: []*node{
-			{"n1", nd.NODE_FAILED},
-			{"n2", nd.NODE_PENDING},
-			{"n3", nd.NODE_UNKNOWN},
+			{"n1", nd.StatusFailed},
+			{"n2", nd.StatusPending},
+			{"n3", nd.StatusUnknown},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "all nodes failed",
 		nodes: []*node{
-			{"n1", nd.NODE_FAILED},
-			{"n2", nd.NODE_FAILED},
-			{"n3", nd.NODE_FAILED},
+			{"n1", nd.StatusFailed},
+			{"n2", nd.StatusFailed},
+			{"n3", nd.StatusFailed},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node pending",
 		nodes: []*node{
-			{"n1", nd.NODE_PENDING},
-			{"n2", nd.NODE_RUNNING},
-			{"n3", nd.NODE_RUNNING},
+			{"n1", nd.StatusPending},
+			{"n2", nd.StatusRunning},
+			{"n3", nd.StatusRunning},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_CREATING,
 	},
