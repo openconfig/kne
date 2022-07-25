@@ -553,8 +553,12 @@ func (impl *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliut
 // GetCLIConn attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
 // for a given platform. Retries indefinitely till success and returns a scrapligo network driver instance.
 func (impl *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplinetwork.Driver, error) {
-	li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"), scraplilogging.WithLogger(log.Print))
-	opts = append(opts, scrapliopts.WithLogger(li))
+	if log.GetLevel() == log.DebugLevel {
+		li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
+			scraplilogging.WithLogger(log.Print))
+		opts = append(opts, scrapliopts.WithLogger(li))
+	}
+
 	for {
 		p, err := scrapliplatform.NewPlatform(
 			platform,
