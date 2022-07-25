@@ -212,7 +212,6 @@ func defaults(pb *topopb.Node) *topopb.Node {
 				Inside: 57400,
 			},
 		}
-
 	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{

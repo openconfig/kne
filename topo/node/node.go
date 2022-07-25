@@ -534,15 +534,15 @@ func getImpl(impl *Impl) (Node, error) {
 // PatchCLIConnOpen sets up scrapligo options to work with a tty
 // provided by the combination of the bin binary, namespace and the name of the node plus cliCMd command.
 // In the context of kne this command is typically `kubectl exec cliCmd`.
-func (impl *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliutil.Option) []scrapliutil.Option {
+func (n *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliutil.Option) []scrapliutil.Option {
 
 	opts = append(opts, scrapliopts.WithSystemTransportOpenBin(bin))
 
 	var args []string
-	if impl.Kubecfg != "" {
-		args = append(args, fmt.Sprintf("--kubeconfig=%s", impl.Kubecfg))
+	if n.Kubecfg != "" {
+		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
 	}
-	args = append(args, "exec", "-it", "-n", impl.GetNamespace(), impl.Name(), "--")
+	args = append(args, "exec", "-it", "-n", n.GetNamespace(), n.Name(), "--")
 	args = append(args, cliCmd...)
 
 	opts = append(opts, scrapliopts.WithSystemTransportOpenArgsOverride(args))
@@ -552,7 +552,7 @@ func (impl *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliut
 
 // GetCLIConn attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
 // for a given platform. Retries indefinitely till success and returns a scrapligo network driver instance.
-func (impl *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplinetwork.Driver, error) {
+func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplinetwork.Driver, error) {
 	if log.GetLevel() == log.DebugLevel {
 		li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
 			scraplilogging.WithLogger(log.Print))
@@ -562,27 +562,27 @@ func (impl *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scrap
 	for {
 		p, err := scrapliplatform.NewPlatform(
 			platform,
-			impl.Name(),
+			n.Name(),
 			opts...,
 		)
 		if err != nil {
-			log.Errorf("failed to fetch platform instance for device %s; error: %+v\n", err, impl.Name())
+			log.Errorf("failed to fetch platform instance for device %s; error: %+v\n", err, n.Name())
 			return nil, err
 		}
 
 		d, err := p.GetNetworkDriver()
 		if err != nil {
-			log.Errorf("failed to create driver for device %s; error: %+v\n", err, impl.Name())
+			log.Errorf("failed to create driver for device %s; error: %+v\n", err, n.Name())
 			return nil, err
 		}
 
 		if err = d.Open(); err != nil {
-			log.Debugf("%s - Cli not ready (%s) - waiting.", impl.Name(), err)
+			log.Debugf("%s - Cli not ready (%s) - waiting.", n.Name(), err)
 			time.Sleep(time.Second * 2)
 			continue
 		}
 
-		log.Debugf("%s - Cli ready.", impl.Name())
+		log.Debugf("%s - Cli ready.", n.Name())
 
 		return d, nil
 	}

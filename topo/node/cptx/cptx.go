@@ -128,7 +128,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	resp, err := c.LoadConfig(
 		cfgs,
-		true, //load replace
+		true, // load replace
 	)
 	if err != nil {
 		return err
