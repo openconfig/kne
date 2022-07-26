@@ -214,13 +214,10 @@ func defaults(pb *topopb.Node) *topopb.Node {
 		}
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{
-			"type": topopb.Node_NOKIA_SRL.String(),
-		}
-	} else {
-		if pb.Labels["type"] == "" {
-			pb.Labels["type"] = topopb.Node_NOKIA_SRL.String()
-		}
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels["type"] == "" {
+		pb.Labels["type"] = topopb.Node_NOKIA_SRL.String()
 	}
 	if pb.Config == nil {
 		pb.Config = &topopb.Config{}

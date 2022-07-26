@@ -52,6 +52,13 @@ nodes: {
     type: IXIA_TG
     version: "0.0.1-9999"
     services: {
+        key: 443
+        value: {
+            name: "https"
+            inside: 443
+        }
+    }
+    services: {
         key: 40051
         value: {
             name: "grpc"
