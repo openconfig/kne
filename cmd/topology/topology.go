@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,14 +17,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/openconfig/gnmi/errlist"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/openconfig/gnmi/errlist"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -161,7 +160,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 			}
 			log.Infof("Pushing configuration %q to %q", cPath, n.Name())
 			var err error
-			b, err = ioutil.ReadFile(cPath)
+			b, err = os.ReadFile(cPath)
 			if err != nil {
 				errList.Add(err)
 				continue
@@ -255,19 +254,6 @@ func certFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	return topo.GenerateSelfSigned(cmd.Context(), n)
-}
-
-var (
-	topoNew = defaultNewTopo
-)
-
-type resourcer interface {
-	Load(context.Context) error
-	Resources(context.Context) (*topo.Resources, error)
-}
-
-func defaultNewTopo(kubeCfg string, t *tpb.Topology, opts ...topo.Option) (resourcer, error) {
-	return topo.New(kubeCfg, t, opts...)
 }
 
 var (

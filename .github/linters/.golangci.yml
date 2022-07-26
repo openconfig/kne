@@ -9,9 +9,6 @@
 # see https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
 run:
   timeout: 5m
-  skip-dirs:
-    - gnmi/internal/config
-    - gnmi/internal/telemetry
 issues:
   exclude-rules:
     - path: _test\.go
@@ -19,6 +16,9 @@ issues:
         - dupl
         - gosec
         - goconst
+    - linters:
+      - revive
+      text: "var-naming: don't use leading k"
 linters:
   disable-all: true
   enable:
@@ -52,3 +52,6 @@ linters-settings:
     disabled-checks:
       - singleCaseSwitch
       - appendAssign
+  revive:
+    ignore-generated-header: true
+    severity: warning

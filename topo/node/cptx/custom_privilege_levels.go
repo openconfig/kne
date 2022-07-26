@@ -9,9 +9,9 @@ import (
 // Define custom privilege levels here to include such usecases.
 // Remove after fast-forwarding scrapli version.
 const (
-	execPrivLevel     = "exec"
-	privExecPrivLevel = "privilege_exec"
-	configPrivLevel   = "configuration"
+	execPrivLevel = "exec"
+	// privExecPrivLevel = "privilege_exec"
+	configPrivLevel = "configuration"
 )
 
 var customPrivLevels = map[string]*scraplibase.PrivilegeLevel{

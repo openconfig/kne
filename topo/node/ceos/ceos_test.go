@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/h-fam/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/h-fam/errdiff"
 	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplicore "github.com/scrapli/scrapligo/driver/core"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
@@ -197,7 +197,6 @@ func TestNew(t *testing.T) {
 			if !proto.Equal(n.GetProto(), tt.want) {
 				t.Fatalf("New() failed: got\n\n%swant\n\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
 			}
-
 		})
 	}
 }
