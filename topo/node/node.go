@@ -535,7 +535,6 @@ func getImpl(impl *Impl) (Node, error) {
 // provided by the combination of the bin binary, namespace and the name of the node plus cliCMd command.
 // In the context of kne this command is typically `kubectl exec cliCmd`.
 func (n *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliutil.Option) []scrapliutil.Option {
-
 	opts = append(opts, scrapliopts.WithSystemTransportOpenBin(bin))
 
 	var args []string
