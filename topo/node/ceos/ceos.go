@@ -135,7 +135,8 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		),
 	}
 
-	for pkiReady := false; !pkiReady; {
+	pkiReady := false
+	for !pkiReady {
 		resp, err := n.cliConn.SendConfigs(cfgs)
 		if err != nil {
 			return err
@@ -152,7 +153,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		if pkiReady {
 			break
 		}
-		log.Infof("%s - PKI not ready - waiting", n.Name())
+		log.Debugf("%s - PKI not ready - waiting", n.Name())
 		time.Sleep(time.Second * 2)
 	}
 	log.Infof("%s - finshed cert generation", n.Name())
