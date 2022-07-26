@@ -256,6 +256,13 @@ func TestGenerateSelfSigned(t *testing.T) {
 			testFile: "generate_certificate_success",
 		},
 		{
+			// successfully configure certificate with delay
+			desc:     "success with delay",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "generate_certificate_success_delay",
+		},
+		{
 			// device returns "% Invalid input" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
