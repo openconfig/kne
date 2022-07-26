@@ -26,7 +26,7 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
-func deafultNode(pb *tpb.Node) *tpb.Node {
+func defaultNode(pb *tpb.Node) *tpb.Node {
 	node, _ := defaults(pb)
 	return node
 }
@@ -50,7 +50,7 @@ func TestNew(t *testing.T) {
 				Name: "pod1",
 			},
 		},
-		want: deafultNode(&tpb.Node{
+		want: defaultNode(&tpb.Node{
 			Name: "pod1",
 		}),
 	}, {
@@ -60,7 +60,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "xrd",
+				Model: ModelXRD,
 				Interfaces: map[string]*tpb.Interface{
 					"eeth": {},
 				},
@@ -92,7 +92,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "xrd",
+			Model: ModelXRD,
 			Constraints: map[string]string{
 				"cpu":    "2",
 				"memory": "2Gi",
@@ -136,7 +136,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: "xrd",
+				Model: ModelXRD,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -155,7 +155,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "xrd",
+			Model: ModelXRD,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {

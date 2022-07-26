@@ -43,6 +43,7 @@ var (
 	defaultMetallbManifestDir = ""
 	defaultMeshnetManifestDir = ""
 	defaultIxiaTGManifestDir  = ""
+	defaultSRLinuxManifestDir = ""
 	// Flags.
 	port = flag.Int("port", 50051, "Controller server port")
 )
@@ -54,6 +55,7 @@ func init() {
 		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 		defaultIxiaTGManifestDir = filepath.Join(home, "keysight", "athena", "operator")
+		defaultSRLinuxManifestDir = filepath.Join(home, "srl-controller", "config", "default")
 	}
 }
 
@@ -77,7 +79,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	d := &deploy.Deployment{}
 	switch t := req.ClusterSpec.(type) {
 	case *cpb.CreateClusterRequest_Kind:
-		d.Cluster = &deploy.KindSpec{
+		k := &deploy.KindSpec{
 			Name:                     req.GetKind().Name,
 			Recycle:                  req.GetKind().Recycle,
 			Version:                  req.GetKind().Version,
@@ -85,7 +87,24 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			Retain:                   req.GetKind().Retain,
 			GoogleArtifactRegistries: req.GetKind().GoogleArtifactRegistries,
 			ContainerImages:          req.GetKind().ContainerImages,
+			KindConfigFile:           req.GetKind().Config,
+			AdditionalManifests:      req.GetKind().AdditionalManifests,
 		}
+		if k.KindConfigFile != "" {
+			p, err := validatePath(k.KindConfigFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", p)
+			}
+			k.KindConfigFile = p
+		}
+		for i, path := range k.AdditionalManifests {
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			k.AdditionalManifests[i] = p
+		}
+		d.Cluster = k
 	default:
 		return nil, fmt.Errorf("cluster type not supported: %T", t)
 	}
@@ -129,6 +148,18 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	}
 	for _, cs := range req.ControllerSpecs {
 		switch t := cs.Spec.(type) {
+		case *cpb.ControllerSpec_Srlinux:
+			s := &deploy.SRLinuxSpec{}
+			path := defaultSRLinuxManifestDir
+			if cs.GetSrlinux().ManifestDir != "" {
+				path = cs.GetSrlinux().ManifestDir
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			s.ManifestDir = p
+			d.Controllers = append(d.Controllers, s)
 		case *cpb.ControllerSpec_Ixiatg:
 			i := &deploy.IxiaTGSpec{}
 			path := defaultIxiaTGManifestDir

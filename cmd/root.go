@@ -76,7 +76,6 @@ func init() {
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(topology.New())
 	rootCmd.AddCommand(deploy.New())
-	// rootCmd.AddCommand(graphCmd)
 }
 
 var (

@@ -53,6 +53,8 @@ message KindSpec {
   // Would load images "pkg/a:latest" and "pkg/b:v0.8.0" into the cluster
   // after fetching their source images from "us-west1-docker.pkg.dev".
   map<string, string> container_images = 8;
+  string config = 9;
+  repeated string additional_manifests = 10;
 }
 
 // Metallb specifications
@@ -72,6 +74,7 @@ message MeshnetSpec {
 message ControllerSpec {
   oneof spec {
     IxiaTGSpec ixiatg = 1;
+    SRLinuxSpec srlinux = 2;
   }
 }
 
@@ -94,6 +97,11 @@ message IxiaTGImage {
   string tag = 3;
 }
 
+// SRLinux specifications
+message SRLinuxSpec {
+  string manifest_dir = 1;
+}
+
 // Request message to create a cluster.
 message CreateClusterRequest {
   oneof cluster_spec {
@@ -109,7 +117,7 @@ message CreateClusterRequest {
 }
 
 enum ClusterState {
-  CLUSTER_STATE_UNKNOWN = 0;
+  CLUSTER_STATE_UNSPECIFIED = 0;
   CLUSTER_STATE_CREATING = 1;
   CLUSTER_STATE_RUNNING = 2;
   CLUSTER_STATE_ERROR = 3;
@@ -142,7 +150,7 @@ message ShowClusterResponse {
 }
 
 enum TopologyState {
-  TOPOLOGY_STATE_UNKNOWN = 0;
+  TOPOLOGY_STATE_UNSPECIFIED = 0;
   TOPOLOGY_STATE_CREATING = 1;
   TOPOLOGY_STATE_RUNNING = 2;
   TOPOLOGY_STATE_ERROR = 3;

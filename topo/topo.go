@@ -592,7 +592,7 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to create topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%s\n", prototext.Format(t.TopologyProto()))
+	log.Infof("Topology:\n%v\n", prototext.Format(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
@@ -635,7 +635,7 @@ func DeleteTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%+v\n", prototext.Format(t.TopologyProto()))
+	log.Infof("Topology:\n%v\n", prototext.Format(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
@@ -699,7 +699,7 @@ func (s *sMap) SetNodeState(name string, state node.Status) {
 
 func (s *sMap) TopoState() cpb.TopologyState {
 	if s == nil || len(s.m) == 0 {
-		return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
+		return cpb.TopologyState_TOPOLOGY_STATE_UNSPECIFIED
 	}
 	cntTable := map[node.Status]int{}
 	for _, gotState := range s.m {
@@ -715,7 +715,7 @@ func (s *sMap) TopoState() cpb.TopologyState {
 	if cntTable[node.StatusPending] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_CREATING
 	}
-	return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
+	return cpb.TopologyState_TOPOLOGY_STATE_UNSPECIFIED
 }
 
 // GetTopologyServices returns the topology information.
