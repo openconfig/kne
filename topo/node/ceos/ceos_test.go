@@ -22,10 +22,9 @@ import (
 	"github.com/h-fam/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scraplibase "github.com/scrapli/scrapligo/driver/base"
-	scraplicore "github.com/scrapli/scrapligo/driver/core"
-	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
-	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
@@ -275,15 +274,13 @@ func TestGenerateSelfSigned(t *testing.T) {
 
 			n, _ := nImpl.(*Node)
 
-			oldNewCoreDriver := scraplicore.NewCoreDriver
-			defer func() { scraplicore.NewCoreDriver = oldNewCoreDriver }()
-			scraplicore.NewCoreDriver = func(host, platform string, options ...scraplibase.Option) (*scraplinetwork.Driver, error) {
-				return scraplicore.NewEOSDriver(
-					host,
-					scraplibase.WithAuthBypass(true),
-					scraplibase.WithTimeoutOps(1*time.Second),
-					scraplitest.WithPatchedTransport(tt.testFile),
-				)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
 			}
 
 			ctx := context.Background()
@@ -359,15 +356,13 @@ func TestResetCfg(t *testing.T) {
 
 			n, _ := nImpl.(*Node)
 
-			oldNewCoreDriver := scraplicore.NewCoreDriver
-			defer func() { scraplicore.NewCoreDriver = oldNewCoreDriver }()
-			scraplicore.NewCoreDriver = func(host, platform string, options ...scraplibase.Option) (*scraplinetwork.Driver, error) {
-				return scraplicore.NewEOSDriver(
-					host,
-					scraplibase.WithAuthBypass(true),
-					scraplibase.WithTimeoutOps(1*time.Second),
-					scraplitest.WithPatchedTransport(tt.testFile),
-				)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
 			}
 
 			ctx := context.Background()

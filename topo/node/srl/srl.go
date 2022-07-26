@@ -4,20 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scraplibase "github.com/scrapli/scrapligo/driver/base"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
-	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 	log "github.com/sirupsen/logrus"
 	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
 	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
-	srlinux "github.com/srl-labs/srlinux-scrapli"
+	"github.com/srl-labs/srlinux-scrapli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+)
+
+const (
+	scrapliPlatformName = "nokia_srl"
 )
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
@@ -41,6 +44,9 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 type Node struct {
 	*node.Impl
 	cliConn *scraplinetwork.Driver
+
+	// scrapli options used in testing
+	testOpts []scrapliutil.Option
 }
 
 // Add validations for interfaces the node provides
@@ -72,15 +78,18 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	}
 	log.Infof("%s - pod running.", n.Name())
 
-	if err := n.SpawnCLIConn(n.Namespace); err != nil {
+	if err := n.SpawnCLIConn(); err != nil {
 		return err
 	}
 
 	defer n.cliConn.Close()
 
-	if err := srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false); err == nil {
-		log.Infof("%s - finshed cert generation", n.Name())
+	err = srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false)
+	if err != nil {
+		return err
 	}
+
+	log.Infof("%s - finished cert generation", n.Name())
 
 	return err
 }
@@ -224,68 +233,29 @@ func defaults(pb *topopb.Node) *topopb.Node {
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
 // to accept inputs.
-func (n *Node) SpawnCLIConn(ns string) error {
-	d, err := srlinux.NewSRLinuxDriver(
-		n.Name(),
-		scraplibase.WithAuthStrictKey(false),
-		scraplibase.WithAuthBypass(true),
-	)
+// scrapligo options can be provided to this function for a caller to modify scrapligo platform.
+// For example, mock transport can be set via options
+func (n *Node) SpawnCLIConn() error {
+	opts := []scrapliutil.Option{
+		scrapliopts.WithAuthBypass(),
+		// jacked up terminal width to allow for long strings
+		// such as cert and key to not break the terminal
+		scrapliopts.WithTermWidth(5000),
+	}
+
+	// add options defined in test package
+	opts = append(opts, n.testOpts...)
+
+	opts = n.PatchCLIConnOpen("kubectl", []string{"sr_cli", "-d"}, opts)
+
+	var err error
+	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
+
 	if err != nil {
 		return err
 	}
 
-	// jacked up PtyWidth to allow for long strings such as cert and key to not break the terminal
-	d.Transport.BaseTransportArgs.PtyWidth = 5000
-
-	n.cliConn = d
-
-	if err := n.PatchCLIConnOpen(ns); err != nil {
-		n.cliConn = nil
-
-		return err
-	}
-
-	if err := n.WaitCLIReady(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// PatchCLIConnOpen sets the OpenCmd and ExecCmd of system transport to work with `kubectl exec` terminal.
-func (n *Node) PatchCLIConnOpen(ns string) error {
-	t, ok := n.cliConn.Transport.Impl.(scraplitransport.SystemTransport)
-	if !ok {
-		return ErrIncompatibleCliConn
-	}
-
-	t.SetExecCmd("kubectl")
-	var args []string
-	if n.Kubecfg != "" {
-		args = append(args, fmt.Sprintf("--kubeconfig=%s", n.Kubecfg))
-	}
-	args = append(args, "exec", "-it", "-n", n.Namespace, n.Name(), "--", "sr_cli", "-d")
-	t.SetOpenCmd(args)
-
-	return nil
-}
-
-// WaitCLIReady attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
-// for a given platform. Retries indefinitely till success.
-func (n *Node) WaitCLIReady() error {
-	transportReady := false
-	for !transportReady {
-		if err := n.cliConn.Open(); err != nil {
-			log.Debugf("%s - Cli not ready - waiting.", n.Name())
-			time.Sleep(time.Second * 2)
-			continue
-		}
-		transportReady = true
-		log.Debugf("%s - Cli ready.", n.Name())
-	}
-
-	// wait till srlinux management server is ready to accept configs
-	return srlinux.WaitSRLMgmtSrv(context.TODO(), n.cliConn)
+	return srlinux.WaitSRLMgmtSrvReady(context.TODO(), n.cliConn)
 }
 
 // isConfigDataPresent is a helper function that returns true

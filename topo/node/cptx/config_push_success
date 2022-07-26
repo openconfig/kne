@@ -1,10 +1,10 @@
 root@cptx2>
 
-root@cptx2> set cli screen-length 0
-Screen length set to 0
-
 root@cptx2> set cli screen-width 511
 Screen width set to 511
+
+root@cptx2> set cli screen-length 0
+Screen length set to 0
 
 root@cptx2> set cli complete-on-space off
 Disabling complete-on-space
@@ -97,4 +97,5 @@ root@cptx2> start shell user root
 [vrf:none] root@cptx2:~# exit
 logout
 
+cptx2>
 cptx2>
