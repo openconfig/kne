@@ -38,7 +38,7 @@ var (
 	logLevel       = "info"
 
 	rootCmd = &cobra.Command{
-		Use:   "kne_cli",
+		Use:   "kne",
 		Short: "Kubernetes Network Emulation CLI",
 		Long: `Kubernetes Network Emulation CLI.  Works with meshnet to create 
 layer 2 topology used by containers to layout networks in a k8s
