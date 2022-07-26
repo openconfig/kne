@@ -18,16 +18,15 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/golang/protobuf/proto"
+	"github.com/kr/pretty"
 	cpb "github.com/openconfig/kne/proto/controller"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/kr/pretty"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -394,10 +393,10 @@ func (m *Manager) CheckNodeStatus(ctx context.Context, timeout time.Duration) er
 			}
 
 			phase, err := n.Status(ctx)
-			if err != nil || phase == node.NODE_FAILED {
+			if err != nil || phase == node.StatusFailed {
 				return fmt.Errorf("Node %q: Status %s Reason %v", name, phase, err)
 			}
-			if phase == node.NODE_RUNNING {
+			if phase == node.StatusRunning {
 				log.Infof("Node %q: Status %s", name, phase)
 				processed[name] = true
 			} else {
@@ -457,7 +456,7 @@ func (m *Manager) Delete(ctx context.Context) error {
 
 // Load loads a Topology from fName.
 func Load(fName string) (*tpb.Topology, error) {
-	b, err := ioutil.ReadFile(fName)
+	b, err := os.ReadFile(fName)
 	if err != nil {
 		return nil, err
 	}
@@ -593,7 +592,7 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to create topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%s\n", proto.MarshalTextString(t.TopologyProto()))
+	log.Infof("Topology:\n%s\n", prototext.Format(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
@@ -636,7 +635,7 @@ func DeleteTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete topology for %s: %+v", params.TopoName, err)
 	}
-	log.Infof("Topology:\n%+v\n", proto.MarshalTextString(t.TopologyProto()))
+	log.Infof("Topology:\n%+v\n", prototext.Format(t.TopologyProto()))
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}
@@ -684,16 +683,16 @@ var (
 
 // sMap keeps the POD state of all topology nodes.
 type sMap struct {
-	m map[string]node.NodeStatus
+	m map[string]node.Status
 }
 
 func (s *sMap) Size() int {
 	return len(s.m)
 }
 
-func (s *sMap) SetNodeState(name string, state node.NodeStatus) {
+func (s *sMap) SetNodeState(name string, state node.Status) {
 	if s.m == nil {
-		s.m = map[string]node.NodeStatus{}
+		s.m = map[string]node.Status{}
 	}
 	s.m[name] = state
 }
@@ -702,18 +701,18 @@ func (s *sMap) TopoState() cpb.TopologyState {
 	if s == nil || len(s.m) == 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN
 	}
-	cntTable := map[node.NodeStatus]int{}
+	cntTable := map[node.Status]int{}
 	for _, gotState := range s.m {
 		cntTable[gotState]++
 	}
 
-	if cntTable[node.NODE_RUNNING] == s.Size() {
+	if cntTable[node.StatusRunning] == s.Size() {
 		return cpb.TopologyState_TOPOLOGY_STATE_RUNNING
 	}
-	if cntTable[node.NODE_FAILED] > 0 {
+	if cntTable[node.StatusFailed] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_ERROR
 	}
-	if cntTable[node.NODE_PENDING] > 0 {
+	if cntTable[node.StatusPending] > 0 {
 		return cpb.TopologyState_TOPOLOGY_STATE_CREATING
 	}
 	return cpb.TopologyState_TOPOLOGY_STATE_UNKNOWN

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"time"
 
@@ -146,7 +145,7 @@ func (n *Node) SpawnCLIConn(ns string) error {
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	log.Infof("%s - pushing config", n.Name())
 
-	cfg, err := ioutil.ReadAll(r)
+	cfg, err := io.ReadAll(r)
 	cfgs := string(cfg)
 
 	log.Debug(cfgs)
@@ -188,7 +187,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	resp, err := c.LoadConfig(
 		cfgs,
-		true, //load replace
+		true, // load replace
 	)
 	if err != nil {
 		return err

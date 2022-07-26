@@ -302,8 +302,8 @@ func (n *Node) Services(ctx context.Context) ([]*corev1.Service, error) {
 	return svcs, nil
 }
 
-func (n *Node) Status(ctx context.Context) (node.NodeStatus, error) {
-	state := node.NODE_FAILED
+func (n *Node) Status(ctx context.Context) (node.Status, error) {
+	state := node.StatusFailed
 	var err error
 
 	status, err := n.getStatus(ctx)
@@ -313,9 +313,9 @@ func (n *Node) Status(ctx context.Context) (node.NodeStatus, error) {
 
 	switch status.State {
 	case "DEPLOYED":
-		state = node.NODE_RUNNING
+		state = node.StatusRunning
 	case "INITIATED":
-		state = node.NODE_PENDING
+		state = node.StatusPending
 	case "FAILED":
 		err = fmt.Errorf("got failure in ixia CRD status: %s", status.Reason)
 	}
