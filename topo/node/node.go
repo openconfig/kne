@@ -80,17 +80,10 @@ type Node interface {
 type Status string
 
 const (
-<<<<<<< HEAD
 	StatusPending Status = "PENDING"
 	StatusRunning Status = "RUNNING"
 	StatusFailed  Status = "FAILED"
 	StatusUnknown Status = "UNKNOWN"
-=======
-	NODE_PENDING Status = "PENDING"
-	NODE_RUNNING Status = "RUNNING"
-	NODE_FAILED  Status = "FAILED"
-	NODE_UNKNOWN Status = "UNKNOWN"
->>>>>>> Linter
 )
 
 type NewNodeFn func(n *Impl) (Node, error)

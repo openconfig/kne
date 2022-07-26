@@ -42,13 +42,13 @@ import (
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
 
-	_ "github.com/openconfig/kne/topo/node/ceos"  // ceos node implementation
-	_ "github.com/openconfig/kne/topo/node/cisco" // cisco node implementation
-	_ "github.com/openconfig/kne/topo/node/cptx"  // cptx node implementation
-	_ "github.com/openconfig/kne/topo/node/gobgp" // gobgp node implementation
-	_ "github.com/openconfig/kne/topo/node/host"  // host node implementation
-	_ "github.com/openconfig/kne/topo/node/ixia"  // ixia node implementation
-	_ "github.com/openconfig/kne/topo/node/srl"   // srl node implementation
+	_ "github.com/openconfig/kne/topo/node/ceos"
+	_ "github.com/openconfig/kne/topo/node/cisco"
+	_ "github.com/openconfig/kne/topo/node/cptx"
+	_ "github.com/openconfig/kne/topo/node/gobgp"
+	_ "github.com/openconfig/kne/topo/node/host"
+	_ "github.com/openconfig/kne/topo/node/ixia"
+	_ "github.com/openconfig/kne/topo/node/srl"
 )
 
 var protojsonUnmarshaller = protojson.UnmarshalOptions{
@@ -592,11 +592,7 @@ func CreateTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to create topology for %s: %+v", params.TopoName, err)
 	}
-<<<<<<< HEAD
-	log.Infof("Topology:\n%s\n", prototext.Format(t.TopologyProto()))
-=======
 	log.Infof("Topology:\n%v\n", prototext.Format(t.TopologyProto()))
->>>>>>> Linter
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
@@ -639,11 +635,7 @@ func DeleteTopology(ctx context.Context, params TopologyParams) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete topology for %s: %+v", params.TopoName, err)
 	}
-<<<<<<< HEAD
-	log.Infof("Topology:\n%+v\n", prototext.Format(t.TopologyProto()))
-=======
 	log.Infof("Topology:\n%v\n", prototext.Format(t.TopologyProto()))
->>>>>>> Linter
 	if err := t.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load %s: %+v", params.TopoName, err)
 	}

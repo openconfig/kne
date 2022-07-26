@@ -52,3 +52,6 @@ linters-settings:
     disabled-checks:
       - singleCaseSwitch
       - appendAssign
+  revive:
+    ignore-generated-header: true
+    severity: warning

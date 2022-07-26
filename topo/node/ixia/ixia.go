@@ -303,11 +303,7 @@ func (n *Node) Services(ctx context.Context) ([]*corev1.Service, error) {
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
-<<<<<<< HEAD
 	state := node.StatusFailed
-=======
-	state := node.NODE_FAILED
->>>>>>> Linter
 	var err error
 
 	status, err := n.getStatus(ctx)

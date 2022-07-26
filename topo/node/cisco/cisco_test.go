@@ -26,11 +26,7 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
-<<<<<<< HEAD
-func deafultNode(pb *tpb.Node) *tpb.Node {
-=======
 func defaultNode(pb *tpb.Node) *tpb.Node {
->>>>>>> Linter
 	node, _ := defaults(pb)
 	return node
 }
@@ -64,7 +60,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: modelXRD,
+				Model: ModelXRD,
 				Interfaces: map[string]*tpb.Interface{
 					"eeth": {},
 				},
@@ -96,7 +92,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: modelXRD,
+			Model: ModelXRD,
 			Constraints: map[string]string{
 				"cpu":    "2",
 				"memory": "2Gi",
@@ -140,7 +136,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: modelXRD,
+				Model: ModelXRD,
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -159,7 +155,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: modelXRD,
+			Model: ModelXRD,
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -210,7 +206,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model8201,
+				Model: "8201",
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -231,7 +227,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: model8201,
+			Model: "8201",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -284,7 +280,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model8201,
+				Model: "8201",
 				Interfaces: map[string]*tpb.Interface{
 					"eth37": {},
 				},
@@ -299,7 +295,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model8202,
+				Model: "8202",
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -322,7 +318,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: model8202,
+			Model: "8202",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -377,7 +373,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model8202,
+				Model: "8202",
 				Interfaces: map[string]*tpb.Interface{
 					"eth73": {},
 				},
@@ -392,7 +388,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model820132FH,
+				Model: "8201-32FH",
 				Interfaces: map[string]*tpb.Interface{
 					"eth33": {},
 				},
@@ -407,7 +403,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model820132FH,
+				Model: "8201-32FH",
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -426,7 +422,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: model820132FH,
+			Model: "8201-32FH",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -477,7 +473,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model810132H,
+				Model: "8101-32H",
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -496,7 +492,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: model810132H,
+			Model: "8101-32H",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -547,7 +543,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model810132H,
+				Model: "8101-32H",
 				Interfaces: map[string]*tpb.Interface{
 					"eth33": {},
 				},
@@ -562,7 +558,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model810264H,
+				Model: "8102-64H",
 				Interfaces: map[string]*tpb.Interface{
 					"eth65": {},
 				},
@@ -577,7 +573,7 @@ func TestNew(t *testing.T) {
 			Namespace:  "test",
 			Proto: &tpb.Node{
 				Name:  "pod1",
-				Model: model810264H,
+				Model: "8102-64H",
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {},
 					"eth2": {
@@ -596,7 +592,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: model810264H,
+			Model: "8102-64H",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
