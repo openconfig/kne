@@ -15,18 +15,15 @@ package srl
 
 import (
 	"context"
-	"log"
 	"testing"
 	"time"
 
 	"github.com/h-fam/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scraplibase "github.com/scrapli/scrapligo/driver/base"
-	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
-	"github.com/scrapli/scrapligo/logging"
-	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
-	srlinux "github.com/srl-labs/srlinux-scrapli"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
@@ -178,7 +175,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 			testFile: "generate_certificate_failure",
 		},
 	}
-	logging.SetDebugLogger(log.Print)
+
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			nImpl, err := New(tt.ni)
@@ -189,15 +186,13 @@ func TestGenerateSelfSigned(t *testing.T) {
 
 			n, _ := nImpl.(*Node)
 
-			oldSRLinuxDriver := srlinux.NewSRLinuxDriver
-			defer func() { srlinux.NewSRLinuxDriver = oldSRLinuxDriver }()
-			srlinux.NewSRLinuxDriver = func(host string, options ...scraplibase.Option) (*scraplinetwork.Driver, error) {
-				return srlinux.NewPatchedSRLinuxDriver(
-					host,
-					scraplibase.WithAuthBypass(true),
-					scraplibase.WithTimeoutOps(2*time.Second),
-					scraplitest.WithPatchedTransport(tt.testFile),
-				)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
 			}
 
 			ctx := context.Background()

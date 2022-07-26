@@ -107,6 +107,8 @@ A:pod1#
 A:pod1# set / system tls server-profile test
 --{ * candidate private private-root }--[  ]--
 A:pod1# set / system tls server-profile test authenticate-client false
+--{ candidate private private-root }--[  ]--
+A:pod1#
 --{ * candidate private private-root }--[  ]--
 A:pod1# set / system tls server-profile test key "-----BEGIN PRIVATE KEY-----
 ...MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQC/kQtMiMV6l59a
@@ -197,4 +199,6 @@ A:pod1# commit save
 
 All changes have been committed. Leaving candidate mode.
 --{ running }--[  ]--
-A:pod1# 
+A:pod1#
+--{ running }--[  ]--
+A:pod1#

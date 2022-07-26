@@ -18,10 +18,9 @@ import (
 	"github.com/h-fam/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scraplibase "github.com/scrapli/scrapligo/driver/base"
-	scraplicore "github.com/scrapli/scrapligo/driver/core"
-	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
-	scraplitest "github.com/scrapli/scrapligo/util/testhelper"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,15 +142,13 @@ func TestConfigPush(t *testing.T) {
 			}
 			n, _ := nImpl.(*Node)
 
-			oldNewCoreDriver := scraplicore.NewCoreDriver
-			defer func() { scraplicore.NewCoreDriver = oldNewCoreDriver }()
-			scraplicore.NewCoreDriver = func(host, platform string, options ...scraplibase.Option) (*scraplinetwork.Driver, error) {
-				return scraplicore.NewJUNOSDriver(
-					host,
-					scraplibase.WithAuthBypass(true),
-					scraplibase.WithTimeoutOps(1*time.Second),
-					scraplitest.WithPatchedTransport(tt.testFile),
-				)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
 			}
 
 			fp, err := os.Open(tt.testConf)
@@ -166,54 +163,6 @@ func TestConfigPush(t *testing.T) {
 			err = n.ConfigPush(ctx, fbuf)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("config push test failed, error: %+v\n", err)
-			}
-		})
-	}
-}
-
-func TestCustomPrivilegeLevel(t *testing.T) {
-	privilegePromptMap := map[string]string{
-		"exec":          "root@%s>",
-		"configuration": "root@%s#",
-	}
-
-	tests := []struct {
-		desc        string
-		hostname    string
-		shouldMatch bool
-	}{
-		{
-			desc:        "basic case",
-			hostname:    "testexample",
-			shouldMatch: true,
-		},
-		{
-			desc:        "hostname with '.'",
-			hostname:    "test.example",
-			shouldMatch: true,
-		},
-		{
-			desc:        "failure",
-			hostname:    "Test^Example",
-			shouldMatch: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			for privilegeName, prompt := range privilegePromptMap {
-				fullPrompt := fmt.Sprintf(prompt, tt.hostname)
-				privLevel, ok := customPrivLevels[privilegeName]
-				if !ok {
-					t.Fatalf("privilege %q not defined in custom privilege", privilegeName)
-				}
-				match, err := regexp.MatchString(privLevel.Pattern, fullPrompt)
-				if err != nil {
-					t.Fatalf("regexp.MatchString() failed: %+v", err.Error())
-				}
-				if match != tt.shouldMatch {
-					t.Fatalf("regexp.MatchString() unexpected result (got %v, wanted %v) for prompt %q and privilege level %q", match, tt.shouldMatch, fullPrompt, privilegeName)
-				}
 			}
 		})
 	}
