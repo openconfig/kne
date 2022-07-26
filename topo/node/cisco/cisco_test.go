@@ -467,7 +467,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}, {
-		desc: model810132H,
+		desc: "8101-32H",
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
 			Namespace:  "test",
@@ -567,7 +567,7 @@ func TestNew(t *testing.T) {
 		want:    nil,
 		wantErr: "interface id 65 can not be mapped to a cisco interface, eth1..eth64 is supported on 8102-64H",
 	}, {
-		desc: model810264H,
+		desc: "8102-64H",
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
 			Namespace:  "test",
