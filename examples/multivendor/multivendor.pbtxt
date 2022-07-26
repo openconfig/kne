@@ -1,0 +1,189 @@
+name: "multivendor"
+nodes: {
+    name: "r1"
+    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "r1.ceos.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r2"
+    type: CISCO_XRD
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
+    config: {
+        file: "r2.iosxr.cfg"
+        init_image: "networkop/init-wait:latest"
+        image: "xrd:latest"
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+          name: "GigabitEthernet0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+          name: "GigabitEthernet0/0/0/1"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+          name: "GigabitEthernet0/0/0/2"
+        }
+    }
+}
+nodes: {
+    name: "r3"
+    type: NOKIA_SRL
+    config: {
+        cert: {
+            self_signed: {
+                cert_name: "kne-profile",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+nodes: {
+    name: "r4"
+    type: JUNIPER_CEVO
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+      image: "cevo:latest"
+      config_path: "/home/evo/configdisk"
+      config_file: "juniper.conf"
+      file: "r4.evo.cfg" 
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "et-0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/1"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+          name: "et-0/0/2"
+        }
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
+    }
+}
+nodes: {
+    name: "otg"
+    type: IXIA_TG
+    version: "0.0.1-9999"
+    services: {
+        key: 443
+        value: {
+            name: "https"
+            inside: 443
+        }
+    }
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
+    }
+}
+links: {
+    a_node: "r1"
+    a_int: "eth1"
+    z_node: "r2"
+    z_int: "eth1"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth2"
+    z_node: "r3"
+    z_int: "eth1"
+}
+links: {
+    a_node: "r1"
+    a_int: "eth3"
+    z_node: "r4"
+    z_int: "eth4"
+}
+links: {
+    a_node: "r2"
+    a_int: "eth2"
+    z_node: "r4"
+    z_int: "eth5"
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "r1"
+    z_int: "eth9"
+}
+links: {
+    a_node: "otg"
+    a_int: "eth2"
+    z_node: "r2"
+    z_int: "eth3"
+}
+links: {
+    a_node: "otg"
+    a_int: "eth3"
+    z_node: "r3"
+    z_int: "eth3"
+}
+links: {
+    a_node: "otg"
+    a_int: "eth4"
+    z_node: "r4"
+    z_int: "eth6"
+}
