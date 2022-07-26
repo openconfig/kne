@@ -10,7 +10,7 @@
 
 ## Goal
 
-For network emulation there are many approaches using VM's for emulation of a
+For network emulation, there are many approaches using VM's for emulation of a
 hardware router. Arista, Cisco, Juniper, and Nokia have multiple implementations
 of their network operating system and various generations of hardware emulation.
 These systems are very good for most validation of vendor control plane
@@ -19,7 +19,7 @@ project is to provide a standard "interface" so that vendors can produce a
 standard container implementation which can be used to build complex topologies.
 
 *   Have standard lifecycle management infrastructure for allowing multiple
-    vendor device emulation to be present in a single "topology"
+    vendor device emulations to be present in a single "topology"
 *   Allow for control plane access via standard k8s networking
 *   Provide a common networking interface for the forwarding plane between
     network pods.
@@ -36,8 +36,8 @@ standard container implementation which can be used to build complex topologies.
 *   Data plane connections for connectivity between pods must be a public
     transport mechanism
     *   This can't be implemented as just exposing "x eth devices on the pod"
-        because linux doesn't understand the associated control messages which
-        are needed to actually make this work like a wire.
+        because Linux doesn't understand the associated control messages which
+        are needed to make this work like a wire.
     *   Transceiver state, optical characteristics, wire state, packet filtering
         / shaping / drops
     *   LACP or other port aggregation protocols or APS cannot be simulated
@@ -46,7 +46,7 @@ standard container implementation which can be used to build complex topologies.
         pod to directly interact with.
     *   The topology agent will provide the connectivity between nodes
 *   Define how pods boot an initial configuration
-    *   Ideally this method would allow for dynamic
+    *   Ideally, this method would allow for dynamic
 *   Define how pods express services for use in-cluster as well as external
     services
 
@@ -74,7 +74,7 @@ integration test.
 For the development of new services or for offering a better environment to
 developers for existing services, virtual testbeds would allow for better
 scaling of resources and easier to use testbeds that would be customized for a
-team's needs. Specifically workflow automation struggles to have physical
+team's needs. Specifically, workflow automation struggles to have physical
 representations of metros that need to be validated for workflows. A virtual
 testbed would allow for the majority of workflows to be validated against any
 number of production topologies.
