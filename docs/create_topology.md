@@ -63,17 +63,14 @@ controller:
 - Keysight: `ixia-tg`
 - Nokia: `srlinux`
 
-Currently the following vendor controllers can be deployed as part of
-[cluster deployment](#deploy_a_cluster):
-
-- Keysight: `ixia-tg`
+These controllers can be deployed as part of [cluster deployment](#deploy_a_cluster).
 
 ### IxiaTG
 
 IMPORTANT: Contact Keysight to get access to the IxiaTG controller yaml and
 container images.
 
-TIP: IxiaTG does not have to be deployed manually, during
+TIP: The IxiaTG controller does not have to be deployed manually, during
 [cluster deployment](#deploy_a_cluster) the IxiaTG controller can be
 automatically deployed if specified in the deployment yaml.
 
@@ -86,13 +83,22 @@ kubectl apply -f ixiatg-operator.yaml
 
 ### SR Linux
 
-Apply the latest version of SR Linux controller:
+TIP: The SR Linux controller does not have to be deployed manually, during
+[cluster deployment](#deploy_a_cluster) the SR Linux controller can be
+automatically deployed if specified in the deployment yaml.
+
+IMPORTANT: Make sure to use the `kind-bridge.yaml` deployment config. This is
+because the SR Linux controller + containers require the `bridge` cluster CNI
+instead of the default `ptp` cluster CNI that `kind` uses.
+
+To manually apply the controller run the following command:
 
 ```bash
 kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
 ```
 
-Read more on Nokia SR Linux controller operations and capabilities at [srl-labs/srl-controller GitHub repo](https://github.com/srl-labs/srl-controller).
+See more on the
+[srl-controller GitHub repo](https://github.com/srl-labs/srl-controller).
 
 ## Create a topology
 
