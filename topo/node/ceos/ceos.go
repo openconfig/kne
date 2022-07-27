@@ -135,16 +135,30 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		),
 	}
 
-	resp, err := n.cliConn.SendConfigs(cfgs)
-	if err != nil {
-		return err
+	pkiReady := false
+	for !pkiReady {
+		resp, err := n.cliConn.SendConfigs(cfgs)
+		if err != nil {
+			return err
+		}
+		if resp.Failed != nil {
+			return resp.Failed
+		}
+		pkiReady = true
+		for _, r := range resp.Responses {
+			if strings.Contains(r.Result, "PKI not ready") {
+				pkiReady = false
+			}
+		}
+		if pkiReady {
+			break
+		}
+		log.Debugf("%s - PKI not ready - waiting", n.Name())
+		time.Sleep(time.Second * 2)
 	}
+	log.Infof("%s - finshed cert generation", n.Name())
 
-	if resp.Failed == nil {
-		log.Infof("%s - finshed cert generation", n.Name())
-	}
-
-	return resp.Failed
+	return nil
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
