@@ -85,8 +85,7 @@ kubectl apply -f ixiatg-operator.yaml
 
 TIP: The SR Linux controller does not have to be deployed manually, during
 [cluster deployment](#deploy_a_cluster) the SR Linux controller can be
-automatically deployed if specified in the deployment yaml. The sample internal
-deployment yaml includes the controller deployment.
+automatically deployed if specified in the deployment yaml.
 
 IMPORTANT: Make sure to use the `kind-bridge.yaml` deployment config. This is
 because the SR Linux controller + containers require the `bridge` cluster CNI
@@ -95,7 +94,7 @@ instead of the default `ptp` cluster CNI that `kind` uses.
 To manually apply the controller run the following command:
 
 ```bash
-$ kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
+kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
 ```
 
 See more on the
