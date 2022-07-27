@@ -1,11 +1,9 @@
 package deploy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	dtypes "github.com/docker/docker/api/types"
@@ -16,7 +14,6 @@ import (
 	"github.com/openconfig/kne/deploy/mocks"
 	"github.com/openconfig/kne/os/exec"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -846,93 +843,6 @@ func TestSRLinuxSpec(t *testing.T) {
 			err = tt.srl.Healthy(tt.ctx)
 			if s := errdiff.Substring(err, tt.hErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
-			}
-		})
-	}
-}
-
-func TestLogAdaptor(t *testing.T) {
-	logger := log.New()
-	b := bytes.NewBuffer([]byte{})
-	logger.SetOutput(b)
-	l := logAdapter{logger}
-	msg := "message write"
-
-	tests := []struct {
-		desc string
-		want string
-		f    func()
-	}{{
-		desc: "no debug V(10).Info",
-		want: "",
-		f: func() {
-			l.V(10).Info(msg)
-		},
-	}, {
-		desc: "no debug V(10).Infof",
-		want: "",
-		f: func() {
-			l.V(10).Infof("%s", msg)
-		},
-	}, {
-		desc: "no debug V(0).Info",
-		want: msg,
-		f: func() {
-			l.V(0).Info(msg)
-		},
-	}, {
-		desc: "no debug V(0).Infof",
-		want: msg,
-		f: func() {
-			l.V(0).Infof("%s", msg)
-		},
-	}, {
-		desc: "debug V(10).Info",
-		want: msg,
-		f: func() {
-			l.SetLevel(log.DebugLevel)
-			l.V(10).Infof("%s", msg)
-			l.SetLevel(log.InfoLevel)
-		},
-	}, {
-		desc: "debug V(10).Infof",
-		want: msg,
-		f: func() {
-			l.SetLevel(log.DebugLevel)
-			l.V(10).Infof("%s", msg)
-			l.SetLevel(log.InfoLevel)
-		},
-	}, {
-		desc: "write error ",
-		want: msg,
-		f: func() {
-			l.Error(msg)
-		},
-	}, {
-		desc: "write errorf",
-		want: msg,
-		f: func() {
-			l.Errorf("%s", msg)
-		},
-	}, {
-		desc: "write warn",
-		want: msg,
-		f: func() {
-			l.Warn(msg)
-		},
-	}, {
-		desc: "write warnf",
-		want: msg,
-		f: func() {
-			l.Warnf(msg)
-		},
-	}}
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			b.Reset()
-			tt.f()
-			if !strings.Contains(b.String(), tt.want) {
-				t.Fatalf("V write failed: got %q, want %q", b.String(), tt.want)
 			}
 		})
 	}
