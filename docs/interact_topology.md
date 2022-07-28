@@ -5,22 +5,22 @@ with a KNE topology after creation.
 
 ## Push config
 
-The `kne topology push` command can be used to push configuration to a node
-in a topology. For example:
+The `kne topology push` command can be used to push configuration to a node in a
+topology. For example:
 
 ```bash
 kne topology push examples/3node-ceos.pb.txt r1 examples/ceos-withtraffic/r1-config
 ```
 
-TIP: Specify the config file in the
-[topology textproto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt#L8)
-so initial config will be pushed during topology creation.
+> TIP: Specify the config file in the [topology
+> textproto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt#L8)
+> so initial config will be pushed during topology creation.
 
 ## SSH to pod
 
 ### Configure access
 
-TIP: This step is not needed if config with user/pass was already pushed.
+> TIP: This step is not needed if config with user/pass was already pushed.
 
 Configuring access is vendor specific, the following is for an Arista `cEOS`
 node `r1` in a topology called `3node-ceos`:
@@ -35,10 +35,10 @@ $ kubectl exec -it -n 3node-ceos r1 -- Cli
 
 ### Connect via the external IP
 
-TIP: For the default configs found in the
-[KNE GitHub repo](https://github.com/openconfig/kne/tree/main/examples) the
-username/passwords can be found in the config files. Often times the password is
-written as a hash. Try `admin` as a username or password if unknown.
+> TIP: For the default configs found in the [KNE GitHub
+> repo](https://github.com/openconfig/kne/tree/main/examples) the
+> username/passwords can be found in the config files. Often times the password
+> is written as a hash. Try `admin` as a username or password if unknown.
 
 ```bash
 ssh <username>@<service ip>
@@ -108,8 +108,8 @@ go install github.com/openconfig/gnmi/cmd/gnmi_cli@latest
 gNMI should be running on your nodes on the default port (6030), so you can
 connect directly using `gnmi_cli`:
 
-NOTE: The `--tls_skip_verify` flag is important, because our self-signed keys
-cannot be verified.
+> NOTE: The `--tls_skip_verify` flag is important, because our self-signed keys
+> cannot be verified.
 
 ```bash
 export GNMI_USER=admin
@@ -120,8 +120,8 @@ gnmi_cli -a 192.168.18.100:6030 -q "/interfaces/interface/state" -tls_skip_verif
 ### gNMI over gRPC in go
 
 To dial in from Go (if you're not using Ondatra), you need to set your grpc
-connection to skip verifying TLS certificates. Also, per the
-[gNMI public specification](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#31-session-security-authentication-and-rpc-authorization),
+connection to skip verifying TLS certificates. Also, per the [gNMI public
+specification](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#31-session-security-authentication-and-rpc-authorization),
 gNMI expects that the username and password will be passed in via the metadata.
 Golang usage therefore looks like:
 
@@ -146,11 +146,11 @@ func someFunc(ctx context.Context) {
 ### gNMI over gRPC with Ondatra
 
 [KNEBind](https://github.com/openconfig/ondatra/blob/main/knebind/knebind.go) is
-implemented by using the `kne` within the ondatra framework. Currently the
+implemented by using the `kne` within the `ondatra` framework. Currently the
 expectation is the user has already brought up a cluster and now wants to
 develop tests against that cluster for use in vendor certification. See the
-[README](https://github.com/openconfig/ondatra/blob/main/knebind/README.md)
-for details.
+[README](https://github.com/openconfig/ondatra/blob/main/knebind/README.md) for
+details.
 
 Ondatra will manage a gNMI connection to each device, so you can use Ondatra's
 helper functions to configure and read from the OpenConfig tree:

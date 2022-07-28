@@ -8,14 +8,12 @@ deployment and topology creation.
 Creating a topology takes 3 main steps:
 
 1. Cluster deployment
-
-1. Additional controller deployment
-
-1. Topology creation
+2. Additional controller deployment
+3. Topology creation
 
 ## Deploy a cluster
 
-The first step when using KNE is to deploy a kubernetes cluster. This can be
+The first step when using KNE is to deploy a Kubernetes cluster. This can be
 done using the `kne deploy` command.
 
 ```bash
@@ -47,7 +45,9 @@ The basic deployment yaml file can be found in the GitHub repo at
 [deploy/kne/kind.yaml](https://github.com/openconfig/kne/blob/5e6cf1cbc0748bb48ebf49039bd0ad592378357a/deploy/kne/kind-bridge.yaml).
 
 This config specifies `kind` as the cluster, `metallb` as the ingress, and
-`meshnet` as the CNI. Additionally, the config instructs `kindnet` CNI to use `bridge` CNI, instead of a default `ptp`. This spec can be deployed using the following command:
+`meshnet` as the CNI. Additionally, the config instructs `kindnet` CNI to use
+`bridge` CNI, instead of a default `ptp`. This spec can be deployed using the
+following command:
 
 ```bash
 kne deploy deploy/kne/kind-bridge.yaml
@@ -63,16 +63,13 @@ controller:
 - Keysight: `ixia-tg`
 - Nokia: `srlinux`
 
-These controllers can be deployed as part of [cluster deployment](#deploy_a_cluster).
+These controllers can be deployed as part of [cluster
+deployment](#deploy_a_cluster).
 
 ### IxiaTG
 
-IMPORTANT: Contact Keysight to get access to the IxiaTG controller yaml and
-container images.
-
-TIP: The IxiaTG controller does not have to be deployed manually, during
-[cluster deployment](#deploy_a_cluster) the IxiaTG controller can be
-automatically deployed if specified in the deployment yaml.
+> IMPORTANT: Contact Keysight to get access to the IxiaTG controller yaml and
+> container images.
 
 To manually apply the controller run the following command after cloning the
 Keysight controller yaml:
@@ -81,15 +78,15 @@ Keysight controller yaml:
 kubectl apply -f ixiatg-operator.yaml
 ```
 
+> TIP: The IxiaTG controller does not have to be deployed manually, during
+> [cluster deployment](#deploy_a_cluster) the IxiaTG controller can be
+> automatically deployed if specified in the deployment yaml.
+
 ### SR Linux
 
-TIP: The SR Linux controller does not have to be deployed manually, during
-[cluster deployment](#deploy_a_cluster) the SR Linux controller can be
-automatically deployed if specified in the deployment yaml.
-
-IMPORTANT: Make sure to use the `kind-bridge.yaml` deployment config. This is
-because the SR Linux controller + containers require the `bridge` cluster CNI
-instead of the default `ptp` cluster CNI that `kind` uses.
+> IMPORTANT: Make sure to use the `kind-bridge.yaml` deployment config. This is
+> because the SR Linux controller + containers require the `bridge` cluster CNI
+> instead of the default `ptp` cluster CNI that `kind` uses.
 
 To manually apply the controller run the following command:
 
@@ -97,8 +94,12 @@ To manually apply the controller run the following command:
 kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
 ```
 
-See more on the
-[srl-controller GitHub repo](https://github.com/srl-labs/srl-controller).
+See more on the [srl-controller GitHub
+repo](https://github.com/srl-labs/srl-controller).
+
+> TIP: The SR Linux controller does not have to be deployed manually, during
+> cluster deployment](#deploy_a_cluster) the SR Linux controller can be
+> automatically deployed if specified in the deployment yaml.
 
 ## Create a topology
 
@@ -141,17 +142,17 @@ This topology can be created using the following command.
 kne create examples/3node-withtraffic.pb.txt
 ```
 
-IMPORTANT: Wait for the command to fully complete, do not use Ctrl-C to cancel
-the command. It is expected to take minutes depending on the topology and if
-initial config is pushed.
+> IMPORTANT: Wait for the command to fully complete, do not use Ctrl-C to cancel
+> the command. It is expected to take minutes depending on the topology and if
+> initial config is pushed.
 
 ### Container images
 
 Container images can be hosted in multiple locations. For example
-[DockerHub](https://hub.docker.com/) hosts open sourced containers.
-[Google Artifact Registries](https://cloud.google.com/artifact-registry) can be
-used to host images with access control. The
-[KNE topology proto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L117),
+[DockerHub](https://hub.docker.com/) hosts open sourced containers. [Google
+Artifact Registries](https://cloud.google.com/artifact-registry) can be used to
+host images with access control. The [KNE topology
+proto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L117),
 the manifests, and controllers can all specify containers that get pulled from
 their source locations and get used in the cluster.
 
@@ -177,10 +178,10 @@ To load an image into a `kind` cluster there is a 3 step process:
 
 Now the `dst_image:dst_tag` image will be present for use in the `kind` cluster.
 
-NOTE: `ceos:latest` is the default image to use for a node of type
-`ARISTA_CEOS`. This is a common image to manually pull if using a topology with
-`ARISTA_CEOS` node and not specifying an image explicitly in your topology
-textproto. Contact Arista to get access to the cEOS image.
+> NOTE: `ceos:latest` is the default image to use for a node of type
+> `ARISTA_CEOS`. This is a common image to manually pull if using a topology
+> with `ARISTA_CEOS` node and not specifying an image explicitly in your
+> topology textproto. Contact Arista to get access to the cEOS image.
 
 You can check a full list of images loaded in your `kind` cluster using:
 
