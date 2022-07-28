@@ -108,15 +108,9 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Cloning srl-labs/srl-controller github repo...",
-      "git clone https://github.com/srl-labs/srl-controller.git",
-    ]
-  }
-
-  provisioner "shell" {
-    inline = [
       "echo Cloning internal cloud source repos...",
       "gcloud source repos clone keysight --project=gep-kne",
+      "gcloud source repos clone srl-controller --project=gep-kne",
       "gcloud source repos clone kne-internal --project=gep-kne",
       "cd kne-internal",
       "/usr/local/go/bin/go get -d ./...",
