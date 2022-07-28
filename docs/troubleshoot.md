@@ -24,7 +24,7 @@ KNE there are several namespaces:
 - one namespace for `meshnet` CNI
 - one namespace for `metallb` ingress
 - one namespace per vendor controller
-- default kube namespace
+- `default` kube namespace
 
 For an exhaustive list use the `-A` flag instead of `-n`.
 
@@ -78,7 +78,7 @@ NAMESPACE NAME READY STATUS RESTARTS AGE
 This problem is due to a bug in `meshnet` until this is fixed upstream you will
 just need to delete and recreate the topology.
 
-### Metallb crash loops
+### MetalLB crash loops
 
 ```bash
 $ kubectl get pods -n metallb-system
