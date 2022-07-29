@@ -33,6 +33,10 @@ service TopologyManager {
   rpc DeleteCluster(DeleteClusterRequest) returns (DeleteClusterResponse) {}
   // Shows cluster state and topologies deployed in the cluster.
   rpc ShowCluster(ShowClusterRequest) returns (ShowClusterResponse) {}
+  // Pushes config to a device in a topology.
+  rpc PushConfig(PushConfigRequest) returns (PushConfigResponse) {}
+  // Resets config of a device in a topology.
+  rpc ResetConfig(ResetConfigRequest) returns (ResetConfigResponse) {}
 }
 
 // Kind cluster specifications
@@ -187,3 +191,23 @@ message ShowTopologyResponse {
   TopologyState state = 1;
   topo.Topology topology = 2;
 }
+
+// Request message to push config.
+message PushConfigRequest {
+  string topology_name = 1;
+  string device_name = 2;
+  bytes config = 3;
+}
+
+// Returns push config response.
+message PushConfigResponse {}
+
+// Request message to reset config.
+message ResetConfigRequest {
+  string topology_name = 1;
+  string device_name = 2;
+}
+
+// Returns reset config response.
+message ResetConfigResponse {}
+

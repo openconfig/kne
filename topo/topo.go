@@ -555,9 +555,21 @@ func (m *Manager) ConfigPush(ctx context.Context, deviceName string, r io.Reader
 	}
 	cp, ok := d.(node.ConfigPusher)
 	if !ok {
-		return nil
+		return fmt.Errorf("node %q does not support config push", deviceName)
 	}
 	return cp.ConfigPush(ctx, r)
+}
+
+func (m *Manager) ResetCfg(ctx context.Context, deviceName string) error {
+	d, ok := m.nodes[deviceName]
+	if !ok {
+		return fmt.Errorf("node %q not found", deviceName)
+	}
+	r, ok := d.(node.Resetter)
+	if !ok {
+		return fmt.Errorf("node %q does not support config reset", deviceName)
+	}
+	return r.ResetCfg(ctx)
 }
 
 func (m *Manager) Node(nodeName string) (node.Node, error) {
