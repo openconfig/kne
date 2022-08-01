@@ -556,7 +556,7 @@ func (m *Manager) ConfigPush(ctx context.Context, deviceName string, r io.Reader
 	}
 	cp, ok := d.(node.ConfigPusher)
 	if !ok {
-		return fmt.Errorf("node %q does not support config push", deviceName)
+		return nil
 	}
 	return cp.ConfigPush(ctx, r)
 }
@@ -568,7 +568,7 @@ func (m *Manager) ResetCfg(ctx context.Context, deviceName string) error {
 	}
 	r, ok := d.(node.Resetter)
 	if !ok {
-		return fmt.Errorf("node %q does not support config reset", deviceName)
+		return nil
 	}
 	return r.ResetCfg(ctx)
 }
