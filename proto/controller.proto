@@ -200,7 +200,8 @@ message PushConfigRequest {
 }
 
 // Returns push config response.
-message PushConfigResponse {}
+message PushConfigResponse {
+}
 
 // Request message to reset config.
 message ResetConfigRequest {
@@ -209,5 +210,6 @@ message ResetConfigRequest {
 }
 
 // Returns reset config response.
-message ResetConfigResponse {}
+message ResetConfigResponse {
+}
 
