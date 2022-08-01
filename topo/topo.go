@@ -60,6 +60,7 @@ var protojsonUnmarshaller = protojson.UnmarshalOptions{
 type TopologyManager interface {
 	CheckNodeStatus(context.Context, time.Duration) error
 	ConfigPush(context.Context, string, io.Reader) error
+	ResetCfg(context.Context, string) error
 	Delete(context.Context) error
 	Load(context.Context) error
 	Node(string) (node.Node, error)

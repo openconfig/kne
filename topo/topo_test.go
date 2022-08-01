@@ -184,6 +184,10 @@ func (f *defaultFakeTopology) ConfigPush(context.Context, string, io.Reader) err
 	return nil
 }
 
+func (f *defaultFakeTopology) ResetCfg(context.Context, string) error {
+	return nil
+}
+
 func (f *defaultFakeTopology) Node(string) (node.Node, error) {
 	return nil, nil
 }
