@@ -2,7 +2,7 @@
 # each of the nodes comes up with a startup config applied which is sourced from 22.6.1.cfg.json file
 # the startup config already contains a self-signed TLS cert and has gnmi server enabled
 # this allows users to deploy this topology and start using gnmi
-name: "2srl-certs"
+name: "2srl-w-cfg"
 nodes: {
     name: "r1"
     type: NOKIA_SRL
