@@ -351,7 +351,7 @@ func (m *Manager) CreateMeshnetTopologies(ctx context.Context) error {
 	log.Tracef("Got topology specs for namespace %s: %+v", m.proto.Name, topologies)
 	for _, t := range topologies {
 		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
-		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t)
+		sT, err := m.tClient.Topology(m.proto.Name).Create(ctx, t, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
 		}
