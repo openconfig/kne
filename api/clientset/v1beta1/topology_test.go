@@ -14,12 +14,14 @@ import (
 	"github.com/kr/pretty"
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	restfake "k8s.io/client-go/rest/fake"
+	ktest "k8s.io/client-go/testing"
 )
 
 var (
@@ -78,7 +80,24 @@ func setUp(t *testing.T) (*Clientset, *restfake.RESTClient) {
 	}
 	objs := []runtime.Object{obj1, obj2}
 	cs.restClient = fakeClient
-	cs.dInterface = dynamicfake.NewSimpleDynamicClient(scheme.Scheme, objs...).Resource(gvr)
+	f := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, objs...)
+	// Add handler for Update call.
+	f.PrependReactor("update", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		uAction, ok := action.(ktest.UpdateAction)
+		if !ok {
+			return false, nil, nil
+		}
+		uObj := uAction.GetObject().(*unstructured.Unstructured)
+		tObj := &topologyv1.Topology{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(uObj.Object, tObj); err != nil {
+			return true, nil, fmt.Errorf("failed to covert object: %v", err)
+		}
+		if tObj.ObjectMeta.Name == "doesnotexist" {
+			return true, nil, fmt.Errorf("doesnotexist")
+		}
+		return true, uAction.GetObject(), nil
+	})
+	cs.dInterface = f.Resource(gvr)
 	return cs, fakeClient
 }
 
@@ -111,7 +130,7 @@ func TestCreate(t *testing.T) {
 		}
 		t.Run(tt.desc, func(t *testing.T) {
 			tc := cs.Topology("foo")
-			got, err := tc.Create(context.Background(), tt.want)
+			got, err := tc.Create(context.Background(), tt.want, metav1.CreateOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
@@ -289,11 +308,59 @@ func TestWatch(t *testing.T) {
 	}
 }
 
-func TestUnstructured(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	cs, _ := setUp(t)
 	tests := []struct {
 		desc    string
 		resp    *http.Response
+		want    *topologyv1.Topology
+		wantErr string
+	}{{
+		desc: "Error",
+		want: &topologyv1.Topology{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Topology",
+				APIVersion: "networkop.co.uk/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "doesnotexist",
+				Namespace: "test",
+			},
+		},
+		wantErr: "doesnotexist",
+	}, {
+		desc: "Valid Topology",
+		want: obj1,
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			tc := cs.Topology("test")
+			updateObj := tt.want.DeepCopy()
+			updateObj.Spec.Links = append(updateObj.Spec.Links, topologyv1.Link{UID: 1000})
+			update, err := runtime.DefaultUnstructuredConverter.ToUnstructured(updateObj)
+			if err != nil {
+				t.Fatalf("failed to generate update: %v", err)
+			}
+			got, err := tc.Update(context.Background(), &unstructured.Unstructured{Object: update}, metav1.UpdateOptions{})
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			want := tt.want.DeepCopy()
+			want.TypeMeta = metav1.TypeMeta{}
+			if !reflect.DeepEqual(got, updateObj) {
+				t.Fatalf("Update() failed: got %+v, want %+v", got, want)
+			}
+		})
+	}
+}
+
+func TestUnstructured(t *testing.T) {
+	cs, _ := setUp(t)
+	tests := []struct {
+		desc    string
 		in      string
 		want    *topologyv1.Topology
 		wantErr string
