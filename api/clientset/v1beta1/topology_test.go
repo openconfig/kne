@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/h-fam/errdiff"
-	"github.com/kr/pretty"
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -137,10 +137,8 @@ func TestCreate(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			want := tt.want.DeepCopy()
-			want.TypeMeta = metav1.TypeMeta{}
-			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("Create(%+v) failed: diff\n%s", tt.want, pretty.Diff(got, want))
+			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.Topology{}, "TypeMeta")); s != "" {
+				t.Fatalf("Create(%+v) failed: %s", tt.want, s)
 			}
 		})
 	}
@@ -184,8 +182,8 @@ func TestList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("List() failed: got %v, want %v", got, tt.want)
+			if s := cmp.Diff(got, tt.want); s != "" {
+				t.Fatalf("List() failed: %s", s)
 			}
 		})
 	}
@@ -227,10 +225,8 @@ func TestGet(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			want := tt.want.DeepCopy()
-			want.TypeMeta = metav1.TypeMeta{}
-			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("Get() failed: got %v, want %v", got, want)
+			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.Topology{}, "TypeMeta")); s != "" {
+				t.Fatalf("Get() failed: %s", s)
 			}
 		})
 	}
@@ -280,6 +276,16 @@ func TestWatch(t *testing.T) {
 	}{{
 		desc:    "Error",
 		wantErr: "TEST ERROR",
+	}, {
+		desc: "event",
+		want: &watch.Event{
+			Type:   watch.Added,
+			Object: obj1,
+		},
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+		},
+		wantErr: "TEST ERROR",
 	}}
 	for _, tt := range tests {
 		fakeClient.Err = nil
@@ -301,8 +307,8 @@ func TestWatch(t *testing.T) {
 				return
 			}
 			e := <-w.ResultChan()
-			if !reflect.DeepEqual(e, tt.want) {
-				t.Fatalf("Watch() failed: got %v, want %v", e, tt.want)
+			if s := cmp.Diff(e, tt.want); s != "" {
+				t.Fatalf("Watch() failed: %s", s)
 			}
 		})
 	}
@@ -348,10 +354,8 @@ func TestUpdate(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			want := tt.want.DeepCopy()
-			want.TypeMeta = metav1.TypeMeta{}
-			if !reflect.DeepEqual(got, updateObj) {
-				t.Fatalf("Update() failed: got %+v, want %+v", got, want)
+			if s := cmp.Diff(got, updateObj); s != "" {
+				t.Fatalf("Update() failed: %s", s)
 			}
 		})
 	}
@@ -391,8 +395,8 @@ func TestUnstructured(t *testing.T) {
 			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(got.Object, uObj1); err != nil {
 				t.Fatalf("failed to turn reponse into a topology: %v", err)
 			}
-			if !reflect.DeepEqual(uObj1, tt.want) {
-				t.Fatalf("Unstructured(%q) failed: got %+v, want %+v", tt.in, uObj1, tt.want)
+			if s := cmp.Diff(uObj1, tt.want); s != "" {
+				t.Fatalf("Unstructured(%q) failed: %s", tt.in, s)
 			}
 		})
 	}

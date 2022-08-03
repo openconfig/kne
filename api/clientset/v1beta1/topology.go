@@ -181,13 +181,12 @@ func (t *topologyClient) Delete(ctx context.Context, name string, opts metav1.De
 }
 
 func (t *topologyClient) Update(ctx context.Context, obj *unstructured.Unstructured, opts metav1.UpdateOptions) (*topologyv1.Topology, error) {
-	result := topologyv1.Topology{}
 	obj, err := t.dInterface.Namespace(t.ns).UpdateStatus(ctx, obj, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &result)
-	if err != nil {
+	result := topologyv1.Topology{}
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &result); err != nil {
 		return nil, fmt.Errorf("failed to type assert return to topology")
 	}
 	return &result, nil
