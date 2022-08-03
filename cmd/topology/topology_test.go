@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
 	tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
 	cpb "github.com/openconfig/kne/proto/controller"
@@ -17,7 +18,7 @@ import (
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 )
@@ -366,8 +367,8 @@ func TestService(t *testing.T) {
 			if err := prototext.Unmarshal(buf.Bytes(), got); err != nil {
 				t.Fatalf("Invalid buffer output: %v", err)
 			}
-			if !proto.Equal(got, tt.want) {
-				t.Fatalf("Service failed: got:\n%s\n, want:\n%s\n", got, tt.want)
+			if s := cmp.Diff(got, tt.want, protocmp.Transform()); s != "" {
+				t.Fatalf("Service failed: %s", s)
 			}
 		})
 	}
