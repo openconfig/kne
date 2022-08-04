@@ -15,6 +15,7 @@ package srl
 
 import (
 	"context"
+	"flag"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -35,6 +37,17 @@ import (
 
 type fakeWatch struct {
 	e []watch.Event
+}
+
+func init() {
+	testing.Init()
+	flag.Parse()
+}
+
+// isVerbose checks if go test has been called with -v flag;
+// verbose logging will trigger verbose output in tests.
+func isVerbose() bool {
+	return flag.Lookup("test.v").Value.(flag.Getter).Get().(bool)
 }
 
 func (f *fakeWatch) Stop() {}
@@ -138,8 +151,8 @@ func TestGenerateSelfSigned(t *testing.T) {
 		KubeClient: ki,
 		Namespace:  "test",
 		Proto: &topopb.Node{
-			Name: "pod1",
-			Type: 2,
+			Name:   "pod1",
+			Vendor: topopb.Vendor_NOKIA,
 			Config: &topopb.Config{
 				Cert: &topopb.CertificateCfg{
 					Config: &topopb.CertificateCfg_SelfSigned{
@@ -200,6 +213,94 @@ func TestGenerateSelfSigned(t *testing.T) {
 			err = n.GenerateSelfSigned(ctx)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestResetCfg(t *testing.T) {
+	ki := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod1",
+		},
+	})
+
+	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+		f := &fakeWatch{
+			e: []watch.Event{{
+				Object: &corev1.Pod{
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				},
+			}},
+		}
+		return true, f, nil
+	}
+	ki.PrependWatchReactor("*", reaction)
+
+	ni := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &topopb.Node{
+			Name:   "pod1",
+			Vendor: topopb.Vendor_NOKIA,
+			Config: &topopb.Config{},
+		},
+	}
+
+	tests := []struct {
+		desc     string
+		wantErr  bool
+		ni       *node.Impl
+		testFile string
+	}{
+		{
+			// successfully configure certificate
+			desc:     "success",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "reset_config_success",
+		},
+		// {
+		// 	// device returns "% Invalid input" -- we expect to fail
+		// 	desc:     "failure",
+		// 	wantErr:  true,
+		// 	ni:       ni,
+		// 	testFile: "reset_config_failure",
+		// },
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+
+			if err != nil {
+				t.Fatalf("failed creating srlinux node")
+			}
+
+			n, _ := nImpl.(*Node)
+
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
+			}
+
+			if isVerbose() {
+				li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
+					scraplilogging.WithLogger(t.Log))
+				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
+			}
+
+			ctx := context.Background()
+
+			err = n.ResetCfg(ctx)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("resetting config failed, error: %+v\n", err)
 			}
 		})
 	}

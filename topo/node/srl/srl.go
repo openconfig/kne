@@ -255,7 +255,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	if resp.Failed != nil {
 		return resp.Failed
 	}
-	log.Infof("%s - finshed resetting config", n.Name())
+	log.Infof("%s - finished resetting config", n.Name())
 	return nil
 }
 
