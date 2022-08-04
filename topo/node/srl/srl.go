@@ -245,7 +245,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 
 	defer n.cliConn.Close()
 
-	resp, err := n.cliConn.SendCommand(
+	resp, err := n.cliConn.SendConfig(
 		configResetCmd,
 	)
 	if err != nil {
@@ -256,6 +256,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		return resp.Failed
 	}
 	log.Infof("%s - finished resetting config", n.Name())
+
 	return nil
 }
 

@@ -28,4 +28,9 @@ A:pod1# load factory auto-commit
 --{ + candidate private private-admin }--[  ]--
 A:pod1#
 --{ + candidate private private-admin }--[  ]--
-A:pod1#
+A:pod1# discard now 
+Nothing to discard. Leaving candidate mode.
+--{ + running }--[  ]--
+A:pod1
+--{ + running }--[  ]--
+A:pod1
