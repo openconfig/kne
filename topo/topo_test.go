@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
 	tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
@@ -30,7 +31,7 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	nd "github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
@@ -457,8 +458,8 @@ func TestGetTopologyServices(t *testing.T) {
 			if tc.wantErr != "" {
 				return
 			}
-			if !proto.Equal(got.Topology, tc.want) {
-				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got.Topology, tc.want)
+			if s := cmp.Diff(got.Topology, tc.want, protocmp.Transform()); s != "" {
+				t.Fatalf("get topology service failed: %s", s)
 			}
 		})
 	}
