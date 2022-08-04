@@ -206,7 +206,8 @@ func TestGenerateSelfSigned(t *testing.T) {
 			}
 
 			if scrapliDebug() {
-				li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
+				li, _ := scraplilogging.NewInstance(
+					scraplilogging.WithLevel("debug"),
 					scraplilogging.WithLogger(t.Log))
 				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
 			}
@@ -294,7 +295,8 @@ func TestResetCfg(t *testing.T) {
 			}
 
 			if scrapliDebug() {
-				li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
+				li, _ := scraplilogging.NewInstance(
+					scraplilogging.WithLevel("debug"),
 					scraplilogging.WithLogger(t.Log))
 				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
 			}
