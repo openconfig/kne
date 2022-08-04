@@ -15,7 +15,7 @@ package srl
 
 import (
 	"context"
-	"flag"
+	"os"
 	"testing"
 	"time"
 
@@ -39,15 +39,12 @@ type fakeWatch struct {
 	e []watch.Event
 }
 
-func init() {
-	testing.Init()
-	flag.Parse()
-}
+// scrapliDebug checks if SCRAPLI_DEBUG env var is set.
+// used in testing to enable debug log of scrapligo.
+func scrapliDebug() bool {
+	_, set := os.LookupEnv("SCRAPLI_DEBUG")
 
-// isVerbose checks if go test has been called with -v flag;
-// verbose logging will trigger verbose output in tests.
-func isVerbose() bool {
-	return flag.Lookup("test.v").Value.(flag.Getter).Get().(bool)
+	return set
 }
 
 func (f *fakeWatch) Stop() {}
@@ -208,6 +205,12 @@ func TestGenerateSelfSigned(t *testing.T) {
 				scrapliopts.WithDefaultLogger(),
 			}
 
+			if scrapliDebug() {
+				li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
+					scraplilogging.WithLogger(t.Log))
+				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
+			}
+
 			ctx := context.Background()
 
 			err = n.GenerateSelfSigned(ctx)
@@ -262,13 +265,13 @@ func TestResetCfg(t *testing.T) {
 			ni:       ni,
 			testFile: "reset_config_success",
 		},
-		// {
-		// 	// device returns "% Invalid input" -- we expect to fail
-		// 	desc:     "failure",
-		// 	wantErr:  true,
-		// 	ni:       ni,
-		// 	testFile: "reset_config_failure",
-		// },
+		{
+			// device returns "Error: %s" -- we expect to fail
+			desc:     "failure",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "reset_config_failure",
+		},
 	}
 
 	for _, tt := range tests {
@@ -290,7 +293,7 @@ func TestResetCfg(t *testing.T) {
 				scrapliopts.WithDefaultLogger(),
 			}
 
-			if isVerbose() {
+			if scrapliDebug() {
 				li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
 					scraplilogging.WithLogger(t.Log))
 				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))

@@ -16,15 +16,7 @@ A:pod1# info from state system configuration commit 1 status | grep complete
 A:pod1# enter candidate private
 --{ candidate private private-admin }--[  ]--
 A:pod1# load factory auto-commit  
-/system/configuration/checkpoint[id=__factory__]:
-    Reverting to factory configuration
-
-/:
-    Preamble must be present in configuration file
-
-/:
-    Successfully reverted configuration
-
+Error: something bad happened
 --{ + candidate private private-admin }--[  ]--
 A:pod1#
 --{ + candidate private private-admin }--[  ]--

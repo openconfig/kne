@@ -84,8 +84,6 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return err
 	}
 
-	defer n.cliConn.Close()
-
 	err = srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false)
 	if err != nil {
 		return err
@@ -93,7 +91,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 
 	log.Infof("%s - finished cert generation", n.Name())
 
-	return err
+	return n.cliConn.Close()
 }
 
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
@@ -243,8 +241,6 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		return err
 	}
 
-	defer n.cliConn.Close()
-
 	resp, err := n.cliConn.SendConfig(
 		configResetCmd,
 	)
@@ -257,7 +253,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	}
 	log.Infof("%s - finished resetting config", n.Name())
 
-	return nil
+	return n.cliConn.Close()
 }
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
