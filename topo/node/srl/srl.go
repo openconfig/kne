@@ -21,6 +21,7 @@ import (
 
 const (
 	scrapliPlatformName = "nokia_srl"
+	configResetCmd      = "load factory auto-commit"
 )
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
@@ -51,7 +52,8 @@ type Node struct {
 
 // Add validations for interfaces the node provides
 var (
-	_ node.Certer = (*Node)(nil)
+	_ node.Certer   = (*Node)(nil)
+	_ node.Resetter = (*Node)(nil)
 )
 
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
@@ -82,8 +84,6 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return err
 	}
 
-	defer n.cliConn.Close()
-
 	err = srlinux.AddSelfSignedServerTLSProfile(n.cliConn, selfSigned.CertName, false)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 
 	log.Infof("%s - finished cert generation", n.Name())
 
-	return err
+	return n.cliConn.Close()
 }
 
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
@@ -229,6 +229,31 @@ func defaults(pb *topopb.Node) *topopb.Node {
 		pb.Config.ConfigFile = "config.json"
 	}
 	return pb
+}
+
+// Implement the resetter for SRL
+// Using load factory auto-commit to reset default configs
+func (n *Node) ResetCfg(ctx context.Context) error {
+	log.Infof("%s resetting config", n.Name())
+
+	err := n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+
+	resp, err := n.cliConn.SendConfig(
+		configResetCmd,
+	)
+	if err != nil {
+		return err
+	}
+
+	if resp.Failed != nil {
+		return resp.Failed
+	}
+	log.Infof("%s - finished resetting config", n.Name())
+
+	return n.cliConn.Close()
 }
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
