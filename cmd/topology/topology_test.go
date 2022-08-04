@@ -304,41 +304,47 @@ links: {
 `
 )
 
+type fakeTopologyManager struct {
+	topo    *tpb.Topology
+	showErr error
+}
+
+func (f *fakeTopologyManager) Show(_ context.Context) (*cpb.ShowTopologyResponse, error) {
+	if f.showErr != nil {
+		return &cpb.ShowTopologyResponse{State: cpb.TopologyState_TOPOLOGY_STATE_ERROR}, f.showErr
+	}
+	return &cpb.ShowTopologyResponse{
+		State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+		Topology: f.topo,
+	}, nil
+}
+
 func TestService(t *testing.T) {
 	validProto := &tpb.Topology{}
 	if err := prototext.Unmarshal([]byte(validPbTxt), validProto); err != nil {
 		t.Fatalf("failed to build a valid Topology protobuf for testing: %v", err)
 	}
 	tests := []struct {
-		desc                string
-		args                []string
-		getTopologyServices func(ctx context.Context, params topo.TopologyParams) (*cpb.ShowTopologyResponse, error)
-		want                *tpb.Topology
-		wantErr             string
+		desc        string
+		args        []string
+		topoManager *fakeTopologyManager
+		want        *tpb.Topology
+		wantErr     string
 	}{
 		{
 			desc:    "no args",
 			wantErr: "missing topology",
 			args:    []string{"service"},
 		}, {
-			desc: "fail to get topology service",
-			getTopologyServices: func(context.Context, topo.TopologyParams) (*cpb.ShowTopologyResponse, error) {
-				return &cpb.ShowTopologyResponse{
-					State: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-				}, fmt.Errorf("some error")
-			},
-			wantErr: "some error",
-			args:    []string{"service", "testdata/valid_topo.pb.txt"},
+			desc:        "fail to get topology service",
+			topoManager: &fakeTopologyManager{showErr: fmt.Errorf("some error")},
+			wantErr:     "some error",
+			args:        []string{"service", "testdata/valid_topo.pb.txt"},
 		}, {
-			desc: "valid case",
-			getTopologyServices: func(context.Context, topo.TopologyParams) (*cpb.ShowTopologyResponse, error) {
-				return &cpb.ShowTopologyResponse{
-					State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
-					Topology: validProto,
-				}, nil
-			},
-			want: validProto,
-			args: []string{"service", "testdata/valid_topo.pb.txt"},
+			desc:        "valid case",
+			topoManager: &fakeTopologyManager{topo: validProto},
+			want:        validProto,
+			args:        []string{"service", "testdata/valid_topo.pb.txt"},
 		},
 	}
 
@@ -346,10 +352,12 @@ func TestService(t *testing.T) {
 	sCmd.PersistentFlags().String("kubecfg", "", "")
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			origGetTopologyServices := getTopologyServices
-			getTopologyServices = tt.getTopologyServices
+			origNewTopologyManager := newTopologyManager
+			newTopologyManager = func(topopb *tpb.Topology, opts ...topo.Option) (TopologyManager, error) {
+				return tt.topoManager, nil
+			}
 			defer func() {
-				getTopologyServices = origGetTopologyServices
+				newTopologyManager = origNewTopologyManager
 			}()
 			buf := bytes.NewBuffer([]byte{})
 			sCmd.SetOut(buf)

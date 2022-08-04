@@ -21,11 +21,14 @@ import (
 	"path/filepath"
 
 	"github.com/openconfig/gnmi/errlist"
+	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -72,6 +75,7 @@ func New() *cobra.Command {
 var (
 	skipReset  bool
 	pushConfig bool
+	opts       []topo.Option
 )
 
 func fileRelative(p string) (string, error) {
@@ -81,10 +85,6 @@ func fileRelative(p string) (string, error) {
 	}
 	return filepath.Dir(bp), nil
 }
-
-var (
-	opts []topo.Option
-)
 
 func resetCfgFn(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || len(args) > 2 {
@@ -98,38 +98,34 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	t, err := topo.New(s, topopb, opts...)
+	tOpts := append(opts, topo.WithKubecfg(s))
+	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	ctx := cmd.Context()
-	t.Load(ctx)
-	nodes := t.Nodes()
+	nodes := map[string]node.Node{}
+	for _, n := range tm.Nodes() {
+		nodes[n.Name()] = n
+	}
 	if len(args) > 1 {
-		n, err := t.Node(args[1])
-		if err != nil {
-			return err
-		}
-		nodes = []node.Node{n}
+		nodes = map[string]node.Node{args[1]: nodes[args[1]]}
 	}
-	var canReset []node.Node
-	for _, n := range nodes {
-		_, ok := n.(node.Resetter)
-		if !ok {
-			if skipReset {
-				continue
-			}
-			return fmt.Errorf("node %s is not resettable and --skip not set", n.Name())
-		}
-		canReset = append(canReset, n)
-	}
-	for _, r := range canReset {
-		if err := r.(node.Resetter).ResetCfg(ctx); err != nil {
+	for name := range nodes {
+		err := tm.ResetCfg(cmd.Context(), name)
+		switch {
+		default:
 			return err
+		case err == nil:
+		case status.Code(err) == codes.Unimplemented && !skipReset:
+			return fmt.Errorf("node %q is not a Resetter and --skip not set", name)
+		case status.Code(err) == codes.Unimplemented:
+			log.Infof("Skipping node %q not a Resetter", name)
+			delete(nodes, name)
+			continue
 		}
 	}
 	if !pushConfig {
-		log.Infof("Finished reseting resetable nodes to vendor default configuration")
+		log.Infof("Finished resetting resettable nodes to vendor default configuration")
 		return nil
 	}
 	log.Infof("Trying to repush devices configs: %q", args[0])
@@ -138,15 +134,10 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to find relative path for topology: %v", err)
 	}
 	var errList errlist.List
-	for _, n := range canReset {
-		cd := n.GetProto().GetConfig().GetConfigData()
+	for name, node := range nodes {
+		cd := node.GetProto().GetConfig().GetConfigData()
 		if cd == nil {
-			log.Infof("Skipping node %q no config provided", n.Name())
-			continue
-		}
-		cp, ok := n.(node.ConfigPusher)
-		if !ok {
-			log.Infof("Skipping node %q not a ConfigPusher", n.Name())
+			log.Infof("Skipping node %q no config provided", name)
 			continue
 		}
 		var b []byte
@@ -158,7 +149,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 			if !filepath.IsAbs(cPath) {
 				cPath = filepath.Join(bp, cPath)
 			}
-			log.Infof("Pushing configuration %q to %q", cPath, n.Name())
+			log.Infof("Pushing configuration %q to %q", cPath, name)
 			var err error
 			b, err = os.ReadFile(cPath)
 			if err != nil {
@@ -166,8 +157,15 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 				continue
 			}
 		}
-		if err := cp.ConfigPush(context.Background(), bytes.NewBuffer(b)); err != nil {
+		err := tm.ConfigPush(cmd.Context(), name, bytes.NewBuffer(b))
+		switch {
+		default:
 			errList.Add(err)
+			continue
+		case err == nil:
+		case status.Code(err) == codes.Unimplemented:
+			log.Infof("Skipping node %q not a ConfigPusher", name)
+			continue
 		}
 	}
 	return errList.Err()
@@ -185,13 +183,12 @@ func pushFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	t, err := topo.New(s, topopb, opts...)
+	tOpts := append(opts, topo.WithKubecfg(s))
+	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
 
-	ctx := cmd.Context()
-	t.Load(ctx)
 	fp, err := os.Open(args[2])
 	if err != nil {
 		return err
@@ -201,10 +198,7 @@ func pushFn(cmd *cobra.Command, args []string) error {
 			log.Warnf("failed to close config file %q", args[2])
 		}
 	}()
-	if err := t.ConfigPush(ctx, args[1], fp); err != nil {
-		return err
-	}
-	return nil
+	return tm.ConfigPush(cmd.Context(), args[1], fp)
 }
 
 func watchFn(cmd *cobra.Command, args []string) error {
@@ -219,14 +213,12 @@ func watchFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	t, err := topo.New(s, topopb)
+	tOpts := append(opts, topo.WithKubecfg(s))
+	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	if err := t.Watch(cmd.Context()); err != nil {
-		return err
-	}
-	return nil
+	return tm.Watch(cmd.Context())
 }
 
 func certFn(cmd *cobra.Command, args []string) error {
@@ -241,38 +233,40 @@ func certFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	t, err := topo.New(s, topopb)
+	tOpts := append(opts, topo.WithKubecfg(s))
+	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	t.Load(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("%s: %w", cmd.Use, err)
-	}
-	n, err := t.Node(args[1])
-	if err != nil {
-		return err
-	}
-	return topo.GenerateSelfSigned(cmd.Context(), n)
+	return tm.GenerateSelfSigned(cmd.Context(), args[1])
 }
 
-var (
-	getTopologyServices = topo.GetTopologyServices
-)
+var newTopologyManager = func(topopb *tpb.Topology, opts ...topo.Option) (TopologyManager, error) {
+	return topo.New(topopb, opts...)
+}
+
+type TopologyManager interface {
+	Show(ctx context.Context) (*cpb.ShowTopologyResponse, error)
+}
 
 func serviceFn(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("%s: missing topology", cmd.Use)
 	}
-	kubeCfg, err := cmd.Flags().GetString("kubecfg")
+	topopb, err := topo.Load(args[0])
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	s, err := cmd.Flags().GetString("kubecfg")
 	if err != nil {
 		return err
 	}
-	param := topo.TopologyParams{
-		TopoName: args[0],
-		Kubecfg:  kubeCfg,
+	tOpts := append(opts, topo.WithKubecfg(s))
+	tm, err := topo.New(topopb, tOpts...)
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	ts, err := getTopologyServices(cmd.Context(), param)
+	ts, err := tm.Show(cmd.Context())
 	if err != nil {
 		return err
 	}

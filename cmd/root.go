@@ -123,22 +123,27 @@ func createFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Infof(bp)
-	p := topo.TopologyParams{
-		TopoName:       args[0],
-		Kubecfg:        kubecfg,
-		TopoNewOptions: []topo.Option{topo.WithBasePath(bp)},
-		Timeout:        timeout,
-		DryRun:         dryrun,
+	topopb, err := topo.Load(args[0])
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	return topo.CreateTopology(cmd.Context(), p)
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp))
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	return tm.Create(cmd.Context(), timeout, dryrun)
 }
 
 func deleteFn(cmd *cobra.Command, args []string) error {
-	p := topo.TopologyParams{
-		TopoName: args[0],
-		Kubecfg:  kubecfg,
+	topopb, err := topo.Load(args[0])
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	return topo.DeleteTopology(cmd.Context(), p)
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg))
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	return tm.Delete(cmd.Context())
 }
 
 func showFn(cmd *cobra.Command, args []string) error {
@@ -146,15 +151,12 @@ func showFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	t, err := topo.New(kubecfg, topopb)
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	if err := t.Load(cmd.Context()); err != nil {
-		return err
-	}
 	out := cmd.OutOrStdout()
-	r, err := t.Resources(cmd.Context())
+	r, err := tm.Resources(cmd.Context())
 	if err != nil {
 		return err
 	}
