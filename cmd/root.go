@@ -131,7 +131,10 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	return tm.Create(cmd.Context(), timeout, dryrun)
+	if dryrun {
+		return nil
+	}
+	return tm.Create(cmd.Context(), timeout)
 }
 
 func deleteFn(cmd *cobra.Command, args []string) error {

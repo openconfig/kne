@@ -141,65 +141,6 @@ links: {
 `
 )
 
-// defaultFakeTopology serves as a testing fake with default implementation.
-type defaultFakeTopology struct{}
-
-func (f *defaultFakeTopology) Load(context.Context) error {
-	return nil
-}
-
-func (f *defaultFakeTopology) Topology(context.Context) ([]topologyv1.Topology, error) {
-	return nil, nil
-}
-
-func (f *defaultFakeTopology) TopologyProto() *tpb.Topology {
-	return nil
-}
-
-func (f *defaultFakeTopology) Push(context.Context) error {
-	return nil
-}
-
-func (f *defaultFakeTopology) CheckNodeStatus(context.Context, time.Duration) error {
-	return nil
-}
-
-func (f *defaultFakeTopology) Delete(context.Context) error {
-	return nil
-}
-
-func (f *defaultFakeTopology) Nodes() []node.Node {
-	return nil
-}
-
-func (f *defaultFakeTopology) Resources(context.Context) (*Resources, error) {
-	return nil, nil
-}
-
-func (f *defaultFakeTopology) Watch(context.Context) error {
-	return nil
-}
-
-func (f *defaultFakeTopology) ConfigPush(context.Context, string, io.Reader) error {
-	return nil
-}
-
-func (f *defaultFakeTopology) ResetCfg(context.Context, string) error {
-	return nil
-}
-
-func (f *defaultFakeTopology) Node(string) (node.Node, error) {
-	return nil, nil
-}
-
-func (f *defaultFakeTopology) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
-	return nil, nil
-}
-
-func (f *defaultFakeTopology) TopologyResources(context.Context) ([]*topologyv1.Topology, error) {
-	return nil, nil
-}
-
 func TestCreateTopology(t *testing.T) {
 	tf, err := tfake.NewSimpleClientset()
 	if err != nil {
@@ -302,27 +243,6 @@ func TestDeleteTopology(t *testing.T) {
 			}
 		})
 	}
-}
-
-// fakeTopology is used to test GetTopologyServices().
-type fakeTopology struct {
-	defaultFakeTopology
-	resources *Resources
-	proto     *tpb.Topology
-	rErr      error
-	lErr      error
-}
-
-func (f *fakeTopology) Load(context.Context) error {
-	return f.lErr
-}
-
-func (f *fakeTopology) TopologyProto() *tpb.Topology {
-	return f.proto
-}
-
-func (f *fakeTopology) Resources(context.Context) (*Resources, error) {
-	return f.resources, f.rErr
 }
 
 func TestGetTopologyServices(t *testing.T) {
@@ -526,11 +446,11 @@ func TestStateMap(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			sm := &sMap{}
+			sm := &stateMap{}
 			for _, n := range tc.nodes {
-				sm.SetNodeState(n.name, n.phase)
+				sm.setNodeState(n.name, n.phase)
 			}
-			got := sm.TopoState()
+			got := sm.topologyState()
 			if tc.want != got {
 				t.Fatalf("want: %+v, got: %+v", tc.want, got)
 			}

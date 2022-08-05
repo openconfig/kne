@@ -99,7 +99,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	tOpts := append(opts, topo.WithKubecfg(s))
-	tm, err := topo.New(topopb, tOpts...)
+	tm, err := topo.New(cmd.Context(), topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -184,7 +184,7 @@ func pushFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	tOpts := append(opts, topo.WithKubecfg(s))
-	tm, err := topo.New(topopb, tOpts...)
+	tm, err := topo.New(cmd.Context(), topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -214,7 +214,7 @@ func watchFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	tOpts := append(opts, topo.WithKubecfg(s))
-	tm, err := topo.New(topopb, tOpts...)
+	tm, err := topo.New(cmd.Context(), topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -234,15 +234,15 @@ func certFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	tOpts := append(opts, topo.WithKubecfg(s))
-	tm, err := topo.New(topopb, tOpts...)
+	tm, err := topo.New(cmd.Context(), topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
 	return tm.GenerateSelfSigned(cmd.Context(), args[1])
 }
 
-var newTopologyManager = func(topopb *tpb.Topology, opts ...topo.Option) (TopologyManager, error) {
-	return topo.New(topopb, opts...)
+var newTopologyManager = func(ctx context.Context, topopb *tpb.Topology, opts ...topo.Option) (TopologyManager, error) {
+	return topo.New(ctx, topopb, opts...)
 }
 
 type TopologyManager interface {
@@ -262,7 +262,7 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	tOpts := append(opts, topo.WithKubecfg(s))
-	tm, err := topo.New(topopb, tOpts...)
+	tm, err := newTopologyManager(cmd.Context(), topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

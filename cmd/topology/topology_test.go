@@ -189,7 +189,7 @@ func TestReset(t *testing.T) {
 	}, {
 		desc:    "valid topology no skip",
 		args:    []string{"reset", fNoConfig.Name(), "--skip=false"},
-		wantErr: "node notresettable1 is not resettable",
+		wantErr: `node "notresettable1" is not a Resetter`,
 	}, {
 		desc: "valid topology no skip",
 		args: []string{"reset", fNoConfig.Name(), "--skip"},
@@ -353,7 +353,7 @@ func TestService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			origNewTopologyManager := newTopologyManager
-			newTopologyManager = func(topopb *tpb.Topology, opts ...topo.Option) (TopologyManager, error) {
+			newTopologyManager = func(_ context.Context, _ *tpb.Topology, _ ...topo.Option) (TopologyManager, error) {
 				return tt.topoManager, nil
 			}
 			defer func() {
@@ -423,8 +423,9 @@ func TestPush(t *testing.T) {
 		args:    []string{"push", fConfig.Name(), "foo", confFile.Name()},
 		wantErr: `node "foo" not found`,
 	}, {
-		desc: "valid file notconfigable device",
-		args: []string{"push", fConfig.Name(), "notconfigable", confFile.Name()},
+		desc:    "valid file notconfigable device",
+		args:    []string{"push", fConfig.Name(), "notconfigable", confFile.Name()},
+		wantErr: "does not implement ConfigPusher",
 	}, {
 		desc: "valid file",
 		args: []string{"push", fConfig.Name(), "configable", confFile.Name()},

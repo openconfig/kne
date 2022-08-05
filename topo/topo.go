@@ -100,7 +100,7 @@ func WithBasePath(s string) Option {
 }
 
 // New creates a new Manager based on the provided topology.
-func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
+func New(ctx context.Context, topo *tpb.Topology, opts ...Option) (*Manager, error) {
 	if topo == nil {
 		return nil, fmt.Errorf("topology cannot be nil")
 	}
@@ -111,7 +111,6 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 	for _, o := range opts {
 		o(m)
 	}
-	log.Infof("Creating manager for: %s", m.topo.Name)
 	if m.rCfg == nil {
 		// If config not provided, try the in-cluster config first. If not fallback to the kubeconfig.
 		log.Infof("Trying in-cluster configuration")
@@ -139,18 +138,16 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 		}
 		m.tClient = tClient
 	}
+	if err := m.load(ctx); err != nil {
+		return nil, fmt.Errorf("failed to load topology: %w", err)
+	}
+	log.Infof("Created manager for topology:\n%v", prototext.Format(m.topo))
 	return m, nil
 }
 
 // Create creates the topology in the cluster.
-func (m *Manager) Create(ctx context.Context, timeout time.Duration, dryRun bool) error {
+func (m *Manager) Create(ctx context.Context, timeout time.Duration) error {
 	log.Infof("Topology:\n%v", prototext.Format(m.topo))
-	if err := m.load(ctx); err != nil {
-		return fmt.Errorf("failed to load topology: %w", err)
-	}
-	if dryRun {
-		return nil
-	}
 	if err := m.push(ctx); err != nil {
 		return err
 	}
@@ -164,10 +161,6 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration, dryRun bool
 // Delete deletes the topology from the cluster.
 func (m *Manager) Delete(ctx context.Context) error {
 	log.Infof("Topology:\n%v", prototext.Format(m.topo))
-	if err := m.load(ctx); err != nil {
-		return fmt.Errorf("failed to load topology: %w", err)
-	}
-
 	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.topo.Name, metav1.GetOptions{}); err != nil {
 		return fmt.Errorf("topology %q does not exist in cluster", m.topo.Name)
 	}
@@ -192,9 +185,6 @@ func (m *Manager) Delete(ctx context.Context) error {
 // Show returns the topology information including services and node health.
 func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 	log.Infof("Topology:\n%v", prototext.Format(m.topo))
-	if err := m.load(ctx); err != nil {
-		return nil, fmt.Errorf("failed to load topology: %w", err)
-	}
 	r, err := m.Resources(ctx)
 	if err != nil {
 		return nil, err
