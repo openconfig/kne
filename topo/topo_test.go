@@ -15,33 +15,29 @@
 package topo
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"testing"
-	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
-	tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
-	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	// tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
+	// topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	nd "github.com/openconfig/kne/topo/node"
-	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	kfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
+	// "google.golang.org/protobuf/encoding/prototext"
+	// "google.golang.org/protobuf/proto"
+	// corev1 "k8s.io/api/core/v1"
+	// "k8s.io/apimachinery/pkg/util/intstr"
+	// kfake "k8s.io/client-go/kubernetes/fake"
+	// "k8s.io/client-go/rest"
 )
 
 func TestLoad(t *testing.T) {
-	type args struct {
-		fName string
-	}
-
 	invalidPb, err := os.CreateTemp(".", "invalid*.pb.txt")
 	if err != nil {
 		t.Errorf("failed creating tmp pb: %v", err)
@@ -68,22 +64,29 @@ func TestLoad(t *testing.T) {
 	`)
 
 	tests := []struct {
-		name    string
-		args    args
+		desc    string
+		path    string
 		wantErr bool
-	}{
-		{name: "pb", args: args{fName: "../examples/2node-ixia-ceos.pb.txt"}, wantErr: false},
-		{name: "yaml", args: args{fName: "../examples/2node-ixia-ceos.yaml"}, wantErr: false},
-		{name: "invalid-pb", args: args{fName: invalidPb.Name()}, wantErr: true},
-		{name: "invalid-yaml", args: args{fName: invalidYaml.Name()}, wantErr: true},
-	}
-
+	}{{
+		desc: "pb",
+		path: "../examples/2node-ixia-ceos.pb.txt",
+	}, {
+		desc: "yaml",
+		path: "../examples/2node-ixia-ceos.yaml",
+	}, {
+		desc:    "invalid-pb",
+		path:    invalidPb.Name(),
+		wantErr: true,
+	}, {
+		desc:    "invalid-yaml",
+		path:    invalidYaml.Name(),
+		wantErr: true,
+	}}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := Load(tt.args.fName)
+		t.Run(tt.desc, func(t *testing.T) {
+			_, err := Load(tt.path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
-				return
 			}
 		})
 	}
@@ -141,304 +144,309 @@ links: {
 `
 )
 
-func TestCreateTopology(t *testing.T) {
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset")
-	}
-	opts := []Option{
-		WithClusterConfig(&rest.Config{}),
-		WithKubeClient(kfake.NewSimpleClientset()),
-		WithTopoClient(tf),
-	}
+func TestNew(t *testing.T) {} // TODO
 
+func TestCreate(t *testing.T) {} // TODO
+
+func TestDelete(t *testing.T) {} // TODO
+
+func TestShow(t *testing.T) {} // TODO
+
+func TestWatch(t *testing.T) {} // TODO
+
+func TestResources(t *testing.T) {} // TODO
+
+func TestNodes(t *testing.T) {
+	aNode := &configurable{}
+	bNode := &configurable{}
+	cNode := &configurable{}
 	tests := []struct {
-		desc       string
-		inputParam TopologyParams
-		wantErr    string
+		desc  string
+		nodes map[string]node.Node
+		want  []node.Node
 	}{{
-		desc: "create with valid topology file",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/valid_topo.pb.txt",
-			TopoNewOptions: opts,
-			DryRun:         true,
+		desc: "non-zero nodes",
+		nodes: map[string]node.Node{
+			"a": aNode,
+			"b": bNode,
+			"c": cNode,
 		},
-		wantErr: "",
+		want: []node.Node{
+			aNode,
+			bNode,
+			cNode,
+		},
 	}, {
-		desc: "create with non-existent topology file",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/non_existing.pb.txt",
-			TopoNewOptions: opts,
-			DryRun:         true,
-		},
-		wantErr: "no such file or directory",
-	}, {
-		desc: "create with invalid topology",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/invalid_topo.pb.txt",
-			TopoNewOptions: opts,
-			DryRun:         true,
-		},
-		wantErr: "invalid topology",
-	},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.desc, func(t *testing.T) {
-			err := CreateTopology(context.Background(), tc.inputParam)
-			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
-				t.Fatalf("failed: %+v", err)
+		desc: "zero nodes",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			m := &Manager{nodes: tt.nodes}
+			got := m.Nodes()
+			if s := cmp.Diff(got, tt.want); s != "" {
+				t.Errorf("Nodes() unexpected diff: %s", s)
 			}
 		})
 	}
 }
 
-func TestDeleteTopology(t *testing.T) {
-	tf, err := tfake.NewSimpleClientset()
+type configurable struct {
+	*node.Impl
+}
+
+func (c *configurable) ConfigPush(_ context.Context, r io.Reader) error {
+	b, err := io.ReadAll(r)
 	if err != nil {
-		t.Fatalf("cannot create fake topology clientset")
+		return err
 	}
-	opts := []Option{
-		WithClusterConfig(&rest.Config{}),
-		WithKubeClient(kfake.NewSimpleClientset()),
-		WithTopoClient(tf),
+	if string(b) == "error" {
+		return fmt.Errorf("error")
 	}
+	return nil
+}
 
+type notConfigurable struct {
+	*node.Impl
+}
+
+func TestConfigPush(t *testing.T) {
+	m := &Manager{
+		nodes: map[string]node.Node{
+			"configurable":     &configurable{},
+			"not_configurable": &notConfigurable{},
+		},
+	}
 	tests := []struct {
-		desc       string
-		inputParam TopologyParams
-		wantErr    string
+		desc    string
+		name    string
+		cfg     io.Reader
+		wantErr string
 	}{{
-		desc: "delete a non-existing topology with valid topology file",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/valid_topo.pb.txt",
-			TopoNewOptions: opts,
-			DryRun:         true,
-		},
-		wantErr: "does not exist in cluster",
+		desc: "configurable good config",
+		name: "configurable",
+		cfg:  bytes.NewReader([]byte("good config")),
 	}, {
-		desc: "delete with non-existent topology file",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/non_existing.pb.txt",
-			TopoNewOptions: opts,
-			DryRun:         true,
-		},
-		wantErr: "no such file or directory",
+		desc:    "configurable bad config",
+		name:    "configurable",
+		cfg:     bytes.NewReader([]byte("error")),
+		wantErr: "error",
 	}, {
-		desc: "delete with invalid topology",
-		inputParam: TopologyParams{
-			TopoName:       "testdata/invalid_topo.pb.txt",
-			TopoNewOptions: opts,
-			DryRun:         true,
-		},
-		wantErr: "invalid topology",
-	},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.desc, func(t *testing.T) {
-			err := DeleteTopology(context.Background(), tc.inputParam)
-			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
-				t.Fatalf("failed: %+v", err)
+		desc:    "not configurable",
+		name:    "not_configurable",
+		wantErr: "does not implement ConfigPusher interface",
+	}, {
+		desc:    "node not found",
+		name:    "dne",
+		wantErr: "not found",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			err := m.ConfigPush(context.Background(), tt.name, tt.cfg)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("ConfigPush() unexpected error: %s", s)
 			}
 		})
 	}
 }
 
-func TestGetTopologyServices(t *testing.T) {
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset")
-	}
-	opts := []Option{
-		WithClusterConfig(&rest.Config{}),
-		WithKubeClient(kfake.NewSimpleClientset()),
-		WithTopoClient(tf),
-	}
+type resettable struct {
+	*node.Impl
+	rErr string
+}
 
-	validTopoIn, err := Load("testdata/valid_topo.pb.txt")
-	if err != nil {
-		t.Fatalf("cannot load the valid topoplogy proto as input: %v", err)
+func (r *resettable) ResetCfg(_ context.Context) error {
+	if r.rErr != "" {
+		return fmt.Errorf(r.rErr)
 	}
-	validTopoOut := &tpb.Topology{}
-	if err := prototext.Unmarshal([]byte(validPbTxt), validTopoOut); err != nil {
-		t.Fatalf("cannot Unmarshal validTopo: %v", err)
+	return nil
+}
+
+type notResettable struct {
+	*node.Impl
+}
+
+func TestResetCfg(t *testing.T) {
+	m := &Manager{
+		nodes: map[string]node.Node{
+			"resettable":     &resettable{},
+			"resettable_err": &resettable{rErr: "failed to reset"},
+			"not_resettable": &notResettable{},
+		},
 	}
 	tests := []struct {
-		desc        string
-		inputParam  TopologyParams
-		topoNewFunc func(string, *tpb.Topology, ...Option) (TopologyManager, error)
-		want        *tpb.Topology
-		wantErr     string
-	}{
-		{
-			desc: "load topology error",
-			inputParam: TopologyParams{
-				TopoName:       "testdata/not_there.pb.txt",
-				TopoNewOptions: opts,
-			},
-			wantErr: "no such file or directory",
-		},
-		{
-			desc: "empty resources",
-			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-				return &fakeTopology{
-					proto:     validTopoIn,
-					resources: &Resources{},
-				}, nil
-			},
-			wantErr: "not found",
-		},
-		{
-			desc: "load fail",
-			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-				return &fakeTopology{
-					lErr:      fmt.Errorf("load failed"),
-					resources: &Resources{},
-				}, nil
-			},
-			wantErr: "load failed",
-		},
-		{
-			desc: "valid case",
-			topoNewFunc: func(string, *tpb.Topology, ...Option) (TopologyManager, error) {
-				return &fakeTopology{
-					proto: validTopoIn,
-					resources: &Resources{
-						Services: map[string][]*corev1.Service{
-							"otg": {
-								{
-									Spec: corev1.ServiceSpec{
-										ClusterIP: "1.1.1.1",
-										Ports: []corev1.ServicePort{{
-											Port:     40051,
-											NodePort: 20001,
-											Name:     "grpc",
-										}},
-									},
-									Status: corev1.ServiceStatus{
-										LoadBalancer: corev1.LoadBalancerStatus{
-											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
-										},
-									},
-								},
-								{
-									Spec: corev1.ServiceSpec{
-										ClusterIP: "1.1.1.1",
-										Ports: []corev1.ServicePort{{
-											Port:     50051,
-											NodePort: 20000,
-											Name:     "gnmi",
-										}},
-									},
-									Status: corev1.ServiceStatus{
-										LoadBalancer: corev1.LoadBalancerStatus{
-											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.100"}},
-										},
-									},
-								},
-							},
-							"r1": {
-								{
-									Spec: corev1.ServiceSpec{
-										ClusterIP: "1.1.1.2",
-										Ports: []corev1.ServicePort{{
-											Port:       1002,
-											NodePort:   22,
-											Name:       "ssh",
-											TargetPort: intstr.IntOrString{IntVal: 22},
-										}},
-									},
-									Status: corev1.ServiceStatus{
-										LoadBalancer: corev1.LoadBalancerStatus{
-											Ingress: []corev1.LoadBalancerIngress{{IP: "100.100.100.101"}},
-										},
-									},
-								},
-							},
+		desc    string
+		name    string
+		wantErr string
+	}{{
+		desc: "resettable",
+		name: "resettable",
+	}, {
+		desc:    "resettable failure",
+		name:    "resettable_err",
+		wantErr: "failed to reset",
+	}, {
+		desc:    "not resettable",
+		name:    "not_resettable",
+		wantErr: "does not implement Resetter interface",
+	}, {
+		desc:    "node not found",
+		name:    "dne",
+		wantErr: "not found",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			err := m.ResetCfg(context.Background(), tt.name)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("ResetCfg() unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+type certable struct {
+	*node.Impl
+	proto *tpb.Node
+	gErr  string
+}
+
+func (c *certable) GetProto() *tpb.Node {
+	return c.proto
+}
+
+func (c *certable) GenerateSelfSigned(_ context.Context) error {
+	if c.gErr != "" {
+		return fmt.Errorf(c.gErr)
+	}
+	return nil
+}
+
+type notCertable struct {
+	*node.Impl
+	proto *tpb.Node
+}
+
+func (nc *notCertable) GetProto() *tpb.Node {
+	return nc.proto
+}
+
+func TestGenerateSelfSigned(t *testing.T) {
+	m := &Manager{
+		nodes: map[string]node.Node{
+			"certable": &certable{
+				proto: &tpb.Node{
+					Config: &tpb.Config{
+						Cert: &tpb.CertificateCfg{
+							Config: &tpb.CertificateCfg_SelfSigned{},
 						},
 					},
-				}, nil
+				},
 			},
-			wantErr: "",
-			want:    validTopoOut,
+			"certable_err": &certable{
+				gErr: "failed to generate certs",
+				proto: &tpb.Node{
+					Config: &tpb.Config{
+						Cert: &tpb.CertificateCfg{
+							Config: &tpb.CertificateCfg_SelfSigned{},
+						},
+					},
+				},
+			},
+			"not_certable": &notCertable{
+				proto: &tpb.Node{
+					Config: &tpb.Config{
+						Cert: &tpb.CertificateCfg{
+							Config: &tpb.CertificateCfg_SelfSigned{},
+						},
+					},
+				},
+			},
+			"no_info": &certable{},
 		},
 	}
-
-	for _, tc := range tests {
-		t.Run(tc.desc, func(t *testing.T) {
-			if tc.topoNewFunc != nil {
-				origNew := new
-				new = tc.topoNewFunc
-				defer func() {
-					new = origNew
-				}()
-			}
-			got, err := GetTopologyServices(context.Background(), tc.inputParam)
-			if diff := errdiff.Check(err, tc.wantErr); diff != "" {
-				t.Fatalf("get topology service returned unexpected error: gotErr: %+v, wantErr: %+v", err, tc.wantErr)
-			}
-			if tc.wantErr != "" {
-				return
-			}
-			if !proto.Equal(got.Topology, tc.want) {
-				t.Fatalf("get topology service failed: got:\n%s\n, want:\n%s\n", got.Topology, tc.want)
+	tests := []struct {
+		desc    string
+		name    string
+		wantErr string
+	}{{
+		desc: "certable",
+		name: "certable",
+	}, {
+		desc:    "certable failure",
+		name:    "certable_err",
+		wantErr: "failed to generate certs",
+	}, {
+		desc:    "not certable",
+		name:    "not_certable",
+		wantErr: "does not implement Certer interface",
+	}, {
+		desc: "no cert info",
+		name: "no_info",
+	}, {
+		desc:    "node not found",
+		name:    "dne",
+		wantErr: "not found",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			err := m.GenerateSelfSigned(context.Background(), tt.name)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("GenerateSelfSigned() unexpected error: %s", s)
 			}
 		})
 	}
 }
 
 func TestStateMap(t *testing.T) {
-	type node struct {
+	type nodeInfo struct {
 		name  string
-		phase nd.Status
+		phase node.Status
 	}
 
 	tests := []struct {
 		desc  string
-		nodes []*node
+		nodes []*nodeInfo
 		want  cpb.TopologyState
 	}{{
 		desc: "no nodes",
 		want: cpb.TopologyState_TOPOLOGY_STATE_UNSPECIFIED,
 	}, {
 		desc: "one node failed",
-		nodes: []*node{
-			{"n1", nd.StatusFailed},
-			{"n2", nd.StatusRunning},
-			{"n3", nd.StatusRunning},
+		nodes: []*nodeInfo{
+			{"n1", node.StatusFailed},
+			{"n2", node.StatusRunning},
+			{"n3", node.StatusRunning},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed with one node pending",
-		nodes: []*node{
-			{"n1", nd.StatusFailed},
-			{"n2", nd.StatusRunning},
-			{"n3", nd.StatusRunning},
+		nodes: []*nodeInfo{
+			{"n1", node.StatusFailed},
+			{"n2", node.StatusRunning},
+			{"n3", node.StatusRunning},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node failed, one node pending, one node unknown",
-		nodes: []*node{
-			{"n1", nd.StatusFailed},
-			{"n2", nd.StatusPending},
-			{"n3", nd.StatusUnknown},
+		nodes: []*nodeInfo{
+			{"n1", node.StatusFailed},
+			{"n2", node.StatusPending},
+			{"n3", node.StatusUnknown},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "all nodes failed",
-		nodes: []*node{
-			{"n1", nd.StatusFailed},
-			{"n2", nd.StatusFailed},
-			{"n3", nd.StatusFailed},
+		nodes: []*nodeInfo{
+			{"n1", node.StatusFailed},
+			{"n2", node.StatusFailed},
+			{"n3", node.StatusFailed},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_ERROR,
 	}, {
 		desc: "one node pending",
-		nodes: []*node{
-			{"n1", nd.StatusPending},
-			{"n2", nd.StatusRunning},
-			{"n3", nd.StatusRunning},
+		nodes: []*nodeInfo{
+			{"n1", node.StatusPending},
+			{"n2", node.StatusRunning},
+			{"n3", node.StatusRunning},
 		},
 		want: cpb.TopologyState_TOPOLOGY_STATE_CREATING,
 	},

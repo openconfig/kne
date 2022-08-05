@@ -521,49 +521,49 @@ func (m *Manager) topologyResources(ctx context.Context) ([]*topologyv1.Topology
 	return items, nil
 }
 
-// ConfigPush will push config to the provided device. If the node does
+// ConfigPush will push config to the provided node. If the node does
 // not fulfill ConfigPusher then status.Unimplemented error will be returned.
-func (m *Manager) ConfigPush(ctx context.Context, deviceName string, r io.Reader) error {
-	n, ok := m.nodes[deviceName]
+func (m *Manager) ConfigPush(ctx context.Context, nodeName string, r io.Reader) error {
+	n, ok := m.nodes[nodeName]
 	if !ok {
-		return fmt.Errorf("node %q not found", deviceName)
+		return fmt.Errorf("node %q not found", nodeName)
 	}
 	cp, ok := n.(node.ConfigPusher)
 	if !ok {
-		return status.Errorf(codes.Unimplemented, "node %s does not implement ConfigPusher interface", n.Name())
+		return status.Errorf(codes.Unimplemented, "node %q does not implement ConfigPusher interface", nodeName)
 	}
 	return cp.ConfigPush(ctx, r)
 }
 
-// ResetCfg will reset the config for the provided device. If the node does
+// ResetCfg will reset the config for the provided node. If the node does
 // not fulfill Resetter then status.Unimplemented error will be returned.
-func (m *Manager) ResetCfg(ctx context.Context, deviceName string) error {
-	n, ok := m.nodes[deviceName]
+func (m *Manager) ResetCfg(ctx context.Context, nodeName string) error {
+	n, ok := m.nodes[nodeName]
 	if !ok {
-		return fmt.Errorf("node %q not found", deviceName)
+		return fmt.Errorf("node %q not found", nodeName)
 	}
 	r, ok := n.(node.Resetter)
 	if !ok {
-		return status.Errorf(codes.Unimplemented, "node %s does not implement Resetter interface", n.Name())
+		return status.Errorf(codes.Unimplemented, "node %q does not implement Resetter interface", nodeName)
 	}
 	return r.ResetCfg(ctx)
 }
 
-// GenerateSelfSigned will create self signed certs on the provided device.
+// GenerateSelfSigned will create self signed certs on the provided node.
 // If the node does not have cert info then it is a noop. If the node does
 // not fulfill Certer then status.Unimplemented error will be returned.
-func (m *Manager) GenerateSelfSigned(ctx context.Context, deviceName string) error {
-	n, ok := m.nodes[deviceName]
+func (m *Manager) GenerateSelfSigned(ctx context.Context, nodeName string) error {
+	n, ok := m.nodes[nodeName]
 	if !ok {
-		return fmt.Errorf("node %q not found", deviceName)
+		return fmt.Errorf("node %q not found", nodeName)
 	}
 	if n.GetProto().GetConfig().GetCert() == nil {
-		log.Debugf("No cert info for %s", n.Name())
+		log.Debugf("No cert info for %q, skipping cert generation", nodeName)
 		return nil
 	}
 	c, ok := n.(node.Certer)
 	if !ok {
-		return status.Errorf(codes.Unimplemented, "node %q does not implement Certer interface", n.Name())
+		return status.Errorf(codes.Unimplemented, "node %q does not implement Certer interface", nodeName)
 	}
 	return c.GenerateSelfSigned(ctx)
 }
