@@ -42,7 +42,7 @@ A full definition for valid fields in the deployment yaml can be found within
 [deploy/deploy.go](https://github.com/openconfig/kne/blob/816133f1cb563555bcdcb12eb27874b77dd41d1d/deploy/deploy.go#L212).
 
 The basic deployment yaml file can be found in the GitHub repo at
-[deploy/kne/kind.yaml](https://github.com/openconfig/kne/blob/5e6cf1cbc0748bb48ebf49039bd0ad592378357a/deploy/kne/kind-bridge.yaml).
+[deploy/kne/kind-bridge.yaml](https://github.com/openconfig/kne/blob/5e6cf1cbc0748bb48ebf49039bd0ad592378357a/deploy/kne/kind-bridge.yaml).
 
 This config specifies `kind` as the cluster, `metallb` as the ingress, and
 `meshnet` as the CNI. Additionally, the config instructs `kindnet` CNI to use

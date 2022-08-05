@@ -7,19 +7,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/h-fam/errdiff"
-	"github.com/kr/pretty"
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	restfake "k8s.io/client-go/rest/fake"
+	ktest "k8s.io/client-go/testing"
 )
 
 var (
@@ -78,7 +80,24 @@ func setUp(t *testing.T) (*Clientset, *restfake.RESTClient) {
 	}
 	objs := []runtime.Object{obj1, obj2}
 	cs.restClient = fakeClient
-	cs.dInterface = dynamicfake.NewSimpleDynamicClient(scheme.Scheme, objs...).Resource(gvr)
+	f := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, objs...)
+	// Add handler for Update call.
+	f.PrependReactor("update", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		uAction, ok := action.(ktest.UpdateAction)
+		if !ok {
+			return false, nil, nil
+		}
+		uObj := uAction.GetObject().(*unstructured.Unstructured)
+		tObj := &topologyv1.Topology{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(uObj.Object, tObj); err != nil {
+			return true, nil, fmt.Errorf("failed to covert object: %v", err)
+		}
+		if tObj.ObjectMeta.Name == "doesnotexist" {
+			return true, nil, fmt.Errorf("doesnotexist")
+		}
+		return true, uAction.GetObject(), nil
+	})
+	cs.dInterface = f.Resource(gvr)
 	return cs, fakeClient
 }
 
@@ -111,17 +130,15 @@ func TestCreate(t *testing.T) {
 		}
 		t.Run(tt.desc, func(t *testing.T) {
 			tc := cs.Topology("foo")
-			got, err := tc.Create(context.Background(), tt.want)
+			got, err := tc.Create(context.Background(), tt.want, metav1.CreateOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
 			if tt.wantErr != "" {
 				return
 			}
-			want := tt.want.DeepCopy()
-			want.TypeMeta = metav1.TypeMeta{}
-			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("Create(%+v) failed: diff\n%s", tt.want, pretty.Diff(got, want))
+			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.Topology{}, "TypeMeta")); s != "" {
+				t.Fatalf("Create(%+v) failed: %s", tt.want, s)
 			}
 		})
 	}
@@ -165,8 +182,8 @@ func TestList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("List() failed: got %v, want %v", got, tt.want)
+			if s := cmp.Diff(got, tt.want); s != "" {
+				t.Fatalf("List() failed: %s", s)
 			}
 		})
 	}
@@ -208,10 +225,8 @@ func TestGet(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			want := tt.want.DeepCopy()
-			want.TypeMeta = metav1.TypeMeta{}
-			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("Get() failed: got %v, want %v", got, want)
+			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.Topology{}, "TypeMeta")); s != "" {
+				t.Fatalf("Get() failed: %s", s)
 			}
 		})
 	}
@@ -261,6 +276,16 @@ func TestWatch(t *testing.T) {
 	}{{
 		desc:    "Error",
 		wantErr: "TEST ERROR",
+	}, {
+		desc: "event",
+		want: &watch.Event{
+			Type:   watch.Added,
+			Object: obj1,
+		},
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+		},
+		wantErr: "TEST ERROR",
 	}}
 	for _, tt := range tests {
 		fakeClient.Err = nil
@@ -282,8 +307,55 @@ func TestWatch(t *testing.T) {
 				return
 			}
 			e := <-w.ResultChan()
-			if !reflect.DeepEqual(e, tt.want) {
-				t.Fatalf("Watch() failed: got %v, want %v", e, tt.want)
+			if s := cmp.Diff(e, tt.want); s != "" {
+				t.Fatalf("Watch() failed: %s", s)
+			}
+		})
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	cs, _ := setUp(t)
+	tests := []struct {
+		desc    string
+		resp    *http.Response
+		want    *topologyv1.Topology
+		wantErr string
+	}{{
+		desc: "Error",
+		want: &topologyv1.Topology{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Topology",
+				APIVersion: "networkop.co.uk/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "doesnotexist",
+				Namespace: "test",
+			},
+		},
+		wantErr: "doesnotexist",
+	}, {
+		desc: "Valid Topology",
+		want: obj1,
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			tc := cs.Topology("test")
+			updateObj := tt.want.DeepCopy()
+			updateObj.Spec.Links = append(updateObj.Spec.Links, topologyv1.Link{UID: 1000})
+			update, err := runtime.DefaultUnstructuredConverter.ToUnstructured(updateObj)
+			if err != nil {
+				t.Fatalf("failed to generate update: %v", err)
+			}
+			got, err := tc.Update(context.Background(), &unstructured.Unstructured{Object: update}, metav1.UpdateOptions{})
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if s := cmp.Diff(got, updateObj); s != "" {
+				t.Fatalf("Update() failed: %s", s)
 			}
 		})
 	}
@@ -293,7 +365,6 @@ func TestUnstructured(t *testing.T) {
 	cs, _ := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
 		in      string
 		want    *topologyv1.Topology
 		wantErr string
@@ -324,8 +395,8 @@ func TestUnstructured(t *testing.T) {
 			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(got.Object, uObj1); err != nil {
 				t.Fatalf("failed to turn reponse into a topology: %v", err)
 			}
-			if !reflect.DeepEqual(uObj1, tt.want) {
-				t.Fatalf("Unstructured(%q) failed: got %+v, want %+v", tt.in, uObj1, tt.want)
+			if s := cmp.Diff(uObj1, tt.want); s != "" {
+				t.Fatalf("Unstructured(%q) failed: %s", tt.in, s)
 			}
 		})
 	}

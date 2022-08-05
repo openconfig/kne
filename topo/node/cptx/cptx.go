@@ -144,7 +144,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 		return resp.Failed
 	}
 
-	log.Infof("%s - finshed config push", n.Name())
+	log.Infof("%s - finished config push", n.Name())
 
 	return nil
 }

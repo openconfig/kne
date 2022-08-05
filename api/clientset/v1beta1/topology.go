@@ -33,8 +33,8 @@ import (
 // TopologyInterface provides access to the Topology CRD.
 type TopologyInterface interface {
 	List(ctx context.Context, opts metav1.ListOptions) (*topologyv1.TopologyList, error)
-	Get(ctx context.Context, name string, options metav1.GetOptions) (*topologyv1.Topology, error)
-	Create(ctx context.Context, topology *topologyv1.Topology) (*topologyv1.Topology, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*topologyv1.Topology, error)
+	Create(ctx context.Context, topology *topologyv1.Topology, opts metav1.CreateOptions) (*topologyv1.Topology, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 	Unstructured(ctx context.Context, name string, opts metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error)
@@ -53,8 +53,8 @@ type Clientset struct {
 }
 
 var gvr = schema.GroupVersionResource{
-	Group:    "networkop.co.uk",
-	Version:  "v1beta1",
+	Group:    topologyv1.GroupName,
+	Version:  topologyv1.GroupVersion,
 	Resource: "topologies",
 }
 
@@ -95,10 +95,12 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}, nil
 }
 
+// SetDynamicClient is only exposed for integration testing.
 func (c *Clientset) SetDynamicClient(d dynamic.NamespaceableResourceInterface) {
 	c.dInterface = d
 }
 
+// SetRestClient is only exposed for integration testing.
 func (c *Clientset) SetRestClient(r rest.Interface) {
 	c.restClient = r
 }
@@ -143,13 +145,14 @@ func (t *topologyClient) Get(ctx context.Context, name string, opts metav1.GetOp
 	return &result, err
 }
 
-func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topology) (*topologyv1.Topology, error) {
+func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topology, opts metav1.CreateOptions) (*topologyv1.Topology, error) {
 	result := topologyv1.Topology{}
 	err := t.restClient.
 		Post().
 		Namespace(t.ns).
 		Resource("topologies").
 		Body(topology).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Do(ctx).
 		Into(&result)
 
@@ -178,13 +181,12 @@ func (t *topologyClient) Delete(ctx context.Context, name string, opts metav1.De
 }
 
 func (t *topologyClient) Update(ctx context.Context, obj *unstructured.Unstructured, opts metav1.UpdateOptions) (*topologyv1.Topology, error) {
-	result := topologyv1.Topology{}
 	obj, err := t.dInterface.Namespace(t.ns).UpdateStatus(ctx, obj, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &result)
-	if err != nil {
+	result := topologyv1.Topology{}
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &result); err != nil {
 		return nil, fmt.Errorf("failed to type assert return to topology")
 	}
 	return &result, nil
