@@ -156,7 +156,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		log.Debugf("%s - PKI not ready - waiting", n.Name())
 		time.Sleep(time.Second * 2)
 	}
-	log.Infof("%s - finshed cert generation", n.Name())
+	log.Infof("%s - finished cert generation", n.Name())
 
 	return nil
 }
