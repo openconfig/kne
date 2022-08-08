@@ -127,7 +127,7 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(cmd.Context(), topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp))
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -142,7 +142,7 @@ func deleteFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(cmd.Context(), topopb, topo.WithKubecfg(kubecfg))
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -154,7 +154,7 @@ func showFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(cmd.Context(), topopb, topo.WithKubecfg(kubecfg))
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

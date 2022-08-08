@@ -99,8 +99,11 @@ func WithBasePath(s string) Option {
 	}
 }
 
-// New creates a new Manager based on the provided topology.
-func New(ctx context.Context, topo *tpb.Topology, opts ...Option) (*Manager, error) {
+// New creates a new Manager based on the provided topology. The cluster config
+// passed from the WithClusterConfig option overrides the determined in-cluster
+// config. If neither of these configurations can be used then the kubecfg passed
+// from the WithKubecfg option will be used to determine the cluster config.
+func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 	if topo == nil {
 		return nil, fmt.Errorf("topology cannot be nil")
 	}
@@ -112,7 +115,6 @@ func New(ctx context.Context, topo *tpb.Topology, opts ...Option) (*Manager, err
 		o(m)
 	}
 	if m.rCfg == nil {
-		// If config not provided, try the in-cluster config first. If not fallback to the kubeconfig.
 		log.Infof("Trying in-cluster configuration")
 		rCfg, err := rest.InClusterConfig()
 		if err != nil {
@@ -138,7 +140,7 @@ func New(ctx context.Context, topo *tpb.Topology, opts ...Option) (*Manager, err
 		}
 		m.tClient = tClient
 	}
-	if err := m.load(ctx); err != nil {
+	if err := m.load(); err != nil {
 		return nil, fmt.Errorf("failed to load topology: %w", err)
 	}
 	log.Infof("Created manager for topology:\n%v", prototext.Format(m.topo))
@@ -241,7 +243,7 @@ func (m *Manager) Nodes() []node.Node {
 }
 
 // load populates the internal fields of the topology proto.
-func (m *Manager) load(ctx context.Context) error {
+func (m *Manager) load() error {
 	nMap := map[string]*tpb.Node{}
 	for _, n := range m.topo.Nodes {
 		if len(n.Interfaces) == 0 {
@@ -641,7 +643,7 @@ func Load(path string) (*tpb.Topology, error) {
 	}
 	t := &tpb.Topology{}
 	switch {
-	case strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml"):
+	case strings.HasSuffix(path, ".yaml"), strings.HasSuffix(path, ".yml"):
 		jsonBytes, err := yaml.YAMLToJSON(b)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse yaml: %v", err)

@@ -354,7 +354,7 @@ func TestService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			origNewTopologyManager := newTopologyManager
-			newTopologyManager = func(_ context.Context, _ *tpb.Topology, _ ...topo.Option) (TopologyManager, error) {
+			newTopologyManager = func(_ *tpb.Topology, _ ...topo.Option) (TopologyManager, error) {
 				return tt.topoManager, nil
 			}
 			defer func() {
