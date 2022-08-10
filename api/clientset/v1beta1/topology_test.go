@@ -67,21 +67,17 @@ var (
 	}
 )
 
-func setUp(t *testing.T) (*Clientset, *restfake.RESTClient) {
+func setUp(t *testing.T) *Clientset {
 	t.Helper()
-	fakeClient := &restfake.RESTClient{
-		NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
-		GroupVersion:         *groupVersion,
-		VersionedAPIPath:     topologyv1.GroupVersion,
-	}
 	cs, err := NewForConfig(&rest.Config{})
 	if err != nil {
 		t.Fatalf("NewForConfig() failed: %v", err)
 	}
 	objs := []runtime.Object{obj1, obj2}
-	cs.restClient = fakeClient
 	f := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, objs...)
-	// Add handler for Update call.
+	f.PrependReactor("create", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		return false, nil, nil
+	})
 	f.PrependReactor("update", "*", func(action ktest.Action) (bool, runtime.Object, error) {
 		uAction, ok := action.(ktest.UpdateAction)
 		if !ok {
@@ -97,15 +93,26 @@ func setUp(t *testing.T) (*Clientset, *restfake.RESTClient) {
 		}
 		return true, uAction.GetObject(), nil
 	})
+	f.PrependReactor("delete", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		return false, nil, nil
+	})
+	f.PrependReactor("get", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		return false, nil, nil
+	})
+	f.PrependReactor("list", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		return false, nil, nil
+	})
+	f.PrependReactor("watch", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		return false, nil, nil
+	})
 	cs.dInterface = f.Resource(gvr)
-	return cs, fakeClient
+	return cs
 }
 
 func TestCreate(t *testing.T) {
-	cs, fakeClient := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
 		want    *topologyv1.Topology
 		wantErr string
 	}{{
@@ -318,7 +325,6 @@ func TestUpdate(t *testing.T) {
 	cs, _ := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
 		want    *topologyv1.Topology
 		wantErr string
 	}{{
