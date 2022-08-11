@@ -1,12 +1,8 @@
 package v1beta1
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -20,7 +16,6 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	restfake "k8s.io/client-go/rest/fake"
 	ktest "k8s.io/client-go/testing"
 )
 
@@ -67,21 +62,62 @@ var (
 	}
 )
 
-func setUp(t *testing.T) (*Clientset, *restfake.RESTClient) {
-	t.Helper()
-	fakeClient := &restfake.RESTClient{
-		NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
-		GroupVersion:         *groupVersion,
-		VersionedAPIPath:     topologyv1.GroupVersion,
+type fakeWatch struct {
+	e    []watch.Event
+	ch   chan watch.Event
+	done chan struct{}
+}
+
+func newFakeWatch(e []watch.Event) *fakeWatch {
+	f := &fakeWatch{
+		e:    e,
+		ch:   make(chan watch.Event, 1),
+		done: make(chan struct{}),
 	}
+	go func() {
+		for len(f.e) != 0 {
+			e := f.e[0]
+			f.e = f.e[1:]
+			select {
+			case f.ch <- e:
+			case <-f.done:
+				return
+			}
+		}
+	}()
+	return f
+}
+func (f *fakeWatch) Stop() {
+	close(f.done)
+}
+
+func (f *fakeWatch) ResultChan() <-chan watch.Event {
+	return f.ch
+}
+
+func setUp(t *testing.T) *Clientset {
+	t.Helper()
 	cs, err := NewForConfig(&rest.Config{})
 	if err != nil {
 		t.Fatalf("NewForConfig() failed: %v", err)
 	}
 	objs := []runtime.Object{obj1, obj2}
-	cs.restClient = fakeClient
 	f := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, objs...)
-	// Add handler for Update call.
+	f.PrependReactor("create", "*", func(action ktest.Action) (bool, runtime.Object, error) {
+		cAction, ok := action.(ktest.CreateAction)
+		if !ok {
+			return false, nil, nil
+		}
+		uObj := cAction.GetObject().(*unstructured.Unstructured)
+		tObj := &topologyv1.Topology{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(uObj.Object, tObj); err != nil {
+			return true, nil, fmt.Errorf("failed to covert object: %v", err)
+		}
+		if tObj.ObjectMeta.Name == "alreadyexists" {
+			return true, nil, fmt.Errorf("alreadyexists")
+		}
+		return true, tObj, nil
+	})
 	f.PrependReactor("update", "*", func(action ktest.Action) (bool, runtime.Object, error) {
 		uAction, ok := action.(ktest.UpdateAction)
 		if !ok {
@@ -97,39 +133,52 @@ func setUp(t *testing.T) (*Clientset, *restfake.RESTClient) {
 		}
 		return true, uAction.GetObject(), nil
 	})
+	f.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
+		wAction, ok := action.(ktest.WatchAction)
+		if !ok {
+			return false, nil, nil
+		}
+		if wAction.GetWatchRestrictions().ResourceVersion == "doesnotexist" {
+			return true, nil, fmt.Errorf("cannot watch unknown resource version")
+		}
+		f := newFakeWatch([]watch.Event{
+			{
+				Type:   watch.Added,
+				Object: obj1,
+			},
+		})
+		return true, f, nil
+	})
 	cs.dInterface = f.Resource(gvr)
-	return cs, fakeClient
+	return cs
 }
 
 func TestCreate(t *testing.T) {
-	cs, fakeClient := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
 		want    *topologyv1.Topology
 		wantErr string
 	}{{
-		desc:    "Error",
-		wantErr: "TEST ERROR",
-	}, {
-		desc: "Valid Topology",
-		resp: &http.Response{
-			StatusCode: http.StatusOK,
+		desc: "already exists",
+		want: &topologyv1.Topology{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Topology",
+				APIVersion: "networkop.co.uk/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "alreadyexists",
+				Namespace: "test",
+			},
 		},
+		wantErr: "alreadyexists",
+	}, {
+		desc: "success",
 		want: obj1,
 	}}
 	for _, tt := range tests {
-		fakeClient.Err = nil
-		if tt.wantErr != "" {
-			fakeClient.Err = fmt.Errorf(tt.wantErr)
-		}
-		fakeClient.Resp = tt.resp
-		if tt.want != nil {
-			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
-		}
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("foo")
+			tc := cs.Topology("test")
 			got, err := tc.Create(context.Background(), tt.want, metav1.CreateOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -145,36 +194,20 @@ func TestCreate(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	cs, fakeClient := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
 		want    *topologyv1.TopologyList
 		wantErr string
 	}{{
-		desc:    "Error",
-		wantErr: "TEST ERROR",
-	}, {
-		desc: "Valid Topology",
-		resp: &http.Response{
-			StatusCode: http.StatusOK,
-		},
+		desc: "success",
 		want: &topologyv1.TopologyList{
 			Items: []topologyv1.Topology{*obj1, *obj2},
 		},
 	}}
 	for _, tt := range tests {
-		fakeClient.Err = nil
-		if tt.wantErr != "" {
-			fakeClient.Err = fmt.Errorf(tt.wantErr)
-		}
-		fakeClient.Resp = tt.resp
-		if tt.want != nil {
-			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
-		}
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("foo")
+			tc := cs.Topology("test")
 			got, err := tc.List(context.Background(), metav1.ListOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -182,7 +215,7 @@ func TestList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(got, tt.want); s != "" {
+			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.TopologyList{}, "TypeMeta")); s != "" {
 				t.Fatalf("List() failed: %s", s)
 			}
 		})
@@ -190,72 +223,60 @@ func TestList(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	cs, fakeClient := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
+		in      string
 		want    *topologyv1.Topology
 		wantErr string
 	}{{
-		desc:    "Error",
-		wantErr: "TEST ERROR",
+		desc:    "failure",
+		in:      "doesnotexist",
+		wantErr: `"doesnotexist" not found`,
 	}, {
-		desc: "Valid Topology",
-		resp: &http.Response{
-			StatusCode: http.StatusOK,
-		},
+		desc: "success 1",
+		in:   "obj1",
 		want: obj1,
+	}, {
+		desc: "success 2",
+		in:   "obj2",
+		want: obj2,
 	}}
 	for _, tt := range tests {
-		fakeClient.Err = nil
-		if tt.wantErr != "" {
-			fakeClient.Err = fmt.Errorf(tt.wantErr)
-		}
-		fakeClient.Resp = tt.resp
-		if tt.want != nil {
-			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
-		}
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("foo")
-			got, err := tc.Get(context.Background(), "test", metav1.GetOptions{})
+			tc := cs.Topology("test")
+			got, err := tc.Get(context.Background(), tt.in, metav1.GetOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.Topology{}, "TypeMeta")); s != "" {
-				t.Fatalf("Get() failed: %s", s)
+			if s := cmp.Diff(got, tt.want); s != "" {
+				t.Fatalf("Get(%q) failed: %s", tt.in, s)
 			}
 		})
 	}
 }
 
 func TestDelete(t *testing.T) {
-	cs, fakeClient := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
+		in      string
 		wantErr string
 	}{{
-		desc:    "Error",
-		wantErr: "TEST ERROR",
+		desc:    "failure",
+		in:      "doesnotexist",
+		wantErr: `"doesnotexist" not found`,
 	}, {
-		desc: "Valid Topology",
-		resp: &http.Response{
-			StatusCode: http.StatusOK,
-		},
+		desc: "success",
+		in:   "obj1",
 	}}
 	for _, tt := range tests {
-		fakeClient.Err = nil
-		if tt.wantErr != "" {
-			fakeClient.Err = fmt.Errorf(tt.wantErr)
-		}
-		fakeClient.Resp = tt.resp
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("foo")
-			err := tc.Delete(context.Background(), "obj1", metav1.DeleteOptions{})
+			tc := cs.Topology("test")
+			err := tc.Delete(context.Background(), tt.in, metav1.DeleteOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
@@ -267,39 +288,27 @@ func TestDelete(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
-	cs, fakeClient := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
-		want    *watch.Event
+		ver     string
+		want    watch.Event
 		wantErr string
 	}{{
-		desc:    "Error",
-		wantErr: "TEST ERROR",
+		desc:    "failure",
+		ver:     "doesnotexist",
+		wantErr: "cannot watch unknown resource version",
 	}, {
-		desc: "event",
-		want: &watch.Event{
+		desc: "success",
+		want: watch.Event{
 			Type:   watch.Added,
 			Object: obj1,
 		},
-		resp: &http.Response{
-			StatusCode: http.StatusOK,
-		},
-		wantErr: "TEST ERROR",
 	}}
 	for _, tt := range tests {
-		fakeClient.Err = nil
-		if tt.wantErr != "" {
-			fakeClient.Err = fmt.Errorf(tt.wantErr)
-		}
-		fakeClient.Resp = tt.resp
-		if tt.want != nil {
-			b, _ := json.Marshal(tt.want)
-			tt.resp.Body = io.NopCloser(bytes.NewReader(b))
-		}
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("foo")
-			w, err := tc.Watch(context.Background(), metav1.ListOptions{})
+			tc := cs.Topology("test")
+			w, err := tc.Watch(context.Background(), metav1.ListOptions{ResourceVersion: tt.ver})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
@@ -315,10 +324,9 @@ func TestWatch(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	cs, _ := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		resp    *http.Response
 		want    *topologyv1.Topology
 		wantErr string
 	}{{
@@ -362,22 +370,22 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUnstructured(t *testing.T) {
-	cs, _ := setUp(t)
+	cs := setUp(t)
 	tests := []struct {
 		desc    string
 		in      string
 		want    *topologyv1.Topology
 		wantErr string
 	}{{
-		desc:    "Error",
+		desc:    "failure",
 		in:      "missingObj",
 		wantErr: `"missingObj" not found`,
 	}, {
-		desc: "Valid Topology",
+		desc: "success 1",
 		in:   "obj1",
 		want: obj1,
 	}, {
-		desc: "Valid Topology",
+		desc: "success 2",
 		in:   "obj2",
 		want: obj2,
 	}}
