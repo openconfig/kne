@@ -21,20 +21,24 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/h-fam/errdiff"
-	// tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
+	tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
 	// topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	"k8s.io/apimachinery/pkg/runtime"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	// "google.golang.org/protobuf/encoding/prototext"
 	// "google.golang.org/protobuf/proto"
-	// corev1 "k8s.io/api/core/v1"
 	// "k8s.io/apimachinery/pkg/util/intstr"
-	// kfake "k8s.io/client-go/kubernetes/fake"
-	// "k8s.io/client-go/rest"
+	kfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 )
 
 func TestLoad(t *testing.T) {
@@ -92,69 +96,522 @@ func TestLoad(t *testing.T) {
 	}
 }
 
-var (
-	validPbTxt = `
-name: "test-data-topology"
-nodes: {
-  name: "r1"
-  type: ARISTA_CEOS
-  services: {
-	key: 1002
-	value: {
-  	  name: "ssh"
-	  inside: 1002
-	  outside: 22
-	  inside_ip: "1.1.1.2"
-	  outside_ip: "100.100.100.101"
-	  node_port: 22
+func TestNew(t *testing.T) {
+	tf, err := tfake.NewSimpleClientset()
+	if err != nil {
+		t.Fatalf("cannot create fake topology clientset: %v", err)
 	}
-  }
+	opts := []Option{
+		WithClusterConfig(&rest.Config{}),
+		WithKubeClient(kfake.NewSimpleClientset()),
+		WithTopoClient(tf),
+	}
+	tests := []struct {
+		desc      string
+		topo      *tpb.Topology
+		wantNodes []string
+		wantErr string
+	}{{
+		desc: "success",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_ARISTA_CEOS,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:    "otg",
+					Type:    tpb.Node_IXIA_TG,
+					Version: "0.0.1-9999",
+					Services: map[uint32]*tpb.Service{
+						40051: {
+							Name: "grpc",
+						},
+						50051: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth9",
+					ZNode: "otg",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		wantNodes: []string{"r1", "otg"},
+	}, {
+		desc:    "nil topo",
+		wantErr: "topology cannot be nil",
+	}, {
+		desc: "load err - missing a node",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:    "otg",
+					Type:    tpb.Node_IXIA_TG,
+					Version: "0.0.1-9999",
+					Services: map[uint32]*tpb.Service{
+						40051: {
+							Name: "grpc",
+						},
+						50051: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth9",
+					ZNode: "otg",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		wantErr: "missing node",
+	}, {
+		desc: "load err - missing z node",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_ARISTA_CEOS,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth9",
+					ZNode: "otg",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		wantErr: "missing node",
+	}, {
+		desc: "load err - a node already connected",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_ARISTA_CEOS,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:    "otg",
+					Type:    tpb.Node_IXIA_TG,
+					Version: "0.0.1-9999",
+					Services: map[uint32]*tpb.Service{
+						40051: {
+							Name: "grpc",
+						},
+						50051: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth9",
+					ZNode: "otg",
+					ZInt:  "eth1",
+				},
+				{
+					ANode: "r1",
+					AInt:  "eth9",
+					ZNode: "otg",
+					ZInt:  "eth2",
+				},
+			},
+		},
+		wantErr: "already connected",
+	}, {
+		desc: "load err - z node already connected",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_ARISTA_CEOS,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:    "otg",
+					Type:    tpb.Node_IXIA_TG,
+					Version: "0.0.1-9999",
+					Services: map[uint32]*tpb.Service{
+						40051: {
+							Name: "grpc",
+						},
+						50051: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth9",
+					ZNode: "otg",
+					ZInt:  "eth1",
+				},
+				{
+					ANode: "r1",
+					AInt:  "eth10",
+					ZNode: "otg",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		wantErr: "already connected",
+	}, {
+		desc: "load err - load node",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_UNKNOWN,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:    "otg",
+					Type:    tpb.Node_IXIA_TG,
+					Version: "0.0.1-9999",
+					Services: map[uint32]*tpb.Service{
+						40051: {
+							Name: "grpc",
+						},
+						50051: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth9",
+					ZNode: "otg",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		wantErr: "failed to load",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			m, err := New(tt.topo, opts...)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("New() unexpected err: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			var got []string
+			for n := range m.nodes {
+				got = append(got, n)
+			}
+			if s := cmp.Diff(tt.wantNodes, got, cmpopts.SortSlices(func(a, b string) bool {return a < b})); s != "" {
+				t.Errorf("New() nodes unexpected diff (-want +got):\n%s", s)
+			}
+		})
+	}
 }
-nodes: {
-    name: "otg"
-    type: IXIA_TG
-    version: "0.0.1-9999"
-    services: {
-        key: 40051
-        value: {
-            name: "grpc"
-            inside: 40051
-			inside_ip: "1.1.1.1"
-			outside_ip: "100.100.100.100"
-			node_port: 20001
-        }
-    }
-    services: {
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-			inside_ip: "1.1.1.1"
-			outside_ip: "100.100.100.100"
-			node_port: 20000
-        }
-    }
+
+func TestCreate(t *testing.T) {
+	ctx := context.Background()
+	tf, err := tfake.NewSimpleClientset()
+	if err != nil {
+		t.Fatalf("cannot create fake topology clientset: %v", err)
+	}
+	opts := []Option{
+		WithClusterConfig(&rest.Config{}),
+		WithKubeClient(kfake.NewSimpleClientset()),
+		WithTopoClient(tf),
+	}
+	tests := []struct {
+		desc string
+		topo *tpb.Topology
+		timeout time.Duration
+		wantErr string
+	}{{
+		desc: "success",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_ARISTA_CEOS,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+				//{
+				//	Name:    "otg",
+				//	Type:    tpb.Node_IXIA_TG,
+				//	Version: "0.0.1-9999",
+				//	Services: map[uint32]*tpb.Service{
+				//		40051: {
+				//			Name: "grpc",
+				//		},
+				//		50051: {
+				//			Name: "gnmi",
+				//		},
+				//	},
+				//},
+			},
+			//Links: []*tpb.Link{
+			//	{
+			//		ANode: "r1",
+			//		AInt:  "eth9",
+			//		ZNode: "otg",
+			//		ZInt:  "eth1",
+			//	},
+			//},
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			m, err := New(tt.topo, opts...)
+			if err != nil {
+				t.Fatalf("New() failed to create new topology manager: %v", err)
+			}
+			err = m.Create(ctx, tt.timeout)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("Create() unexpected err: %s", s)
+			}
+		})
+	}
 }
-links: {
-  a_node: "r1"
-  a_int: "eth9"
-  z_node: "otg"
-  z_int: "eth1"
+
+func TestDelete(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		desc string
+		topo *tpb.Topology
+		k8sObjects []runtime.Object
+		wantErr string
+	}{{
+		desc: "delete a non-existent topo",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_ARISTA_CEOS,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+				//{
+				//	Name:    "otg",
+				//	Type:    tpb.Node_IXIA_TG,
+				//	Version: "0.0.1-9999",
+				//	Services: map[uint32]*tpb.Service{
+				//		40051: {
+				//			Name: "grpc",
+				//		},
+				//		50051: {
+				//			Name: "gnmi",
+				//		},
+				//	},
+				//},
+			},
+			//Links: []*tpb.Link{
+			//	{
+			//		ANode: "r1",
+			//		AInt:  "eth9",
+			//		ZNode: "otg",
+			//		ZInt:  "eth1",
+			//	},
+			//},
+		},
+		wantErr: "does not exist in cluster",
+	}, {
+		desc: "delete an existing topo",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name: "r1",
+					Type: tpb.Node_ARISTA_CEOS,
+					Services: map[uint32]*tpb.Service{
+						1002: {
+							Name: "ssh",
+						},
+					},
+				},
+				//{
+				//	Name:    "otg",
+				//	Type:    tpb.Node_IXIA_TG,
+				//	Version: "0.0.1-9999",
+				//	Services: map[uint32]*tpb.Service{
+				//		40051: {
+				//			Name: "grpc",
+				//		},
+				//		50051: {
+				//			Name: "gnmi",
+				//		},
+				//	},
+				//},
+			},
+			//Links: []*tpb.Link{
+			//	{
+			//		ANode: "r1",
+			//		AInt:  "eth9",
+			//		ZNode: "otg",
+			//		ZInt:  "eth1",
+			//	},
+			//},
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "r1",
+					Namespace: "test",
+				},
+			},
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+	tf, err := tfake.NewSimpleClientset()
+	if err != nil {
+		t.Fatalf("cannot create fake topology clientset: %v", err)
+	}
+	opts := []Option{
+		WithClusterConfig(&rest.Config{}),
+		WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
+		WithTopoClient(tf),
+	}
+			m, err := New(tt.topo, opts...)
+			if err != nil {
+				t.Fatalf("New() failed to create new topology manager: %v", err)
+			}
+			err = m.Delete(ctx)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("Delete() unexpected err: %s", s)
+			}
+		})
+	}
 }
-`
-)
 
-func TestNew(t *testing.T) {} // TODO
+func TestShow(t *testing.T) {
+	tests := []struct {
+		desc string
+	}{{
+		desc: "success",
+	}, {
+		desc: "failure",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Skip()
+		})
+	}
+}
 
-func TestCreate(t *testing.T) {} // TODO
+func TestResources(t *testing.T) {
+	tests := []struct {
+		desc string
+	}{{
+		desc: "success",
+	}, {
+		desc: "failure",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Skip()
+		})
+	}
+}
 
-func TestDelete(t *testing.T) {} // TODO
-
-func TestShow(t *testing.T) {} // TODO
-
-func TestWatch(t *testing.T) {} // TODO
-
-func TestResources(t *testing.T) {} // TODO
+//type fakeWatch struct {
+//	e    []watch.Event
+//	ch   chan watch.Event
+//	done chan struct{}
+//}
+//
+//func newFakeWatch(e []watch.Event) *fakeWatch {
+//	f := &fakeWatch{
+//		e:    e,
+//		ch:   make(chan watch.Event, 1),
+//		done: make(chan struct{}),
+//	}
+//	go func() {
+//		for len(f.e) != 0 {
+//			e := f.e[0]
+//			f.e = f.e[1:]
+//			select {
+//			case f.ch <- e:
+//			case <-f.done:
+//				return
+//			}
+//		}
+//	}()
+//	return f
+//}
+//func (f *fakeWatch) Stop() {
+//	close(f.done)
+//}
+//
+//func (f *fakeWatch) ResultChan() <-chan watch.Event {
+//	return f.ch
+//}
+//
+//func TestWatch(t *testing.T) {
+//	tests := []struct {
+//		desc string
+//		events []watch.Event
+//	}{{
+//		desc: "success",
+//	}, {
+//		desc: "failure",
+//	}}
+//	for _, tt := range tests {
+//		t.Run(tt.desc, func(t *testing.T) {
+//			t.Skip()
+//		})
+//	}
+//}
 
 func TestNodes(t *testing.T) {
 	aNode := &configurable{}
