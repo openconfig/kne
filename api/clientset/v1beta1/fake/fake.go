@@ -5,6 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	dfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 )
 
 func NewSimpleClientset(objects ...runtime.Object) (*toplogyv1client.Clientset, error) {
