@@ -212,4 +212,3 @@ message ResetConfigRequest {
 // Returns reset config response.
 message ResetConfigResponse {
 }
-

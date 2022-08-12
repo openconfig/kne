@@ -49,7 +49,6 @@ type Interface interface {
 // Clientset is a client for the topology crds.
 type Clientset struct {
 	dInterface dynamic.NamespaceableResourceInterface
-	restClient rest.Interface
 }
 
 var gvr = schema.GroupVersionResource{
@@ -85,14 +84,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 		return nil, err
 	}
 	dInterface := dClient.Resource(gvr)
-	rClient, err := rest.RESTClientFor(&config)
-	if err != nil {
-		return nil, err
-	}
-	return &Clientset{
-		dInterface: dInterface,
-		restClient: rClient,
-	}, nil
+	return &Clientset{dInterface: dInterface}, nil
 }
 
 // SetDynamicClient is only exposed for integration testing.
@@ -100,84 +92,65 @@ func (c *Clientset) SetDynamicClient(d dynamic.NamespaceableResourceInterface) {
 	c.dInterface = d
 }
 
-// SetRestClient is only exposed for integration testing.
-func (c *Clientset) SetRestClient(r rest.Interface) {
-	c.restClient = r
-}
-
 func (c *Clientset) Topology(namespace string) TopologyInterface {
 	return &topologyClient{
 		dInterface: c.dInterface,
-		restClient: c.restClient,
 		ns:         namespace,
 	}
 }
 
 type topologyClient struct {
 	dInterface dynamic.NamespaceableResourceInterface
-	restClient rest.Interface
 	ns         string
 }
 
 func (t *topologyClient) List(ctx context.Context, opts metav1.ListOptions) (*topologyv1.TopologyList, error) {
+	u, err := t.dInterface.Namespace(t.ns).List(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
 	result := topologyv1.TopologyList{}
-	err := t.restClient.
-		Get().
-		Namespace(t.ns).
-		Resource("topologies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Do(ctx).
-		Into(&result)
-
-	return &result, err
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
+		return nil, fmt.Errorf("failed to type assert return to topologylist")
+	}
+	return &result, nil
 }
 
 func (t *topologyClient) Get(ctx context.Context, name string, opts metav1.GetOptions) (*topologyv1.Topology, error) {
+	u, err := t.dInterface.Namespace(t.ns).Get(ctx, name, opts)
+	if err != nil {
+		return nil, err
+	}
 	result := topologyv1.Topology{}
-	err := t.restClient.
-		Get().
-		Namespace(t.ns).
-		Resource("topologies").
-		Name(name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Do(ctx).
-		Into(&result)
-	return &result, err
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
+		return nil, fmt.Errorf("failed to type assert return to topology")
+	}
+	return &result, nil
 }
 
 func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topology, opts metav1.CreateOptions) (*topologyv1.Topology, error) {
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(topology)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert topology to unstructured: %v", err)
+	}
+	u, err := t.dInterface.Namespace(t.ns).Create(ctx, &unstructured.Unstructured{Object: obj}, opts)
+	if err != nil {
+		return nil, err
+	}
 	result := topologyv1.Topology{}
-	err := t.restClient.
-		Post().
-		Namespace(t.ns).
-		Resource("topologies").
-		Body(topology).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Do(ctx).
-		Into(&result)
-
-	return &result, err
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
+		return nil, fmt.Errorf("failed to type assert return to topology")
+	}
+	return &result, nil
 }
 
 func (t *topologyClient) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
-	return t.restClient.
-		Get().
-		Namespace(t.ns).
-		Resource("topologies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Watch(ctx)
+	return t.dInterface.Namespace(t.ns).Watch(ctx, opts)
 }
 
 func (t *topologyClient) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	return t.restClient.
-		Delete().
-		Namespace(t.ns).
-		Resource("topologies").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Name(name).
-		Do(ctx).
-		Error()
+	return t.dInterface.Namespace(t.ns).Delete(ctx, name, opts)
 }
 
 func (t *topologyClient) Update(ctx context.Context, obj *unstructured.Unstructured, opts metav1.UpdateOptions) (*topologyv1.Topology, error) {
