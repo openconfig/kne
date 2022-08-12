@@ -129,6 +129,10 @@ func (t *topologyClient) Get(ctx context.Context, name string, opts metav1.GetOp
 }
 
 func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topology, opts metav1.CreateOptions) (*topologyv1.Topology, error) {
+	topology.TypeMeta = metav1.TypeMeta{
+		Kind:       "Topology",
+		APIVersion: "networkop.co.uk/v1beta1",
+	}
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(topology)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert topology to unstructured: %v", err)
