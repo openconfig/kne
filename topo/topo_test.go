@@ -940,13 +940,13 @@ func TestResources(t *testing.T) {
 		},
 		want: &Resources{
 			Pods: map[string][]*corev1.Pod{
-				"r1": []*corev1.Pod{{
+				"r1": {{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "r1",
 						Namespace: "test",
 					},
 				}},
-				"r2": []*corev1.Pod{{
+				"r2": {{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "r2",
 						Namespace: "test",
@@ -954,13 +954,13 @@ func TestResources(t *testing.T) {
 				}},
 			},
 			Services: map[string][]*corev1.Service{
-				"r1": []*corev1.Service{{
+				"r1": {{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "service-r1",
 						Namespace: "test",
 					},
 				}},
-				"r2": []*corev1.Service{{
+				"r2": {{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "service-r2",
 						Namespace: "test",
@@ -969,7 +969,7 @@ func TestResources(t *testing.T) {
 			},
 			ConfigMaps: map[string]*corev1.ConfigMap{},
 			Topologies: map[string]*topologyv1.Topology{
-				"t1": &topologyv1.Topology{
+				"t1": {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "t1",
 						Namespace: "test",
