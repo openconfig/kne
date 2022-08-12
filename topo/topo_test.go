@@ -31,43 +31,44 @@ import (
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	ktest "k8s.io/client-go/testing"
-	// "google.golang.org/protobuf/encoding/prototext"
-	// "google.golang.org/protobuf/proto"
-	// "k8s.io/apimachinery/pkg/util/intstr"
-	"google.golang.org/protobuf/testing/protocmp"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	ktest "k8s.io/client-go/testing"
 )
 
 func TestLoad(t *testing.T) {
 	invalidPb, err := os.CreateTemp(".", "invalid*.pb.txt")
 	if err != nil {
-		t.Errorf("failed creating tmp pb: %v", err)
+		t.Fatalf("Failed creating tmp pb: %v", err)
 	}
 	defer os.Remove(invalidPb.Name())
 
 	invalidYaml, err := os.CreateTemp(".", "invalid*.yaml")
 	if err != nil {
-		t.Errorf("failed creating tmp yaml: %v", err)
+		t.Fatalf("Failed creating tmp yaml: %v", err)
 	}
 	defer os.Remove(invalidYaml.Name())
 
-	invalidPb.WriteString(`
-	name: "2node-ixia"
-	nodes: {
-		nme: "ixia-c-port1"
+	if _, err := invalidPb.WriteString(`
+		name: "2node-ixia"
+		nodes: {
+			nme: "ixia-c-port1"
+		}
+	`); err != nil {
+		t.Fatalf("Failed to write string to file: %v", err)
 	}
-	`)
 
-	invalidYaml.WriteString(`
-	name: 2node-ixia
-	nodes:
-	  - name: ixia-c-port1
-	`)
+	if _, err := invalidYaml.WriteString(`
+		name: 2node-ixia
+		nodes:
+		- name: ixia-c-port1
+	`); err != nil {
+		t.Fatalf("Failed to write string to file: %v", err)
+	}
 
 	tests := []struct {
 		desc    string

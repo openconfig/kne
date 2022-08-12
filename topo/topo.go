@@ -200,7 +200,9 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 			return nil, fmt.Errorf("services for node %s not found", n.Name)
 		}
 		for _, svc := range services {
-			populateServiceMap(svc, n.Services)
+			if err := populateServiceMap(svc, n.Services); err != nil {
+				return nil, err
+			}
 		}
 	}
 	stateMap := &stateMap{}
