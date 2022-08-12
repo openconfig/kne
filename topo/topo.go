@@ -573,7 +573,7 @@ func (m *Manager) GenerateSelfSigned(ctx context.Context, nodeName string) error
 }
 
 // populateServiceMap modifies m to contain the full service info.
-func populateServiceMap(s *corev1.Service, m map[uint32]*tpb.Service) error {
+var populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) error {
 	if s == nil || m == nil {
 		return fmt.Errorf("service and map must not be nil")
 	}

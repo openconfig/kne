@@ -838,6 +838,13 @@ func TestShow(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			orig := populateServiceMap
+			populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) error {
+				return nil
+			}
+			defer func() {
+				populateServiceMap = orig
+			}()
 			tf, err := tfake.NewSimpleClientset()
 			if err != nil {
 				t.Fatalf("cannot create fake topology clientset: %v", err)
