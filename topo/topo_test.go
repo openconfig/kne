@@ -27,16 +27,18 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/h-fam/errdiff"
 	tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
-	// topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"k8s.io/apimachinery/pkg/runtime"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	ktest "k8s.io/client-go/testing"
 	// "google.golang.org/protobuf/encoding/prototext"
 	// "google.golang.org/protobuf/proto"
 	// "k8s.io/apimachinery/pkg/util/intstr"
+	"google.golang.org/protobuf/testing/protocmp"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 )
@@ -96,7 +98,73 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+type configurable struct {
+	*node.Impl
+}
+
+func (c *configurable) ConfigPush(_ context.Context, r io.Reader) error {
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	if string(b) == "error" {
+		return fmt.Errorf("error")
+	}
+	return nil
+}
+
+func NewConfigurable(impl *node.Impl) (node.Node, error) {
+	return &configurable{Impl: impl}, nil
+}
+
+type notConfigurable struct {
+	*node.Impl
+}
+
+type resettable struct {
+	*node.Impl
+	rErr string
+}
+
+func (r *resettable) ResetCfg(_ context.Context) error {
+	if r.rErr != "" {
+		return fmt.Errorf(r.rErr)
+	}
+	return nil
+}
+
+type notResettable struct {
+	*node.Impl
+}
+
+type certable struct {
+	*node.Impl
+	proto *tpb.Node
+	gErr  string
+}
+
+func (c *certable) GetProto() *tpb.Node {
+	return c.proto
+}
+
+func (c *certable) GenerateSelfSigned(_ context.Context) error {
+	if c.gErr != "" {
+		return fmt.Errorf(c.gErr)
+	}
+	return nil
+}
+
+type notCertable struct {
+	*node.Impl
+	proto *tpb.Node
+}
+
+func (nc *notCertable) GetProto() *tpb.Node {
+	return nc.proto
+}
+
 func TestNew(t *testing.T) {
+	node.Register(tpb.Node_Type(1001), NewConfigurable)
 	tf, err := tfake.NewSimpleClientset()
 	if err != nil {
 		t.Fatalf("cannot create fake topology clientset: %v", err)
@@ -110,29 +178,28 @@ func TestNew(t *testing.T) {
 		desc      string
 		topo      *tpb.Topology
 		wantNodes []string
-		wantErr string
+		wantErr   string
 	}{{
 		desc: "success",
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_ARISTA_CEOS,
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
 				},
 				{
-					Name:    "otg",
-					Type:    tpb.Node_IXIA_TG,
-					Version: "0.0.1-9999",
+					Name: "r2",
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						40051: {
+						2000: {
 							Name: "grpc",
 						},
-						50051: {
+						3000: {
 							Name: "gnmi",
 						},
 					},
@@ -141,13 +208,13 @@ func TestNew(t *testing.T) {
 			Links: []*tpb.Link{
 				{
 					ANode: "r1",
-					AInt:  "eth9",
-					ZNode: "otg",
+					AInt:  "eth1",
+					ZNode: "r2",
 					ZInt:  "eth1",
 				},
 			},
 		},
-		wantNodes: []string{"r1", "otg"},
+		wantNodes: []string{"r1", "r2"},
 	}, {
 		desc:    "nil topo",
 		wantErr: "topology cannot be nil",
@@ -156,14 +223,13 @@ func TestNew(t *testing.T) {
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
-					Name:    "otg",
-					Type:    tpb.Node_IXIA_TG,
-					Version: "0.0.1-9999",
+					Name: "r2",
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						40051: {
+						2000: {
 							Name: "grpc",
 						},
-						50051: {
+						3000: {
 							Name: "gnmi",
 						},
 					},
@@ -172,8 +238,8 @@ func TestNew(t *testing.T) {
 			Links: []*tpb.Link{
 				{
 					ANode: "r1",
-					AInt:  "eth9",
-					ZNode: "otg",
+					AInt:  "eth1",
+					ZNode: "r2",
 					ZInt:  "eth1",
 				},
 			},
@@ -185,9 +251,9 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_ARISTA_CEOS,
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
@@ -196,8 +262,8 @@ func TestNew(t *testing.T) {
 			Links: []*tpb.Link{
 				{
 					ANode: "r1",
-					AInt:  "eth9",
-					ZNode: "otg",
+					AInt:  "eth1",
+					ZNode: "r2",
 					ZInt:  "eth1",
 				},
 			},
@@ -209,22 +275,21 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_ARISTA_CEOS,
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
 				},
 				{
-					Name:    "otg",
-					Type:    tpb.Node_IXIA_TG,
-					Version: "0.0.1-9999",
+					Name: "r2",
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						40051: {
+						2000: {
 							Name: "grpc",
 						},
-						50051: {
+						3000: {
 							Name: "gnmi",
 						},
 					},
@@ -233,14 +298,14 @@ func TestNew(t *testing.T) {
 			Links: []*tpb.Link{
 				{
 					ANode: "r1",
-					AInt:  "eth9",
-					ZNode: "otg",
+					AInt:  "eth1",
+					ZNode: "r2",
 					ZInt:  "eth1",
 				},
 				{
 					ANode: "r1",
-					AInt:  "eth9",
-					ZNode: "otg",
+					AInt:  "eth1",
+					ZNode: "r2",
 					ZInt:  "eth2",
 				},
 			},
@@ -252,22 +317,21 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_ARISTA_CEOS,
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
 				},
 				{
-					Name:    "otg",
-					Type:    tpb.Node_IXIA_TG,
-					Version: "0.0.1-9999",
+					Name: "r2",
+					Type: tpb.Node_Type(1001),
 					Services: map[uint32]*tpb.Service{
-						40051: {
+						2000: {
 							Name: "grpc",
 						},
-						50051: {
+						3000: {
 							Name: "gnmi",
 						},
 					},
@@ -276,14 +340,14 @@ func TestNew(t *testing.T) {
 			Links: []*tpb.Link{
 				{
 					ANode: "r1",
-					AInt:  "eth9",
-					ZNode: "otg",
+					AInt:  "eth1",
+					ZNode: "r2",
 					ZInt:  "eth1",
 				},
 				{
 					ANode: "r1",
-					AInt:  "eth10",
-					ZNode: "otg",
+					AInt:  "eth2",
+					ZNode: "r2",
 					ZInt:  "eth1",
 				},
 			},
@@ -297,31 +361,10 @@ func TestNew(t *testing.T) {
 					Name: "r1",
 					Type: tpb.Node_UNKNOWN,
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
-				},
-				{
-					Name:    "otg",
-					Type:    tpb.Node_IXIA_TG,
-					Version: "0.0.1-9999",
-					Services: map[uint32]*tpb.Service{
-						40051: {
-							Name: "grpc",
-						},
-						50051: {
-							Name: "gnmi",
-						},
-					},
-				},
-			},
-			Links: []*tpb.Link{
-				{
-					ANode: "r1",
-					AInt:  "eth9",
-					ZNode: "otg",
-					ZInt:  "eth1",
 				},
 			},
 		},
@@ -340,7 +383,7 @@ func TestNew(t *testing.T) {
 			for n := range m.nodes {
 				got = append(got, n)
 			}
-			if s := cmp.Diff(tt.wantNodes, got, cmpopts.SortSlices(func(a, b string) bool {return a < b})); s != "" {
+			if s := cmp.Diff(tt.wantNodes, got, cmpopts.SortSlices(func(a, b string) bool { return a < b })); s != "" {
 				t.Errorf("New() nodes unexpected diff (-want +got):\n%s", s)
 			}
 		})
@@ -353,14 +396,32 @@ func TestCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create fake topology clientset: %v", err)
 	}
+	kf := kfake.NewSimpleClientset()
+	kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
+		gAction, ok := action.(ktest.GetAction)
+		if !ok {
+			return false, nil, nil
+		}
+		p := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: gAction.GetName()}}
+		switch p.Name {
+		default:
+			p.Status.Phase = corev1.PodRunning
+		case "bad":
+			p.Status.Phase = corev1.PodFailed
+		case "hanging":
+			p.Status.Phase = corev1.PodPending
+		}
+		return true, p, nil
+	})
 	opts := []Option{
 		WithClusterConfig(&rest.Config{}),
-		WithKubeClient(kfake.NewSimpleClientset()),
+		WithKubeClient(kf),
 		WithTopoClient(tf),
 	}
+	node.Register(tpb.Node_Type(1002), NewConfigurable)
 	tests := []struct {
-		desc string
-		topo *tpb.Topology
+		desc    string
+		topo    *tpb.Topology
 		timeout time.Duration
 		wantErr string
 	}{{
@@ -370,36 +431,79 @@ func TestCreate(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_ARISTA_CEOS,
+					Type: tpb.Node_Type(1002),
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
+					Config: &tpb.Config{},
 				},
-				//{
-				//	Name:    "otg",
-				//	Type:    tpb.Node_IXIA_TG,
-				//	Version: "0.0.1-9999",
-				//	Services: map[uint32]*tpb.Service{
-				//		40051: {
-				//			Name: "grpc",
-				//		},
-				//		50051: {
-				//			Name: "gnmi",
-				//		},
-				//	},
-				//},
+				{
+					Name: "r2",
+					Type: tpb.Node_Type(1002),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+					Config: &tpb.Config{},
+				},
 			},
-			//Links: []*tpb.Link{
-			//	{
-			//		ANode: "r1",
-			//		AInt:  "eth9",
-			//		ZNode: "otg",
-			//		ZInt:  "eth1",
-			//	},
-			//},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
 		},
+	}, {
+		desc: "success with hanging pod + timeout",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name: "hanging",
+					Type: tpb.Node_Type(1002),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+			},
+		},
+		timeout: time.Second,
+	}, {
+		desc: "pod failed to start",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name: "bad",
+					Type: tpb.Node_Type(1002),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+			},
+		},
+		wantErr: `Node "bad": Status FAILED`,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -417,11 +521,12 @@ func TestCreate(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	ctx := context.Background()
+	node.Register(tpb.Node_Type(1003), NewConfigurable)
 	tests := []struct {
-		desc string
-		topo *tpb.Topology
+		desc       string
+		topo       *tpb.Topology
 		k8sObjects []runtime.Object
-		wantErr string
+		wantErr    string
 	}{{
 		desc: "delete a non-existent topo",
 		topo: &tpb.Topology{
@@ -429,35 +534,34 @@ func TestDelete(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_ARISTA_CEOS,
+					Type: tpb.Node_Type(1003),
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
 				},
-				//{
-				//	Name:    "otg",
-				//	Type:    tpb.Node_IXIA_TG,
-				//	Version: "0.0.1-9999",
-				//	Services: map[uint32]*tpb.Service{
-				//		40051: {
-				//			Name: "grpc",
-				//		},
-				//		50051: {
-				//			Name: "gnmi",
-				//		},
-				//	},
-				//},
+				{
+					Name: "r2",
+					Type: tpb.Node_Type(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
 			},
-			//Links: []*tpb.Link{
-			//	{
-			//		ANode: "r1",
-			//		AInt:  "eth9",
-			//		ZNode: "otg",
-			//		ZInt:  "eth1",
-			//	},
-			//},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
 		},
 		wantErr: "does not exist in cluster",
 	}, {
@@ -467,35 +571,34 @@ func TestDelete(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_ARISTA_CEOS,
+					Type: tpb.Node_Type(1003),
 					Services: map[uint32]*tpb.Service{
-						1002: {
+						1000: {
 							Name: "ssh",
 						},
 					},
 				},
-				//{
-				//	Name:    "otg",
-				//	Type:    tpb.Node_IXIA_TG,
-				//	Version: "0.0.1-9999",
-				//	Services: map[uint32]*tpb.Service{
-				//		40051: {
-				//			Name: "grpc",
-				//		},
-				//		50051: {
-				//			Name: "gnmi",
-				//		},
-				//	},
-				//},
+				{
+					Name: "r2",
+					Type: tpb.Node_Type(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
 			},
-			//Links: []*tpb.Link{
-			//	{
-			//		ANode: "r1",
-			//		AInt:  "eth9",
-			//		ZNode: "otg",
-			//		ZInt:  "eth1",
-			//	},
-			//},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
 		},
 		k8sObjects: []runtime.Object{
 			&corev1.Namespace{
@@ -505,7 +608,7 @@ func TestDelete(t *testing.T) {
 			},
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "r1",
+					Name:      "r1",
 					Namespace: "test",
 				},
 			},
@@ -513,15 +616,15 @@ func TestDelete(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset: %v", err)
-	}
-	opts := []Option{
-		WithClusterConfig(&rest.Config{}),
-		WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
-		WithTopoClient(tf),
-	}
+			tf, err := tfake.NewSimpleClientset()
+			if err != nil {
+				t.Fatalf("cannot create fake topology clientset: %v", err)
+			}
+			opts := []Option{
+				WithClusterConfig(&rest.Config{}),
+				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
+				WithTopoClient(tf),
+			}
 			m, err := New(tt.topo, opts...)
 			if err != nil {
 				t.Fatalf("New() failed to create new topology manager: %v", err)
@@ -535,83 +638,416 @@ func TestDelete(t *testing.T) {
 }
 
 func TestShow(t *testing.T) {
+	ctx := context.Background()
+	node.Register(tpb.Node_Type(1004), NewConfigurable)
+	topo := &tpb.Topology{
+		Name: "test",
+		Nodes: []*tpb.Node{
+			{
+				Name: "r1",
+				Type: tpb.Node_Type(1004),
+				Services: map[uint32]*tpb.Service{
+					1000: {
+						Name: "ssh",
+					},
+				},
+			},
+			{
+				Name: "r2",
+				Type: tpb.Node_Type(1004),
+				Services: map[uint32]*tpb.Service{
+					2000: {
+						Name: "grpc",
+					},
+					3000: {
+						Name: "gnmi",
+					},
+				},
+			},
+		},
+	}
 	tests := []struct {
-		desc string
+		desc       string
+		k8sObjects []runtime.Object
+		want       *cpb.ShowTopologyResponse
+		wantErr    string
 	}{{
 		desc: "success",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+			},
+		},
+		want: &cpb.ShowTopologyResponse{
+			State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+			Topology: topo,
+		},
 	}, {
-		desc: "failure",
+		desc: "no pods",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+			},
+		},
+		wantErr: "could not get pods",
+	}, {
+		desc: "no services",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+		},
+		wantErr: "could not get services",
+	}, {
+		desc: "success - loading",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodPending},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+			},
+		},
+		want: &cpb.ShowTopologyResponse{
+			State:    cpb.TopologyState_TOPOLOGY_STATE_CREATING,
+			Topology: topo,
+		},
+	}, {
+		desc: "success - unhealthy",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodFailed},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+			},
+		},
+		want: &cpb.ShowTopologyResponse{
+			State:    cpb.TopologyState_TOPOLOGY_STATE_ERROR,
+			Topology: topo,
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			t.Skip()
+			tf, err := tfake.NewSimpleClientset()
+			if err != nil {
+				t.Fatalf("cannot create fake topology clientset: %v", err)
+			}
+			opts := []Option{
+				WithClusterConfig(&rest.Config{}),
+				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
+				WithTopoClient(tf),
+			}
+			m, err := New(topo, opts...)
+			if err != nil {
+				t.Fatalf("New() failed to create new topology manager: %v", err)
+			}
+			got, err := m.Show(ctx)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("Show() unexpected err: %s", s)
+			}
+			if s := cmp.Diff(tt.want, got, protocmp.Transform()); s != "" {
+				t.Errorf("Show() unexpected diff (-want +got):\n%s", s)
+			}
 		})
 	}
 }
 
 func TestResources(t *testing.T) {
+	ctx := context.Background()
+	node.Register(tpb.Node_Type(1005), NewConfigurable)
+	topo := &tpb.Topology{
+		Name: "test",
+		Nodes: []*tpb.Node{
+			{
+				Name: "r1",
+				Type: tpb.Node_Type(1005),
+				Services: map[uint32]*tpb.Service{
+					1000: {
+						Name: "ssh",
+					},
+				},
+			},
+			{
+				Name: "r2",
+				Type: tpb.Node_Type(1005),
+				Services: map[uint32]*tpb.Service{
+					2000: {
+						Name: "grpc",
+					},
+					3000: {
+						Name: "gnmi",
+					},
+				},
+			},
+		},
+	}
 	tests := []struct {
-		desc string
+		desc        string
+		k8sObjects  []runtime.Object
+		topoObjects []runtime.Object
+		want        *Resources
+		wantErr     string
 	}{{
 		desc: "success",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+			},
+		},
+		topoObjects: []runtime.Object{
+			&topologyv1.Topology{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "t1",
+					Namespace: "test",
+				},
+			},
+		},
+		want: &Resources{
+			Pods: map[string][]*corev1.Pod{
+				"r1": []*corev1.Pod{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "r1",
+						Namespace: "test",
+					},
+				}},
+				"r2": []*corev1.Pod{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "r2",
+						Namespace: "test",
+					},
+				}},
+			},
+			Services: map[string][]*corev1.Service{
+				"r1": []*corev1.Service{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "service-r1",
+						Namespace: "test",
+					},
+				}},
+				"r2": []*corev1.Service{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "service-r2",
+						Namespace: "test",
+					},
+				}},
+			},
+			ConfigMaps: map[string]*corev1.ConfigMap{},
+			Topologies: map[string]*topologyv1.Topology{
+				"t1": &topologyv1.Topology{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "t1",
+						Namespace: "test",
+					},
+				},
+			},
+		},
 	}, {
-		desc: "failure",
+		desc: "no pods",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+			},
+		},
+		wantErr: "could not get pods",
+	}, {
+		desc: "no services",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+		},
+		wantErr: "could not get services",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			t.Skip()
+			tf, err := tfake.NewSimpleClientset(tt.topoObjects...)
+			if err != nil {
+				t.Fatalf("cannot create fake topology clientset: %v", err)
+			}
+			opts := []Option{
+				WithClusterConfig(&rest.Config{}),
+				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
+				WithTopoClient(tf),
+			}
+			m, err := New(topo, opts...)
+			if err != nil {
+				t.Fatalf("New() failed to create new topology manager: %v", err)
+			}
+			got, err := m.Resources(ctx)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("Resources() unexpected err: %s", s)
+			}
+			if s := cmp.Diff(tt.want, got); s != "" {
+				t.Errorf("Resources() unexpected diff (-want +got):\n%s", s)
+			}
 		})
 	}
 }
-
-//type fakeWatch struct {
-//	e    []watch.Event
-//	ch   chan watch.Event
-//	done chan struct{}
-//}
-//
-//func newFakeWatch(e []watch.Event) *fakeWatch {
-//	f := &fakeWatch{
-//		e:    e,
-//		ch:   make(chan watch.Event, 1),
-//		done: make(chan struct{}),
-//	}
-//	go func() {
-//		for len(f.e) != 0 {
-//			e := f.e[0]
-//			f.e = f.e[1:]
-//			select {
-//			case f.ch <- e:
-//			case <-f.done:
-//				return
-//			}
-//		}
-//	}()
-//	return f
-//}
-//func (f *fakeWatch) Stop() {
-//	close(f.done)
-//}
-//
-//func (f *fakeWatch) ResultChan() <-chan watch.Event {
-//	return f.ch
-//}
-//
-//func TestWatch(t *testing.T) {
-//	tests := []struct {
-//		desc string
-//		events []watch.Event
-//	}{{
-//		desc: "success",
-//	}, {
-//		desc: "failure",
-//	}}
-//	for _, tt := range tests {
-//		t.Run(tt.desc, func(t *testing.T) {
-//			t.Skip()
-//		})
-//	}
-//}
 
 func TestNodes(t *testing.T) {
 	aNode := &configurable{}
@@ -645,25 +1081,6 @@ func TestNodes(t *testing.T) {
 			}
 		})
 	}
-}
-
-type configurable struct {
-	*node.Impl
-}
-
-func (c *configurable) ConfigPush(_ context.Context, r io.Reader) error {
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	if string(b) == "error" {
-		return fmt.Errorf("error")
-	}
-	return nil
-}
-
-type notConfigurable struct {
-	*node.Impl
 }
 
 func TestConfigPush(t *testing.T) {
@@ -706,22 +1123,6 @@ func TestConfigPush(t *testing.T) {
 	}
 }
 
-type resettable struct {
-	*node.Impl
-	rErr string
-}
-
-func (r *resettable) ResetCfg(_ context.Context) error {
-	if r.rErr != "" {
-		return fmt.Errorf(r.rErr)
-	}
-	return nil
-}
-
-type notResettable struct {
-	*node.Impl
-}
-
 func TestResetCfg(t *testing.T) {
 	m := &Manager{
 		nodes: map[string]node.Node{
@@ -758,32 +1159,6 @@ func TestResetCfg(t *testing.T) {
 			}
 		})
 	}
-}
-
-type certable struct {
-	*node.Impl
-	proto *tpb.Node
-	gErr  string
-}
-
-func (c *certable) GetProto() *tpb.Node {
-	return c.proto
-}
-
-func (c *certable) GenerateSelfSigned(_ context.Context) error {
-	if c.gErr != "" {
-		return fmt.Errorf(c.gErr)
-	}
-	return nil
-}
-
-type notCertable struct {
-	*node.Impl
-	proto *tpb.Node
-}
-
-func (nc *notCertable) GetProto() *tpb.Node {
-	return nc.proto
 }
 
 func TestGenerateSelfSigned(t *testing.T) {
