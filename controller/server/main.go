@@ -14,6 +14,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -291,10 +292,11 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "kubecfg %q does not exist: %v", path, err)
 	}
-	if err := topo.CreateTopology(ctx, topo.TopologyParams{
-		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
-		Kubecfg:        kcfg,
-	}); err != nil {
+	tm, err := topo.New(topoPb, topo.WithKubecfg(kcfg))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create topology manager: %v", err)
+	}
+	if err := tm.Create(ctx, 0); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology: %v", err)
 	}
 
@@ -321,10 +323,11 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "default kubecfg %q does not exist: %v", defaultKubeCfg, err)
 	}
-	if err := topo.DeleteTopology(ctx, topo.TopologyParams{
-		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
-		Kubecfg:        kcfg,
-	}); err != nil {
+	tm, err := topo.New(topoPb, topo.WithKubecfg(kcfg))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create topology manager: %v", err)
+	}
+	if err := tm.Delete(ctx); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
 	}
 	return &cpb.DeleteTopologyResponse{}, nil
@@ -346,14 +349,69 @@ func (s *server) ShowTopology(ctx context.Context, req *cpb.ShowTopologyRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "default kubecfg %q does not exist: %v", defaultKubeCfg, err)
 	}
-	resp, err := topo.GetTopologyServices(ctx, topo.TopologyParams{
-		TopoNewOptions: []topo.Option{topo.WithTopology(topoPb)},
-		Kubecfg:        kcfg,
-	})
+	tm, err := topo.New(topoPb, topo.WithKubecfg(kcfg))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create topology manager: %v", err)
+	}
+	resp, err := tm.Show(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to show topology: %v", err)
 	}
 	return resp, nil
+}
+
+func (s *server) PushConfig(ctx context.Context, req *cpb.PushConfigRequest) (*cpb.PushConfigResponse, error) {
+	log.Infof("Received PushConfig request: %v", req)
+	s.muTopo.Lock()
+	defer s.muTopo.Unlock()
+	txtPb, ok := s.topos[req.GetTopologyName()]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "topology %q not found", req.GetTopologyName())
+	}
+	topoPb := &tpb.Topology{}
+	if err := prototext.Unmarshal(txtPb, topoPb); err != nil {
+		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
+	}
+	kcfg, err := validatePath(defaultKubeCfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "default kubecfg %q does not exist: %v", defaultKubeCfg, err)
+	}
+	tm, err := topo.New(topoPb, topo.WithKubecfg(kcfg))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create topology manager for %s: %v", topoPb.Name, err)
+	}
+	log.Infof("Pushing config of size %v to device %q", len(req.GetConfig()), req.GetDeviceName())
+	if err := tm.ConfigPush(ctx, req.GetDeviceName(), bytes.NewReader(req.GetConfig())); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to push config to device %q: %v", req.GetDeviceName(), err)
+	}
+	return &cpb.PushConfigResponse{}, nil
+}
+
+func (s *server) ResetConfig(ctx context.Context, req *cpb.ResetConfigRequest) (*cpb.ResetConfigResponse, error) {
+	log.Infof("Received ResetConfig request: %v", req)
+	s.muTopo.Lock()
+	defer s.muTopo.Unlock()
+	txtPb, ok := s.topos[req.GetTopologyName()]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "topology %q not found", req.GetTopologyName())
+	}
+	topoPb := &tpb.Topology{}
+	if err := prototext.Unmarshal(txtPb, topoPb); err != nil {
+		return nil, status.Errorf(codes.Internal, "invalid topology protobuf: %v", err)
+	}
+	kcfg, err := validatePath(defaultKubeCfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "default kubecfg %q does not exist: %v", defaultKubeCfg, err)
+	}
+	tm, err := topo.New(topoPb, topo.WithKubecfg(kcfg))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create topology manager for %s: %v", topoPb.Name, err)
+	}
+	log.Infof("Resetting config for device %q", req.GetDeviceName())
+	if err := tm.ResetCfg(ctx, req.GetDeviceName()); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to reset config for device %q: %v", req.GetDeviceName(), err)
+	}
+	return &cpb.ResetConfigResponse{}, nil
 }
 
 func validatePath(path string) (string, error) {

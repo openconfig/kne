@@ -470,7 +470,9 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if err != nil {
 		log.Infof("Creating metallb secret")
 		d := make([]byte, 16)
-		rand.Read(d)
+		if _, err := rand.Read(d); err != nil {
+			return err
+		}
 		s := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "memberlist",
