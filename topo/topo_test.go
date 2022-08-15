@@ -1062,27 +1062,21 @@ func TestNodes(t *testing.T) {
 	bNode := &configurable{}
 	cNode := &configurable{}
 	tests := []struct {
-		desc  string
-		nodes map[string]node.Node
-		want  []node.Node
+		desc string
+		want map[string]node.Node
 	}{{
 		desc: "non-zero nodes",
-		nodes: map[string]node.Node{
+		want: map[string]node.Node{
 			"a": aNode,
 			"b": bNode,
 			"c": cNode,
-		},
-		want: []node.Node{
-			aNode,
-			bNode,
-			cNode,
 		},
 	}, {
 		desc: "zero nodes",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			m := &Manager{nodes: tt.nodes}
+			m := &Manager{nodes: tt.want}
 			got := m.Nodes()
 			if s := cmp.Diff(got, tt.want); s != "" {
 				t.Errorf("Nodes() unexpected diff: %s", s)

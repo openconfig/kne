@@ -103,10 +103,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	nodes := map[string]node.Node{}
-	for _, n := range tm.Nodes() {
-		nodes[n.Name()] = n
-	}
+	nodes := tm.Nodes()
 	if len(args) > 1 {
 		nodes = map[string]node.Node{args[1]: nodes[args[1]]}
 	}

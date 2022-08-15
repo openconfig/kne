@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -230,18 +229,9 @@ func (m *Manager) Watch(ctx context.Context) error {
 	return nil
 }
 
-// Nodes returns all nodes in the current topology.
-func (m *Manager) Nodes() []node.Node {
-	var keys []string
-	for k := range m.nodes {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var n []node.Node
-	for _, k := range keys {
-		n = append(n, m.nodes[k])
-	}
-	return n
+// Nodes returns a map of node names to implementations in the current topology.
+func (m *Manager) Nodes() map[string]node.Node {
+	return m.nodes
 }
 
 // load populates the internal fields of the topology proto.
