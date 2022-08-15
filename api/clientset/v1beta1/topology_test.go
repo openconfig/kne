@@ -186,7 +186,7 @@ func TestCreate(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.Topology{}, "TypeMeta")); s != "" {
+			if s := cmp.Diff(got, tt.want); s != "" {
 				t.Fatalf("Create(%+v) failed: %s", tt.want, s)
 			}
 		})
