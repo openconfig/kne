@@ -63,6 +63,7 @@ type Node struct {
 // Add validations for interfaces the node provides
 var (
 	_ node.ConfigPusher = (*Node)(nil)
+	_ node.Resetter     = (*Node)(nil)
 )
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
