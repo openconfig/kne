@@ -9,7 +9,6 @@ func TestGetKubeCfg(t *testing.T) {
 	tests := []struct {
 		desc   string
 		setVar func() func()
-		osVar  string
 		want   string
 	}{{
 		desc: "KUBECONFIG Set",
@@ -49,7 +48,7 @@ func TestGetKubeCfg(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			unset := tt.setVar()
 			defer unset()
-			got := getKubeCfg()
+			got := defaultKubeCfg()
 			if got != tt.want {
 				t.Fatalf("getKubeCfg() failed: got %v, want %v", got, tt.want)
 			}

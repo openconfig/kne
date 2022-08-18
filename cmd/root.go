@@ -61,7 +61,7 @@ func ExecuteContext(ctx context.Context) error {
 	return rootCmd.ExecuteContext(ctx)
 }
 
-func getKubeCfg() string {
+func defaultKubeCfg() string {
 	if v := os.Getenv("KUBECONFIG"); v != "" {
 		return v
 	}
@@ -73,7 +73,7 @@ func getKubeCfg() string {
 
 func init() {
 	rootCmd.SetOut(os.Stdout)
-	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", getKubeCfg(), "kubeconfig file")
+	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg(), "kubeconfig file")
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "verbosity", "v", logLevel, "log level")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
 	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
