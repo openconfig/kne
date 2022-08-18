@@ -31,11 +31,10 @@ import (
 )
 
 var (
-	defaultKubeCfg = ""
-	kubecfg        string
-	dryrun         bool
-	timeout        time.Duration
-	logLevel       = "info"
+	kubecfg  string
+	dryrun   bool
+	timeout  time.Duration
+	logLevel = "info"
 
 	rootCmd = &cobra.Command{
 		Use:   "kne",
@@ -62,12 +61,19 @@ func ExecuteContext(ctx context.Context) error {
 	return rootCmd.ExecuteContext(ctx)
 }
 
-func init() {
-	if home := homedir.HomeDir(); home != "" {
-		defaultKubeCfg = filepath.Join(home, ".kube", "config")
+func getKubeCfg() string {
+	if v := os.Getenv("KUBECONFIG"); v != "" {
+		return v
 	}
+	if home := homedir.HomeDir(); home != "" {
+		return filepath.Join(home, ".kube", "config")
+	}
+	return ""
+}
+
+func init() {
 	rootCmd.SetOut(os.Stdout)
-	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg, "kubeconfig file")
+	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", getKubeCfg(), "kubeconfig file")
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "verbosity", "v", logLevel, "log level")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
 	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
