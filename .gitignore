@@ -1,7 +1,7 @@
 .vscode
 .idea
 
-kne
-go.work
-go.work.sum
+/kne
+/go.work
+/go.work.sum
 **/super-linter.log
