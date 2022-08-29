@@ -12,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
 )
@@ -97,12 +97,14 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 
 func setUp(t *testing.T) *Clientset {
 	t.Helper()
+	objs := []runtime.Object{obj1, obj2}
 	cs, err := NewForConfig(&rest.Config{})
 	if err != nil {
-		t.Fatalf("NewForConfig() failed: %v", err)
+		t.Fatalf("failed to create client set")
 	}
-	objs := []runtime.Object{obj1, obj2}
-	f := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, objs...)
+	f := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(topologyv1.Scheme, map[schema.GroupVersionResource]string{
+		GVR(): "TopologyList",
+	}, objs...)
 	f.PrependReactor("create", "*", func(action ktest.Action) (bool, runtime.Object, error) {
 		cAction, ok := action.(ktest.CreateAction)
 		if !ok {
@@ -186,7 +188,7 @@ func TestCreate(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(got, tt.want); s != "" {
+			if s := cmp.Diff(tt.want, got); s != "" {
 				t.Fatalf("Create(%+v) failed: %s", tt.want, s)
 			}
 		})
@@ -215,7 +217,7 @@ func TestList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(topologyv1.TopologyList{}, "TypeMeta")); s != "" {
+			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(topologyv1.TopologyList{}, "TypeMeta")); s != "" {
 				t.Fatalf("List() failed: %s", s)
 			}
 		})
@@ -252,7 +254,7 @@ func TestGet(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(got, tt.want); s != "" {
+			if s := cmp.Diff(tt.want, got); s != "" {
 				t.Fatalf("Get(%q) failed: %s", tt.in, s)
 			}
 		})
@@ -316,7 +318,7 @@ func TestWatch(t *testing.T) {
 				return
 			}
 			e := <-w.ResultChan()
-			if s := cmp.Diff(e, tt.want); s != "" {
+			if s := cmp.Diff(tt.want, e); s != "" {
 				t.Fatalf("Watch() failed: %s", s)
 			}
 		})
@@ -362,7 +364,7 @@ func TestUpdate(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(got, updateObj); s != "" {
+			if s := cmp.Diff(updateObj, got); s != "" {
 				t.Fatalf("Update() failed: %s", s)
 			}
 		})
