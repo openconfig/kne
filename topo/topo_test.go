@@ -1078,7 +1078,7 @@ func TestNodes(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			m := &Manager{nodes: tt.want}
 			got := m.Nodes()
-			if s := cmp.Diff(got, tt.want); s != "" {
+			if s := cmp.Diff(tt.want, got); s != "" {
 				t.Errorf("Nodes() unexpected diff: %s", s)
 			}
 		})
@@ -1286,15 +1286,15 @@ func TestStateMap(t *testing.T) {
 	},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.desc, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
 			sm := &stateMap{}
-			for _, n := range tc.nodes {
+			for _, n := range tt.nodes {
 				sm.setNodeState(n.name, n.phase)
 			}
 			got := sm.topologyState()
-			if tc.want != got {
-				t.Fatalf("want: %+v, got: %+v", tc.want, got)
+			if got != tt.want {
+				t.Fatalf("got %+v, want %+v", got, tt.want)
 			}
 		})
 	}
