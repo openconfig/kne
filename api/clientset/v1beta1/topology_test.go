@@ -20,6 +20,26 @@ import (
 )
 
 var (
+	objNew = &topologyv1.Topology{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Topology",
+			APIVersion: "networkop.co.uk/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "newObj",
+			Namespace:  "test",
+			Generation: 1,
+		},
+		Status: topologyv1.TopologyStatus{},
+		Spec: topologyv1.TopologySpec{
+			Links: []topologyv1.Link{{
+				LocalIntf: "int1",
+				PeerIntf:  "int1",
+				PeerPod:   "obj2",
+				UID:       0,
+			}},
+		},
+	}
 	obj1 = &topologyv1.Topology{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Topology",
@@ -105,36 +125,6 @@ func setUp(t *testing.T) *Clientset {
 	f := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(topologyv1.Scheme, map[schema.GroupVersionResource]string{
 		GVR(): "TopologyList",
 	}, objs...)
-	f.PrependReactor("create", "*", func(action ktest.Action) (bool, runtime.Object, error) {
-		cAction, ok := action.(ktest.CreateAction)
-		if !ok {
-			return false, nil, nil
-		}
-		uObj := cAction.GetObject().(*unstructured.Unstructured)
-		tObj := &topologyv1.Topology{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(uObj.Object, tObj); err != nil {
-			return true, nil, fmt.Errorf("failed to covert object: %v", err)
-		}
-		if tObj.ObjectMeta.Name == "alreadyexists" {
-			return true, nil, fmt.Errorf("alreadyexists")
-		}
-		return true, tObj, nil
-	})
-	f.PrependReactor("update", "*", func(action ktest.Action) (bool, runtime.Object, error) {
-		uAction, ok := action.(ktest.UpdateAction)
-		if !ok {
-			return false, nil, nil
-		}
-		uObj := uAction.GetObject().(*unstructured.Unstructured)
-		tObj := &topologyv1.Topology{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(uObj.Object, tObj); err != nil {
-			return true, nil, fmt.Errorf("failed to covert object: %v", err)
-		}
-		if tObj.ObjectMeta.Name == "doesnotexist" {
-			return true, nil, fmt.Errorf("doesnotexist")
-		}
-		return true, uAction.GetObject(), nil
-	})
 	f.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
 		wAction, ok := action.(ktest.WatchAction)
 		if !ok {
@@ -157,31 +147,32 @@ func setUp(t *testing.T) *Clientset {
 
 func TestCreate(t *testing.T) {
 	cs := setUp(t)
+	objWithoutTypeMetaOut := objNew.DeepCopy()
+	objWithoutTypeMetaOut.Name = "newObjWithoutTypeMeta"
+	objWithoutTypeMetaIn := objWithoutTypeMetaOut.DeepCopy()
+	objWithoutTypeMetaIn.TypeMeta.Reset()
 	tests := []struct {
 		desc    string
+		in      *topologyv1.Topology
 		want    *topologyv1.Topology
 		wantErr string
 	}{{
-		desc: "already exists",
-		want: &topologyv1.Topology{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Topology",
-				APIVersion: "networkop.co.uk/v1beta1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "alreadyexists",
-				Namespace: "test",
-			},
-		},
-		wantErr: "alreadyexists",
+		desc:    "already exists",
+		in:      obj1,
+		wantErr: "already exists",
 	}, {
 		desc: "success",
-		want: obj1,
+		in:   objNew,
+		want: objNew,
+	}, {
+		desc: "success without typemeta",
+		in:   objWithoutTypeMetaIn,
+		want: objWithoutTypeMetaOut,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			tc := cs.Topology("test")
-			got, err := tc.Create(context.Background(), tt.want, metav1.CreateOptions{})
+			got, err := tc.Create(context.Background(), tt.in, metav1.CreateOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
