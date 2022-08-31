@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
@@ -122,9 +121,7 @@ func setUp(t *testing.T) *Clientset {
 	if err != nil {
 		t.Fatalf("failed to create client set")
 	}
-	f := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(topologyv1.Scheme, map[schema.GroupVersionResource]string{
-		GVR(): "TopologyList",
-	}, objs...)
+	f := dynamicfake.NewSimpleDynamicClient(topologyv1.Scheme, objs...)
 	f.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
 		wAction, ok := action.(ktest.WatchAction)
 		if !ok {
