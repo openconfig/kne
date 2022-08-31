@@ -977,6 +977,10 @@ func TestResources(t *testing.T) {
 			ConfigMaps: map[string]*corev1.ConfigMap{},
 			Topologies: map[string]*topologyv1.Topology{
 				"t1": {
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Topology",
+						APIVersion: "networkop.co.uk/v1beta1",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "t1",
 						Namespace: "test",

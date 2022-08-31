@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 )
@@ -111,7 +112,7 @@ func (t *topologyClient) List(ctx context.Context, opts metav1.ListOptions) (*to
 	}
 	result := topologyv1.TopologyList{}
 	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
-		return nil, fmt.Errorf("failed to type assert return to topologylist")
+		return nil, fmt.Errorf("failed to type assert return to TopologyList: %w", err)
 	}
 	return &result, nil
 }
@@ -123,19 +124,23 @@ func (t *topologyClient) Get(ctx context.Context, name string, opts metav1.GetOp
 	}
 	result := topologyv1.Topology{}
 	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
-		return nil, fmt.Errorf("failed to type assert return to topology")
+		return nil, fmt.Errorf("failed to type assert return to Topology: %w", err)
 	}
 	return &result, nil
 }
 
 func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topology, opts metav1.CreateOptions) (*topologyv1.Topology, error) {
+	gvk, err := apiutil.GVKForObject(topology, topologyv1.Scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gvk for Topology: %w", err)
+	}
 	topology.TypeMeta = metav1.TypeMeta{
-		Kind:       "Topology",
-		APIVersion: groupVersion.String(),
+		Kind:       gvk.Kind,
+		APIVersion: gvk.GroupVersion().String(),
 	}
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(topology)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert topology to unstructured: %v", err)
+		return nil, fmt.Errorf("failed to convert Topology to unstructured: %w", err)
 	}
 	u, err := t.dInterface.Namespace(t.ns).Create(ctx, &unstructured.Unstructured{Object: obj}, opts)
 	if err != nil {
@@ -143,7 +148,7 @@ func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topolo
 	}
 	result := topologyv1.Topology{}
 	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
-		return nil, fmt.Errorf("failed to type assert return to topology")
+		return nil, fmt.Errorf("failed to type assert return to Topology: %w", err)
 	}
 	return &result, nil
 }
@@ -164,7 +169,7 @@ func (t *topologyClient) Update(ctx context.Context, obj *unstructured.Unstructu
 	}
 	result := topologyv1.Topology{}
 	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &result); err != nil {
-		return nil, fmt.Errorf("failed to type assert return to topology")
+		return nil, fmt.Errorf("failed to type assert return to Topology: %w", err)
 	}
 	return &result, nil
 }

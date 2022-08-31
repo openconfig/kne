@@ -20,8 +20,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const GroupName = "networkop.co.uk"
-const GroupVersion = "v1beta1"
+const (
+	GroupName    = "networkop.co.uk"
+	GroupVersion = "v1beta1"
+)
 
 var (
 	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
