@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/h-fam/errdiff"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -199,7 +200,10 @@ func TestService(t *testing.T) {
 			if tt.wantCreateErr != "" {
 				return
 			}
-			if s := cmp.Diff(tt.want, got); s != "" {
+			if s := cmp.Diff(tt.want, got,
+				cmpopts.SortSlices(func(a, b corev1.ServicePort) bool {
+					return a.Name < b.Name
+				})); s != "" {
 				t.Fatalf("Services() failed: %s", s)
 			}
 		})
