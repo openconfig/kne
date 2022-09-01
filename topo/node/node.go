@@ -364,7 +364,7 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			sp.NodePort = int32(v.NodePort)
 		}
 		if v.Outside != 0 {
-			sp.TargetPort = intstr.FromInt(int(v.Outside))
+			sp.Port = int32(v.Outside)
 		}
 		servicePorts = append(servicePorts, sp)
 	}
