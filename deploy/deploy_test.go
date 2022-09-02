@@ -31,6 +31,7 @@ func TestKindSpec(t *testing.T) {
 		desc        string
 		k           *KindSpec
 		execer      execerInterface
+		vExecer     execerInterface
 		execPathErr bool
 		wantErr     string
 	}{{
@@ -129,8 +130,52 @@ func TestKindSpec(t *testing.T) {
 				"docker": "local",
 				"gar":    "docker",
 			},
+			Image:          "foo:latest",
+			Retain:         true,
+			Wait:           180,
+			Kubecfg:        "kubecfg.yaml",
+			KindConfigFile: "test.yaml",
 		},
 		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+	}, {
+		desc: "create cluster load containers additional manifests",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+				"gar":    "docker",
+			},
+			Image:          "foo:latest",
+			Retain:         true,
+			Wait:           180,
+			Kubecfg:        "kubecfg.yaml",
+			KindConfigFile: "test.yaml",
+			AdditionalManifests: []string{
+				"bar:latest",
+				"baz:latest",
+			},
+		},
+		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil, nil, nil),
+	}, {
+		desc: "failedcreate cluster load containers additional manifests",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+				"gar":    "docker",
+			},
+			Image:          "foo:latest",
+			Retain:         true,
+			Wait:           180,
+			Kubecfg:        "kubecfg.yaml",
+			KindConfigFile: "test.yaml",
+			AdditionalManifests: []string{
+				"bar:latest",
+				"baz:latest",
+			},
+		},
+		execer:  exec.NewFakeExecer(nil, nil, fmt.Errorf("manifest error")),
+		wantErr: "failed to deploy manifest",
 	}, {
 		desc: "create cluster load containers - failed pull",
 		k: &KindSpec{
@@ -161,11 +206,105 @@ func TestKindSpec(t *testing.T) {
 		},
 		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("unable to load")),
 		wantErr: "failed to load",
+	}, {
+		desc: "failed kind version - no prefix",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "0.1.15",
+		},
+		wantErr: "missing prefix on major version",
+	}, {
+		desc: "failed kind version - invalid format",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "versionfoo",
+		},
+		wantErr: "failed to get versions from",
+	}, {
+		desc: "failed kind version - invalid major",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "vr.1.1",
+		},
+		wantErr: "failed to convert major version",
+	}, {
+		desc: "failed kind version - invalid minor",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.foo.15",
+		},
+		wantErr: "failed to convert minor version",
+	}, {
+		desc: "failed kind version - invalid patch",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.1.foo",
+		},
+		wantErr: "failed to convert patch version",
+	}, {
+		desc: "failed kind version less check",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v0.14.0 go1.18.2 linux/amd64"}),
+		wantErr: "kind version check failed: got v0.14.0, want v0.15.0",
+	}, {
+		desc: "failed kind version exec fail",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Err: fmt.Errorf("exec error")}),
+		wantErr: "failed to get kind version: exec error",
+	}, {
+		desc: "failed kind version parse",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind "}),
+		wantErr: "failed to parse kind version from",
+	}, {
+		desc: "failed kind version got fail parse",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind 0.14.0 go1.18.2 linux/amd64"}),
+		wantErr: "kind version check failed: missing prefix on major version",
+	}, {
+		desc: "kind version pass",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v0.15.0 go1.18.2 linux/amd64"}),
+	}, {
+		desc: "kind version pass - major",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v1.15.0 go1.18.2 linux/amd64"}),
+	}, {
+		desc: "kind version pass - patch",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v0.15.1 go1.18.2 linux/amd64"}),
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if tt.execer != nil {
 				execer = tt.execer
+			}
+			if tt.vExecer != nil {
+				vExec = tt.vExecer
 			}
 			execLookPath = func(_ string) (string, error) {
 				if tt.execPathErr {

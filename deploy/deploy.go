@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -222,6 +223,56 @@ type KindSpec struct {
 	AdditionalManifests      []string          `yaml:"additionalManifests"`
 }
 
+var (
+	vOut                  = bytes.NewBuffer([]byte{})
+	vExec execerInterface = kexec.NewExecer(vOut, vOut)
+)
+
+type version struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+func (v version) String() string {
+	return fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+
+func (v version) Less(t *version) bool {
+	if v.Major == t.Major {
+		if v.Minor == t.Minor {
+			return v.Patch < t.Patch
+		}
+		return v.Minor < t.Minor
+	}
+	return v.Major < t.Major
+}
+
+func (k *KindSpec) getKindVersion(s string) (*version, error) {
+	versions := strings.Split(s, ".")
+	if len(versions) != 3 {
+		return nil, fmt.Errorf("failed to get versions from: %s", s)
+	}
+	v := &version{}
+	var err error
+	if !strings.HasPrefix(versions[0], "v") {
+		return nil, fmt.Errorf("missing prefix on major version: %s", s)
+	}
+	v.Major, err = strconv.Atoi(versions[0][1:])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert major version: %s", s)
+	}
+	v.Minor, err = strconv.Atoi(versions[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert minor version: %s", s)
+	}
+	v.Patch, err = strconv.Atoi(versions[2])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert patch version: %s", s)
+	}
+	return v, nil
+}
+
 func (k *KindSpec) checkDependencies() error {
 	var errs errlist.List
 	bins := []string{"kind"}
@@ -233,7 +284,36 @@ func (k *KindSpec) checkDependencies() error {
 			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
 		}
 	}
-	return errs.Err()
+	if errs.Err() != nil {
+		return errs.Err()
+	}
+	if k.Version != "" {
+		wantV, err := k.getKindVersion(k.Version)
+		if err != nil {
+			return err
+		}
+
+		if err := vExec.Exec("kind", "version"); err != nil {
+			return fmt.Errorf("failed to get kind version: %w", err)
+		}
+		// Reset buffer for next read
+		defer vOut.Reset()
+
+		vKindFields := strings.Fields(vOut.String())
+		if len(vKindFields) < 2 {
+			return fmt.Errorf("failed to parse kind version from: %s", vOut)
+		}
+
+		gotV, err := k.getKindVersion(vKindFields[1])
+		if err != nil {
+			return fmt.Errorf("kind version check failed: %w", err)
+		}
+		if gotV.Less(wantV) {
+			return fmt.Errorf("kind version check failed: got %s, want %s", gotV, wantV)
+		}
+		log.Infof("kind version valid: got %s want %s", gotV, wantV)
+	}
+	return nil
 }
 
 func (k *KindSpec) Deploy(ctx context.Context) error {
