@@ -379,6 +379,7 @@ func (k *KindSpec) create() error {
 	if err := execer.Exec("kind", args...); err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}
+
 	log.Infof("Deployed kind cluster: %s", k.Name)
 	return nil
 }
