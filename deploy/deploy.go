@@ -22,13 +22,14 @@ import (
 	"github.com/openconfig/gnmi/errlist"
 	kexec "github.com/openconfig/kne/os/exec"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	kversion "k8s.io/kubectl/pkg/cmd/version"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -134,6 +135,35 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	if err != nil {
 		return err
 	}
+
+	log.Infof("Checking kubectl versions.")
+	if err := vExec.Exec("kubectl", "version", "--output=yaml"); err != nil {
+		return fmt.Errorf("failed get kubectl version: %w", err)
+	}
+	kubeYAML := kversion.Version{}
+	if err := yaml.Unmarshal(vOut.Bytes(), &kubeYAML); err != nil {
+		return fmt.Errorf("failed get kubectl version: %w", err)
+	}
+	kClientVersion, err := getVersion(kubeYAML.ClientVersion.GitVersion)
+	if err != nil {
+		return err
+	}
+	kServerVersion, err := getVersion(kubeYAML.ServerVersion.GitVersion)
+	if err != nil {
+		return err
+	}
+	origMajor := kClientVersion.Major
+	kClientVersion.Major -= 2
+	if kServerVersion.Less(kClientVersion) {
+		log.Warn("Kube client and server versions are not within expected range.")
+	}
+	kClientVersion.Major = origMajor + 2
+	if kClientVersion.Less(kServerVersion) {
+		log.Warn("Kube client and server versions are not within expected range.")
+	}
+	log.Info("Found k8s versions:\n", vOut)
+	vOut.Reset()
+
 	d.Ingress.SetKClient(kClient)
 	log.Infof("Deploying ingress...")
 	if err := d.Ingress.Deploy(ctx); err != nil {
@@ -248,7 +278,7 @@ func (v version) Less(t *version) bool {
 	return v.Major < t.Major
 }
 
-func (k *KindSpec) getKindVersion(s string) (*version, error) {
+func getVersion(s string) (*version, error) {
 	versions := strings.Split(s, ".")
 	if len(versions) != 3 {
 		return nil, fmt.Errorf("failed to get versions from: %s", s)
@@ -288,7 +318,7 @@ func (k *KindSpec) checkDependencies() error {
 		return errs.Err()
 	}
 	if k.Version != "" {
-		wantV, err := k.getKindVersion(k.Version)
+		wantV, err := getVersion(k.Version)
 		if err != nil {
 			return err
 		}
@@ -304,7 +334,7 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("failed to parse kind version from: %s", vOut)
 		}
 
-		gotV, err := k.getKindVersion(vKindFields[1])
+		gotV, err := getVersion(vKindFields[1])
 		if err != nil {
 			return fmt.Errorf("kind version check failed: %w", err)
 		}
@@ -350,6 +380,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if err := execer.Exec("kind", args...); err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}
+
 	log.Infof("Deployed kind cluster: %s", k.Name)
 	for _, s := range k.AdditionalManifests {
 		log.Infof("Found manifest %q", s)
@@ -553,7 +584,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		}
 	}
 	log.Infof("Creating metallb namespace")
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "namespace.yaml")); err != nil {
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "metallb-native.yaml")); err != nil {
 		return err
 	}
 	_, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{})
@@ -575,10 +606,6 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-	}
-	log.Infof("Applying metallb pods")
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "metallb.yaml")); err != nil {
-		return err
 	}
 	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Get(ctx, "config", metav1.GetOptions{})
 	if err != nil {
