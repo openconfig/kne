@@ -206,7 +206,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("unable to load")),
 		wantErr: "failed to load",
-  }, {
+	}, {
 		desc: "create cluster load containers - failed empty key",
 		k: &KindSpec{
 			Name: "test",
@@ -224,7 +224,7 @@ func TestKindSpec(t *testing.T) {
 				"docker": "",
 			},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, nil),
+		execer: exec.NewFakeExecer(nil, nil, nil, nil),
 	}, {
 		desc: "failed kind version - no prefix",
 		k: &KindSpec{
