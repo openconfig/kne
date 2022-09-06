@@ -456,6 +456,9 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 
 func (k *KindSpec) loadContainerImages() error {
 	for s, d := range k.ContainerImages {
+		if s == "" {
+			return fmt.Errorf("source container must not be empty")
+		}
 		if d == "" {
 			log.Infof("Loading %q", s)
 			d = s
