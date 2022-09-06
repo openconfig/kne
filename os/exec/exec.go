@@ -46,29 +46,48 @@ func (e *Execer) SetStderr(stderr io.Writer) {
 	e.stderr = stderr
 }
 
+type Response struct {
+	Err    error
+	Stdout string
+	Stderr string
+}
+
 type FakeExecer struct {
-	execErrs []error
+	*Execer
+	responses []Response
 }
 
-func NewFakeExecer(execErrs ...error) *FakeExecer {
-	return &FakeExecer{execErrs: execErrs}
-}
-
-func (f *FakeExecer) Exec(cmd string, _ ...string) error {
-	switch len(f.execErrs) {
-	default:
-		err := f.execErrs[0]
-		f.execErrs = f.execErrs[1:]
-		return err
-	case 0:
-		return fmt.Errorf("unexpected exec(%q) call", cmd)
-	case 1:
-		err := f.execErrs[0]
-		f.execErrs = []error{}
-		return err
+func NewFakeExecer(errs ...error) *FakeExecer {
+	var resp []Response
+	for _, e := range errs {
+		resp = append(resp, Response{Err: e})
+	}
+	return &FakeExecer{
+		Execer:    NewExecer(nil, nil),
+		responses: resp,
 	}
 }
 
-func (f *FakeExecer) SetStdout(stdout io.Writer) {}
-
-func (f *FakeExecer) SetStderr(stderr io.Writer) {}
+func NewFakeExecerWithIO(stdout, stderr io.Writer, resp ...Response) *FakeExecer {
+	return &FakeExecer{
+		Execer:    NewExecer(stdout, stderr),
+		responses: resp,
+	}
+}
+func (f *FakeExecer) Exec(cmd string, _ ...string) error {
+	if len(f.responses) == 0 {
+		return fmt.Errorf("unexpected exec(%q) call", cmd)
+	}
+	r := f.responses[0]
+	f.responses = f.responses[1:]
+	if r.Err != nil {
+		return r.Err
+	}
+	if r.Stdout != "" {
+		fmt.Fprintf(f.stdout, r.Stdout)
+	}
+	if r.Stderr != "" {
+		fmt.Fprintf(f.stderr, r.Stderr)
+	}
+	return r.Err
+}
