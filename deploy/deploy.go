@@ -456,12 +456,22 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 
 func (k *KindSpec) loadContainerImages() error {
 	for s, d := range k.ContainerImages {
-		log.Infof("Loading %q as %q", s, d)
+		if s == "" {
+			return fmt.Errorf("source container must not be empty")
+		}
+		if d == "" {
+			log.Infof("Loading %q", s)
+			d = s
+		} else {
+			log.Infof("Loading %q as %q", s, d)
+		}
 		if err := execer.Exec("docker", "pull", s); err != nil {
 			return fmt.Errorf("failed to pull %q: %w", s, err)
 		}
-		if err := execer.Exec("docker", "tag", s, d); err != nil {
-			return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
+		if d != s {
+			if err := execer.Exec("docker", "tag", s, d); err != nil {
+				return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
+			}
 		}
 		args := []string{"load", "docker-image", d}
 		if k.Name != "" {

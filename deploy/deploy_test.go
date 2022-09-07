@@ -157,7 +157,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil, nil, nil),
 	}, {
-		desc: "failedcreate cluster load containers additional manifests",
+		desc: "failed create cluster load containers additional manifests",
 		k: &KindSpec{
 			Name: "test",
 			ContainerImages: map[string]string{
@@ -206,6 +206,25 @@ func TestKindSpec(t *testing.T) {
 		},
 		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("unable to load")),
 		wantErr: "failed to load",
+	}, {
+		desc: "create cluster load containers - failed empty key",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"": "local",
+			},
+		},
+		execer:  exec.NewFakeExecer(nil),
+		wantErr: "source container must not be empty",
+	}, {
+		desc: "create cluster load containers - success empty value",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"docker": "",
+			},
+		},
+		execer: exec.NewFakeExecer(nil, nil, nil, nil),
 	}, {
 		desc: "failed kind version - no prefix",
 		k: &KindSpec{
