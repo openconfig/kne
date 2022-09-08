@@ -37,6 +37,7 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_GO: false
           VALIDATE_HTML: false
+          VALIDATE_KUBEVAL: false
           VALIDATE_JSCPD: false
           IGNORE_GENERATED_FILES: true
           DEFAULT_BRANCH: main
