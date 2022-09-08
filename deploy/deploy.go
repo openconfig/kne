@@ -348,7 +348,7 @@ func (k *KindSpec) checkDependencies() error {
 	return nil
 }
 
-func (k *KindSpec) create(ctx context.Context) error {
+func (k *KindSpec) create() error {
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
 		if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
@@ -388,7 +388,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		return err
 	}
 
-	if err := k.create(ctx); err != nil {
+	if err := k.create(); err != nil {
 		return err
 	}
 
