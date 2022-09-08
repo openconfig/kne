@@ -439,7 +439,7 @@ func TestMetalLBSpec(t *testing.T) {
 		m: &MetalLBSpec{
 			IPCount: 20,
 		},
-		execer: exec.NewFakeExecer(nil, errors.New("metallb error")),
+		execer: exec.NewFakeExecer(errors.New("metallb error")),
 		k8sObjects: []runtime.Object{
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -484,11 +484,11 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		execer: exec.NewFakeExecer(nil, nil, nil),
-		wantCM: `address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-        - 172.18.0.50 - 172.18.0.70
+		wantCM: `AddressPools:
+- Addresses:
+  - 172.18.0.50 - 172.18.0.70
+  Name: default
+  Protocol: layer2
 `,
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
