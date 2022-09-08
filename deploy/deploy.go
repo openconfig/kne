@@ -278,6 +278,8 @@ func (v version) Less(t *version) bool {
 	return v.Major < t.Major
 }
 
+// getVersion takes a git version tag string "v1.20.1" and returns a version
+// comparable version struct.
 func getVersion(s string) (*version, error) {
 	versions := strings.Split(s, ".")
 	if len(versions) != 3 {
@@ -346,10 +348,7 @@ func (k *KindSpec) checkDependencies() error {
 	return nil
 }
 
-func (k *KindSpec) Deploy(ctx context.Context) error {
-	if err := k.checkDependencies(); err != nil {
-		return err
-	}
+func (k *KindSpec) create(ctx context.Context) error {
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
 		if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
@@ -380,26 +379,40 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if err := execer.Exec("kind", args...); err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}
-
 	log.Infof("Deployed kind cluster: %s", k.Name)
+	return nil
+}
+
+func (k *KindSpec) Deploy(ctx context.Context) error {
+	if err := k.checkDependencies(); err != nil {
+		return err
+	}
+
+	if err := k.create(ctx); err != nil {
+		return err
+	}
+
 	for _, s := range k.AdditionalManifests {
 		log.Infof("Found manifest %q", s)
 		if err := execer.Exec("kubectl", "apply", "-f", s); err != nil {
 			return fmt.Errorf("failed to deploy manifest: %w", err)
 		}
 	}
+
 	if len(k.GoogleArtifactRegistries) != 0 {
 		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
 		if err := k.setupGoogleArtifactRegistryAccess(); err != nil {
 			return fmt.Errorf("failed to setup Google artifact registry access: %w", err)
 		}
 	}
+
 	if len(k.ContainerImages) != 0 {
 		log.Infof("Loading container images")
 		if err := k.loadContainerImages(); err != nil {
 			return fmt.Errorf("failed to load container images: %w", err)
 		}
 	}
+
 	return nil
 }
 
