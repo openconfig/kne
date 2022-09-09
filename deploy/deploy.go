@@ -388,11 +388,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		return err
 	}
 
-<<<<<<< HEAD
 	if err := k.create(); err != nil {
-=======
-	if err := k.create(ctx); err != nil {
->>>>>>> dcc36e6 (fix tests)
 		return err
 	}
 
