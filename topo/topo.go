@@ -576,7 +576,6 @@ var populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) erro
 		if !ok {
 			service = &tpb.Service{
 				Name:   p.Name,
-				Inside: k,
 			}
 			m[k] = service
 		}
