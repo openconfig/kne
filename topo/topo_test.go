@@ -31,10 +31,12 @@ import (
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
@@ -648,7 +650,7 @@ func TestShow(t *testing.T) {
 				Name: "r1",
 				Type: tpb.Node_Type(1004),
 				Services: map[uint32]*tpb.Service{
-					1000: {
+					22: {
 						Name: "ssh",
 					},
 				},
@@ -657,16 +659,39 @@ func TestShow(t *testing.T) {
 				Name: "r2",
 				Type: tpb.Node_Type(1004),
 				Services: map[uint32]*tpb.Service{
-					2000: {
+					9337: {
 						Name: "grpc",
 					},
-					3000: {
+					9339: {
 						Name: "gnmi",
 					},
 				},
 			},
 		},
 	}
+
+	wantTopo := proto.Clone(topo).(*tpb.Topology)
+	wantTopo.Nodes[0].Services[22].Inside = 22
+	wantTopo.Nodes[0].Services[22].InsideIp = "10.1.1.1"
+	wantTopo.Nodes[0].Services[22].Outside = 22
+	wantTopo.Nodes[0].Services[22].OutsideIp = "192.168.16.50"
+	wantTopo.Nodes[0].Services[22].NodePort = 20001
+	wantTopo.Nodes[1].Services[9337].Inside = 9337
+	wantTopo.Nodes[1].Services[9337].InsideIp = "10.1.1.2"
+	wantTopo.Nodes[1].Services[9337].Outside = 9337
+	wantTopo.Nodes[1].Services[9337].OutsideIp = "192.168.16.51"
+	wantTopo.Nodes[1].Services[9337].NodePort = 20002
+	wantTopo.Nodes[1].Services[9339].Inside = 9339
+	wantTopo.Nodes[1].Services[9339].InsideIp = "10.1.1.2"
+	wantTopo.Nodes[1].Services[9339].Outside = 9339
+	wantTopo.Nodes[1].Services[9339].OutsideIp = "192.168.16.51"
+	wantTopo.Nodes[1].Services[9339].NodePort = 20003
+
+	topoRemapPorts := proto.Clone(wantTopo).(*tpb.Topology)
+	topoRemapPorts.Nodes[1].Services[9337].Inside = 9339
+
+	wantTopoRemapPorts := proto.Clone(topoRemapPorts).(*tpb.Topology)
+
 	tests := []struct {
 		desc       string
 		k8sObjects []runtime.Object
@@ -699,17 +724,140 @@ func TestShow(t *testing.T) {
 					Name:      "service-r1",
 					Namespace: "test",
 				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.1",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Protocol:   "TCP",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   20001,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.50",
+						}},
+					},
+				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "service-r2",
 					Namespace: "test",
 				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.2",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "grpc",
+						Protocol:   "TCP",
+						Port:       9337,
+						TargetPort: intstr.FromInt(9337),
+						NodePort:   20002,
+					}, {
+						Name:       "gnmi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   20003,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.51",
+						}},
+					},
+				},
 			},
 		},
 		want: &cpb.ShowTopologyResponse{
 			State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
-			Topology: topo,
+			Topology: wantTopo,
+		},
+	}, {
+		desc: "success with remapped ports",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.1",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Protocol:   "TCP",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   20001,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.50",
+						}},
+					},
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.2",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "grpc",
+						Protocol:   "TCP",
+						Port:       9337,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   20002,
+					}, {
+						Name:       "gnmi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   20003,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.51",
+						}},
+					},
+				},
+			},
+		},
+		want: &cpb.ShowTopologyResponse{
+			State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+			Topology: wantTopoRemapPorts,
 		},
 	}, {
 		desc: "no pods",
@@ -784,17 +932,59 @@ func TestShow(t *testing.T) {
 					Name:      "service-r1",
 					Namespace: "test",
 				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.1",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Protocol:   "TCP",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   20001,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.50",
+						}},
+					},
+				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "service-r2",
 					Namespace: "test",
 				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.2",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "grpc",
+						Protocol:   "TCP",
+						Port:       9337,
+						TargetPort: intstr.FromInt(9337),
+						NodePort:   20002,
+					}, {
+						Name:       "gnmi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   20003,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.51",
+						}},
+					},
+				},
 			},
 		},
 		want: &cpb.ShowTopologyResponse{
 			State:    cpb.TopologyState_TOPOLOGY_STATE_CREATING,
-			Topology: topo,
+			Topology: wantTopo,
 		},
 	}, {
 		desc: "success - unhealthy",
@@ -823,28 +1013,63 @@ func TestShow(t *testing.T) {
 					Name:      "service-r1",
 					Namespace: "test",
 				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.1",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Protocol:   "TCP",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   20001,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.50",
+						}},
+					},
+				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "service-r2",
 					Namespace: "test",
 				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.2",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "grpc",
+						Protocol:   "TCP",
+						Port:       9337,
+						TargetPort: intstr.FromInt(9337),
+						NodePort:   20002,
+					}, {
+						Name:       "gnmi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   20003,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.51",
+						}},
+					},
+				},
 			},
 		},
 		want: &cpb.ShowTopologyResponse{
 			State:    cpb.TopologyState_TOPOLOGY_STATE_ERROR,
-			Topology: topo,
+			Topology: wantTopo,
 		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			orig := populateServiceMap
-			populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) error {
-				return nil
-			}
-			defer func() {
-				populateServiceMap = orig
-			}()
 			tf, err := tfake.NewSimpleClientset()
 			if err != nil {
 				t.Fatalf("cannot create fake topology clientset: %v", err)
@@ -854,16 +1079,21 @@ func TestShow(t *testing.T) {
 				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
 				WithTopoClient(tf),
 			}
-			m, err := New(topo, opts...)
+			tTopo := proto.Clone(topo).(*tpb.Topology)
+			m, err := New(tTopo, opts...)
 			if err != nil {
 				t.Fatalf("New() failed to create new topology manager: %v", err)
 			}
 			got, err := m.Show(ctx)
 			if s := errdiff.Check(err, tt.wantErr); s != "" {
-				t.Errorf("Show() unexpected err: %s", s)
+				t.Fatalf("Show() unexpected err: %s", s)
 			}
+			if tt.wantErr != "" {
+				return
+			}
+			fmt.Println(tt.want, got)
 			if s := cmp.Diff(tt.want, got, protocmp.Transform()); s != "" {
-				t.Errorf("Show() unexpected diff (-want +got):\n%s", s)
+				t.Fatalf("Show() unexpected diff (-want +got):\n%s", s)
 			}
 		})
 	}
@@ -1046,7 +1276,8 @@ func TestResources(t *testing.T) {
 				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
 				WithTopoClient(tf),
 			}
-			m, err := New(topo, opts...)
+			tTopo := proto.Clone(topo).(*tpb.Topology)
+			m, err := New(tTopo, opts...)
 			if err != nil {
 				t.Fatalf("New() failed to create new topology manager: %v", err)
 			}

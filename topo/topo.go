@@ -583,7 +583,8 @@ var populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) erro
 		if service.Name == "" {
 			service.Name = p.Name
 		}
-		service.Outside = uint32(p.TargetPort.IntVal)
+		service.Outside = k
+		service.Inside = uint32(p.TargetPort.IntVal)
 		service.NodePort = uint32(p.NodePort)
 		service.InsideIp = s.Spec.ClusterIP
 		service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
