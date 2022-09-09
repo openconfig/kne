@@ -1091,7 +1091,6 @@ func TestShow(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			fmt.Println(tt.want, got)
 			if s := cmp.Diff(tt.want, got, protocmp.Transform()); s != "" {
 				t.Fatalf("Show() unexpected diff (-want +got):\n%s", s)
 			}
