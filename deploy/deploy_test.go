@@ -9,11 +9,13 @@ import (
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
+	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
-	"github.com/kylelemons/godebug/diff"
+	mfake "github.com/openconfig/kne/api/metallb/clientset/v1beta1/fake"
 	"github.com/openconfig/kne/deploy/mocks"
 	"github.com/openconfig/kne/os/exec"
 	"github.com/pkg/errors"
+	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
+
 	ktest "k8s.io/client-go/testing"
 )
 
@@ -405,13 +408,14 @@ func TestMetalLBSpec(t *testing.T) {
 		desc        string
 		m           *MetalLBSpec
 		execer      execerInterface
-		wantCM      string
+		wantConfig  *metallbv1.IPAddressPool
 		dErr        string
 		hErr        string
 		ctx         context.Context
 		mockExpects func(*mocks.MockNetworkAPIClient)
 		mockKClient func(*fake.Clientset)
 		k8sObjects  []runtime.Object
+		mObjects    []runtime.Object
 	}{{
 		desc: "namespace error",
 		m: &MetalLBSpec{
@@ -484,12 +488,19 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		execer: exec.NewFakeExecer(nil, nil, nil),
-		wantCM: `AddressPools:
-- Addresses:
-  - 172.18.0.50 - 172.18.0.70
-  Name: default
-  Protocol: layer2
-`,
+		wantConfig: &metallbv1.IPAddressPool{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "IPAddressPool",
+				APIVersion: "metallb.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kne-service-pool",
+				Namespace: "metallb-system",
+			},
+			Spec: metallbv1.IPAddressPoolSpec{
+				Addresses: []string{"172.18.0.50 - 172.18.0.70"},
+			},
+		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
 		},
@@ -538,7 +549,13 @@ func TestMetalLBSpec(t *testing.T) {
 			if tt.mockKClient != nil {
 				tt.mockKClient(ki)
 			}
+			mi, err := mfake.NewSimpleClientset(tt.mObjects...)
+			if err != nil {
+				t.Fatalf("faild to create fake client: %v", err)
+			}
+
 			tt.m.SetKClient(ki)
+			tt.m.mClient = mi
 			if tt.mockExpects != nil {
 				m := mocks.NewMockNetworkAPIClient(mockCtrl)
 				tt.mockExpects(m)
@@ -547,7 +564,7 @@ func TestMetalLBSpec(t *testing.T) {
 			if tt.execer != nil {
 				execer = tt.execer
 			}
-			err := tt.m.Deploy(context.Background())
+			err = tt.m.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
@@ -564,14 +581,12 @@ func TestMetalLBSpec(t *testing.T) {
 			if err != nil {
 				return
 			}
-			cm, err := tt.m.kClient.CoreV1().ConfigMaps("metallb-system").Get(context.Background(), "config", metav1.GetOptions{})
+			config, err := tt.m.mClient.IPAddressPool("metallb-system").Get(context.Background(), "kne-service-pool", metav1.GetOptions{})
 			if err != nil {
-				t.Fatalf("failed to get config-map: %v", err)
+				t.Fatalf("failed to get config: %v", err)
 			}
-			cText := cm.Data["config"]
-			diff := diff.Diff(cText, tt.wantCM)
-			if diff != "" {
-				t.Fatalf("invalid configmap data: \n%s", diff)
+			if s := cmp.Diff(tt.wantConfig, config); s != "" {
+				t.Fatalf("invalid config data: \n%s", s)
 			}
 		})
 	}

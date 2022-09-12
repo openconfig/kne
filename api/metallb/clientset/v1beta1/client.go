@@ -31,8 +31,8 @@ import (
 
 // IPAddressPoolInterface provides access to the AddressPool CRD.
 type IPAddressPoolInterface interface {
-	List(ctx context.Context, opts metav1.ListOptions) (*metallbv1.AddressPoolList, error)
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*metallbv1.AddressPool, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*metallbv1.IPAddressPoolList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*metallbv1.IPAddressPool, error)
 	Create(ctx context.Context, pool *metallbv1.IPAddressPool, opts metav1.CreateOptions) (*metallbv1.IPAddressPool, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
@@ -108,26 +108,26 @@ type addressPoolClient struct {
 	ns         string
 }
 
-func (a *addressPoolClient) List(ctx context.Context, opts metav1.ListOptions) (*metallbv1.AddressPoolList, error) {
+func (a *addressPoolClient) List(ctx context.Context, opts metav1.ListOptions) (*metallbv1.IPAddressPoolList, error) {
 	u, err := a.dInterface.Namespace(a.ns).List(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
-	result := metallbv1.AddressPoolList{}
+	result := metallbv1.IPAddressPoolList{}
 	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
-		return nil, fmt.Errorf("failed to type assert return to AddressPoolList: %w", err)
+		return nil, fmt.Errorf("failed to type assert return to IPAddressPoolList: %w", err)
 	}
 	return &result, nil
 }
 
-func (a *addressPoolClient) Get(ctx context.Context, name string, opts metav1.GetOptions) (*metallbv1.AddressPool, error) {
+func (a *addressPoolClient) Get(ctx context.Context, name string, opts metav1.GetOptions) (*metallbv1.IPAddressPool, error) {
 	u, err := a.dInterface.Namespace(a.ns).Get(ctx, name, opts)
 	if err != nil {
 		return nil, err
 	}
-	result := metallbv1.AddressPool{}
+	result := metallbv1.IPAddressPool{}
 	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
-		return nil, fmt.Errorf("failed to type assert return to AddressPool: %w", err)
+		return nil, fmt.Errorf("failed to type assert return to IPAddressPool: %w", err)
 	}
 	return &result, nil
 }
