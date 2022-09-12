@@ -18,6 +18,7 @@ package lemming
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/openconfig/kne/topo/node"
 
@@ -31,7 +32,8 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl.Proto == nil {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
-	defaults(nodeImpl.Proto)
+	cfg := defaults(nodeImpl.Proto)
+	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
 	}
@@ -42,8 +44,23 @@ type Node struct {
 	*node.Impl
 }
 
+// Add validations for interfaces the node provides
+var (
+	_ node.Certer       = (*Node)(nil)
+	_ node.ConfigPusher = (*Node)(nil)
+	_ node.Resetter     = (*Node)(nil)
+)
+
 func (n *Node) ResetCfg(ctx context.Context) error {
 	return nil
+}
+
+func (n *Node) ConfigPush(context.Context, io.Reader) error {
+	return fmt.Errorf("config push is not implemented using gNMI to configure device")
+}
+
+func (n *Node) GenerateSelfSigned(context.Context) error {
+	return fmt.Errorf("certificate generation is not supported")
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
@@ -61,6 +78,18 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- /bin/bash", pb.Name)
+	}
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{
+			"cpu":    "0.5",
+			"memory": "1Gi",
+		}
+	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{
+			"type":   tpb.Node_LEMMING.String(),
+			"vendor": tpb.Vendor_OPENCONFIG.String(),
+		}
 	}
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{

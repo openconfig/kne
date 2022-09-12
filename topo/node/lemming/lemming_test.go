@@ -54,6 +54,14 @@ func TestNew(t *testing.T) {
 				Args:         []string{"--alsologtostderr"},
 				EntryCommand: "kubectl exec -it test_node -- /bin/bash",
 			},
+			Labels: map[string]string{
+				"type":   tpb.Node_LEMMING.String(),
+				"vendor": tpb.Vendor_OPENCONFIG.String(),
+			},
+			Constraints: map[string]string{
+				"cpu":    "0.5",
+				"memory": "1Gi",
+			},
 			Services: map[uint32]*tpb.Service{
 				6030: {
 					Name:    "gnmi",
@@ -78,6 +86,12 @@ func TestNew(t *testing.T) {
 					Args:         []string{"-v=2"},
 					EntryCommand: "kubectl exec -it test_node -- /bin/sh",
 				},
+				Constraints: map[string]string{
+					"cpu": "10",
+				},
+				Labels: map[string]string{
+					"custom": "value",
+				},
 				Services: map[uint32]*tpb.Service{
 					8080: {
 						Name:   "gnmi",
@@ -93,6 +107,12 @@ func TestNew(t *testing.T) {
 				Command:      []string{"/lemming/lemming2"},
 				Args:         []string{"-v=2"},
 				EntryCommand: "kubectl exec -it test_node -- /bin/sh",
+			},
+			Constraints: map[string]string{
+				"cpu": "10",
+			},
+			Labels: map[string]string{
+				"custom": "value",
 			},
 			Services: map[uint32]*tpb.Service{
 				8080: {
