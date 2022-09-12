@@ -21,7 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/h-fam/errdiff"
-	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,64 +32,49 @@ import (
 )
 
 var (
-	objNew = &topologyv1.Topology{
+	objNew = &metallbv1.IPAddressPool{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Topology",
-			APIVersion: "networkop.co.uk/v1beta1",
+			Kind:       "IPAddressPool",
+			APIVersion: "metallb.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "newObj",
 			Namespace:  "test",
 			Generation: 1,
 		},
-		Status: topologyv1.TopologyStatus{},
-		Spec: topologyv1.TopologySpec{
-			Links: []topologyv1.Link{{
-				LocalIntf: "int1",
-				PeerIntf:  "int1",
-				PeerPod:   "obj2",
-				UID:       0,
-			}},
+		Status: metallbv1.IPAddressPoolStatus{},
+		Spec: metallbv1.IPAddressPoolSpec{
+			Addresses: []string{"192.168.1.100 - 192.168.1.200 "},
 		},
 	}
-	obj1 = &topologyv1.Topology{
+	obj1 = &metallbv1.IPAddressPool{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Topology",
-			APIVersion: "networkop.co.uk/v1beta1",
+			Kind:       "IPAddressPool",
+			APIVersion: "metallb.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "obj1",
 			Namespace:  "test",
 			Generation: 1,
 		},
-		Status: topologyv1.TopologyStatus{},
-		Spec: topologyv1.TopologySpec{
-			Links: []topologyv1.Link{{
-				LocalIntf: "int1",
-				PeerIntf:  "int1",
-				PeerPod:   "obj2",
-				UID:       0,
-			}},
+		Status: metallbv1.IPAddressPoolStatus{},
+		Spec: metallbv1.IPAddressPoolSpec{
+			Addresses: []string{"192.168.2.100 - 192.168.2.200 "},
 		},
 	}
-	obj2 = &topologyv1.Topology{
+	obj2 = &metallbv1.IPAddressPool{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Topology",
-			APIVersion: "networkop.co.uk/v1beta1",
+			Kind:       "IPAddressPool",
+			APIVersion: "metallb.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "obj2",
 			Namespace:  "test",
 			Generation: 1,
 		},
-		Status: topologyv1.TopologyStatus{},
-		Spec: topologyv1.TopologySpec{
-			Links: []topologyv1.Link{{
-				LocalIntf: "int1",
-				PeerIntf:  "int1",
-				PeerPod:   "obj1",
-				UID:       1,
-			}},
+		Status: metallbv1.IPAddressPoolStatus{},
+		Spec: metallbv1.IPAddressPoolSpec{
+			Addresses: []string{"192.168.3.100 - 192.168.3.200 "},
 		},
 	}
 )
@@ -130,11 +115,11 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 func setUp(t *testing.T) *Clientset {
 	t.Helper()
 	objs := []runtime.Object{obj1, obj2}
-	cs, err := NewForConfig(&rest.Config{})
+	cs, err := NewAddressPoolForConfig(&rest.Config{})
 	if err != nil {
 		t.Fatalf("failed to create client set")
 	}
-	f := dynamicfake.NewSimpleDynamicClient(topologyv1.Scheme, objs...)
+	f := dynamicfake.NewSimpleDynamicClient(Scheme, objs...)
 	f.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
 		wAction, ok := action.(ktest.WatchAction)
 		if !ok {
@@ -151,7 +136,7 @@ func setUp(t *testing.T) *Clientset {
 		})
 		return true, f, nil
 	})
-	cs.dInterface = f.Resource(gvr)
+	cs.dInterface = f.Resource(gvrIPAddressPool)
 	return cs
 }
 
@@ -163,8 +148,8 @@ func TestCreate(t *testing.T) {
 	objWithoutTypeMetaIn.TypeMeta.Reset()
 	tests := []struct {
 		desc    string
-		in      *topologyv1.Topology
-		want    *topologyv1.Topology
+		in      *metallbv1.IPAddressPool
+		want    *metallbv1.IPAddressPool
 		wantErr string
 	}{{
 		desc:    "already exists",
@@ -181,7 +166,7 @@ func TestCreate(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("test")
+			tc := cs.IPAddressPool("test")
 			got, err := tc.Create(context.Background(), tt.in, metav1.CreateOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -200,17 +185,17 @@ func TestList(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		want    *topologyv1.TopologyList
+		want    *metallbv1.IPAddressPoolList
 		wantErr string
 	}{{
 		desc: "success",
-		want: &topologyv1.TopologyList{
-			Items: []topologyv1.Topology{*obj1, *obj2},
+		want: &metallbv1.IPAddressPoolList{
+			Items: []metallbv1.IPAddressPool{*obj1, *obj2},
 		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("test")
+			tc := cs.IPAddressPool("test")
 			got, err := tc.List(context.Background(), metav1.ListOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -218,7 +203,7 @@ func TestList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(topologyv1.TopologyList{}, "TypeMeta")); s != "" {
+			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(metallbv1.IPAddressPoolList{}, "TypeMeta")); s != "" {
 				t.Fatalf("List() failed: %s", s)
 			}
 		})
@@ -230,7 +215,7 @@ func TestGet(t *testing.T) {
 	tests := []struct {
 		desc    string
 		in      string
-		want    *topologyv1.Topology
+		want    *metallbv1.IPAddressPool
 		wantErr string
 	}{{
 		desc:    "failure",
@@ -247,7 +232,7 @@ func TestGet(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("test")
+			tc := cs.IPAddressPool("test")
 			got, err := tc.Get(context.Background(), tt.in, metav1.GetOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -278,7 +263,7 @@ func TestDelete(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("test")
+			tc := cs.IPAddressPool("test")
 			err := tc.Delete(context.Background(), tt.in, metav1.DeleteOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -310,7 +295,7 @@ func TestWatch(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("test")
+			tc := cs.IPAddressPool("test")
 			w, err := tc.Watch(context.Background(), metav1.ListOptions{ResourceVersion: tt.ver})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -330,14 +315,14 @@ func TestUpdate(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
-		want    *topologyv1.Topology
+		want    *metallbv1.IPAddressPool
 		wantErr string
 	}{{
 		desc: "Error",
-		want: &topologyv1.Topology{
+		want: &metallbv1.IPAddressPool{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Topology",
-				APIVersion: "networkop.co.uk/v1beta1",
+				Kind:       "IPAddressPool",
+				APIVersion: "metallb.io/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "doesnotexist",
@@ -346,14 +331,14 @@ func TestUpdate(t *testing.T) {
 		},
 		wantErr: "doesnotexist",
 	}, {
-		desc: "Valid Topology",
+		desc: "Valid IPAddressPool",
 		want: obj1,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("test")
+			tc := cs.IPAddressPool("test")
 			updateObj := tt.want.DeepCopy()
-			updateObj.Spec.Links = append(updateObj.Spec.Links, topologyv1.Link{UID: 1000})
+			updateObj.Spec.Addresses = append(updateObj.Spec.Addresses, "1.1.1.1 - 1.1.1.100")
 			update, err := runtime.DefaultUnstructuredConverter.ToUnstructured(updateObj)
 			if err != nil {
 				t.Fatalf("failed to generate update: %v", err)
@@ -377,7 +362,7 @@ func TestUnstructured(t *testing.T) {
 	tests := []struct {
 		desc    string
 		in      string
-		want    *topologyv1.Topology
+		want    *metallbv1.IPAddressPool
 		wantErr string
 	}{{
 		desc:    "failure",
@@ -394,7 +379,7 @@ func TestUnstructured(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tc := cs.Topology("test")
+			tc := cs.IPAddressPool("test")
 			got, err := tc.Unstructured(context.Background(), tt.in, metav1.GetOptions{})
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -402,7 +387,7 @@ func TestUnstructured(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			uObj1 := &topologyv1.Topology{}
+			uObj1 := &metallbv1.IPAddressPool{}
 			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(got.Object, uObj1); err != nil {
 				t.Fatalf("failed to turn reponse into a topology: %v", err)
 			}
