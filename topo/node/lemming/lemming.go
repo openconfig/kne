@@ -21,8 +21,11 @@ import (
 	"io"
 
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	tpb "github.com/openconfig/kne/proto/topo"
+	log "github.com/sirupsen/logrus"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -52,15 +55,16 @@ var (
 )
 
 func (n *Node) ResetCfg(ctx context.Context) error {
+	log.Info("ResetCfg is a noop.")
 	return nil
 }
 
 func (n *Node) ConfigPush(context.Context, io.Reader) error {
-	return fmt.Errorf("config push is not implemented using gNMI to configure device")
+	return status.Errorf(codes.Unimplemented, "config push is not implemented using gNMI to configure device")
 }
 
 func (n *Node) GenerateSelfSigned(context.Context) error {
-	return fmt.Errorf("certificate generation is not supported")
+	return status.Errorf(codes.Unimplemented, "certificate generation is not supported")
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
