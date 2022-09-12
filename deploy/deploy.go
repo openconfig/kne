@@ -20,13 +20,16 @@ import (
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
+	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
 	kexec "github.com/openconfig/kne/os/exec"
 	log "github.com/sirupsen/logrus"
+	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	kversion "k8s.io/kubectl/pkg/cmd/version"
 	"sigs.k8s.io/yaml"
@@ -81,6 +84,7 @@ type Ingress interface {
 	Deploy(context.Context) error
 	SetKClient(kubernetes.Interface)
 	Healthy(context.Context) error
+	SetRCfg(*rest.Config)
 }
 
 type CNI interface {
@@ -165,6 +169,8 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	vOut.Reset()
 
 	d.Ingress.SetKClient(kClient)
+	d.Ingress.SetRCfg(rCfg)
+
 	log.Infof("Deploying ingress...")
 	if err := d.Ingress.Deploy(ctx); err != nil {
 		return err
@@ -543,11 +549,17 @@ type MetalLBSpec struct {
 	IPCount     int    `yaml:"ip_count"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
+	mClient     metallbclientv1.Interface
+	rCfg        *rest.Config
 	dClient     dclient.NetworkAPIClient
 }
 
 func (m *MetalLBSpec) SetKClient(c kubernetes.Interface) {
 	m.kClient = c
+}
+
+func (m *MetalLBSpec) SetRCfg(cfg *rest.Config) {
+	m.rCfg = cfg
 }
 
 func inc(ip net.IP, cnt int) {
@@ -562,29 +574,21 @@ func inc(ip net.IP, cnt int) {
 	}
 }
 
-type pool struct {
-	Name      string   `yaml:"name"`
-	Protocol  string   `yaml:"protocol"`
-	Addresses []string `yaml:"addresses"`
-}
-
-type metalLBConfig struct {
-	AddressPools []pool `yaml:"address-pools"`
-}
-
-func makeConfig(n *net.IPNet, count int) metalLBConfig {
+func makePool(n *net.IPNet, count int) *metallbv1.IPAddressPool {
 	start := make(net.IP, len(n.IP))
 	copy(start, n.IP)
 	inc(start, 50)
 	end := make(net.IP, len(start))
 	copy(end, start)
 	inc(end, count)
-	return metalLBConfig{
-		AddressPools: []pool{{
-			Name:      "default",
-			Protocol:  "layer2",
+	return &metallbv1.IPAddressPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "metallb-system",
+			Name:      "kne-service-pool",
+		},
+		Spec: metallbv1.IPAddressPoolSpec{
 			Addresses: []string{fmt.Sprintf("%s - %s", start, end)},
-		}},
+		},
 	}
 }
 
@@ -596,6 +600,14 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 	}
+	if m.mClient == nil {
+		var err error
+		m.mClient, err = metallbclientv1.NewAddressPoolForConfig(m.rCfg)
+		if err != nil {
+			return err
+		}
+	}
+
 	log.Infof("Creating metallb namespace")
 	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "metallb-native.yaml")); err != nil {
 		return err
@@ -620,7 +632,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 	}
-	_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Get(ctx, "config", metav1.GetOptions{})
+	_, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{})
 	if err != nil {
 		log.Infof("Applying metallb ingress config")
 		// Get Network information from docker.
@@ -649,20 +661,8 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		if n == nil {
 			return fmt.Errorf("failed to find kind ipv4 docker net")
 		}
-		config := makeConfig(n, m.IPCount)
-		b, err := yaml.Marshal(config)
-		if err != nil {
-			return err
-		}
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "config",
-			},
-			Data: map[string]string{
-				"config": string(b),
-			},
-		}
-		_, err = m.kClient.CoreV1().ConfigMaps("metallb-system").Create(ctx, cm, metav1.CreateOptions{})
+		pool := makePool(n, m.IPCount)
+		_, err = m.mClient.IPAddressPool("metallb-system").Create(ctx, pool, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
