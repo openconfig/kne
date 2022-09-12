@@ -47,6 +47,7 @@ import (
 	_ "github.com/openconfig/kne/topo/node/gobgp"
 	_ "github.com/openconfig/kne/topo/node/host"
 	_ "github.com/openconfig/kne/topo/node/ixia"
+	_ "github.com/openconfig/kne/topo/node/lemming"
 	_ "github.com/openconfig/kne/topo/node/srl"
 )
 

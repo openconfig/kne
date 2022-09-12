@@ -38,6 +38,7 @@ enum Vendor {
   QUAGGA = 7;
   GOBGP = 8;
   NOKIA = 9;
+  OPENCONFIG = 10;
 }
 
 // Node is a single container inside the topology
@@ -57,6 +58,7 @@ message Node {
     GOBGP = 11;
     CISCO_XRD = 12;
     CISCO_E8000 = 13;
+    LEMMING = 14;
   }
 
   string name = 1;  // Name of the node in the topology. Must be unique.
