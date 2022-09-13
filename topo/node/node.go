@@ -261,7 +261,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 	log.Infof("Creating Pod:\n %+v", pb)
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
-		initContainerImage = defaultInitContainerImage
+		initContainerImage = DefaultInitContainerImage
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
