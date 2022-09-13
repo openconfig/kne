@@ -632,6 +632,12 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 	}
+
+	// Wait for metallb to be healthy
+	if err := m.Healthy(ctx); err != nil {
+		return err
+	}
+
 	_, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{})
 	if err != nil {
 		log.Infof("Applying metallb ingress config")
@@ -662,7 +668,15 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return fmt.Errorf("failed to find kind ipv4 docker net")
 		}
 		pool := makePool(n, m.IPCount)
-		_, err = m.mClient.IPAddressPool("metallb-system").Create(ctx, pool, metav1.CreateOptions{})
+		retries := 5
+		for ; ; retries-- {
+			_, err = m.mClient.IPAddressPool("metallb-system").Create(ctx, pool, metav1.CreateOptions{})
+			if err == nil || retries == 0 {
+				break
+			}
+			log.Warnf("Failed to create address polling (will retry %d times)", retries)
+			time.Sleep(5 * time.Second)
+		}
 		if err != nil {
 			return err
 		}
