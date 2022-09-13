@@ -470,6 +470,43 @@ func TestMetalLBSpec(t *testing.T) {
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
 		},
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
 		ctx:  canceledCtx,
 		hErr: "context canceled",
 	}, {
@@ -480,6 +517,43 @@ func TestMetalLBSpec(t *testing.T) {
 		execer: exec.NewFakeExecer(nil, nil, nil),
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("dclient error"))
+		},
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
 		},
 		dErr: "dclient error",
 	}, {
