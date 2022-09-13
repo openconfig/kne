@@ -502,21 +502,6 @@ func TestMetalLBSpec(t *testing.T) {
 							UpdatedReplicas:     1,
 						},
 					},
-				}, {
-					Type: watch.Modified,
-					Object: &appsv1.Deployment{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "foo",
-							Namespace: "metallb-system",
-						},
-						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   1,
-							ReadyReplicas:       1,
-							Replicas:            1,
-							UnavailableReplicas: 0,
-							UpdatedReplicas:     1,
-						},
-					},
 				}})
 				return true, f, nil
 			}
@@ -548,21 +533,6 @@ func TestMetalLBSpec(t *testing.T) {
 							Replicas:            0,
 							UnavailableReplicas: 1,
 							UpdatedReplicas:     0,
-						},
-					},
-				}, {
-					Type: watch.Modified,
-					Object: &appsv1.Deployment{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "foo",
-							Namespace: "metallb-system",
-						},
-						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   1,
-							ReadyReplicas:       1,
-							Replicas:            1,
-							UnavailableReplicas: 0,
-							UpdatedReplicas:     1,
 						},
 					},
 				}, {
@@ -623,21 +593,6 @@ func TestMetalLBSpec(t *testing.T) {
 							Replicas:            0,
 							UnavailableReplicas: 1,
 							UpdatedReplicas:     0,
-						},
-					},
-				}, {
-					Type: watch.Modified,
-					Object: &appsv1.Deployment{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "foo",
-							Namespace: "metallb-system",
-						},
-						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   1,
-							ReadyReplicas:       1,
-							Replicas:            1,
-							UnavailableReplicas: 0,
-							UpdatedReplicas:     1,
 						},
 					},
 				}, {
