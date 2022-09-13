@@ -3,12 +3,11 @@ nodes: {
     name: "vxr1"
     type: CISCO_E8000
     vendor: CISCO
-    model:"8201"
+    model: "8201"
     os: "ios-xr"
     config: {
         file: "r1.config"
         image: "c8201:latest"
-        init_image: "networkop/init-wait:latest"
     }
     services:{
         key: 22
@@ -18,7 +17,7 @@ nodes: {
         }
     }
     services:{
-        key: 57400 
+        key: 57400
         value: {
             name: "gnmi"
             inside: 57400
@@ -40,7 +39,6 @@ nodes: {
     config: {
         file: "r2.config"
         image: "c8201:latest"
-        init_image: "networkop/init-wait:latest"
     }
     services:{
         key: 22
@@ -50,7 +48,7 @@ nodes: {
         }
     }
     services:{
-        key: 57400 
+        key: 57400
         value: {
             name: "gnmi"
             inside: 57400

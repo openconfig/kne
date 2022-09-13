@@ -26,7 +26,7 @@ spec:
       - name: meshnet
         securityContext:
           privileged: true
-        image: hfam/meshnet:latest
+        image: us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.0
         imagePullPolicy: IfNotPresent
         resources:
           limits:

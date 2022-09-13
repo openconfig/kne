@@ -26,7 +26,6 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r2.iosxr.cfg"
-        init_image: "networkop/init-wait:latest"
         image: "xrd:latest"
     }
     interfaces: {
@@ -75,10 +74,9 @@ nodes: {
     model: "cptx"
     os: "evo"
     config: {
-      image: "cevo:latest"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
-      file: "r4.evo.cfg" 
+      file: "r4.evo.cfg"
     }
     interfaces: {
         key: "eth4"

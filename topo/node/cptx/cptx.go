@@ -32,8 +32,6 @@ var (
 )
 
 const (
-	defaultInitContainerImage = "networkop/init-wait:latest"
-
 	scrapliPlatformName = "juniper_junos"
 )
 
@@ -193,7 +191,7 @@ func (n *Node) Create(ctx context.Context) error {
 	pb := n.Proto
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
-		initContainerImage = defaultInitContainerImage
+		initContainerImage = node.DefaultInitContainerImage
 	}
 
 	// downward api - pass some useful values to container
