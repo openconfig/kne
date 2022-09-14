@@ -7,8 +7,6 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r1.config"
-        image: "localhost/ios-xr:7.6.1.16I"
-        init_image: "networkop/init-wait:latest"
         cert: {
             self_signed: {
                 cert_name: "r1.pem",
@@ -25,7 +23,7 @@ nodes: {
         }
     }
     services:{
-        key: 57400 
+        key: 57400
         value: {
             name: "gnmi"
             inside: 57400
@@ -46,8 +44,6 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r2.config"
-        image: "localhost/ios-xr:7.6.1.16I"
-        init_image: "networkop/init-wait:latest"
         cert: {
             self_signed: {
                 cert_name: "r2.pem",
@@ -64,7 +60,7 @@ nodes: {
         }
     }
     services:{
-        key: 57400 
+        key: 57400
         value: {
             name: "gnmi"
             inside: 57400

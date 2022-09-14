@@ -64,6 +64,10 @@ func (n *Node) Create(ctx context.Context) error {
 	}
 	log.Infof("Created Cisco %s node %s configmap", n.Proto.Model, n.Name())
 	pb := n.Proto
+	initContainerImage := pb.Config.InitImage
+	if initContainerImage == "" {
+		initContainerImage = node.DefaultInitContainerImage
+	}
 	secContext := &corev1.SecurityContext{
 		Privileged: pointer.Bool(true),
 	}
