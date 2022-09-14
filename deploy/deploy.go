@@ -689,7 +689,9 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 				IPAddressPools: []string{"kne-service-pool"},
 			},
 		}
-		m.mClient.L2Advertisement("metallb-system").Create(ctx, l2Advert, metav1.CreateOptions{})
+		if _, err = m.mClient.L2Advertisement("metallb-system").Create(ctx, l2Advert, metav1.CreateOptions{}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
