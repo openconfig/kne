@@ -602,7 +602,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	}
 	if m.mClient == nil {
 		var err error
-		m.mClient, err = metallbclientv1.NewAddressPoolForConfig(m.rCfg)
+		m.mClient, err = metallbclientv1.NewForConfig(m.rCfg)
 		if err != nil {
 			return err
 		}
@@ -678,6 +678,18 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			time.Sleep(5 * time.Second)
 		}
 		if err != nil {
+			return err
+		}
+		l2Advert := &metallbv1.L2Advertisement{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kne-l2-service-pool",
+				Namespace: "metallb-system",
+			},
+			Spec: metallbv1.L2AdvertisementSpec{
+				IPAddressPools: []string{"kne-service-pool"},
+			},
+		}
+		if _, err = m.mClient.L2Advertisement("metallb-system").Create(ctx, l2Advert, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	}

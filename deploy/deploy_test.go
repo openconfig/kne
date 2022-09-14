@@ -662,6 +662,25 @@ func TestMetalLBSpec(t *testing.T) {
 			if s := cmp.Diff(tt.wantConfig, config); s != "" {
 				t.Fatalf("invalid config data: \n%s", s)
 			}
+			l2Advert, err := tt.m.mClient.L2Advertisement("metallb-system").Get(context.Background(), "kne-l2-service-pool", metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("failed to get config: %v", err)
+			}
+			if s := cmp.Diff(&metallbv1.L2Advertisement{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "L2Advertisement",
+					APIVersion: "metallb.io/v1beta1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kne-l2-service-pool",
+					Namespace: "metallb-system",
+				},
+				Spec: metallbv1.L2AdvertisementSpec{
+					IPAddressPools: []string{"kne-service-pool"},
+				},
+			}, l2Advert); s != "" {
+				t.Fatalf("invalid config data: \n%s", s)
+			}
 		})
 	}
 }

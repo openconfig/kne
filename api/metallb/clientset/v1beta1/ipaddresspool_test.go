@@ -32,13 +32,13 @@ import (
 )
 
 var (
-	objNew = &metallbv1.IPAddressPool{
+	poolObjNew = &metallbv1.IPAddressPool{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "IPAddressPool",
 			APIVersion: "metallb.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "newObj",
+			Name:       "poolObjNew",
 			Namespace:  "test",
 			Generation: 1,
 		},
@@ -47,13 +47,13 @@ var (
 			Addresses: []string{"192.168.1.100 - 192.168.1.200 "},
 		},
 	}
-	obj1 = &metallbv1.IPAddressPool{
+	poolObj1 = &metallbv1.IPAddressPool{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "IPAddressPool",
 			APIVersion: "metallb.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "obj1",
+			Name:       "poolObj1",
 			Namespace:  "test",
 			Generation: 1,
 		},
@@ -62,13 +62,13 @@ var (
 			Addresses: []string{"192.168.2.100 - 192.168.2.200 "},
 		},
 	}
-	obj2 = &metallbv1.IPAddressPool{
+	poolObj2 = &metallbv1.IPAddressPool{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "IPAddressPool",
 			APIVersion: "metallb.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "obj2",
+			Name:       "poolObj2",
 			Namespace:  "test",
 			Generation: 1,
 		},
@@ -114,8 +114,8 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 
 func setUp(t *testing.T) *Clientset {
 	t.Helper()
-	objs := []runtime.Object{obj1, obj2}
-	cs, err := NewAddressPoolForConfig(&rest.Config{})
+	objs := []runtime.Object{poolObj1, poolObj2, l2Obj1, l2Obj2}
+	cs, err := NewForConfig(&rest.Config{})
 	if err != nil {
 		t.Fatalf("failed to create client set")
 	}
@@ -128,22 +128,33 @@ func setUp(t *testing.T) *Clientset {
 		if wAction.GetWatchRestrictions().ResourceVersion == "doesnotexist" {
 			return true, nil, fmt.Errorf("cannot watch unknown resource version")
 		}
-		f := newFakeWatch([]watch.Event{
-			{
+		var watcher *fakeWatch
+		switch {
+		case wAction.GetResource().Resource == "ipaddresspools":
+			watcher = newFakeWatch([]watch.Event{{
 				Type:   watch.Added,
-				Object: obj1,
+				Object: poolObj1,
 			},
-		})
-		return true, f, nil
+			})
+			return true, watcher, nil
+		case wAction.GetResource().Resource == "l2advertisements":
+			watcher = newFakeWatch([]watch.Event{{
+				Type:   watch.Added,
+				Object: l2Obj1,
+			},
+			})
+			return true, watcher, nil
+		}
+		return false, nil, nil
 	})
-	cs.dInterface = f.Resource(gvrIPAddressPool)
+	cs.dClient = f
 	return cs
 }
 
-func TestCreate(t *testing.T) {
+func TestIPAdressPoolCreate(t *testing.T) {
 	cs := setUp(t)
-	objWithoutTypeMetaOut := objNew.DeepCopy()
-	objWithoutTypeMetaOut.Name = "newObjWithoutTypeMeta"
+	objWithoutTypeMetaOut := poolObjNew.DeepCopy()
+	objWithoutTypeMetaOut.Name = "poolObjNewWithoutTypeMeta"
 	objWithoutTypeMetaIn := objWithoutTypeMetaOut.DeepCopy()
 	objWithoutTypeMetaIn.TypeMeta.Reset()
 	tests := []struct {
@@ -153,12 +164,12 @@ func TestCreate(t *testing.T) {
 		wantErr string
 	}{{
 		desc:    "already exists",
-		in:      obj1,
+		in:      poolObj1,
 		wantErr: "already exists",
 	}, {
 		desc: "success",
-		in:   objNew,
-		want: objNew,
+		in:   poolObjNew,
+		want: poolObjNew,
 	}, {
 		desc: "success without typemeta",
 		in:   objWithoutTypeMetaIn,
@@ -181,7 +192,7 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestList(t *testing.T) {
+func TestIPAdressPoolList(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
@@ -190,7 +201,7 @@ func TestList(t *testing.T) {
 	}{{
 		desc: "success",
 		want: &metallbv1.IPAddressPoolList{
-			Items: []metallbv1.IPAddressPool{*obj1, *obj2},
+			Items: []metallbv1.IPAddressPool{*poolObj1, *poolObj2},
 		},
 	}}
 	for _, tt := range tests {
@@ -210,7 +221,7 @@ func TestList(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
+func TestIPAdressPoolGet(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
@@ -223,12 +234,12 @@ func TestGet(t *testing.T) {
 		wantErr: `"doesnotexist" not found`,
 	}, {
 		desc: "success 1",
-		in:   "obj1",
-		want: obj1,
+		in:   "poolObj1",
+		want: poolObj1,
 	}, {
 		desc: "success 2",
-		in:   "obj2",
-		want: obj2,
+		in:   "poolObj2",
+		want: poolObj2,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -247,7 +258,7 @@ func TestGet(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
+func TestIPAdressPoolDelete(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
@@ -259,7 +270,7 @@ func TestDelete(t *testing.T) {
 		wantErr: `"doesnotexist" not found`,
 	}, {
 		desc: "success",
-		in:   "obj1",
+		in:   "poolObj1",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -275,7 +286,7 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestWatch(t *testing.T) {
+func TestIPAdressPoolWatch(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
@@ -290,7 +301,7 @@ func TestWatch(t *testing.T) {
 		desc: "success",
 		want: watch.Event{
 			Type:   watch.Added,
-			Object: obj1,
+			Object: poolObj1,
 		},
 	}}
 	for _, tt := range tests {
@@ -311,7 +322,7 @@ func TestWatch(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
+func TestIPAdressPoolUpdate(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
@@ -332,7 +343,7 @@ func TestUpdate(t *testing.T) {
 		wantErr: "doesnotexist",
 	}, {
 		desc: "Valid IPAddressPool",
-		want: obj1,
+		want: poolObj1,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -357,7 +368,7 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestUnstructured(t *testing.T) {
+func TestIPAdressPoolUnstructured(t *testing.T) {
 	cs := setUp(t)
 	tests := []struct {
 		desc    string
@@ -370,12 +381,12 @@ func TestUnstructured(t *testing.T) {
 		wantErr: `"missingObj" not found`,
 	}, {
 		desc: "success 1",
-		in:   "obj1",
-		want: obj1,
+		in:   "poolObj1",
+		want: poolObj1,
 	}, {
 		desc: "success 2",
-		in:   "obj2",
-		want: obj2,
+		in:   "poolObj2",
+		want: poolObj2,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {

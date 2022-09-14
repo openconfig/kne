@@ -21,11 +21,11 @@ import (
 )
 
 func NewSimpleClientset(objects ...runtime.Object) (*metallbv1client.Clientset, error) {
-	cs, err := metallbv1client.NewAddressPoolForConfig(&rest.Config{})
+	cs, err := metallbv1client.NewForConfig(&rest.Config{})
 	if err != nil {
 		return nil, err
 	}
 	c := dfake.NewSimpleDynamicClient(metallbv1client.Scheme, objects...)
-	cs.SetDynamicClient(c.Resource(metallbv1client.IPAddressPoolGVR()))
+	cs.SetDynamicClient(c)
 	return cs, nil
 }
