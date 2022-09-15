@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -27,9 +28,14 @@ import (
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+
+	ceos "github.com/aristanetworks/arista-ceoslab-operator/api/v1alpha1"
+	ceosclient "github.com/aristanetworks/arista-ceoslab-operator/api/v1alpha1/clientset"
 )
 
 const (
@@ -52,6 +58,9 @@ var (
 	_ node.Certer       = (*Node)(nil)
 	_ node.ConfigPusher = (*Node)(nil)
 	_ node.Resetter     = (*Node)(nil)
+
+	ethIntfRe  = regexp.MustCompile(`^Ethernet\d+(?:/\d+)?(?:/\d+)?$`)
+	mgmtIntfRe = regexp.MustCompile(`^Management\d+(?:/\d+)?$`)
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -66,8 +75,123 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	n := &Node{
 		Impl: nodeImpl,
 	}
-	n.FixInterfaces()
+	err := n.FixInterfaces()
+	if err != nil {
+		return nil, err
+	}
 	return n, nil
+}
+
+func (n *Node) Create(ctx context.Context) error {
+	if err := n.CreateConfig(ctx); err != nil {
+		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
+	}
+	if err := n.CreateCRD(ctx); err != nil {
+		return fmt.Errorf("node %s failed to create custom resource definition %w", n.Name(), err)
+	}
+	return nil
+}
+
+func (n *Node) CreateCRD(ctx context.Context) error {
+	log.Infof("Creating new CEosLabDevice CRD for node: %v", n.Name())
+	proto := n.GetProto()
+	config := proto.GetConfig()
+	device := &ceos.CEosLabDevice{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "ceoslab.arista.com/v1alpha1",
+			Kind:       "CEosLabDevice",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name(),
+			Namespace: n.GetNamespace(),
+			Labels: map[string]string{
+				"app":  n.Name(),
+				"topo": n.GetNamespace(),
+			},
+		},
+		Spec: ceos.CEosLabDeviceSpec{
+			EnvVar:             config.GetEnv(),
+			Image:              config.GetImage(),
+			InitContainerImage: config.GetInitImage(),
+			Args:               config.GetArgs(),
+			Resources:          proto.GetConstraints(),
+			NumInterfaces:      uint32(len(proto.GetInterfaces())),
+			Sleep:              config.GetSleep(),
+		},
+	}
+	for label, v := range proto.GetLabels() {
+		device.ObjectMeta.Labels[label] = v
+	}
+	for _, service := range proto.GetServices() {
+		if device.Spec.Services == nil {
+			device.Spec.Services = map[string]ceos.ServiceConfig{}
+		}
+		device.Spec.Services[service.Name] = ceos.ServiceConfig{
+			TCPPorts: []ceos.PortConfig{{
+				In:  service.Inside,
+				Out: service.Outside,
+			}},
+		}
+	}
+	if cert := config.GetCert(); cert != nil {
+		if ssCert := cert.GetSelfSigned(); ssCert != nil {
+			certConfig := ceos.CertConfig{
+				SelfSignedCerts: []ceos.SelfSignedCertConfig{{
+					CertName:   ssCert.CertName,
+					KeyName:    ssCert.KeyName,
+					KeySize:    ssCert.KeySize,
+					CommonName: ssCert.CommonName,
+				}},
+			}
+			device.Spec.CertConfig = certConfig
+		}
+	}
+	for k, v := range n.GetProto().GetInterfaces() {
+		if device.Spec.IntfMapping == nil {
+			device.Spec.IntfMapping = map[string]string{}
+		}
+		device.Spec.IntfMapping[k] = v.GetName()
+	}
+	// Post to k8s
+	client, err := ceosclient.NewForConfig(n.RestConfig)
+	if err != nil {
+		return err
+	}
+	_, err = client.CEosLabDevices(n.Namespace).Create(ctx, device, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	// Wait for pods
+	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.Name()}).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for e := range w.ResultChan() {
+		p := e.Object.(*corev1.Pod)
+		if p.Status.Phase == corev1.PodPending {
+			break
+		}
+	}
+	log.Infof("Created CEosLabDevice CRD for node: %v", n.Name())
+	return err
+}
+
+func (n *Node) Delete(ctx context.Context) error {
+	client, err := ceosclient.NewForConfig(n.RestConfig)
+	if err != nil {
+		return err
+	}
+	err = client.CEosLabDevices(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	if err := n.DeleteConfig(ctx); err != nil {
+		return err
+	}
+	log.Infof("Deleted CEosLabDevice resources of node: %v", n.Name())
+	return nil
 }
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
@@ -91,74 +215,10 @@ func (n *Node) SpawnCLIConn() error {
 }
 
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
-	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
-	if selfSigned == nil {
-		log.Infof("%s - no cert config", n.Name())
-		return nil
-	}
-	log.Infof("%s - generating self signed certs", n.Name())
-	log.Infof("%s - waiting for pod to be running", n.Name())
-	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(
-			fields.Set{metav1.ObjectNameField: n.Name()},
-		).String(),
-	})
-	if err != nil {
-		return err
-	}
-	for e := range w.ResultChan() {
-		p := e.Object.(*corev1.Pod)
-		if p.Status.Phase == corev1.PodRunning {
-			break
-		}
-	}
-	log.Infof("%s - pod running.", n.Name())
-
-	err = n.SpawnCLIConn()
-	if err != nil {
-		return err
-	}
-
-	defer n.cliConn.Close()
-
-	cfgs := []string{
-		fmt.Sprintf(
-			"security pki key generate rsa %d %s\n",
-			selfSigned.KeySize,
-			selfSigned.KeyName,
-		),
-		fmt.Sprintf(
-			"security pki certificate generate self-signed %s key %s parameters common-name %s\n",
-			selfSigned.CertName,
-			selfSigned.KeyName,
-			n.Name(),
-		),
-	}
-
-	pkiReady := false
-	for !pkiReady {
-		resp, err := n.cliConn.SendConfigs(cfgs)
-		if err != nil {
-			return err
-		}
-		if resp.Failed != nil {
-			return resp.Failed
-		}
-		pkiReady = true
-		for _, r := range resp.Responses {
-			if strings.Contains(r.Result, "PKI not ready") {
-				pkiReady = false
-			}
-		}
-		if pkiReady {
-			break
-		}
-		log.Debugf("%s - PKI not ready - waiting", n.Name())
-		time.Sleep(time.Second * 2)
-	}
-	log.Infof("%s - finished cert generation", n.Name())
-
-	return nil
+	return status.Errorf(codes.Unimplemented, "Node %q does not implement Certer interface. "+
+		"To configure a certificate on a cEOS-lab device, define the certificate in the "+
+		"topology file or patch the certificate configuration into the node's "+
+		"CEosLabDevice custom resource instance.", n.Name())
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
@@ -247,75 +307,25 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{
-			"type":    tpb.Node_ARISTA_CEOS.String(),
-			"vendor":  tpb.Vendor_ARISTA.String(),
-			"model":   pb.Model,
-			"os":      pb.Os,
-			"version": pb.Version,
-		}
-	} else {
-		if pb.Labels["type"] == "" {
-			pb.Labels["type"] = tpb.Node_ARISTA_CEOS.String()
-		}
-		if pb.Labels["vendor"] == "" {
-			pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
-		}
-		if pb.Labels["model"] == "" {
-			pb.Labels["model"] = pb.Model
-		}
-		if pb.Labels["os"] == "" {
-			pb.Labels["os"] = pb.Os
-		}
-		if pb.Labels["version"] == "" {
-			pb.Labels["version"] = pb.Version
-		}
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels["type"] == "" {
+		pb.Labels["type"] = tpb.Node_ARISTA_CEOS.String()
+	}
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
+	}
+	if pb.Labels["model"] == "" {
+		pb.Labels["model"] = pb.Model
+	}
+	if pb.Labels["os"] == "" {
+		pb.Labels["os"] = pb.Os
+	}
+	if pb.Labels["version"] == "" {
+		pb.Labels["version"] = pb.Version
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
-	}
-	if len(pb.Config.GetCommand()) == 0 {
-		pb.Config.Command = []string{
-			"/sbin/init",
-			"systemd.setenv=INTFTYPE=eth",
-			"systemd.setenv=ETBA=1",
-			"systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
-			"systemd.setenv=CEOS=1",
-			"systemd.setenv=EOS_PLATFORM=ceoslab",
-			"systemd.setenv=container=docker",
-		}
-	}
-	if pb.Config.Image == "" {
-		pb.Config.Image = "ceos:latest"
-	}
-	if pb.Config.Env == nil {
-		pb.Config.Env = map[string]string{
-			"CEOS":                                "1",
-			"EOS_PLATFORM":                        "ceoslab",
-			"container":                           "docker",
-			"ETBA":                                "1",
-			"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
-			"INTFTYPE":                            "eth",
-		}
-	} else {
-		if pb.Config.Env["CEOS"] == "" {
-			pb.Config.Env["CEOS"] = "1"
-		}
-		if pb.Config.Env["EOS_PLATFORM"] == "" {
-			pb.Config.Env["EOS_PLATFORM"] = "ceoslab"
-		}
-		if pb.Config.Env["container"] == "" {
-			pb.Config.Env["container"] = "docker"
-		}
-		if pb.Config.Env["ETBA"] == "" {
-			pb.Config.Env["ETBA"] = "1"
-		}
-		if pb.Config.Env["SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT"] == "" {
-			pb.Config.Env["SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT"] = "1"
-		}
-		if pb.Config.Env["INTFTYPE"] == "" {
-			pb.Config.Env["INTFTYPE"] = "eth"
-		}
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- Cli", pb.Name)
@@ -329,15 +339,17 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	return pb
 }
 
-func (n *Node) FixInterfaces() {
+func (n *Node) FixInterfaces() error {
 	for k, v := range n.Proto.Interfaces {
-		if !strings.HasPrefix(k, "eth") {
-			continue
-		}
-		if v.Name == "" {
+		switch {
+		default:
+			return fmt.Errorf("Unrecognized interface name: %s", v.Name)
+		case !strings.HasPrefix(k, "eth"), ethIntfRe.MatchString(v.Name), mgmtIntfRe.MatchString(v.Name):
+		case v.Name == "":
 			n.Proto.Interfaces[k].Name = fmt.Sprintf("Ethernet%s", strings.TrimPrefix(k, "eth"))
 		}
 	}
+	return nil
 }
 
 func init() {

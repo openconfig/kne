@@ -67,33 +67,60 @@ func TestNew(t *testing.T) {
 			nImpl:   &node.Impl{},
 			wantErr: "nodeImpl.Proto cannot be nil",
 		}, {
+			desc: "invalid eth intfs 1",
+			nImpl: &node.Impl{
+				Proto: &topopb.Node{
+					Interfaces: map[string]*topopb.Interface{
+						"eth1": {Name: "Ethernet1"},
+						"eth2": {Name: "Ethernet1/2"},
+						"eth3": {Name: "Ethernet1/2/3"},
+						"eth4": {Name: "Ethernet1/2/3/4"},
+					},
+				},
+			},
+			wantErr: "Unrecognized interface name: Ethernet1/2/3/4",
+		}, {
+			desc: "invalid eth intfs 2",
+			nImpl: &node.Impl{
+				Proto: &topopb.Node{
+					Interfaces: map[string]*topopb.Interface{
+						"eth1": {Name: "Ethernet"},
+					},
+				},
+			},
+			wantErr: "Unrecognized interface name: Ethernet",
+		}, {
+			desc: "invalid management intfs 1",
+			nImpl: &node.Impl{
+				Proto: &topopb.Node{
+					Interfaces: map[string]*topopb.Interface{
+						"eth1": {Name: "Management1"},
+						"eth2": {Name: "Management1/2"},
+						"eth3": {Name: "Management1/2/3"},
+					},
+				},
+			},
+			wantErr: "Unrecognized interface name: Management1/2/3",
+		}, {
+			desc: "invalid management intfs 2",
+			nImpl: &node.Impl{
+				Proto: &topopb.Node{
+					Interfaces: map[string]*topopb.Interface{
+						"eth1": {Name: "Management"},
+					},
+				},
+			},
+			wantErr: "Unrecognized interface name: Management",
+		}, {
 			desc: "default check with empty topo proto",
 			nImpl: &node.Impl{
 				Proto: &topopb.Node{},
 			},
 			want: &topopb.Node{
 				Config: &topopb.Config{
-					Command: []string{
-						"/sbin/init",
-						"systemd.setenv=INTFTYPE=eth",
-						"systemd.setenv=ETBA=1",
-						"systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
-						"systemd.setenv=CEOS=1",
-						"systemd.setenv=EOS_PLATFORM=ceoslab",
-						"systemd.setenv=container=docker",
-					},
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
-					Image:        "ceos:latest",
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
-					Env: map[string]string{
-						"CEOS":                                "1",
-						"EOS_PLATFORM":                        "ceoslab",
-						"container":                           "docker",
-						"ETBA":                                "1",
-						"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
-						"INTFTYPE":                            "eth",
-					},
 				},
 				Labels: map[string]string{
 					"type":    "ARISTA_CEOS",
@@ -126,10 +153,21 @@ func TestNew(t *testing.T) {
 			nImpl: &node.Impl{
 				Proto: &topopb.Node{
 					Config: &topopb.Config{
-						Command: []string{"do", "run"},
+						Image: "foo",
 						Env: map[string]string{
 							"CEOS":      "123",
 							"container": "test",
+						},
+						Args: []string{"biz", "baz"},
+						Cert: &topopb.CertificateCfg{
+							Config: &topopb.CertificateCfg_SelfSigned{
+								SelfSigned: &topopb.SelfSignedCertCfg{
+									CertName:   "gnmiCert",
+									KeyName:    "gnmiKey",
+									KeySize:    4096,
+									CommonName: "foo",
+								},
+							},
 						},
 					},
 					Labels: map[string]string{
@@ -141,18 +179,24 @@ func TestNew(t *testing.T) {
 			},
 			want: &topopb.Node{
 				Config: &topopb.Config{
-					Command:      []string{"do", "run"},
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
-					Image:        "ceos:latest",
+					Image:        "foo",
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
 					Env: map[string]string{
-						"CEOS":                                "123",
-						"EOS_PLATFORM":                        "ceoslab",
-						"container":                           "test",
-						"ETBA":                                "1",
-						"SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": "1",
-						"INTFTYPE":                            "eth",
+						"CEOS":      "123",
+						"container": "test",
+					},
+					Args: []string{"biz", "baz"},
+					Cert: &topopb.CertificateCfg{
+						Config: &topopb.CertificateCfg_SelfSigned{
+							SelfSigned: &topopb.SelfSignedCertCfg{
+								CertName:   "gnmiCert",
+								KeyName:    "gnmiKey",
+								KeySize:    4096,
+								CommonName: "foo",
+							},
+						},
 					},
 				},
 				Labels: map[string]string{
@@ -195,106 +239,6 @@ func TestNew(t *testing.T) {
 			}
 			if !proto.Equal(n.GetProto(), tt.want) {
 				t.Fatalf("New() failed: got\n\n%swant\n\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
-			}
-		})
-	}
-}
-
-func TestGenerateSelfSigned(t *testing.T) {
-	ki := fake.NewSimpleClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "pod1",
-		},
-	})
-
-	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
-	}
-	ki.PrependWatchReactor("*", reaction)
-
-	validPb := &topopb.Node{
-		Name: "pod1",
-		Type: 2,
-		Config: &topopb.Config{
-			Cert: &topopb.CertificateCfg{
-				Config: &topopb.CertificateCfg_SelfSigned{
-					SelfSigned: &topopb.SelfSignedCertCfg{
-						CertName: "my_cert",
-						KeyName:  "my_key",
-						KeySize:  2048,
-					},
-				},
-			},
-		},
-	}
-	ni := &node.Impl{
-		KubeClient: ki,
-		Namespace:  "test",
-		Proto:      validPb,
-	}
-
-	tests := []struct {
-		desc     string
-		wantErr  bool
-		ni       *node.Impl
-		testFile string
-	}{
-		{
-			// successfully configure certificate
-			desc:     "success",
-			wantErr:  false,
-			ni:       ni,
-			testFile: "generate_certificate_success",
-		},
-		{
-			// successfully configure certificate with delay
-			desc:     "success with delay",
-			wantErr:  false,
-			ni:       ni,
-			testFile: "generate_certificate_success_delay",
-		},
-		{
-			// device returns "% Invalid input" -- we expect to fail
-			desc:     "failure",
-			wantErr:  true,
-			ni:       ni,
-			testFile: "generate_certificate_failure",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			nImpl, err := New(tt.ni)
-
-			if err != nil {
-				t.Fatalf("failed creating kne arista node")
-			}
-
-			n, _ := nImpl.(*Node)
-
-			n.testOpts = []scrapliutil.Option{
-				scrapliopts.WithTransportType(scraplitransport.FileTransport),
-				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
-				scrapliopts.WithTransportReadSize(1),
-				scrapliopts.WithReadDelay(0),
-				scrapliopts.WithDefaultLogger(),
-			}
-
-			ctx := context.Background()
-
-			err = n.GenerateSelfSigned(ctx)
-			if err != nil && !tt.wantErr {
-				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
 			}
 		})
 	}
