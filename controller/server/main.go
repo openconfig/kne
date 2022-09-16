@@ -45,6 +45,7 @@ var (
 	defaultMeshnetManifestDir = ""
 	defaultIxiaTGManifestDir  = ""
 	defaultSRLinuxManifestDir = ""
+	defaultCEOSLabManifestDir = ""
 	// Flags.
 	port = flag.Int("port", 50051, "Controller server port")
 )
@@ -57,6 +58,7 @@ func init() {
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 		defaultIxiaTGManifestDir = filepath.Join(home, "keysight", "athena", "operator")
 		defaultSRLinuxManifestDir = filepath.Join(home, "srl-controller", "config", "default")
+		defaultCEOSLabManifestDir = filepath.Join(home, "arista-ceos-lab", "config", "kustomized")
 	}
 }
 
@@ -149,6 +151,18 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	}
 	for _, cs := range req.ControllerSpecs {
 		switch t := cs.Spec.(type) {
+		case *cpb.ControllerSpec_Ceoslab:
+			c := &deploy.CEOSLabSpec{}
+			path := defaultCEOSLabManifestDir
+			if cs.GetCeoslab().ManifestDir != "" {
+				path = cs.GetCeoslab().ManifestDir
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			c.ManifestDir = p
+			d.Controllers = append(d.Controllers, c)
 		case *cpb.ControllerSpec_Srlinux:
 			s := &deploy.SRLinuxSpec{}
 			path := defaultSRLinuxManifestDir

@@ -27,6 +27,10 @@ func TestNewDeployment(t *testing.T) {
 	defer func() {
 		defaultSRLinuxManifestDir = srl
 	}()
+	ceos := defaultCEOSLabManifestDir
+	defer func() {
+		defaultCEOSLabManifestDir = ceos
+	}()
 
 	tests := []struct {
 		desc                         string
@@ -35,6 +39,7 @@ func TestNewDeployment(t *testing.T) {
 		defaultMetallbManifestDirDNE bool
 		defaultIxiaTGManifestDirDNE  bool
 		defaultSRLinuxManifestDirDNE bool
+		defaultCEOSLabManifestDirDNE bool
 		want                         *deploy.Deployment
 		wantErr                      string
 	}{{
@@ -176,6 +181,56 @@ func TestNewDeployment(t *testing.T) {
 			},
 		},
 	}, {
+		desc: "request spec - with ceoslab controller",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kind{
+				Kind: &cpb.KindSpec{
+					Name:    "kne",
+					Recycle: true,
+					Version: "0.11.1",
+					Image:   "kindest/node:v1.22.1",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				Metallb: &cpb.MetallbSpec{
+					ManifestDir: "/home",
+					IpCount:     100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				Meshnet: &cpb.MeshnetSpec{
+					ManifestDir: "/home",
+				},
+			},
+			ControllerSpecs: []*cpb.ControllerSpec{{
+				Spec: &cpb.ControllerSpec_Ceoslab{
+					Ceoslab: &cpb.CEOSLabSpec{
+						ManifestDir: "/home",
+					},
+				},
+			}},
+		},
+		want: &deploy.Deployment{
+			Cluster: &deploy.KindSpec{
+				Name:    "kne",
+				Recycle: true,
+				Version: "0.11.1",
+				Image:   "kindest/node:v1.22.1",
+			},
+			Ingress: &deploy.MetalLBSpec{
+				ManifestDir: "/home",
+				IPCount:     100,
+			},
+			CNI: &deploy.MeshnetSpec{
+				ManifestDir: "/home",
+			},
+			Controllers: []deploy.Controller{
+				&deploy.CEOSLabSpec{
+					ManifestDir: "/home",
+				},
+			},
+		},
+	}, {
 		desc: "request spec - with multiple controllers",
 		req: &cpb.CreateClusterRequest{
 			ClusterSpec: &cpb.CreateClusterRequest_Kind{
@@ -212,6 +267,13 @@ func TestNewDeployment(t *testing.T) {
 						},
 					},
 				},
+				{
+					Spec: &cpb.ControllerSpec_Ceoslab{
+						Ceoslab: &cpb.CEOSLabSpec{
+							ManifestDir: "/home",
+						},
+					},
+				},
 			},
 		},
 		want: &deploy.Deployment{
@@ -233,6 +295,9 @@ func TestNewDeployment(t *testing.T) {
 					ManifestDir: "/home",
 				},
 				&deploy.SRLinuxSpec{
+					ManifestDir: "/home",
+				},
+				&deploy.CEOSLabSpec{
 					ManifestDir: "/home",
 				},
 			},
@@ -527,6 +592,34 @@ func TestNewDeployment(t *testing.T) {
 			}},
 		},
 		wantErr: `failed to validate path "/foo"`,
+	}, {
+		desc: "bad ceoslab manifest dir",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kind{
+				Kind: &cpb.KindSpec{
+					Name:    "kne",
+					Recycle: true,
+					Version: "0.11.1",
+					Image:   "kindest/node:v1.22.1",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				Metallb: &cpb.MetallbSpec{
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				Meshnet: &cpb.MeshnetSpec{},
+			},
+			ControllerSpecs: []*cpb.ControllerSpec{{
+				Spec: &cpb.ControllerSpec_Ceoslab{
+					Ceoslab: &cpb.CEOSLabSpec{
+						ManifestDir: "/foo",
+					},
+				},
+			}},
+		},
+		wantErr: `failed to validate path "/foo"`,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -546,6 +639,10 @@ func TestNewDeployment(t *testing.T) {
 			if tt.defaultSRLinuxManifestDirDNE {
 				defaultSRLinuxManifestDir = "/this/path/dne"
 			}
+			defaultCEOSLabManifestDir = "/"
+			if tt.defaultCEOSLabManifestDirDNE {
+				defaultCEOSLabManifestDir = "/this/path/dne"
+			}
 			got, err := newDeployment(tt.req)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("newDeployment() unexpected error: %s", s)
@@ -556,6 +653,7 @@ func TestNewDeployment(t *testing.T) {
 				deploy.MetalLBSpec{},
 				deploy.IxiaTGSpec{},
 				deploy.SRLinuxSpec{},
+				deploy.CEOSLabSpec{},
 			)
 			if s := cmp.Diff(tt.want, got, ignore); s != "" {
 				t.Errorf("newDeployment() unexpected diff (-want +got):\n%s", s)

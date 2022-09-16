@@ -976,7 +976,6 @@ func TestSRLinuxSpec(t *testing.T) {
 		execer      execerInterface
 		dErr        string
 		hErr        string
-		cmNotFound  bool
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
@@ -1089,13 +1088,6 @@ func TestSRLinuxSpec(t *testing.T) {
 			if tt.execer != nil {
 				execer = tt.execer
 			}
-			var cmNotFoundErr error
-			if tt.cmNotFound {
-				cmNotFoundErr = errors.New("file not found")
-			}
-			osStat = func(_ string) (os.FileInfo, error) {
-				return nil, cmNotFoundErr
-			}
 			err := tt.srl.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -1107,6 +1099,154 @@ func TestSRLinuxSpec(t *testing.T) {
 				tt.ctx = context.Background()
 			}
 			err = tt.srl.Healthy(tt.ctx)
+			if s := errdiff.Substring(err, tt.hErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func TestCEOSLabSpec(t *testing.T) {
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	deploymentName := "foo"
+	deploymentNS := "arista-ceoslab-operator-system"
+	var replicas int32 = 2
+	d := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: deploymentNS,
+		},
+	}
+	tests := []struct {
+		desc        string
+		ceos        *CEOSLabSpec
+		execer      execerInterface
+		dErr        string
+		hErr        string
+		ctx         context.Context
+		mockKClient func(*fake.Clientset)
+	}{{
+		desc:   "1 replica",
+		ceos:   &CEOSLabSpec{},
+		execer: exec.NewFakeExecer(nil),
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}, {
+		desc:   "2 replicas",
+		ceos:   &CEOSLabSpec{},
+		execer: exec.NewFakeExecer(nil),
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Spec: appsv1.DeploymentSpec{
+							Replicas: &replicas,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: replicas,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Spec: appsv1.DeploymentSpec{
+							Replicas: &replicas,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   replicas,
+							ReadyReplicas:       replicas,
+							Replicas:            replicas,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     replicas,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}, {
+		desc:   "operator deploy error",
+		ceos:   &CEOSLabSpec{},
+		execer: exec.NewFakeExecer(errors.New("failed to apply operator")),
+		dErr:   "failed to apply operator",
+	}, {
+		desc:   "context canceled",
+		ceos:   &CEOSLabSpec{},
+		execer: exec.NewFakeExecer(nil),
+		ctx:    canceledCtx,
+		hErr:   "context canceled",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset(d)
+			if tt.mockKClient != nil {
+				tt.mockKClient(ki)
+			}
+			tt.ceos.SetKClient(ki)
+			if tt.execer != nil {
+				execer = tt.execer
+			}
+			err := tt.ceos.Deploy(context.Background())
+			if s := errdiff.Substring(err, tt.dErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			if tt.ctx == nil {
+				tt.ctx = context.Background()
+			}
+			err = tt.ceos.Healthy(tt.ctx)
 			if s := errdiff.Substring(err, tt.hErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
