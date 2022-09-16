@@ -91,7 +91,7 @@ func (n *Node) Create(ctx context.Context) error {
 		Spec: corev1.PodSpec{
 			InitContainers: []corev1.Container{{
 				Name:  fmt.Sprintf("init-%s", n.Name()),
-				Image: pb.Config.InitImage,
+				Image: initContainerImage,
 				Args: []string{
 					fmt.Sprintf("%d", len(pb.GetInterfaces())+1),
 					fmt.Sprintf("%d", pb.GetConfig().Sleep),
