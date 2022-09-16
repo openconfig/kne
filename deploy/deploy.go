@@ -748,6 +748,28 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 	}
 }
 
+type CEOSLabSpec struct {
+	ManifestDir string `yaml:"manifests"`
+	kClient     kubernetes.Interface
+}
+
+func (c *CEOSLabSpec) SetKClient(k kubernetes.Interface) {
+	c.kClient = k
+}
+
+func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
+	log.Infof("Deploying CEOSLab controller from: %s", c.ManifestDir)
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(c.ManifestDir, "manifest.yaml")); err != nil {
+		return err
+	}
+	log.Infof("CEOSLab controller deployed")
+	return nil
+}
+
+func (c *CEOSLabSpec) Healthy(ctx context.Context) error {
+	return deploymentHealthy(ctx, c.kClient, "arista-ceoslab-operator-system")
+}
+
 type SRLinuxSpec struct {
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface

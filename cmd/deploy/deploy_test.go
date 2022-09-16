@@ -125,6 +125,9 @@ controllers:
             tag: latest
   - kind: SRLinux
     spec:
+      manifests: path/to/manifest
+  - kind: CEOSLab
+    spec:
       manifests: path/to/manifest`
 )
 

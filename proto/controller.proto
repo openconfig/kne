@@ -79,6 +79,7 @@ message ControllerSpec {
   oneof spec {
     IxiaTGSpec ixiatg = 1;
     SRLinuxSpec srlinux = 2;
+    CEOSLabSpec ceoslab = 3;
   }
 }
 
@@ -103,6 +104,11 @@ message IxiaTGImage {
 
 // SRLinux specifications
 message SRLinuxSpec {
+  string manifest_dir = 1;
+}
+
+// CEOSLab specifications
+message CEOSLabSpec {
   string manifest_dir = 1;
 }
 
