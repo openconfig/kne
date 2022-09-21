@@ -15,6 +15,9 @@
 
 set -xe
 
+export PATH=${PATH}:/usr/local/go/bin
+export PATH=${PATH}:$(go env GOPATH)/bin
+
 # Replace exisiting kne repo with new version
 rm -r "$HOME/kne"
 cp -r /tmp/workspace "$HOME/kne"
