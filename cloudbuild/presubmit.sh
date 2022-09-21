@@ -17,16 +17,18 @@ set -xe
 
 # Replace exisiting kne repo with new version
 rm -r "$HOME/kne"
-cp -r . "$HOME/kne"
+cp -r /tmp/workspace "$HOME/kne"
 
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"
 go build -o "$(go env GOPATH)/bin/kne"
+popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 kne create kne-internal/examples/multivendor/multivendor.pbtxt
+popd
 
 # Log topology
 kubectl get pods -A
