@@ -15,10 +15,20 @@
 
 set -xe
 
+printenv
+
+while getopts b:c: flag
+do
+  case "${flag}" in
+    b) branch_name=${OPTARG};;
+    c) commit_sha=${OPTARG};;
+  esac
+done
+
 # Sync the existing KNE checkout to the desired branch and commit
 pushd /home/user/kne
-git fetch remote $BRANCH_NAME
-git merge $SHORT_SHA
+git fetch origin $branch_name
+git merge $commit_sha
 
 # Rebuild the kne cli
 pushd kne_cli
