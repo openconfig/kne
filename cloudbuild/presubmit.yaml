@@ -1,0 +1,17 @@
+steps:
+  - id: remote_builder_test
+    name: gcr.io/$PROJECT_ID/remote-builder
+    env:
+      - USERNAME=user
+      - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
+      - INSTANCE_NAME=kne-presubmit-$BUILD_ID
+      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-16 --preemptible
+      - ZONE=us-central1-a
+      - REMOTE_WORKSPACE=/tmp/workspace
+      - COMMAND=source /tmp/workspace/cloudbuild/presubmit.sh 2>&1
+
+timeout: 1800s
+
+options:
+  pool:
+    name: 'projects/kne-external/locations/us-central1/workerPools/kne-cloudbuild-pool'
