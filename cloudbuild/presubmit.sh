@@ -15,8 +15,10 @@
 
 set -xe
 
+gopath=$(go env GOPATH)
+
 export PATH=${PATH}:/usr/local/go/bin
-export PATH=${PATH}:$(go env GOPATH)/bin
+export PATH=${PATH}:$gopath/bin
 
 # Replace exisiting kne repo with new version
 rm -r "$HOME/kne"
@@ -24,7 +26,7 @@ cp -r /tmp/workspace "$HOME/kne"
 
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"
-go build -o "$(go env GOPATH)/bin/kne"
+go build -o "$gopath/bin/kne"
 popd
 
 # Deploy a cluster + topo
