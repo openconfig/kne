@@ -8,7 +8,7 @@ steps:
       - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-16 --preemptible
       - ZONE=us-central1-a
       - REMOTE_WORKSPACE=/tmp/workspace
-      - COMMAND=source /tmp/workspace/cloudbuild/presubmit.sh -b $BRANCH_NAME -c $SHORT_SHA
+      - COMMAND=source /tmp/workspace/cloudbuild/presubmit.sh &>
 
 timeout: 1800s
 

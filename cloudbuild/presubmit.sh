@@ -15,27 +15,16 @@
 
 set -xe
 
-printenv
-
-while getopts b:c: flag
-do
-  case "${flag}" in
-    b) branch_name=${OPTARG};;
-    c) commit_sha=${OPTARG};;
-  esac
-done
-
-# Sync the existing KNE checkout to the desired branch and commit
-pushd /home/user/kne
-git fetch origin $branch_name
-git merge $commit_sha
+# Replace exisiting kne repo with new version
+rm -r "$HOME/kne"
+cp -r . "$HOME/kne"
 
 # Rebuild the kne cli
-pushd kne_cli
-go build -o $(go env GOPATH)/bin/kne
+pushd "$HOME/kne/kne_cli"
+go build -o "$(go env GOPATH)/bin/kne"
 
 # Deploy a cluster + topo
-pushd /home/user
+pushd "$HOME"
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 kne create kne-internal/examples/multivendor/multivendor.pbtxt
 
