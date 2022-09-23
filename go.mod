@@ -11,7 +11,6 @@ require (
 	github.com/google/go-cmp v0.5.8
 	github.com/h-fam/errdiff v1.0.2
 	github.com/kr/pretty v0.3.0
-	github.com/kylelemons/godebug v1.1.0
 	github.com/open-traffic-generator/ixia-c-operator v0.1.89
 	github.com/openconfig/gnmi v0.0.0-20210707145734-c69a5df04b53
 	github.com/pkg/errors v0.9.1
