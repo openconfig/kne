@@ -466,24 +466,24 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 
 // Status returns the current node state.
 func (n *Impl) Status(ctx context.Context) (Status, error) {
-        p, err := n.Pods(ctx)
-        if err != nil {
-                return StatusUnknown, err
-        }
-        if len(p) != 1 {
-                return StatusUnknown, fmt.Errorf("expected exactly one pod for node %s", n.Name())
-        }
-        switch p[0].Status.Phase {
-        case corev1.PodFailed:
-                return StatusFailed, nil
-        case corev1.PodRunning:
-                for _, cond := range p[0].Status.Conditions{
-                        if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-                                return StatusRunning, nil
-                        }
-                }
-        }
-        return StatusPending, nil
+	p, err := n.Pods(ctx)
+	if err != nil {
+		return StatusUnknown, err
+	}
+	if len(p) != 1 {
+		return StatusUnknown, fmt.Errorf("expected exactly one pod for node %s", n.Name())
+	}
+	switch p[0].Status.Phase {
+	case corev1.PodFailed:
+		return StatusFailed, nil
+	case corev1.PodRunning:
+		for _, cond := range p[0].Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				return StatusRunning, nil
+			}
+		}
+	}
+	return StatusPending, nil
 }
 
 // Name returns the name of the node.
