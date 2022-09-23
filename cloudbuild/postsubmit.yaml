@@ -1,22 +1,4 @@
 steps:
-  - id: go_version
-    name: golang
-    args: ["go", "version"]
-
-  - id: go_build_cli
-    name: golang
-    dir: "kne_cli"
-    args: ["go", "build", "main.go"]
-
-  - id: go_build_controller_server
-    name: golang
-    dir: "controller/server"
-    args: ["go", "build", "main.go"]
-
-  - id: go_test
-    name: golang
-    args: ["go", "test", "-v", "./..."]
-
   - id: packer_build_external
     name: "us-west1-docker.pkg.dev/gep-kne/packer/packer"
     args: ["build", "cloudbuild/external.pkr.hcl"]
@@ -26,7 +8,6 @@ steps:
       "PKR_VAR_branch_name=$BRANCH_NAME",
       "PKR_VAR_zone=${_ZONE}",
     ]
-    waitFor: ["go_test"]
 
   - id: packer_build_internal
     name: "us-west1-docker.pkg.dev/gep-kne/packer/packer"
@@ -37,7 +18,7 @@ steps:
       "PKR_VAR_branch_name=$BRANCH_NAME",
       "PKR_VAR_zone=${_ZONE}",
     ]
-    waitFor: ["go_test"]
+    waitFor: ["-"] # run the builds concurrently
 
 timeout: 1800s
 
