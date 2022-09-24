@@ -28,10 +28,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	kversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	kversion "k8s.io/kubectl/pkg/cmd/version"
 	"sigs.k8s.io/yaml"
 )
 
@@ -121,6 +121,12 @@ func (d *Deployment) checkDependencies() error {
 	return errs.Err()
 }
 
+type kubeVersion struct {
+	ClientVersion    *kversion.Info `json:"clientVersion,omitempty" yaml:"clientVersion,omitempty"`
+	KustomizeVersion string         `json:"kustomizeVersion,omitempty" yaml:"kustomizeVersion,omitempty"`
+	ServerVersion    *kversion.Info `json:"serverVersion,omitempty" yaml:"serverVersion,omitempty"`
+}
+
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	if err := d.checkDependencies(); err != nil {
 		return err
@@ -144,7 +150,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	if err := vExec.Exec("kubectl", "version", "--output=yaml"); err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
-	kubeYAML := kversion.Version{}
+	kubeYAML := kubeVersion{}
 	if err := yaml.Unmarshal(vOut.Bytes(), &kubeYAML); err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
