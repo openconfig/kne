@@ -409,6 +409,7 @@ func TestCreate(t *testing.T) {
 		switch p.Name {
 		default:
 			p.Status.Phase = corev1.PodRunning
+			p.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
 		case "bad":
 			p.Status.Phase = corev1.PodFailed
 		case "hanging":
@@ -710,14 +711,20 @@ func TestShow(t *testing.T) {
 					Name:      "r1",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -791,14 +798,20 @@ func TestShow(t *testing.T) {
 					Name:      "r1",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -894,14 +907,20 @@ func TestShow(t *testing.T) {
 					Name:      "r1",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 		},
 		wantErr: "could not get services",
@@ -925,7 +944,10 @@ func TestShow(t *testing.T) {
 					Name:      "r2",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1006,7 +1028,10 @@ func TestShow(t *testing.T) {
 					Name:      "r2",
 					Namespace: "test",
 				},
-				Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{

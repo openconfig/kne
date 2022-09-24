@@ -477,12 +477,13 @@ func (n *Impl) Status(ctx context.Context) (Status, error) {
 	case corev1.PodFailed:
 		return StatusFailed, nil
 	case corev1.PodRunning:
-		return StatusRunning, nil
-	case corev1.PodPending:
-		return StatusPending, nil
-	default:
-		return StatusPending, nil
+		for _, cond := range p[0].Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				return StatusRunning, nil
+			}
+		}
 	}
+	return StatusPending, nil
 }
 
 // Name returns the name of the node.
