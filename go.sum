@@ -567,8 +567,8 @@ github.com/spf13/pflag v1.0.3/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnIn
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5qpdg=
-github.com/srl-labs/srl-controller v0.4.2 h1:d/6NlNq+VdncHTy41dymNZe7jn8Metd8XZWIFU4IjGM=
-github.com/srl-labs/srl-controller v0.4.2/go.mod h1:fcaU8YBsBMXYkm6zMpYAJRdeAFT+elbz7b4pOJIIGM0=
+github.com/srl-labs/srl-controller v0.4.3-0.20220819092316-588f02b50f45 h1:eORq71c8V1kmvJQOu0WKfPMno3IFikDm16nGBZU5Q0g=
+github.com/srl-labs/srl-controller v0.4.3-0.20220819092316-588f02b50f45/go.mod h1:ILuhpW3Yp0UDdrWcWFQFI7it0IEzRYwxy2AK4cWYezk=
 github.com/srl-labs/srlinux-scrapli v0.5.0 h1:2vsHljvAv7MHmkcB3yW1Qk+i8kYE12OYiSbb+k28qEY=
 github.com/srl-labs/srlinux-scrapli v0.5.0/go.mod h1:TK4ix7kF+6gFPMnVGHk0LtOwdoa0FndFhNfZUghEyiY=
 github.com/stoewer/go-strcase v1.2.0/go.mod h1:IBiWB2sKIp3wVVQ3Y035++gc+knqhUQag1KpM8ahLw8=

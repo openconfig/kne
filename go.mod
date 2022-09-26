@@ -19,7 +19,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
-	github.com/srl-labs/srl-controller v0.4.2
+	github.com/srl-labs/srl-controller v0.4.3-0.20220819092316-588f02b50f45
 	github.com/srl-labs/srlinux-scrapli v0.5.0
 	go.universe.tf/metallb v0.13.5
 	google.golang.org/grpc v1.45.0
