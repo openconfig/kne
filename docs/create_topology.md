@@ -195,11 +195,8 @@ kubectl apply -f ixiatg-operator.yaml
 > because the SR Linux controller + containers require the `bridge` cluster CNI
 > instead of the default `ptp` cluster CNI that `kind` uses.
 
-To manually apply the controller, first clone the `srl-controller`
-[repo](setup.md#srl-controller) and then run the following command:
-
 ```bash
-kubectl apply -k srl-controller/config/default
+kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
 ```
 
 See more on the
@@ -213,7 +210,7 @@ To manually apply the controller, first clone the `arista-ceoslab-operator`
 [repo](setup.md#arista-ceoslab-operator) and then run the following command:
 
 ```bash
-kubectl apply -f arista-ceoslab-operator/config/kustomized/manifest.yaml
+kubectl apply -f https://github.com/arista-ceoslab-operator/config/kustomized/manifest.yaml
 ```
 
 See more on the
