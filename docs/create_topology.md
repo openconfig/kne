@@ -44,9 +44,12 @@ A full definition for valid fields in the deployment yaml can be found within
 Expand the below section for a full description of all fields in the deployment
 yaml.
 
-<section class="zippy" markdown=1>
+---
 
+<details>
+<summary>
 ### Deployment yaml reference
+</summary>
 
 Field         | Type             | Description
 ------------- | ---------------- | ---------------------------------------------
@@ -57,66 +60,33 @@ Field         | Type             | Description
 
 #### Cluster
 
-| Field  | Type      | Description                                            |
-| ------ | --------- | ------------------------------------------------------ |
-| `kind` | string    | Name of the cluster type. The only option currently is |
-:        :           : `Kind`.                                                :
-| `spec` | yaml.Node | Fields that set the options for the cluster type.      |
+Field  | Type      | Description
+------ | --------- | ------------------------------------------------------
+`kind` | string    | Name of the cluster type. The only option currently is`Kind`.
+`spec` | yaml.Node | Fields that set the options for the cluster type.
 
 ##### Kind
 
-| Field                      | Type              | Description                |
-| -------------------------- | ----------------- | -------------------------- |
-| `name`                     | string            | Cluster name, overrides    |
-:                            :                   : `KIND_CLUSTER_NAME`,       :
-:                            :                   : config (default `kind`).   :
-| `recycle`                  | bool              | Reuse an existing cluster  |
-:                            :                   : of the same name if it     :
-:                            :                   : exists.                    :
-| `version`                  | string            | Desired version of the     |
-:                            :                   : `kubectl` client.          :
-| `image`                    | string            | Node docker image to use   |
-:                            :                   : for booting the cluster.   :
-| `retain`                   | bool              | Retain nodes for debugging |
-:                            :                   : when cluster creation      :
-:                            :                   : fails.                     :
-| `wait`                     | time.Duration     | Wait for control plane     |
-:                            :                   : node to be ready (default  :
-:                            :                   : 0s).                       :
-| `kubecfg`                  | string            | Sets kubeconfig path       |
-:                            :                   : instead of `$KUBECONFIG`   :
-:                            :                   : or `$HOME/.kube/config`.   :
-| `googleArtifactRegistries` | []string          | List of Google Artifact    |
-:                            :                   : Registries to setup        :
-:                            :                   : credentials for in the     :
-:                            :                   : cluster. Example value for :
-:                            :                   : registry would be          :
-:                            :                   : `us-west1-docker.pkg.dev`. :
-:                            :                   : Credentials used are       :
-:                            :                   : associated with the        :
-:                            :                   : configured `gcloud` user   :
-:                            :                   : on the host.               :
-| `containerImages`          | map[string]string | Map of source images to    |
-:                            :                   : target images for          :
-:                            :                   : containers to load in the  :
-:                            :                   : cluster. Empty values      :
-:                            :                   : cause the source image to  :
-:                            :                   : be loaded into the cluster :
-:                            :                   : without being renamed.     :
-| `config`                   | string            | Path to a kind config      |
-:                            :                   : file.                      :
-| `additionalManifests`      | []string          | List of paths to manifests |
-:                            :                   : to be applied using        :
-:                            :                   : `kubectl` directly after   :
-:                            :                   : cluster creation.          :
+Field                      | Type              | Description
+-------------------------- | ----------------- | --------------------------
+`name`                     | string            | Cluster name, overrides `KIND_CLUSTER_NAME`, config (default `kind`).
+`recycle`                  | bool              | Reuse an existing cluster of the same name if it exists.
+`version`                  | string            | Desired version of the `kubectl` client.
+`image`                    | string            | Node docker image to use for booting the cluster.
+`retain`                   | bool              | Retain nodes for debugging when cluster creation fails.
+`wait`                     | time.Duration     | Wait for control plane node to be ready (default 0s).
+`kubecfg`                  | string            | Sets kubeconfig path instead of `$KUBECONFIG` or `$HOME/.kube/config`.
+`googleArtifactRegistries` | []string          | List of Google Artifact Registries to setup credentials for in the cluster. Example value for registry would be `us-west1-docker.pkg.dev`. Credentials used are associated with the configured `gcloud` user on the host.
+`containerImages`          | map[string]string | Map of source images to target images for containers to load in the cluster. Empty values cause the source image to be loaded into the cluster without being renamed.
+`config`                   | string            | Path to a kind config file.
+`additionalManifests`      | []string          | List of paths to manifests to be applied using `kubectl` directly after cluster creation.
 
 #### Ingress
 
-| Field  | Type      | Description                                            |
-| ------ | --------- | ------------------------------------------------------ |
-| `kind` | string    | Name of the ingress type. The only option currently is |
-:        :           : `MetalLB`.                                             :
-| `spec` | yaml.Node | Fields that set the options for the ingress type.      |
+Field  | Type      | Description
+------ | --------- | ------------------------------------------------------
+`kind` | string    | Name of the ingress type. The only option currently is `MetalLB`.
+`spec` | yaml.Node | Fields that set the options for the ingress type.
 
 ##### MetalLB
 
@@ -127,11 +97,10 @@ Field       | Type   | Description
 
 #### CNI
 
-| Field  | Type      | Description                                        |
-| ------ | --------- | -------------------------------------------------- |
-| `kind` | string    | Name of the CNI type. The only option currently is |
-:        :           : `Meshnet`.                                         :
-| `spec` | yaml.Node | Fields that set the options for the CNI type.      |
+Field  | Type      | Description
+------ | --------- | --------------------------------------------------
+`kind` | string    | Name of the CNI type. The only option currently is `Meshnet`.
+`spec` | yaml.Node | Fields that set the options for the CNI type.
 
 ##### Meshnet
 
@@ -141,34 +110,24 @@ Field       | Type   | Description
 
 #### Controllers
 
-| Field  | Type      | Description                                          |
-| ------ | --------- | ---------------------------------------------------- |
-| `kind` | string    | Name of the controller type. The current options     |
-:        :           : currently are `IxiaTG`, `SRLinux`, and `CEOSLab`.    :
-| `spec` | yaml.Node | Fields that set the options for the controller type. |
+Field  | Type      | Description
+------ | --------- | ----------------------------------------------------
+`kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, and `CEOSLab`.
+`spec` | yaml.Node | Fields that set the options for the controller type.
 
 ##### IxiaTG
 
-| Field       | Type            | Description                                  |
-| ----------- | --------------- | -------------------------------------------- |
-| `configMap` | IxiaTGConfigMap | Map of images used by the IxiaTG controller. |
-| `manifests` | string          | Path of the directory holding the manifests  |
-:             :                 : to create an IxiaTG controller in the        :
-:             :                 : cluster. The directory is expected to        :
-:             :                 : contain a file with the name                 :
-:             :                 : `ixiatg-operator.yaml`. Optionally the       :
-:             :                 : directory can contain a file with the name   :
-:             :                 : `ixia-configmap.yaml` to apply a config map  :
-:             :                 : of the desired container images used by the  :
-:             :                 : controller.                                  :
+Field       | Type            | Description
+----------- | --------------- | --------------------------------------------
+`configMap` | IxiaTGConfigMap | Map of images used by the IxiaTG controller.
+`manifests` | string          | Path of the directory holding the manifests to create an IxiaTG controller in the cluster. The directory is expected to contain a file with the name `ixiatg-operator.yaml`. Optionally the directory can contain a file with the name `ixia-configmap.yaml` to apply a config map of the desired container images used by the controller.                                  :
 
 -   IxiaTGConfigMap
 
-| Field     | Type          | Description                                   |
-| --------- | ------------- | --------------------------------------------- |
-| `release` | string        | Version of the release these images should be |
-:           :               : associated with.                              :
-| `images`  | []IxiaTGImage | List of IxiaTG images.                        |
+Field     | Type          | Description
+--------- | ------------- | ---------------------------------------------
+`release` | string        | Version of the release these images should be associated with.
+`images`  | []IxiaTGImage | List of IxiaTG images.
 
 -   IxiaTGImage
 
@@ -180,23 +139,19 @@ Field  | Type   | Description
 
 ##### SRLinux
 
-| Field       | Type   | Description                                           |
-| ----------- | ------ | ----------------------------------------------------- |
-| `manifests` | string | Path of the directory holding the manifests to create |
-:             :        : an SRLinux controller in the cluster. The directory   :
-:             :        : is expected to contain a file with the name           :
-:             :        : `kustomization.yaml`.                                 :
+Field       | Type   | Description
+----------- | ------ | -----------------------------------------------------
+`manifests` | string | Path of the directory holding the manifests to create an SRLinux controller in the cluster. The directory is expected to contain a file with the name `kustomization.yaml`.
 
 ##### CEOSLab
 
-| Field       | Type   | Description                                           |
-| ----------- | ------ | ----------------------------------------------------- |
-| `manifests` | string | Path of the directory holding the manifests to create |
-:             :        : a CEOSLab controller in the cluster. The directory is :
-:             :        : expected to contain a file with the name              :
-:             :        : `manifest.yaml`.                                      :
+Field       | Type   | Description
+----------- | ------ | -----------------------------------------------------
+`manifests` | string | Path of the directory holding the manifests to create a CEOSLab controller in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.
 
-</section>
+</details>
+
+---
 
 The basic deployment yaml file can be found in the GitHub repo at
 [deploy/kne/kind-bridge.yaml](https://github.com/openconfig/kne/blob/5e6cf1cbc0748bb48ebf49039bd0ad592378357a/deploy/kne/kind-bridge.yaml).
