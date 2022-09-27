@@ -178,7 +178,7 @@ func (n *Node) Delete(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	err = c.Srlinux(n.Namespace).Delete(ctx, n.Name(), &metav1.DeleteOptions{})
+	err = c.Srlinux(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
