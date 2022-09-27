@@ -56,14 +56,14 @@ Field         | Type             | Description
 `cni`         | CNISpec          | Spec for the CNI.
 `controllers` | []ControllerSpec | List of specs for the additional controllers.
 
-#### Cluster
+### Cluster
 
 Field  | Type      | Description
 ------ | --------- | ------------------------------------------------------
 `kind` | string    | Name of the cluster type. The only option currently is`Kind`.
 `spec` | yaml.Node | Fields that set the options for the cluster type.
 
-##### Kind
+#### Kind
 
 Field                      | Type              | Description
 -------------------------- | ----------------- | --------------------------
@@ -79,55 +79,55 @@ Field                      | Type              | Description
 `config`                   | string            | Path to a kind config file.
 `additionalManifests`      | []string          | List of paths to manifests to be applied using `kubectl` directly after cluster creation.
 
-#### Ingress
+### Ingress
 
 Field  | Type      | Description
 ------ | --------- | ------------------------------------------------------
 `kind` | string    | Name of the ingress type. The only option currently is `MetalLB`.
 `spec` | yaml.Node | Fields that set the options for the ingress type.
 
-##### MetalLB
+#### MetalLB
 
 Field       | Type   | Description
 ----------- | ------ | -----------
 `ip_count`  | int    | Number of IP addresses to include in the available pool.
 `manifests` | string | Path of the directory holding the manifests to create MetalLB in the cluster. The directory is expected to contain a file with the name `metallb-native.yaml`. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/metallb).
 
-#### CNI
+### CNI
 
 Field  | Type      | Description
 ------ | --------- | --------------------------------------------------
 `kind` | string    | Name of the CNI type. The only option currently is `Meshnet`.
 `spec` | yaml.Node | Fields that set the options for the CNI type.
 
-##### Meshnet
+#### Meshnet
 
 Field       | Type   | Description
 ----------- | ------ | -----------
 `manifests` | string | Path of the directory holding the manifests to create Meshnet in the cluster. The directory is expected to contain a file with the name `kustomization.yaml`. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/meshnet/base).
 
-#### Controllers
+### Controllers
 
 Field  | Type      | Description
 ------ | --------- | ----------------------------------------------------
 `kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, and `CEOSLab`.
 `spec` | yaml.Node | Fields that set the options for the controller type.
 
-##### IxiaTG
+#### IxiaTG
 
 Field       | Type            | Description
 ----------- | --------------- | --------------------------------------------
 `configMap` | IxiaTGConfigMap | Map of images used by the IxiaTG controller.
 `manifests` | string          | Path of the directory holding the manifests to create an IxiaTG controller in the cluster. The directory is expected to contain a file with the name `ixiatg-operator.yaml`. Optionally the directory can contain a file with the name `ixia-configmap.yaml` to apply a config map of the desired container images used by the controller.                                  :
 
--   IxiaTGConfigMap
+- IxiaTGConfigMap
 
 Field     | Type          | Description
 --------- | ------------- | ---------------------------------------------
 `release` | string        | Version of the release these images should be associated with.
 `images`  | []IxiaTGImage | List of IxiaTG images.
 
--   IxiaTGImage
+- IxiaTGImage
 
 Field  | Type   | Description
 ------ | ------ | -------------------------------------------------------
@@ -135,13 +135,13 @@ Field  | Type   | Description
 `path` | string | Path of the container image.
 `tag`  | string | Tag of the container image.
 
-##### SRLinux
+#### SRLinux
 
 Field       | Type   | Description
 ----------- | ------ | -----------------------------------------------------
 `manifests` | string | Path of the directory holding the manifests to create an SRLinux controller in the cluster. The directory is expected to contain a file with the name `kustomization.yaml`.
 
-##### CEOSLab
+#### CEOSLab
 
 Field       | Type   | Description
 ----------- | ------ | -----------------------------------------------------
@@ -175,9 +175,9 @@ following vendors use a controller:
 - Arista: `cEOS`
 
 These controllers can be deployed as part of [cluster
-deployment](#deploy_a_cluster).
+deployment](#deploy-a-cluster).
 
-### IxiaTG
+### IxiaTG Controller
 
 > IMPORTANT: Contact Keysight to get access to the IxiaTG controller yaml and
 > container images.
@@ -189,7 +189,7 @@ Keysight controller yaml:
 kubectl apply -f ixiatg-operator.yaml
 ```
 
-### SR Linux
+### SR Linux Controller
 
 > IMPORTANT: Make sure to use the `kind-bridge.yaml` deployment config. This is
 > because the SR Linux controller + containers require the `bridge` cluster CNI
@@ -199,13 +199,13 @@ To manually apply the controller, first clone the `srl-controller`
 [repo](setup.md#srl-controller) and then run the following command:
 
 ```bash
-$ kubectl apply -k srl-controller/config/default
+kubectl apply -k srl-controller/config/default
 ```
 
 See more on the
 [srl-controller GitHub repo](https://github.com/srl-labs/srl-controller).
 
-#### cEOS
+#### cEOS Controller
 
 > IMPORTANT: Contact Arista to get access to the cEOS container image.
 
@@ -213,7 +213,7 @@ To manually apply the controller, first clone the `arista-ceoslab-operator`
 [repo](setup.md#arista-ceoslab-operator) and then run the following command:
 
 ```bash
-$ kubectl apply -f arista-ceoslab-operator/config/kustomized/manifest.yaml
+kubectl apply -f arista-ceoslab-operator/config/kustomized/manifest.yaml
 ```
 
 See more on the
