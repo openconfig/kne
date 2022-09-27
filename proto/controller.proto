@@ -63,15 +63,13 @@ message KindSpec {
 
 // Metallb specifications
 message MetallbSpec {
-  string version = 1;
+  string manifest_dir = 1;
   int32 ip_count = 2;
-  string manifest_dir = 3;
 }
 
 // Meshnet specifications
 message MeshnetSpec {
-  string image = 1;
-  string manifest_dir = 2;
+  string manifest_dir = 1;
 }
 
 // Controller specifications

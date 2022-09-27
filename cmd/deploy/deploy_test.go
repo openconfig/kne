@@ -166,7 +166,7 @@ func TestNewDeployment(t *testing.T) {
 	}, {
 		desc: "kind example",
 		cfg:  "",
-		path: "../../deploy/kne/kind.yaml",
+		path: "../../deploy/kne/kind-bridge.yaml",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {

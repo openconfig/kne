@@ -124,7 +124,6 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		}
 		m.ManifestDir = p
 		m.IPCount = int(req.GetMetallb().IpCount)
-		m.Version = req.GetMetallb().Version
 		d.Ingress = m
 	default:
 		return nil, fmt.Errorf("ingress spec not supported: %T", t)
@@ -140,7 +139,6 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate path %q", path)
 		}
-		m.Image = req.GetMeshnet().Image
 		m.ManifestDir = p
 		d.CNI = m
 	default:
