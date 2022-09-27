@@ -20,3 +20,13 @@ cni:
   kind: Meshnet
   spec:
     manifests: ../../manifests/meshnet/base
+controllers:
+  - kind: IxiaTG
+    spec:
+      manifests: ../../manifests/controllers/ixiatg
+  - kind: SRLinux
+    spec:
+      manifests: ../../manifests/controllers/srlinux/default
+  - kind: CEOSLab
+    spec:
+      manifests: ../../manifests/controllers/ceoslab

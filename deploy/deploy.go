@@ -551,7 +551,6 @@ func writeDockerConfig(path string, registries []string) error {
 }
 
 type MetalLBSpec struct {
-	Version     string `yaml:"version"`
 	IPCount     int    `yaml:"ip_count"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
@@ -707,7 +706,6 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 }
 
 type MeshnetSpec struct {
-	Image       string `yaml:"image"`
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface
 }
@@ -827,7 +825,8 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 	if i.ConfigMap == nil {
 		path := filepath.Join(i.ManifestDir, "ixia-configmap.yaml")
 		if _, err := osStat(path); err != nil {
-			return fmt.Errorf("ixia configmap not found: %v", err)
+			log.Warnf("ixia controller deployed without configmap")
+			return nil
 		}
 		log.Infof("Deploying IxiaTG configmap from: %s", path)
 		if err := execer.Exec("kubectl", "apply", "-f", path); err != nil {
