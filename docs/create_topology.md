@@ -47,9 +47,7 @@ yaml.
 ---
 
 <details>
-<summary>
-### Deployment yaml reference
-</summary>
+<summary><h3>Deployment yaml reference</h3></summary>
 
 Field         | Type             | Description
 ------------- | ---------------- | ---------------------------------------------
@@ -208,6 +206,8 @@ See more on the
 [srl-controller GitHub repo](https://github.com/srl-labs/srl-controller).
 
 #### cEOS
+
+> IMPORTANT: Contact Arista to get access to the cEOS container image.
 
 To manually apply the controller, first clone the `arista-ceoslab-operator`
 [repo](setup.md#arista-ceoslab-operator) and then run the following command:
