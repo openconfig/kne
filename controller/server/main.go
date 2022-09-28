@@ -54,7 +54,7 @@ func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
 		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
-		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
+		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 		defaultIxiaTGManifestDir = filepath.Join(home, "keysight", "athena", "operator")
 		defaultSRLinuxManifestDir = filepath.Join(home, "kne", "manifests", "controllers", "srlinux")
