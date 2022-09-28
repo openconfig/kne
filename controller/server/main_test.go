@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -11,6 +12,14 @@ import (
 )
 
 func TestNewDeployment(t *testing.T) {
+	dirTest, err := os.MkdirTemp("", "testfiles")
+	if err != nil {
+		t.Fatalf("failed to create tempdir: %v", err)
+	}
+	defer func() {
+		os.RemoveAll(dirTest)
+	}()
+
 	mlb := defaultMetallbManifestDir
 	defer func() {
 		defaultMetallbManifestDir = mlb
@@ -55,13 +64,13 @@ func TestNewDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				Metallb: &cpb.MetallbSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
 				Meshnet: &cpb.MeshnetSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 		},
@@ -73,11 +82,11 @@ func TestNewDeployment(t *testing.T) {
 				Image:   "kindest/node:v1.22.1",
 			},
 			Ingress: &deploy.MetalLBSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 				IPCount:     100,
 			},
 			CNI: &deploy.MeshnetSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 			},
 		},
 	}, {
@@ -93,19 +102,19 @@ func TestNewDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				Metallb: &cpb.MetallbSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
 				Meshnet: &cpb.MeshnetSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{{
 				Spec: &cpb.ControllerSpec_Ixiatg{
 					Ixiatg: &cpb.IxiaTGSpec{
-						ManifestDir: "/home",
+						ManifestDir: dirTest,
 					},
 				},
 			}},
@@ -118,15 +127,15 @@ func TestNewDeployment(t *testing.T) {
 				Image:   "kindest/node:v1.22.1",
 			},
 			Ingress: &deploy.MetalLBSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 				IPCount:     100,
 			},
 			CNI: &deploy.MeshnetSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 			},
 			Controllers: []deploy.Controller{
 				&deploy.IxiaTGSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 		},
@@ -143,19 +152,19 @@ func TestNewDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				Metallb: &cpb.MetallbSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
 				Meshnet: &cpb.MeshnetSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{{
 				Spec: &cpb.ControllerSpec_Srlinux{
 					Srlinux: &cpb.SRLinuxSpec{
-						ManifestDir: "/home",
+						ManifestDir: dirTest,
 					},
 				},
 			}},
@@ -168,15 +177,15 @@ func TestNewDeployment(t *testing.T) {
 				Image:   "kindest/node:v1.22.1",
 			},
 			Ingress: &deploy.MetalLBSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 				IPCount:     100,
 			},
 			CNI: &deploy.MeshnetSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 			},
 			Controllers: []deploy.Controller{
 				&deploy.SRLinuxSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 		},
@@ -193,19 +202,19 @@ func TestNewDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				Metallb: &cpb.MetallbSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
 				Meshnet: &cpb.MeshnetSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{{
 				Spec: &cpb.ControllerSpec_Ceoslab{
 					Ceoslab: &cpb.CEOSLabSpec{
-						ManifestDir: "/home",
+						ManifestDir: dirTest,
 					},
 				},
 			}},
@@ -218,15 +227,15 @@ func TestNewDeployment(t *testing.T) {
 				Image:   "kindest/node:v1.22.1",
 			},
 			Ingress: &deploy.MetalLBSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 				IPCount:     100,
 			},
 			CNI: &deploy.MeshnetSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 			},
 			Controllers: []deploy.Controller{
 				&deploy.CEOSLabSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 		},
@@ -243,34 +252,34 @@ func TestNewDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				Metallb: &cpb.MetallbSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
 				Meshnet: &cpb.MeshnetSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{
 				{
 					Spec: &cpb.ControllerSpec_Ixiatg{
 						Ixiatg: &cpb.IxiaTGSpec{
-							ManifestDir: "/home",
+							ManifestDir: dirTest,
 						},
 					},
 				},
 				{
 					Spec: &cpb.ControllerSpec_Srlinux{
 						Srlinux: &cpb.SRLinuxSpec{
-							ManifestDir: "/home",
+							ManifestDir: dirTest,
 						},
 					},
 				},
 				{
 					Spec: &cpb.ControllerSpec_Ceoslab{
 						Ceoslab: &cpb.CEOSLabSpec{
-							ManifestDir: "/home",
+							ManifestDir: dirTest,
 						},
 					},
 				},
@@ -284,21 +293,21 @@ func TestNewDeployment(t *testing.T) {
 				Image:   "kindest/node:v1.22.1",
 			},
 			Ingress: &deploy.MetalLBSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 				IPCount:     100,
 			},
 			CNI: &deploy.MeshnetSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 			},
 			Controllers: []deploy.Controller{
 				&deploy.IxiaTGSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 				&deploy.SRLinuxSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 				&deploy.CEOSLabSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 		},
@@ -315,19 +324,19 @@ func TestNewDeployment(t *testing.T) {
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
 				Metallb: &cpb.MetallbSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 					IpCount:     100,
 				},
 			},
 			CniSpec: &cpb.CreateClusterRequest_Meshnet{
 				Meshnet: &cpb.MeshnetSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 				},
 			},
 			ControllerSpecs: []*cpb.ControllerSpec{{
 				Spec: &cpb.ControllerSpec_Ixiatg{
 					Ixiatg: &cpb.IxiaTGSpec{
-						ManifestDir: "/home",
+						ManifestDir: dirTest,
 						ConfigMap: &cpb.IxiaTGConfigMap{
 							Release: "0.0.1-9999",
 							Images: []*cpb.IxiaTGImage{{
@@ -352,15 +361,15 @@ func TestNewDeployment(t *testing.T) {
 				Image:   "kindest/node:v1.22.1",
 			},
 			Ingress: &deploy.MetalLBSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 				IPCount:     100,
 			},
 			CNI: &deploy.MeshnetSpec{
-				ManifestDir: "/home",
+				ManifestDir: dirTest,
 			},
 			Controllers: []deploy.Controller{
 				&deploy.IxiaTGSpec{
-					ManifestDir: "/home",
+					ManifestDir: dirTest,
 					ConfigMap: &deploy.IxiaTGConfigMap{
 						Release: "0.0.1-9999",
 						Images: []*deploy.IxiaTGImage{{
