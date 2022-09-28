@@ -378,7 +378,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ixiacom/ixia-c-operator:0.1.90
+        image: ghcr.io/open-traffic-generator/ixia-c-operator:0.2.1
         livenessProbe:
           httpGet:
             path: /healthz
