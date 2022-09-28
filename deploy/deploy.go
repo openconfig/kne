@@ -716,7 +716,7 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 	log.Infof("Deploying Meshnet from: %s", m.ManifestDir)
-	if err := execer.Exec("kubectl", "apply", "-k", m.ManifestDir); err != nil {
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "manifest.yaml")); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")
@@ -785,7 +785,7 @@ func (s *SRLinuxSpec) SetKClient(c kubernetes.Interface) {
 
 func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 	log.Infof("Deploying SRLinux controller from: %s", s.ManifestDir)
-	if err := execer.Exec("kubectl", "apply", "-k", s.ManifestDir); err != nil {
+	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(s.ManifestDir, "manifest.yaml")); err != nil {
 		return err
 	}
 	log.Infof("SRLinux controller deployed")
@@ -825,7 +825,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 	if i.ConfigMap == nil {
 		path := filepath.Join(i.ManifestDir, "ixia-configmap.yaml")
 		if _, err := osStat(path); err != nil {
-			log.Warnf("ixia controller deployed without configmap")
+			log.Warnf("ixia controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixia-configmap.yaml'")
 			return nil
 		}
 		log.Infof("Deploying IxiaTG configmap from: %s", path)
