@@ -19,4 +19,14 @@ ingress:
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifests: ../../manifests/meshnet
+controllers:
+  - kind: IxiaTG
+    spec:
+      manifests: ../../manifests/controllers/ixiatg
+  - kind: SRLinux
+    spec:
+      manifests: ../../manifests/controllers/srlinux
+  - kind: CEOSLab
+    spec:
+      manifests: ../../manifests/controllers/ceoslab
