@@ -43,13 +43,13 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	invalidPb, err := os.CreateTemp(".", "invalid*.pb.txt")
+	invalidPb, err := os.CreateTemp("", "invalid*.pb.txt")
 	if err != nil {
 		t.Fatalf("Failed creating tmp pb: %v", err)
 	}
 	defer os.Remove(invalidPb.Name())
 
-	invalidYaml, err := os.CreateTemp(".", "invalid*.yaml")
+	invalidYaml, err := os.CreateTemp("", "invalid*.yaml")
 	if err != nil {
 		t.Fatalf("Failed creating tmp yaml: %v", err)
 	}
