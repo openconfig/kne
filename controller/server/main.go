@@ -54,11 +54,11 @@ func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
 		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
-		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet", "base")
+		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet")
 		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
 		defaultIxiaTGManifestDir = filepath.Join(home, "keysight", "athena", "operator")
-		defaultSRLinuxManifestDir = filepath.Join(home, "srl-controller", "config", "default")
-		defaultCEOSLabManifestDir = filepath.Join(home, "arista-ceos-lab", "config", "kustomized")
+		defaultSRLinuxManifestDir = filepath.Join(home, "kne", "manifests", "controllers", "srlinux")
+		defaultCEOSLabManifestDir = filepath.Join(home, "kne", "manifests", "controllers", "ceoslab")
 	}
 }
 
@@ -124,7 +124,6 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		}
 		m.ManifestDir = p
 		m.IPCount = int(req.GetMetallb().IpCount)
-		m.Version = req.GetMetallb().Version
 		d.Ingress = m
 	default:
 		return nil, fmt.Errorf("ingress spec not supported: %T", t)
@@ -140,7 +139,6 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate path %q", path)
 		}
-		m.Image = req.GetMeshnet().Image
 		m.ManifestDir = p
 		d.CNI = m
 	default:

@@ -77,7 +77,7 @@ func (n *Node) SpawnCLIConn() error {
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
 
-	opts = n.PatchCLIConnOpen("kubectl", []string{"Cli", "-c"}, opts)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"cli", "-c"}, opts)
 
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
@@ -159,13 +159,8 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	defer n.cliConn.Close()
 
 	cfgs := []string{
-		"load factory-default",
-		"delete system commit factory-settings",
-		// Plaintext password is 'Google123'
-		// Setting a plaintext password would require an interactive prompt to enter the password.
-		"set system root-authentication encrypted-password $6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/",
-		// Without SSH enabled the cli binary returns with the message 'ssh is disabled'
-		"set system services ssh root-login allow",
+		// override the current one with the factory config passed via KNE
+		"load override /var/vmguest/config/juniper.conf",
 		"commit",
 	}
 	resp, err := n.cliConn.SendConfigs(cfgs)

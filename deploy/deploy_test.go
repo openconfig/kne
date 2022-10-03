@@ -894,9 +894,45 @@ func TestIxiaTGSpec(t *testing.T) {
 	}, {
 		desc:       "no configmap",
 		i:          &IxiaTGSpec{},
-		execer:     exec.NewFakeExecer(nil),
 		cmNotFound: true,
-		dErr:       "ixia configmap not found",
+		execer:     exec.NewFakeExecer(nil, nil),
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
 	}, {
 		desc:   "operator deploy error",
 		i:      &IxiaTGSpec{},
