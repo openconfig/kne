@@ -233,20 +233,6 @@ func TestResetCfg(t *testing.T) {
 		},
 	})
 
-	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
-	}
-	ki.PrependWatchReactor("*", reaction)
-
 	ni := &node.Impl{
 		KubeClient: ki,
 		Namespace:  "test",
@@ -326,20 +312,6 @@ func TestConfigPush(t *testing.T) {
 		},
 	})
 
-	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
-	}
-	ki.PrependWatchReactor("*", reaction)
-
 	ni := &node.Impl{
 		KubeClient: ki,
 		Namespace:  "test",
@@ -371,7 +343,7 @@ func TestConfigPush(t *testing.T) {
 			wantErr:  true,
 			ni:       ni,
 			testFile: "configpush_failure",
-			cmdFile:  "configpush_fail_cli.cfg",
+			cmdFile:  "configpush_failure_cli.cfg",
 		},
 	}
 
