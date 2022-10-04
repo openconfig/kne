@@ -99,7 +99,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	return n.cliConn.Close()
 }
 
-// ConfigPush pushes config lines proivded in r using scrapligo SendConfig
+// ConfigPush pushes config lines provided in r using scrapligo SendConfig
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	log.Infof("%s - pushing config", n.Name())
 
