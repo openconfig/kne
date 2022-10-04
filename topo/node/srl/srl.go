@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scrapliopopts "github.com/scrapli/scrapligo/driver/opoptions"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	log "github.com/sirupsen/logrus"
@@ -52,10 +54,13 @@ type Node struct {
 
 // Add validations for interfaces the node provides
 var (
-	_ node.Certer   = (*Node)(nil)
-	_ node.Resetter = (*Node)(nil)
+	_ node.Certer       = (*Node)(nil)
+	_ node.Resetter     = (*Node)(nil)
+	_ node.ConfigPusher = (*Node)(nil)
 )
 
+// GenerateSelfSigned generates a self-signed TLS certificate using SR Linux tools command
+// and creates an enclosing server profile.
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
 	if selfSigned == nil {
@@ -92,6 +97,38 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	log.Infof("%s - finished cert generation", n.Name())
 
 	return n.cliConn.Close()
+}
+
+// ConfigPush pushes config lines provided in r using scrapligo SendConfig
+func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+	log.Infof("%s - pushing config", n.Name())
+
+	cfg, err := io.ReadAll(r)
+	cfgs := string(cfg)
+
+	log.Debugf("config to push:\n%s", cfgs)
+
+	if err != nil {
+		return err
+	}
+
+	err = n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+
+	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendConfig(cfgs, scrapliopopts.WithStopOnFailed())
+	if err != nil {
+		return err
+	}
+
+	if resp.Failed == nil {
+		log.Infof("%s - finshed config push", n.Impl.Proto.Name)
+	}
+
+	return resp.Failed
 }
 
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
