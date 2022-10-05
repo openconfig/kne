@@ -11,7 +11,7 @@ nodes: {
     model: "ixr6e"
     config:{
         image: "ghcr.io/nokia/srlinux:22.6.3"
-        file: "22.6.3-opeconfig.cfg.json"
+        file: "22.6.3-openconfig.cfg.json"
     }
     services:{
         key: 22
@@ -61,7 +61,7 @@ nodes: {
     model: "ixr6e"
     config:{
         image: "ghcr.io/nokia/srlinux:22.6.1"
-        file: "22.6.3-opeconfig.cfg.json"
+        file: "22.6.3-openconfig.cfg.json"
     }
     services:{
         key: 22
