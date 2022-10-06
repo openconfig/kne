@@ -75,7 +75,7 @@ Users currently editing the configuration:
 
 [edit]
 root@cptx2#
-root@cptx2# load override /config/scrapli_cfg_testing
+root@cptx2# load merge /config/scrapli_cfg_testing
 load complete
 
 [edit]
