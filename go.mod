@@ -14,7 +14,7 @@ require (
 	github.com/open-traffic-generator/ixia-c-operator v0.1.89
 	github.com/openconfig/gnmi v0.0.0-20210707145734-c69a5df04b53
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.1.2
+	github.com/scrapli/scrapligo v1.1.3
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0

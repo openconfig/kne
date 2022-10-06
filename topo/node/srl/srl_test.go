@@ -206,9 +206,13 @@ func TestGenerateSelfSigned(t *testing.T) {
 			}
 
 			if scrapliDebug() {
-				li, _ := scraplilogging.NewInstance(
+				li, err := scraplilogging.NewInstance(
 					scraplilogging.WithLevel("debug"),
 					scraplilogging.WithLogger(t.Log))
+				if err != nil {
+					t.Fatalf("failed created scrapligo logger %v\n", err)
+				}
+
 				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
 			}
 
@@ -228,20 +232,6 @@ func TestResetCfg(t *testing.T) {
 			Name: "pod1",
 		},
 	})
-
-	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
-	}
-	ki.PrependWatchReactor("*", reaction)
 
 	ni := &node.Impl{
 		KubeClient: ki,
@@ -295,9 +285,13 @@ func TestResetCfg(t *testing.T) {
 			}
 
 			if scrapliDebug() {
-				li, _ := scraplilogging.NewInstance(
+				li, err := scraplilogging.NewInstance(
 					scraplilogging.WithLevel("debug"),
 					scraplilogging.WithLogger(t.Log))
+				if err != nil {
+					t.Fatalf("failed created scrapligo logger %v\n", err)
+				}
+
 				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
 			}
 
@@ -306,6 +300,93 @@ func TestResetCfg(t *testing.T) {
 			err = n.ResetCfg(ctx)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("resetting config failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestConfigPush(t *testing.T) {
+	ki := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod1",
+		},
+	})
+
+	ni := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &topopb.Node{
+			Name:   "pod1",
+			Vendor: topopb.Vendor_NOKIA,
+			Config: &topopb.Config{},
+		},
+	}
+
+	tests := []struct {
+		desc     string
+		wantErr  bool
+		ni       *node.Impl
+		testFile string
+		cmdFile  string
+	}{
+		{
+			// successfully configure certificate
+			desc:     "success",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "configpush_success",
+			cmdFile:  "configpush_success_cli.cfg",
+		},
+		{
+			// device returns an error during config push -- we expect to fail
+			desc:     "failure",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "configpush_failure",
+			cmdFile:  "configpush_failure_cli.cfg",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+
+			if err != nil {
+				t.Fatalf("failed creating srlinux node")
+			}
+
+			n, _ := nImpl.(*Node)
+
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
+			}
+
+			if scrapliDebug() {
+				li, err := scraplilogging.NewInstance(
+					scraplilogging.WithLevel("debug"),
+					scraplilogging.WithLogger(t.Log))
+				if err != nil {
+					t.Fatalf("failed created scrapligo logger %v\n", err)
+				}
+
+				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
+			}
+
+			ctx := context.Background()
+
+			r, err := os.Open(tt.cmdFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = n.ConfigPush(ctx, r)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("config push failed, error: %+v\n", err)
 			}
 		})
 	}
