@@ -10,7 +10,7 @@ nodes: {
     vendor: NOKIA
     model: "ixr6e"
     config:{
-        image: "ghcr.io/nokia/srlinux:22.6.3"
+        image: "ghcr.io/nokia/srlinux:22.6.4"
         file: "22.6.3-openconfig.cfg.json"
     }
     services:{
@@ -60,7 +60,7 @@ nodes: {
     vendor: NOKIA
     model: "ixr6e"
     config:{
-        image: "ghcr.io/nokia/srlinux:22.6.1"
+        image: "ghcr.io/nokia/srlinux:22.6.4"
         file: "22.6.3-openconfig.cfg.json"
     }
     services:{
