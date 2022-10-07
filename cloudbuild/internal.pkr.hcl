@@ -68,7 +68,13 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
+      "echo Pulling containers...",
       "gcloud auth configure-docker us-west1-docker.pkg.dev -q",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/e8000:ga",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga",
     ]
   }
 
