@@ -361,9 +361,6 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 			"vendor": tpb.Vendor_CISCO.String(),
 		}
 	}
-	if pb.Config.Image == "" {
-		pb.Config.Image = "ios-xr:latest"
-	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name)
 	}
@@ -374,10 +371,16 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if err := setXRDEnv(pb); err != nil {
 			return nil, err
 		}
+		if pb.Config.Image == "" {
+			pb.Config.Image = "xrd:latest"
+		}
 	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
 		if err := setE8000Env(pb); err != nil {
 			return nil, err
+		}
+		if pb.Config.Image == "" {
+			pb.Config.Image = "e8000:latest"
 		}
 	}
 	return pb, nil

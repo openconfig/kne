@@ -7,7 +7,6 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r1.config"
-        image: "c8201:latest"
     }
     services:{
         key: 22
@@ -38,7 +37,6 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r2.config"
-        image: "c8201:latest"
     }
     services:{
         key: 22
