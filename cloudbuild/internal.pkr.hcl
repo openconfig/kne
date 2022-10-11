@@ -69,7 +69,8 @@ build {
       "sudo usermod -aG docker $USER",
       "sudo docker version",
       "echo Pulling containers...",
-      "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q",
+      "gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure sudoless docker
+      "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure docker with sudo
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/e8000:ga",
