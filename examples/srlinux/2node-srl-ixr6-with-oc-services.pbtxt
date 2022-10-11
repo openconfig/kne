@@ -2,7 +2,7 @@
 # Each of the nodes comes up with a startup config which is sourced from srl-opeconfig.cfg.json file;
 # the startup config contains a self-signed TLS cert and has gnmi, gnoi, gribi, p4rt services enabled
 #
-# Read more about this topology at http://learn.srlinux.dev/tutorials/infrastructure/kne/srl-with-kne/
+# Read more about this topology at http://learn.srlinux.dev/tutorials/infrastructure/kne/srl-with-kne/srl-with-oc-services/
 
 name: "2-srl-ixr6"
 nodes: {
