@@ -1,38 +1,36 @@
 name: "3node-srlinux"
 nodes: {
     name: "r1"
-    # type will get deprecated in favor of `vendor`. Nore `r2` shows how to set `vendor` for nokia sr linux
-    type: NOKIA_SRL
-    services:{
+    vendor: NOKIA
+    # check https://github.com/srl-labs/srl-controller for possible models
+    model: "ixr6"
+    services: {
         key: 22
         value: {
             name: "ssh"
             inside: 22
         }
     }
-    services:{
+    services: {
         key: 57400
         value: {
             name: "gnmi"
             inside: 57400
         }
     }
-    # model sets the sr linux hardware type (ixrd1, ixrd2, etc)
-    # check https://github.com/srl-labs/srl-controller for possible models
-    model: "ixr6"
 }
 
 nodes: {
     name: "r2"
     vendor: NOKIA
-    services:{
+    services: {
         key: 22
         value: {
             name: "ssh"
             inside: 22
         }
     }
-    config:{
+    config: {
         # container image to use for this SR Linux pod
         # can be cheked with `show version` cli command
         image: "ghcr.io/nokia/srlinux:21.6.1-250"
@@ -44,8 +42,8 @@ nodes: {
 
 nodes: {
     name: "r3"
-    type: NOKIA_SRL
-    services:{
+    vendor: NOKIA
+    services: {
         key: 22
         value: {
             name: "ssh"
@@ -53,10 +51,6 @@ nodes: {
         }
     }
 }
-
-# ========================
-# LINKS
-# ========================
 links: {
     a_node: "r1"
     a_int: "e1-1"

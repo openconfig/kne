@@ -1,8 +1,13 @@
-name: "3node-ceos"
+name: "ceos"
 nodes: {
     name: "r1"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "r1-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -19,7 +24,7 @@ nodes: {
         }
     }
     services:{
-        key: 6030 
+        key: 6030
         value: {
             name: "gnmi"
             inside: 6030
@@ -28,8 +33,13 @@ nodes: {
 }
 nodes: {
     name: "r2"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "r2-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",

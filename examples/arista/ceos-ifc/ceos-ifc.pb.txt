@@ -1,7 +1,7 @@
-name: "ixia-c"
+name: "ceos-ifc"
 nodes: {
     name: "otg"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-9999"
     services: {
         key: 40051
@@ -31,12 +31,14 @@ nodes: {
     }
 }
 nodes: {
-    name: "arista"
-    type: ARISTA_CEOS
+    name: "r1"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "ceos-withtraffic/r1-config"
+        file: "r1-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",

@@ -1,11 +1,13 @@
-name: "3node-ipv6"
+name: "ceos-traffic"
 nodes: {
     name: "r1"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "r1.ipv6.config"
+        file: "r1-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -17,11 +19,13 @@ nodes: {
 }
 nodes: {
     name: "r2"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "r2.ipv6.config"
+        file: "r2-config"
         cert: {
             self_signed: {
                 cert_name: "gnmiCert.pem",
@@ -33,7 +37,9 @@ nodes: {
 }
 nodes: {
     name: "r3"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
@@ -49,8 +55,15 @@ nodes: {
 }
 nodes: {
     name: "otg"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-9999"
+    services: {
+        key: 443
+        value: {
+            name: "https"
+            inside: 443
+        }
+    }
     services: {
         key: 40051
         value: {
@@ -130,5 +143,5 @@ links: {
     a_node: "r3"
     a_int: "eth9"
     z_node: "otg"
-    z_int: "eth1"
+    z_int: "eth2"
 }
