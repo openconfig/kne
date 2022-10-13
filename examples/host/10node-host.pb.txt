@@ -1,0 +1,95 @@
+name: "10node-host"
+nodes: {
+    name: "vm-1"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-2"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-3"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-4"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-5"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-6"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-7"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-8"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-9"
+    vendor: HOST
+}
+nodes: {
+    name: "vm-10"
+    vendor: HOST
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth1"
+    z_node: "vm-2"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth2"
+    z_node: "vm-3"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth3"
+    z_node: "vm-4"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth4"
+    z_node: "vm-5"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth5"
+    z_node: "vm-6"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth6"
+    z_node: "vm-7"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth7"
+    z_node: "vm-8"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth8"
+    z_node: "vm-9"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vm-1"
+    a_int: "eth9"
+    z_node: "vm-10"
+    z_int: "eth1"
+}
