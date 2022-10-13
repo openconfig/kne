@@ -1,30 +1,21 @@
 name: "test-data-topology"
-nodes: {
-    name: "r1"
+nodes:
+  - name: "r1"
     vendor: ARISTA
-}
-nodes: {
-    name: "otg"
+  - name: "otg"
     vendor: KEYSIGHT
     version: "0.0.1-9999"
-    services: {
-        key: 40051
-        value: {
+    services:
+      - key: 40051
+        value:
             name: "grpc"
             inside: 40051
-        }
-    }
-    services: {
-        key: 50051
-        value: {
+      - key: 50051
+        value:
             name: "gnmi"
             inside: 50051
-        }
-    }
-}
-links: {
-    a_node: "r1"
+links:
+  - a_node: "r1"
     a_int: "eth9"
     z_node: "otg"
     z_int: "eth1"
-}
