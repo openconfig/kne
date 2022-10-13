@@ -6,14 +6,12 @@ nodes:
     vendor: KEYSIGHT
     version: "0.0.1-9999"
     services:
-      - key: 40051
-        value:
-            name: "grpc"
-            inside: 40051
-      - key: 50051
-        value:
-            name: "gnmi"
-            inside: 50051
+      40051:
+        name: grpc
+        inside: 40051
+      50051:
+        name: gnmi
+        inside: 50051
 links:
   - a_node: "r1"
     a_int: "eth9"

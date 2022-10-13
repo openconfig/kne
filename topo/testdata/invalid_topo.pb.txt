@@ -4,7 +4,7 @@ nodes: {
     vendor: ARISTA
 }
 links: {
-    a_node: "r1"
+    field_dne: "r1"
     a_int: "eth9"
     z_node: "otg"
     z_int: "eth1"
