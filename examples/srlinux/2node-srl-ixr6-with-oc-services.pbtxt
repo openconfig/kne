@@ -54,10 +54,10 @@ nodes: {
         }
     }
     interfaces: {
-      key: "e1-1"
-    value: {
-      name: "ethernet-1/1"
-      }
+        key: "e1-1"
+        value: {
+            name: "ethernet-1/1"
+        }
     }
 }
 
@@ -107,6 +107,12 @@ nodes: {
             name: "p4rt"
             inside: 9559
             outside: 9559
+        }
+    }
+    interfaces: {
+        key: "e1-1"
+        value: {
+            name: "ethernet-1/1"
         }
     }
 }
