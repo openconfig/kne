@@ -1,0 +1,126 @@
+# This topology consists of two Nokia SR Linux IXR-6e nodes running 22.6.4 release and connected with a single link over ethernet-1/1 interfaces.
+# Each of the nodes comes up with a startup config which is sourced from srl-opeconfig.cfg.json file;
+# the startup config contains a self-signed TLS cert and has gnmi, gnoi, gribi, p4rt services enabled
+#
+# Read more about this topology at http://learn.srlinux.dev/tutorials/infrastructure/kne/srl-with-oc-services/
+
+name: "2-srl-ixr6"
+nodes: {
+    name: "srl1"
+    vendor: NOKIA
+    model: "ixr6e"
+    config:{
+        image: "ghcr.io/nokia/srlinux:22.6.4"
+        file: "srl-openconfig.cfg.json"
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+            outside: 22
+        }
+    }
+    services:{
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+            outside: 9337
+        }
+    }
+    services:{
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 57400
+            outside: 9339
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57401
+            outside: 9340
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
+            outside: 9559
+        }
+    }
+    interfaces: {
+        key: "e1-1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+}
+
+nodes: {
+    name: "srl2"
+    vendor: NOKIA
+    model: "ixr6e"
+    config:{
+        image: "ghcr.io/nokia/srlinux:22.6.4"
+        file: "srl-openconfig.cfg.json"
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+            outside: 22
+        }
+    }
+    services:{
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+            outside: 9337
+        }
+    }
+    services:{
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 57400
+            outside: 9339
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57401
+            outside: 9340
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
+            outside: 9559
+        }
+    }
+    interfaces: {
+        key: "e1-1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+}
+
+links: {
+    a_node: "srl1"
+    a_int: "e1-1"
+    z_node: "srl2"
+    z_int: "e1-1"
+}
+

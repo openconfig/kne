@@ -51,11 +51,11 @@ nodes: {
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "arista"
+    z_node: "r1"
     z_int: "eth1"
 }
 links: {
-    a_node: "arista"
+    a_node: "r1"
     a_int: "eth2"
     z_node: "otg"
     z_int: "eth2"
@@ -63,11 +63,11 @@ links: {
 links: {
     a_node: "otg"
     a_int: "eth3"
-    z_node: "arista"
+    z_node: "r1"
     z_int: "eth3"
 }
 links: {
-    a_node: "arista"
+    a_node: "r1"
     a_int: "eth4"
     z_node: "otg"
     z_int: "eth4"
