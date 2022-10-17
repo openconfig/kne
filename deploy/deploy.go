@@ -136,6 +136,10 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 		return err
 	}
 	log.Infof("Cluster deployed")
+	if err := d.Cluster.Healthy(); err != nil {
+		return err
+	}
+	log.Infof("Cluster healthy")
 	// Once cluster is up, set kClient
 	rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
 	if err != nil {
@@ -254,12 +258,12 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 type ExternalSpec struct {}
 
 func (e *ExternalSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploy() is a no-op for the external cluster type")
+	log.Infof("Deploy is a no-op for the external cluster type")
 	return nil
 }
 
 func (e *ExternalSpec) Delete() error {
-	log.Infof("Delete() is a no-op for the external cluster type")
+	log.Infof("Delete is a no-op for the external cluster type")
 	return nil
 }
 
