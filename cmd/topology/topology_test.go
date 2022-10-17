@@ -88,13 +88,13 @@ func TestReset(t *testing.T) {
 	defer os.Remove(confFile.Name())
 	tInstance := &tpb.Topology{
 		Nodes: []*tpb.Node{{
-			Name: "resettable1",
+			Name:   "resettable1",
 			Vendor: tpb.Vendor(1001),
 		}, {
-			Name: "resettable2",
+			Name:   "resettable2",
 			Vendor: tpb.Vendor(1001),
 		}, {
-			Name: "notresettable1",
+			Name:   "notresettable1",
 			Vendor: tpb.Vendor(1002),
 		}},
 	}
@@ -102,7 +102,7 @@ func TestReset(t *testing.T) {
 	defer closer()
 	tWithConfig := &tpb.Topology{
 		Nodes: []*tpb.Node{{
-			Name: "resettable1",
+			Name:   "resettable1",
 			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_Data{
@@ -110,7 +110,7 @@ func TestReset(t *testing.T) {
 				},
 			},
 		}, {
-			Name: "resettable2",
+			Name:   "resettable2",
 			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_File{
@@ -118,7 +118,7 @@ func TestReset(t *testing.T) {
 				},
 			},
 		}, {
-			Name: "notresettable1",
+			Name:   "notresettable1",
 			Vendor: tpb.Vendor(1002),
 		}},
 	}
@@ -126,7 +126,7 @@ func TestReset(t *testing.T) {
 	defer closer()
 	tWithConfigRelative := &tpb.Topology{
 		Nodes: []*tpb.Node{{
-			Name: "resettable1",
+			Name:   "resettable1",
 			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_Data{
@@ -134,7 +134,7 @@ func TestReset(t *testing.T) {
 				},
 			},
 		}, {
-			Name: "resettable2",
+			Name:   "resettable2",
 			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_File{
@@ -142,7 +142,7 @@ func TestReset(t *testing.T) {
 				},
 			},
 		}, {
-			Name: "notresettable1",
+			Name:   "notresettable1",
 			Vendor: tpb.Vendor(1002),
 		}},
 	}
@@ -150,7 +150,7 @@ func TestReset(t *testing.T) {
 	defer closer()
 	tWithConfigDNE := &tpb.Topology{
 		Nodes: []*tpb.Node{{
-			Name: "resettable1",
+			Name:   "resettable1",
 			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_Data{
@@ -158,7 +158,7 @@ func TestReset(t *testing.T) {
 				},
 			},
 		}, {
-			Name: "resettable2",
+			Name:   "resettable2",
 			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_File{
@@ -166,7 +166,7 @@ func TestReset(t *testing.T) {
 				},
 			},
 		}, {
-			Name: "notresettable1",
+			Name:   "notresettable1",
 			Vendor: tpb.Vendor(1002),
 		}},
 	}
@@ -393,10 +393,10 @@ func TestPush(t *testing.T) {
 	defer os.Remove(confFile.Name())
 	tWithConfig := &tpb.Topology{
 		Nodes: []*tpb.Node{{
-			Name: "configable",
+			Name:   "configable",
 			Vendor: tpb.Vendor(1003),
 		}, {
-			Name: "notconfigable",
+			Name:   "notconfigable",
 			Vendor: tpb.Vendor(1004),
 		}},
 	}

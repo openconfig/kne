@@ -157,7 +157,7 @@ func TestNew(t *testing.T) {
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
+					Name:   "r1",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
@@ -166,7 +166,7 @@ func TestNew(t *testing.T) {
 					},
 				},
 				{
-					Name: "r2",
+					Name:   "r2",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -196,7 +196,7 @@ func TestNew(t *testing.T) {
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
-					Name: "r2",
+					Name:   "r2",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -223,7 +223,7 @@ func TestNew(t *testing.T) {
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
+					Name:   "r1",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
@@ -247,7 +247,7 @@ func TestNew(t *testing.T) {
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
+					Name:   "r1",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
@@ -256,7 +256,7 @@ func TestNew(t *testing.T) {
 					},
 				},
 				{
-					Name: "r2",
+					Name:   "r2",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -289,7 +289,7 @@ func TestNew(t *testing.T) {
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
+					Name:   "r1",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
@@ -298,7 +298,7 @@ func TestNew(t *testing.T) {
 					},
 				},
 				{
-					Name: "r2",
+					Name:   "r2",
 					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -331,7 +331,7 @@ func TestNew(t *testing.T) {
 		topo: &tpb.Topology{
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
+					Name:   "r1",
 					Vendor: tpb.Vendor_UNKNOWN,
 					Services: map[uint32]*tpb.Service{
 						1000: {
@@ -404,8 +404,8 @@ func TestCreate(t *testing.T) {
 			Name: "test",
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
-					Vendor:  tpb.Vendor(1002),
+					Name:   "r1",
+					Vendor: tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -414,7 +414,7 @@ func TestCreate(t *testing.T) {
 					Config: &tpb.Config{},
 				},
 				{
-					Name: "r2",
+					Name:   "r2",
 					Vendor: tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -442,7 +442,7 @@ func TestCreate(t *testing.T) {
 			Name: "test",
 			Nodes: []*tpb.Node{
 				{
-					Name: "hanging",
+					Name:   "hanging",
 					Vendor: tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -463,7 +463,7 @@ func TestCreate(t *testing.T) {
 			Name: "test",
 			Nodes: []*tpb.Node{
 				{
-					Name: "bad",
+					Name:   "bad",
 					Vendor: tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -507,7 +507,7 @@ func TestDelete(t *testing.T) {
 			Name: "test",
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
+					Name:   "r1",
 					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						1000: {
@@ -516,7 +516,7 @@ func TestDelete(t *testing.T) {
 					},
 				},
 				{
-					Name: "r2",
+					Name:   "r2",
 					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -544,7 +544,7 @@ func TestDelete(t *testing.T) {
 			Name: "test",
 			Nodes: []*tpb.Node{
 				{
-					Name: "r1",
+					Name:   "r1",
 					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						1000: {
@@ -553,7 +553,7 @@ func TestDelete(t *testing.T) {
 					},
 				},
 				{
-					Name: "r2",
+					Name:   "r2",
 					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						2000: {
@@ -618,7 +618,7 @@ func TestShow(t *testing.T) {
 		Name: "test",
 		Nodes: []*tpb.Node{
 			{
-				Name: "r1",
+				Name:   "r1",
 				Vendor: tpb.Vendor(1004),
 				Services: map[uint32]*tpb.Service{
 					22: {
@@ -627,7 +627,7 @@ func TestShow(t *testing.T) {
 				},
 			},
 			{
-				Name: "r2",
+				Name:   "r2",
 				Vendor: tpb.Vendor(1004),
 				Services: map[uint32]*tpb.Service{
 					9337: {
@@ -1100,7 +1100,7 @@ func TestResources(t *testing.T) {
 		Name: "test",
 		Nodes: []*tpb.Node{
 			{
-				Name: "r1",
+				Name:   "r1",
 				Vendor: tpb.Vendor(1005),
 				Services: map[uint32]*tpb.Service{
 					1000: {
@@ -1109,7 +1109,7 @@ func TestResources(t *testing.T) {
 				},
 			},
 			{
-				Name: "r2",
+				Name:   "r2",
 				Vendor: tpb.Vendor(1005),
 				Services: map[uint32]*tpb.Service{
 					2000: {

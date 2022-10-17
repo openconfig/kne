@@ -91,7 +91,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{
-			"type":   tpb.Node_LEMMING.String(),
 			"vendor": tpb.Vendor_OPENCONFIG.String(),
 		}
 	}

@@ -309,9 +309,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
 	}
-	if pb.Labels["type"] == "" {
-		pb.Labels["type"] = tpb.Node_ARISTA_CEOS.String()
-	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
 	}

@@ -76,7 +76,7 @@ func TestService(t *testing.T) {
 	}, {
 		desc: "services valid",
 		node: &topopb.Node{
-			Name: "dev1",
+			Name:   "dev1",
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				22: {
@@ -111,7 +111,7 @@ func TestService(t *testing.T) {
 	}, {
 		desc: "services valid multiple mappings",
 		node: &topopb.Node{
-			Name: "dev2",
+			Name:   "dev2",
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				9339: {
@@ -158,7 +158,7 @@ func TestService(t *testing.T) {
 	}, {
 		desc: "failed create duplicate",
 		node: &topopb.Node{
-			Name: "dev1",
+			Name:   "dev1",
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				22: {

@@ -510,8 +510,8 @@ func getImpl(impl *Impl) (Node, error) {
 		return nil, fmt.Errorf("impl.Proto cannot be nil")
 	}
 	fn, ok := vendorTypes[impl.Proto.Vendor]
-	if ok {
-		return fn(impl)
+	if !ok {
+		return nil, fmt.Errorf("impl not found for vendor: %v", impl.Proto.Vendor)
 	}
 	return fn(impl)
 }
