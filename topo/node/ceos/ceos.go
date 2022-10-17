@@ -353,6 +353,5 @@ func (n *Node) FixInterfaces() error {
 }
 
 func init() {
-	node.Register(tpb.Node_ARISTA_CEOS, New)
 	node.Vendor(tpb.Vendor_ARISTA, New)
 }

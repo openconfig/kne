@@ -377,6 +377,5 @@ func (n *Node) isChannelized() bool {
 }
 
 func init() {
-	node.Register(tpb.Node_JUNIPER_CEVO, New)
 	node.Vendor(tpb.Vendor_JUNIPER, New)
 }

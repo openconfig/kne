@@ -113,6 +113,5 @@ func defaults(pb *tpb.Node) *tpb.Node {
 }
 
 func init() {
-	node.Register(tpb.Node_LEMMING, New)
 	node.Vendor(tpb.Vendor_OPENCONFIG, New)
 }

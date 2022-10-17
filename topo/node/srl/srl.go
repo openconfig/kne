@@ -331,6 +331,5 @@ func (n *Node) isConfigDataPresent() bool {
 }
 
 func init() {
-	node.Register(topopb.Node_NOKIA_SRL, New)
 	node.Vendor(topopb.Vendor_NOKIA, New)
 }

@@ -89,13 +89,13 @@ func TestReset(t *testing.T) {
 	tInstance := &tpb.Topology{
 		Nodes: []*tpb.Node{{
 			Name: "resettable1",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 		}, {
 			Name: "resettable2",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 		}, {
 			Name: "notresettable1",
-			Type: tpb.Node_Type(1002),
+			Vendor: tpb.Vendor(1002),
 		}},
 	}
 	fNoConfig, closer := writeTopology(t, tInstance)
@@ -103,7 +103,7 @@ func TestReset(t *testing.T) {
 	tWithConfig := &tpb.Topology{
 		Nodes: []*tpb.Node{{
 			Name: "resettable1",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("somebytes"),
@@ -111,7 +111,7 @@ func TestReset(t *testing.T) {
 			},
 		}, {
 			Name: "resettable2",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_File{
 					File: confFile.Name(),
@@ -119,7 +119,7 @@ func TestReset(t *testing.T) {
 			},
 		}, {
 			Name: "notresettable1",
-			Type: tpb.Node_Type(1002),
+			Vendor: tpb.Vendor(1002),
 		}},
 	}
 	fConfig, closer := writeTopology(t, tWithConfig)
@@ -127,7 +127,7 @@ func TestReset(t *testing.T) {
 	tWithConfigRelative := &tpb.Topology{
 		Nodes: []*tpb.Node{{
 			Name: "resettable1",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("somebytes"),
@@ -135,7 +135,7 @@ func TestReset(t *testing.T) {
 			},
 		}, {
 			Name: "resettable2",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_File{
 					File: filepath.Base(confFile.Name()),
@@ -143,7 +143,7 @@ func TestReset(t *testing.T) {
 			},
 		}, {
 			Name: "notresettable1",
-			Type: tpb.Node_Type(1002),
+			Vendor: tpb.Vendor(1002),
 		}},
 	}
 	fConfigRelative, closer := writeTopology(t, tWithConfigRelative)
@@ -151,7 +151,7 @@ func TestReset(t *testing.T) {
 	tWithConfigDNE := &tpb.Topology{
 		Nodes: []*tpb.Node{{
 			Name: "resettable1",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("somebytes"),
@@ -159,7 +159,7 @@ func TestReset(t *testing.T) {
 			},
 		}, {
 			Name: "resettable2",
-			Type: tpb.Node_Type(1001),
+			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_File{
 					File: "dne",
@@ -167,13 +167,13 @@ func TestReset(t *testing.T) {
 			},
 		}, {
 			Name: "notresettable1",
-			Type: tpb.Node_Type(1002),
+			Vendor: tpb.Vendor(1002),
 		}},
 	}
 	fConfigDNE, closer := writeTopology(t, tWithConfigDNE)
 	defer closer()
-	node.Register(tpb.Node_Type(1001), NewR)
-	node.Register(tpb.Node_Type(1002), NewNR)
+	node.Vendor(tpb.Vendor(1001), NewR)
+	node.Vendor(tpb.Vendor(1002), NewNR)
 	tests := []struct {
 		desc    string
 		args    []string
@@ -252,7 +252,9 @@ var (
 name: "test-data-topology"
 nodes: {
   name: "r1"
-  type: ARISTA_CEOS
+  model: "ceos"
+  os: "eos"
+  vendor: ARISTA
   services: {
 	key: 1002
 	value: {
@@ -267,7 +269,7 @@ nodes: {
 }
 nodes: {
     name: "otg"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-9999"
     services: {
         key: 40051
@@ -392,16 +394,16 @@ func TestPush(t *testing.T) {
 	tWithConfig := &tpb.Topology{
 		Nodes: []*tpb.Node{{
 			Name: "configable",
-			Type: tpb.Node_Type(1003),
+			Vendor: tpb.Vendor(1003),
 		}, {
 			Name: "notconfigable",
-			Type: tpb.Node_Type(1004),
+			Vendor: tpb.Vendor(1004),
 		}},
 	}
 	fConfig, closer := writeTopology(t, tWithConfig)
 	defer closer()
-	node.Register(tpb.Node_Type(1003), NewR)
-	node.Register(tpb.Node_Type(1004), NewNC)
+	node.Vendor(tpb.Vendor(1003), NewR)
+	node.Vendor(tpb.Vendor(1004), NewNC)
 	tests := []struct {
 		desc    string
 		args    []string

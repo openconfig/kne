@@ -137,7 +137,7 @@ func (nc *notCertable) GetProto() *tpb.Node {
 }
 
 func TestNew(t *testing.T) {
-	node.Register(tpb.Node_Type(1001), NewConfigurable)
+	node.Vendor(tpb.Vendor(1001), NewConfigurable)
 	tf, err := tfake.NewSimpleClientset()
 	if err != nil {
 		t.Fatalf("cannot create fake topology clientset: %v", err)
@@ -158,7 +158,7 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -167,7 +167,7 @@ func TestNew(t *testing.T) {
 				},
 				{
 					Name: "r2",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -197,7 +197,7 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r2",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -224,7 +224,7 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -248,7 +248,7 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -257,7 +257,7 @@ func TestNew(t *testing.T) {
 				},
 				{
 					Name: "r2",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -290,7 +290,7 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -299,7 +299,7 @@ func TestNew(t *testing.T) {
 				},
 				{
 					Name: "r2",
-					Type: tpb.Node_Type(1001),
+					Vendor: tpb.Vendor(1001),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -332,7 +332,7 @@ func TestNew(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_UNKNOWN,
+					Vendor: tpb.Vendor_UNKNOWN,
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -392,7 +392,7 @@ func TestCreate(t *testing.T) {
 		WithKubeClient(kf),
 		WithTopoClient(tf),
 	}
-	node.Register(tpb.Node_Type(1002), NewConfigurable)
+	node.Vendor(tpb.Vendor(1002), NewConfigurable)
 	tests := []struct {
 		desc    string
 		topo    *tpb.Topology
@@ -405,7 +405,7 @@ func TestCreate(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_Type(1002),
+					Vendor:  tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -415,7 +415,7 @@ func TestCreate(t *testing.T) {
 				},
 				{
 					Name: "r2",
-					Type: tpb.Node_Type(1002),
+					Vendor: tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -443,7 +443,7 @@ func TestCreate(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "hanging",
-					Type: tpb.Node_Type(1002),
+					Vendor: tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -464,7 +464,7 @@ func TestCreate(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "bad",
-					Type: tpb.Node_Type(1002),
+					Vendor: tpb.Vendor(1002),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -495,7 +495,7 @@ func TestCreate(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	ctx := context.Background()
-	node.Register(tpb.Node_Type(1003), NewConfigurable)
+	node.Vendor(tpb.Vendor(1003), NewConfigurable)
 	tests := []struct {
 		desc       string
 		topo       *tpb.Topology
@@ -508,7 +508,7 @@ func TestDelete(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_Type(1003),
+					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -517,7 +517,7 @@ func TestDelete(t *testing.T) {
 				},
 				{
 					Name: "r2",
-					Type: tpb.Node_Type(1003),
+					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -545,7 +545,7 @@ func TestDelete(t *testing.T) {
 			Nodes: []*tpb.Node{
 				{
 					Name: "r1",
-					Type: tpb.Node_Type(1003),
+					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						1000: {
 							Name: "ssh",
@@ -554,7 +554,7 @@ func TestDelete(t *testing.T) {
 				},
 				{
 					Name: "r2",
-					Type: tpb.Node_Type(1003),
+					Vendor: tpb.Vendor(1003),
 					Services: map[uint32]*tpb.Service{
 						2000: {
 							Name: "grpc",
@@ -613,13 +613,13 @@ func TestDelete(t *testing.T) {
 
 func TestShow(t *testing.T) {
 	ctx := context.Background()
-	node.Register(tpb.Node_Type(1004), NewConfigurable)
+	node.Vendor(tpb.Vendor(1004), NewConfigurable)
 	topo := &tpb.Topology{
 		Name: "test",
 		Nodes: []*tpb.Node{
 			{
 				Name: "r1",
-				Type: tpb.Node_Type(1004),
+				Vendor: tpb.Vendor(1004),
 				Services: map[uint32]*tpb.Service{
 					22: {
 						Name: "ssh",
@@ -628,7 +628,7 @@ func TestShow(t *testing.T) {
 			},
 			{
 				Name: "r2",
-				Type: tpb.Node_Type(1004),
+				Vendor: tpb.Vendor(1004),
 				Services: map[uint32]*tpb.Service{
 					9337: {
 						Name: "grpc",
@@ -1095,13 +1095,13 @@ func TestShow(t *testing.T) {
 
 func TestResources(t *testing.T) {
 	ctx := context.Background()
-	node.Register(tpb.Node_Type(1005), NewConfigurable)
+	node.Vendor(tpb.Vendor(1005), NewConfigurable)
 	topo := &tpb.Topology{
 		Name: "test",
 		Nodes: []*tpb.Node{
 			{
 				Name: "r1",
-				Type: tpb.Node_Type(1005),
+				Vendor: tpb.Vendor(1005),
 				Services: map[uint32]*tpb.Service{
 					1000: {
 						Name: "ssh",
@@ -1110,7 +1110,7 @@ func TestResources(t *testing.T) {
 			},
 			{
 				Name: "r2",
-				Type: tpb.Node_Type(1005),
+				Vendor: tpb.Vendor(1005),
 				Services: map[uint32]*tpb.Service{
 					2000: {
 						Name: "grpc",

@@ -90,19 +90,8 @@ type NewNodeFn func(n *Impl) (Node, error)
 
 var (
 	mu          sync.Mutex
-	nodeTypes   = map[tpb.Node_Type]NewNodeFn{}
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
 )
-
-// Register registers the node type with the topology manager.
-func Register(t tpb.Node_Type, fn NewNodeFn) {
-	mu.Lock()
-	if _, ok := nodeTypes[t]; ok {
-		panic(fmt.Sprintf("duplicate registration for %T", t))
-	}
-	nodeTypes[t] = fn
-	mu.Unlock()
-}
 
 // Vendor registers the vendor type with the topology manager.
 func Vendor(v tpb.Vendor, fn NewNodeFn) {
@@ -523,11 +512,6 @@ func getImpl(impl *Impl) (Node, error) {
 	fn, ok := vendorTypes[impl.Proto.Vendor]
 	if ok {
 		return fn(impl)
-	}
-	// TODO(hines): Remove once type is deprecated.
-	fn, ok = nodeTypes[impl.Proto.Type]
-	if !ok {
-		return nil, fmt.Errorf("impl not found: %v", impl.Proto.Type)
 	}
 	return fn(impl)
 }
