@@ -1,7 +1,7 @@
-name: "2node-gobgp"
+name: "gobgp"
 nodes: {
     name: "r1"
-    type: GOBGP
+    vendor: GOBGP
     config: {
         config_path: "/"
         config_file: "gobgp.conf"
@@ -15,7 +15,7 @@ nodes: {
         }
     }
     services:{
-        key: 6030 
+        key: 6030
         value: {
             name: "gnmi"
             inside: 6030
@@ -24,7 +24,7 @@ nodes: {
 }
 nodes: {
     name: "r2"
-    type: GOBGP
+    vendor: GOBGP
     config: {
         config_path: "/"
         config_file: "gobgp.conf"
@@ -38,7 +38,7 @@ nodes: {
         }
     }
     services:{
-        key: 6030 
+        key: 6030
         value: {
             name: "gnmi"
             inside: 6030

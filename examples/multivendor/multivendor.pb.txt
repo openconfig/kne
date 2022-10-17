@@ -1,7 +1,6 @@
 name: "multivendor"
 nodes: {
     name: "r1"
-    type: ARISTA_CEOS
     vendor: ARISTA
     model: "ceos"
     os: "eos"
@@ -20,7 +19,6 @@ nodes: {
 }
 nodes: {
     name: "r2"
-    type: CISCO_XRD
     vendor: CISCO
     model: "xrd"
     os: "ios-xr"
@@ -49,7 +47,7 @@ nodes: {
 }
 nodes: {
     name: "r3"
-    type: NOKIA_SRL
+    vendor: NOKIA
     config: {
         cert: {
             self_signed: {
@@ -69,7 +67,6 @@ nodes: {
 }
 nodes: {
     name: "r4"
-    type: JUNIPER_CEVO
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
@@ -113,7 +110,7 @@ nodes: {
 }
 nodes: {
     name: "otg"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-9999"
     services: {
         key: 443

@@ -1,44 +1,44 @@
-name: "3node-ceos"
+name: "2srl-certs"
 nodes: {
     name: "r1"
-    type: ARISTA_CEOS
+    vendor: NOKIA
     config: {
         cert: {
             self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
+                cert_name: "kne-profile",
+                key_name: "N/A",
                 key_size: 4096,
             }
         }
     }
-    services:{
+    services: {
         key: 22
         value: {
             name: "ssh"
             inside: 22
         }
     }
-    services:{
-        key: 6030 
+    services: {
+        key: 57400
         value: {
             name: "gnmi"
-            inside: 6030
+            inside: 57400
         }
     }
 }
 nodes: {
     name: "r2"
-    type: ARISTA_CEOS
+    vendor: NOKIA
     config: {
         cert: {
             self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
+                cert_name: "kne-profile",
+                key_name: "N/A",
                 key_size: 4096,
             }
         }
     }
-    services:{
+    services: {
         key: 22
         value: {
             name: "ssh"
@@ -46,9 +46,11 @@ nodes: {
         }
     }
 }
+
 links: {
     a_node: "r1"
-    a_int: "eth1"
+    a_int: "e1-1"
     z_node: "r2"
-    z_int: "eth1"
+    z_int: "e1-1"
 }
+

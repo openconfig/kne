@@ -1,11 +1,11 @@
 name: "test-data-topology"
 nodes: {
     name: "r1"
-    type: ARISTA_CEOS
+    vendor: ARISTA
 }
 nodes: {
     name: "otg"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-9999"
     services: {
         key: 40051

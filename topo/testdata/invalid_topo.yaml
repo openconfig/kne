@@ -1,11 +1,9 @@
 name: "test-data-topology"
-nodes: {
-    name: "r1"
+nodes:
+  - name: "r1"
     vendor: ARISTA
-}
-links: {
-    field_dne: "r1"
+links:
+  - field_dne: "r1"
     a_int: "eth9"
     z_node: "otg"
     z_int: "eth1"
-}

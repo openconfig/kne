@@ -1,12 +1,11 @@
 name: "2node-xrd"
 nodes: {
     name: "r1"
-    type: CISCO_XRD
     vendor: CISCO
     model: "xrd"
     os: "ios-xr"
     config: {
-        file: "../examples/xrd/r1.config"
+        file: "r1.config"
     }
     interfaces: {
         key: "eth1"
@@ -23,12 +22,11 @@ nodes: {
 }
 nodes: {
     name: "r2"
-    type: CISCO_XRD
     vendor: CISCO
     model: "xrd"
     os: "ios-xr"
     config: {
-        file: "../examples/xrd/r2.config"
+        file: "r2.config"
     }
     interfaces: {
         key: "eth1"
@@ -51,7 +49,7 @@ nodes: {
 }
 nodes: {
     name: "otg"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-9999"
     services: {
         key: 40051

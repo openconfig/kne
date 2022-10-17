@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"testing"
 	"time"
 
@@ -43,52 +42,23 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	invalidPb, err := os.CreateTemp("", "invalid*.pb.txt")
-	if err != nil {
-		t.Fatalf("Failed creating tmp pb: %v", err)
-	}
-	defer os.Remove(invalidPb.Name())
-
-	invalidYaml, err := os.CreateTemp("", "invalid*.yaml")
-	if err != nil {
-		t.Fatalf("Failed creating tmp yaml: %v", err)
-	}
-	defer os.Remove(invalidYaml.Name())
-
-	if _, err := invalidPb.WriteString(`
-		name: "2node-ixia"
-		nodes: {
-			nme: "ixia-c-port1"
-		}
-	`); err != nil {
-		t.Fatalf("Failed to write string to file: %v", err)
-	}
-
-	if _, err := invalidYaml.WriteString(`
-		name: 2node-ixia
-		nodes:
-		- name: ixia-c-port1
-	`); err != nil {
-		t.Fatalf("Failed to write string to file: %v", err)
-	}
-
 	tests := []struct {
 		desc    string
 		path    string
 		wantErr bool
 	}{{
 		desc: "pb",
-		path: "../examples/2node-ixia-ceos.pb.txt",
+		path: "testdata/valid_topo.pb.txt",
 	}, {
 		desc: "yaml",
-		path: "../examples/2node-ixia-ceos.yaml",
+		path: "testdata/valid_topo.yaml",
 	}, {
-		desc:    "invalid-pb",
-		path:    invalidPb.Name(),
+		desc:    "pb invalid",
+		path:    "testdata/invalid_topo.pb.txt",
 		wantErr: true,
 	}, {
-		desc:    "invalid-yaml",
-		path:    invalidYaml.Name(),
+		desc:    "yaml invalid",
+		path:    "testdata/invalid_topo.yaml",
 		wantErr: true,
 	}}
 	for _, tt := range tests {

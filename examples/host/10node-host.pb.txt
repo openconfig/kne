@@ -1,43 +1,43 @@
 name: "10node-host"
 nodes: {
     name: "vm-1"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-2"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-3"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-4"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-5"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-6"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-7"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-8"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-9"
-    type: HOST
+    vendor: HOST
 }
 nodes: {
     name: "vm-10"
-    type: HOST
+    vendor: HOST
 }
 links: {
     a_node: "vm-1"

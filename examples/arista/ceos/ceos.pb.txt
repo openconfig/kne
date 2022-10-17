@@ -1,12 +1,17 @@
-name: "2srl-certs"
+name: "ceos"
 nodes: {
     name: "r1"
-    type: NOKIA_SRL
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "r1-config"
         cert: {
             self_signed: {
-                cert_name: "kne-profile",
-                key_name: "N/A",
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
                 key_size: 4096,
             }
         }
@@ -19,21 +24,26 @@ nodes: {
         }
     }
     services:{
-        key: 57400
+        key: 6030
         value: {
             name: "gnmi"
-            inside: 57400
+            inside: 6030
         }
     }
 }
 nodes: {
     name: "r2"
-    type: NOKIA_SRL
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "r2-config"
         cert: {
             self_signed: {
-                cert_name: "kne-profile",
-                key_name: "N/A",
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
                 key_size: 4096,
             }
         }
@@ -46,11 +56,9 @@ nodes: {
         }
     }
 }
-
 links: {
     a_node: "r1"
-    a_int: "e1-1"
+    a_int: "eth1"
     z_node: "r2"
-    z_int: "e1-1"
+    z_int: "eth1"
 }
-

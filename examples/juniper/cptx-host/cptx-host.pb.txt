@@ -1,26 +1,13 @@
 name: "cptx-host"
 nodes: {
-    name: "vm-1"
-    type: HOST
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-}
-nodes: {
     name: "cptx"
-    type: JUNIPER_CEVO
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
     config: {
-      image: "cptx:latest"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
-      file: "cptx/cptx-config" 
+      file: "cptx-config"
     }
     interfaces: {
         key: "eth4"
@@ -34,14 +21,14 @@ nodes: {
           name: "et-0/0/1"
         }
     }
-    services:{
+    services: {
         key: 22
         value: {
             name: "ssh"
             inside: 22
         }
     }
-    services:{
+    services: {
         key: 50051
         value: {
             name: "gnmi"
@@ -50,9 +37,20 @@ nodes: {
     }
 }
 nodes: {
+    name: "vm-1"
+    vendor: HOST
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+nodes: {
     name: "vm-2"
-    type: HOST
-    services:{
+    vendor: HOST
+    services: {
         key: 22
         value: {
             name: "ssh"
