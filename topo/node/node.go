@@ -504,16 +504,18 @@ func getImpl(impl *Impl) (Node, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if impl == nil {
-		return nil, fmt.Errorf("impl cannot be nil")
+		return nil, fmt.Errorf("node implementation cannot be nil")
 	}
 	if impl.Proto == nil {
-		return nil, fmt.Errorf("impl.Proto cannot be nil")
+		return nil, fmt.Errorf("node implementation proto cannot be nil")
 	}
-	fn, ok := vendorTypes[impl.Proto.Vendor]
-	if !ok {
-		return nil, fmt.Errorf("impl not found for vendor: %v", impl.Proto.Vendor)
+	if impl.Proto.Type != tpb.Node_UNKNOWN {
+		log.Warnf("node.Type (%v) is a DEPRECATED field, node.Vendor is required", impl.Proto.Type)
 	}
-	return fn(impl)
+	if fn, ok := vendorTypes[impl.Proto.Vendor]; ok {
+		return fn(impl)
+	}
+	return nil, fmt.Errorf("node implementation not found for vendor %v", impl.Proto.Vendor)
 }
 
 // PatchCLIConnOpen sets up scrapligo options to work with a tty

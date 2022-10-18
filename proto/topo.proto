@@ -43,8 +43,26 @@ enum Vendor {
 
 // Node is a single container inside the topology
 message Node {
-  reserved 2, 3;
+  reserved 3;
+  enum Type {
+    UNKNOWN = 0;
+    HOST = 1;
+    ARISTA_CEOS = 2;
+    JUNIPER_CEVO = 3;
+    CISCO_CXR = 4;
+    QUAGGA = 5;
+    FRR = 6;
+    JUNIPER_VMX = 7;
+    CISCO_CSR = 8;
+    NOKIA_SRL = 9;
+    IXIA_TG = 10;
+    GOBGP = 11;
+    CISCO_XRD = 12;
+    CISCO_E8000 = 13;
+    LEMMING = 14;
+  }
   string name = 1;  // Name of the node in the topology. Must be unique.
+  Type type = 2 [deprecated = true];
   map<string, string> labels = 4;     // Metadata labels describing the node.
   Config config = 5;                  // Pod specific configuration of the node.
   map<uint32, Service> services = 6;  // Map of services to enable on the node.
