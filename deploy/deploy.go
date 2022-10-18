@@ -255,7 +255,7 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 	return nil
 }
 
-type ExternalSpec struct {}
+type ExternalSpec struct{}
 
 func (e *ExternalSpec) Deploy(ctx context.Context) error {
 	log.Infof("Deploy is a no-op for the external cluster type")
@@ -269,9 +269,9 @@ func (e *ExternalSpec) Delete() error {
 
 func (e *ExternalSpec) Healthy() error {
 	if err := execer.Exec("kubectl", "cluster-info"); err != nil {
-                return fmt.Errorf("cluster not healthy: %w", err)
-        }
-        return nil
+		return fmt.Errorf("cluster not healthy: %w", err)
+	}
+	return nil
 }
 
 func (e *ExternalSpec) GetName() string {
