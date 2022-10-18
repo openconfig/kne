@@ -30,10 +30,31 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-kne deploy kne-internal/deploy/kne/kind-bridge.yaml
-kne create kne-internal/examples/multivendor/multivendor.pbtxt
-popd
+kne deploy kne/deploy/kne/kind-bridge.yaml
 
-# Log topology
-kubectl get pods -A
-kubectl get services -A
+docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga
+docker tag us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga ceos:latest
+kind load docker-image --name=kne ceos:latest
+
+docker pull us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga
+docker tag us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga xrd:latest
+kind load docker-image --name=kne xrd:latest
+
+docker pull us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga
+docker tag us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga cptx:latest
+kind load docker-image --name=kne cptx:latest
+
+docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga
+docker tag us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga ghcr.io/nokia/srlinux:latest
+kind load docker-image --name=kne ghcr.io/nokia/srlinux:latest
+
+kne create kne/examples/multivendor/multivendor.pb.txt
+
+# Run an ondatra test
+cat >config.yaml << EOF
+username: admin
+password: admin
+topology: ${HOME}/kne/examples/multivendor/multivendor.pb.txt
+EOF
+
+go test -v kne/cloudbuild/presubmit/presubmit_test.go -config config.yaml -testbed cloudbuild/presubmit/testbed.textproto
