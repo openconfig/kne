@@ -30,24 +30,7 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-kne deploy kne/deploy/kne/kind-bridge.yaml
-
-docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga
-docker tag us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga ceos:latest
-kind load docker-image --name=kne ceos:latest
-
-docker pull us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga
-docker tag us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga xrd:latest
-kind load docker-image --name=kne xrd:latest
-
-docker pull us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga
-docker tag us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga cptx:latest
-kind load docker-image --name=kne cptx:latest
-
-docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga
-docker tag us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga ghcr.io/nokia/srlinux:latest
-kind load docker-image --name=kne ghcr.io/nokia/srlinux:latest
-
+kne deploy kne-internal/deploy/kne/kind-bridge-images.yaml
 kne create kne/examples/multivendor/multivendor.pb.txt
 
 # Run an ondatra test
