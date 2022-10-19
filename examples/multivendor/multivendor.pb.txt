@@ -1,177 +1,156 @@
 name: "multivendor"
 nodes: {
-    name: "r1"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
-    config: {
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        file: "r1.ceos.cfg"
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
-                key_size: 4096,
-            }
-        }
+  name: "ceos"
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
+  config: {
+    config_path: "/mnt/flash"
+    config_file: "startup-config"
+    file: "ceos.cfg"
+    cert: {
+      self_signed: {
+        cert_name: "gnmiCert.pem"
+        key_name: "gnmiCertKey.pem"
+        key_size: 4096
+      }
     }
+  }
 }
 nodes: {
-    name: "r2"
-    vendor: CISCO
-    model: "xrd"
-    os: "ios-xr"
-    config: {
-        file: "r2.iosxr.cfg"
+  name: "cptx"
+  vendor: JUNIPER
+  model: "cptx"
+  os: "evo"
+  config: {
+    config_path: "/home/evo/configdisk"
+    config_file: "juniper.conf"
+    file: "cptx.cfg"
+  }
+  interfaces: {
+    key: "eth4"
+    value: {
+      name: "et-0/0/0"
     }
-    interfaces: {
-        key: "eth1"
-        value: {
-          name: "GigabitEthernet0/0/0/0"
-        }
+  }
+  interfaces: {
+    key: "eth5"
+    value: {
+      name: "et-0/0/1"
     }
-    interfaces: {
-        key: "eth2"
-        value: {
-          name: "GigabitEthernet0/0/0/1"
-        }
+  }
+  interfaces: {
+    key: "eth6"
+    value: {
+      name: "et-0/0/2"
     }
-    interfaces: {
-        key: "eth3"
-        value: {
-          name: "GigabitEthernet0/0/0/2"
-        }
+  }
+  interfaces: {
+    key: "eth7"
+    value: {
+      name: "et-0/0/3"
     }
+  }
 }
 nodes: {
-    name: "r3"
-    vendor: NOKIA
-    config: {
-        file: "r3.srl.cfg.json"
-    }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
+  name: "srl"
+  vendor: NOKIA
+  config: {
+    file: "srl.cfg.json"
+  }
 }
 nodes: {
-    name: "r4"
-    vendor: JUNIPER
-    model: "cptx"
-    os: "evo"
-    config: {
-      config_path: "/home/evo/configdisk"
-      config_file: "juniper.conf"
-      file: "r4.evo.cfg"
-    }
-    interfaces: {
-        key: "eth4"
-        value: {
-          name: "et-0/0/0"
-        }
-    }
-    interfaces: {
-        key: "eth5"
-        value: {
-          name: "et-0/0/1"
-        }
-    }
-    interfaces: {
-        key: "eth6"
-        value: {
-          name: "et-0/0/2"
-        }
-    }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-        }
-    }
+  name: "xrd"
+  vendor: CISCO
+  model: "xrd"
+  os: "ios-xr"
+  config: {
+    file: "xrd.cfg"
+  }
 }
 nodes: {
-    name: "otg"
-    vendor: KEYSIGHT
-    version: "0.0.1-9999"
-    services: {
-        key: 443
-        value: {
-            name: "https"
-            inside: 443
-        }
+  name: "otg"
+  vendor: KEYSIGHT
+  version: "0.0.1-9999"
+  services: {
+    key: 443
+    value: {
+      name: "https"
+      inside: 443
     }
-    services: {
-        key: 40051
-        value: {
-            name: "grpc"
-            inside: 40051
-        }
+  }
+  services: {
+    key: 40051
+    value: {
+      name: "grpc"
+      inside: 40051
     }
-    services: {
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-        }
+  }
+  services: {
+    key: 50051
+    value: {
+      name: "gnmi"
+      inside: 50051
     }
+  }
 }
 links: {
-    a_node: "r1"
-    a_int: "eth1"
-    z_node: "r2"
-    z_int: "eth1"
+  a_node: "ceos"
+  a_int: "eth1"
+  z_node: "cptx"
+  z_int: "eth5"
 }
 links: {
-    a_node: "r1"
-    a_int: "eth2"
-    z_node: "r3"
-    z_int: "eth1"
+  a_node: "ceos"
+  a_int: "eth2"
+  z_node: "srl"
+  z_int: "eth2"
 }
 links: {
-    a_node: "r1"
-    a_int: "eth3"
-    z_node: "r4"
-    z_int: "eth4"
+  a_node: "ceos"
+  a_int: "eth3"
+  z_node: "xrd"
+  z_int: "eth2"
 }
 links: {
-    a_node: "r2"
-    a_int: "eth2"
-    z_node: "r4"
-    z_int: "eth5"
+  a_node: "cptx"
+  a_int: "eth6"
+  z_node: "srl"
+  z_int: "eth3"
 }
 links: {
-    a_node: "otg"
-    a_int: "eth1"
-    z_node: "r1"
-    z_int: "eth9"
+  a_node: "cptx"
+  a_int: "eth7"
+  z_node: "xrd"
+  z_int: "eth3"
 }
 links: {
-    a_node: "otg"
-    a_int: "eth2"
-    z_node: "r2"
-    z_int: "eth3"
+  a_node: "srl"
+  a_int: "eth4"
+  z_node: "xrd"
+  z_int: "eth4"
 }
 links: {
-    a_node: "otg"
-    a_int: "eth3"
-    z_node: "r3"
-    z_int: "eth3"
+  a_node: "otg"
+  a_int: "eth1"
+  z_node: "ceos"
+  z_int: "eth9"
 }
 links: {
-    a_node: "otg"
-    a_int: "eth4"
-    z_node: "r4"
-    z_int: "eth6"
+  a_node: "otg"
+  a_int: "eth2"
+  z_node: "cptx"
+  z_int: "eth4"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth3"
+  z_node: "srl"
+  z_int: "eth1"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth4"
+  z_node: "xrd"
+  z_int: "eth1"
 }
