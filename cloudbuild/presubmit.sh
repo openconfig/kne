@@ -30,7 +30,7 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-kne deploy kne-internal/deploy/kne/kind-bridge-images.yaml
+kne deploy kne-internal/deploy/kne/kind-bridge-multivendor.yaml
 kne create kne/examples/multivendor/multivendor.pb.txt
 
 # Run an ondatra test
