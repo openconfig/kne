@@ -34,7 +34,7 @@ kne deploy kne-internal/deploy/kne/kind-bridge-multivendor.yaml
 kne create kne/examples/multivendor/multivendor.pb.txt
 popd
 
-pushd "$HOME/kne"
+pushd "$HOME/kne/cloudbuild/presubmit"
 # Run an ondatra test
 cat >config.yaml << EOF
 username: admin
@@ -42,5 +42,5 @@ password: admin
 topology: ${HOME}/kne/examples/multivendor/multivendor.pb.txt
 EOF
 
-go test -v cloudbuild/presubmit/presubmit_test.go -config config.yaml -testbed cloudbuild/presubmit/testbed.textproto
+go test -v presubmit_test.go -config config.yaml -testbed testbed.textproto
 popd
