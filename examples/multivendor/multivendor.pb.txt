@@ -24,7 +24,6 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r2.iosxr.cfg"
-        image: "xrd:latest"
     }
     interfaces: {
         key: "eth1"
@@ -49,13 +48,7 @@ nodes: {
     name: "r3"
     vendor: NOKIA
     config: {
-        cert: {
-            self_signed: {
-                cert_name: "kne-profile",
-                key_name: "N/A",
-                key_size: 4096,
-            }
-        }
+        file: "r3.srl.cfg.json"
     }
     services:{
         key: 22
