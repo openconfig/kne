@@ -1,13 +1,13 @@
 package presubmit_test
 
 import (
-	"context"
-	"io"
+	//"context"
+	//"io"
 	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	gpb "github.com/openconfig/gribi/v1/proto/service"
+	//gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 )

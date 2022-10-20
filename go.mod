@@ -13,7 +13,6 @@ require (
 	github.com/kr/pretty v0.3.0
 	github.com/open-traffic-generator/ixia-c-operator v0.1.89
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
-	github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8
 	github.com/openconfig/ondatra v0.0.0-20221017201555-5b9b8e566c68
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.3
@@ -84,6 +83,7 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20221010125524-c3391aacaa1b // indirect
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
 	github.com/openconfig/goyang v1.1.0 // indirect
+	github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8 // indirect
 	github.com/openconfig/ygnmi v0.4.0 // indirect
 	github.com/openconfig/ygot v0.25.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
