@@ -1,13 +1,13 @@
 package presubmit_test
 
 import (
-	//"context"
-	//"io"
+	// "context"
+	// "io"
 	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	//gpb "github.com/openconfig/gribi/v1/proto/service"
+	// gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 )
@@ -59,7 +59,7 @@ func TestGNOIXRD(t *testing.T) {
 }
 
 // fetchAFTEntries checks for AFT entries using gRIBI for a DUT.
-//func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
+// func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
 //	t.Helper()
 //	c := dut.RawAPIs().GRIBI().New(t)
 //	req := &gpb.GetRequest{
@@ -80,7 +80,7 @@ func TestGNOIXRD(t *testing.T) {
 //		}
 //		t.Logf("Got AFT entries: %v", resp.GetEntry())
 //	}
-//}
+// }
 
 func TestGRIBICEOS(t *testing.T) {
 	t.Skip()
