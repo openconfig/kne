@@ -59,28 +59,28 @@ func TestGNOIXRD(t *testing.T) {
 }
 
 // fetchAFTEntries checks for AFT entries using gRIBI for a DUT.
-func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	c := dut.RawAPIs().GRIBI().New(t)
-	req := &gpb.GetRequest{
-		NetworkInstance: &gpb.GetRequest_All{},
-		Aft:             gpb.AFTType_ALL,
-	}
-	stream, err := c.Get(context.Background(), req)
-	if err != nil {
-		t.Fatalf("gRIBI Get request failed: %v", err)
-	}
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			t.Fatalf("failed to recv from stream: %v", err)
-		}
-		t.Logf("Got AFT entries: %v", resp.GetEntry())
-	}
-}
+//func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
+//	t.Helper()
+//	c := dut.RawAPIs().GRIBI().New(t)
+//	req := &gpb.GetRequest{
+//		NetworkInstance: &gpb.GetRequest_All{},
+//		Aft:             gpb.AFTType_ALL,
+//	}
+//	stream, err := c.Get(context.Background(), req)
+//	if err != nil {
+//		t.Fatalf("gRIBI Get request failed: %v", err)
+//	}
+//	for {
+//		resp, err := stream.Recv()
+//		if err == io.EOF {
+//			break
+//		}
+//		if err != nil {
+//			t.Fatalf("failed to recv from stream: %v", err)
+//		}
+//		t.Logf("Got AFT entries: %v", resp.GetEntry())
+//	}
+//}
 
 func TestGRIBICEOS(t *testing.T) {
 	t.Skip()
