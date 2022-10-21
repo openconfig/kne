@@ -61,6 +61,9 @@ message KindSpec {
   repeated string additional_manifests = 10;
 }
 
+message ExternalSpec {
+}
+
 // Metallb specifications
 message MetallbSpec {
   string manifest_dir = 1;
@@ -114,6 +117,7 @@ message CEOSLabSpec {
 message CreateClusterRequest {
   oneof cluster_spec {
     KindSpec kind = 1;
+    ExternalSpec external = 5;
   }
   oneof ingress_spec {
     MetallbSpec metallb = 2;
