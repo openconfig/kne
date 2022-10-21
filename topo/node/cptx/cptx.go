@@ -325,17 +325,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{
-			"type":   tpb.Node_JUNIPER_CEVO.String(),
-			"vendor": tpb.Vendor_JUNIPER.String(),
-		}
-	} else {
-		if pb.Labels["type"] == "" {
-			pb.Labels["type"] = tpb.Node_JUNIPER_CEVO.String()
-		}
-		if pb.Labels["vendor"] == "" {
-			pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
-		}
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
@@ -377,6 +370,5 @@ func (n *Node) isChannelized() bool {
 }
 
 func init() {
-	node.Register(tpb.Node_JUNIPER_CEVO, New)
 	node.Vendor(tpb.Vendor_JUNIPER, New)
 }
