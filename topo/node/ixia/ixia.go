@@ -2,22 +2,19 @@ package ixia
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
+	ixclient "github.com/open-traffic-generator/ixia-c-operator/api/clientset/v1beta1"
 	ixiatg "github.com/open-traffic-generator/ixia-c-operator/api/v1beta1"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 )
-
-var ixiaResource = "Ixiatgs"
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
@@ -76,26 +73,14 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 }
 
 func (n *Node) getCRD(ctx context.Context) (*ixiatg.IxiaTG, error) {
-	r := n.KubeClient.CoreV1().RESTClient().
-		Get().
-		AbsPath("/apis/network.keysight.com/v1beta1").
-		Namespace(n.Namespace).
-		Resource(ixiaResource).
-		Name(n.Name()).
-		Do(ctx)
-
-	if err := r.Error(); err != nil {
-		return nil, fmt.Errorf("could not get ixia CRD: %v", err)
-	}
-
-	rBytes, err := r.Raw()
+	c, err := ixclient.NewForConfig(n.RestConfig)
 	if err != nil {
-		return nil, fmt.Errorf("could not get raw ixia CRD response: %v", err)
+		return nil, err
 	}
 
-	crd := &ixiatg.IxiaTG{}
-	if err := json.Unmarshal(rBytes, crd); err != nil {
-		return nil, fmt.Errorf("could not unmarshal ixia CRD: %v", err)
+	crd, err := c.IxiaTG(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
 	}
 
 	return crd, nil
@@ -139,20 +124,17 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 	log.Infof("Getting interfaces for ixia node resource %s ...", n.Name())
 	desiredState := "INITIATED"
 
-	crd, err := json.Marshal(n.newCRD())
+	crd := n.newCRD()
+	log.Infof("Creating custom resource for ixia (desiredState=%s) ...", desiredState)
+	c, err := ixclient.NewForConfig(n.RestConfig)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal ixia CRD to JSON: %v", err)
+		return nil, err
 	}
 
-	log.Infof("Creating custom resource for ixia (desiredState=%s) ...", desiredState)
-	err = n.KubeClient.CoreV1().RESTClient().
-		Post().
-		AbsPath("/apis/network.keysight.com/v1beta1").
-		Namespace(n.Namespace).
-		Resource(ixiaResource).
-		Body(crd).
-		Do(ctx).
-		Error()
+	_, err = c.IxiaTG(n.Namespace).Create(ctx, crd)
+	if err != nil {
+		return nil, err
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("could not create custom resource for ixia: %v", err)
@@ -208,29 +190,21 @@ func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating deployment for node resource %s", n.Name())
 	desiredState := "DEPLOYED"
 
-	crd, err := n.getCRD(ctx)
+	c, err := ixclient.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
-	crd.Spec.DesiredState = desiredState
-	crd.Status = ixiatg.IxiaTGStatus{}
 
-	crdBytes, err := json.Marshal(crd)
+	unStrCRD, err := c.IxiaTG(n.Namespace).Unstructured(ctx, n.Name(), metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("could not marshal ixia CRD to JSON: %v", err)
+		return err
 	}
 
-	log.Infof("Updating ixia CRD (desiredState=%s) ...", desiredState)
+	crdSpec := unStrCRD.UnstructuredContent()["spec"].(map[string]interface{})
+	crdSpec["desired_state"] = desiredState
 
-	err = n.KubeClient.CoreV1().RESTClient().
-		Patch(types.MergePatchType).
-		AbsPath("/apis/network.keysight.com/v1beta1").
-		Namespace(n.Namespace).
-		Resource(ixiaResource).
-		Name(n.Name()).
-		Body(crdBytes).
-		Do(ctx).
-		Error()
+	log.Infof("Updating ixia CRD (desiredState=%s) ...", desiredState)
+	_, err = c.IxiaTG(n.Namespace).Update(ctx, unStrCRD, metav1.UpdateOptions{})
 
 	if err != nil {
 		return fmt.Errorf("could not update ixia CRD: %v", err)
@@ -325,15 +299,12 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 
 func (n *Node) Delete(ctx context.Context) error {
 	log.Infof("Deleting IxiaTG node resource %s", n.Name())
-	err := n.KubeClient.CoreV1().RESTClient().
-		Delete().
-		AbsPath("/apis/network.keysight.com/v1beta1").
-		Namespace(n.Namespace).
-		Resource(ixiaResource).
-		Name(n.Name()).
-		Do(ctx).
-		Error()
+	c, err := ixclient.NewForConfig(n.RestConfig)
+	if err != nil {
+		return err
+	}
 
+	err = c.IxiaTG(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 	if err != nil {
 		log.Error(err)
 		return err
