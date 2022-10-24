@@ -119,6 +119,11 @@ spec:
                   type: boolean
                 description: EOS feature toggle overrides
                 type: object
+              waitforagents:
+                description: EOS agents to for the startup probe to block on
+                items:
+                  type: string
+                type: array
             type: object
           status:
             description: CEosLabDeviceStatus defines the observed state of CEosLabDevice
@@ -482,7 +487,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/aristanetworks/arista-ceoslab-operator:v1.0.2
+        image: ghcr.io/aristanetworks/arista-ceoslab-operator:v1.1.0
         livenessProbe:
           httpGet:
             path: /healthz
