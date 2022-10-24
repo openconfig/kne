@@ -83,7 +83,7 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 	d := &deploy.Deployment{}
 	switch cfg.Cluster.Kind {
 	case "Kind":
-		log.Infof("Using kind scenario")
+		log.Infof("Using kind cluster")
 		v := &deploy.KindSpec{}
 		if err := cfg.Cluster.Spec.Decode(v); err != nil {
 			return nil, err
@@ -98,6 +98,13 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 			v.KindConfigFile = cleanPath(v.KindConfigFile, basePath)
 		}
 
+		d.Cluster = v
+	case "External":
+		log.Infof("Using external cluster")
+		v := &deploy.ExternalSpec{}
+		if err := cfg.Cluster.Spec.Decode(v); err != nil {
+			return nil, err
+		}
 		d.Cluster = v
 	default:
 		return nil, fmt.Errorf("cluster type not supported: %s", cfg.Cluster.Kind)

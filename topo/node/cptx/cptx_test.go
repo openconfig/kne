@@ -97,7 +97,7 @@ func TestConfigPush(t *testing.T) {
 
 	validPb := &tpb.Node{
 		Name:   "pod1",
-		Type:   2,
+		Vendor: tpb.Vendor_JUNIPER,
 		Config: &tpb.Config{},
 	}
 
@@ -209,9 +209,6 @@ func TestNew(t *testing.T) {
 						Data: []byte("config file data"),
 					},
 				},
-				Labels: map[string]string{
-					"type": "foo_test",
-				},
 			},
 		},
 		want: &tpb.Node{
@@ -235,7 +232,6 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"type":   "foo_test",
 				"vendor": tpb.Vendor_JUNIPER.String(),
 			},
 			Config: &tpb.Config{
@@ -281,7 +277,6 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"type":   tpb.Node_JUNIPER_CEVO.String(),
 				"vendor": tpb.Vendor_JUNIPER.String(),
 			},
 			Config: &tpb.Config{
