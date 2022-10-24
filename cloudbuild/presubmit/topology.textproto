@@ -1,0 +1,160 @@
+name: "presubmit"
+nodes: {
+  name: "ceos"
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
+  config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga"
+    config_path: "/mnt/flash"
+    config_file: "startup-config"
+    file: "ceos.cfg"
+    cert: {
+      self_signed: {
+        cert_name: "gnmiCert.pem"
+        key_name: "gnmiCertKey.pem"
+        key_size: 4096
+      }
+    }
+  }
+}
+nodes: {
+  name: "cptx"
+  vendor: JUNIPER
+  model: "cptx"
+  os: "evo"
+  config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga"
+    config_path: "/home/evo/configdisk"
+    config_file: "juniper.conf"
+    file: "cptx.cfg"
+  }
+  interfaces: {
+    key: "eth4"
+    value: {
+      name: "et-0/0/0"
+    }
+  }
+  interfaces: {
+    key: "eth5"
+    value: {
+      name: "et-0/0/1"
+    }
+  }
+  interfaces: {
+    key: "eth6"
+    value: {
+      name: "et-0/0/2"
+    }
+  }
+  interfaces: {
+    key: "eth7"
+    value: {
+      name: "et-0/0/3"
+    }
+  }
+}
+nodes: {
+  name: "srl"
+  vendor: NOKIA
+  config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/nokia/srl:ga"
+    file: "srl.cfg.json"
+  }
+}
+nodes: {
+  name: "xrd"
+  vendor: CISCO
+  model: "xrd"
+  os: "ios-xr"
+  config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga"
+    file: "xrd.cfg"
+  }
+}
+nodes: {
+  name: "otg"
+  vendor: KEYSIGHT
+  version: "0.0.1-9999"
+  services: {
+    key: 443
+    value: {
+      name: "https"
+      inside: 443
+    }
+  }
+  services: {
+    key: 40051
+    value: {
+      name: "grpc"
+      inside: 40051
+    }
+  }
+  services: {
+    key: 50051
+    value: {
+      name: "gnmi"
+      inside: 50051
+    }
+  }
+}
+links: {
+  a_node: "ceos"
+  a_int: "eth1"
+  z_node: "cptx"
+  z_int: "eth5"
+}
+links: {
+  a_node: "ceos"
+  a_int: "eth2"
+  z_node: "srl"
+  z_int: "eth2"
+}
+links: {
+  a_node: "ceos"
+  a_int: "eth3"
+  z_node: "xrd"
+  z_int: "eth2"
+}
+links: {
+  a_node: "cptx"
+  a_int: "eth6"
+  z_node: "srl"
+  z_int: "eth3"
+}
+links: {
+  a_node: "cptx"
+  a_int: "eth7"
+  z_node: "xrd"
+  z_int: "eth3"
+}
+links: {
+  a_node: "srl"
+  a_int: "eth4"
+  z_node: "xrd"
+  z_int: "eth4"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth1"
+  z_node: "ceos"
+  z_int: "eth9"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth2"
+  z_node: "cptx"
+  z_int: "eth4"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth3"
+  z_node: "srl"
+  z_int: "eth1"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth4"
+  z_node: "xrd"
+  z_int: "eth1"
+}

@@ -30,8 +30,8 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-kne deploy kne-internal/deploy/kne/kind-bridge-multivendor.yaml
-kne create kne/examples/multivendor/multivendor.pb.txt
+kne deploy kne-internal/deploy/kne/kind-bridge.yaml
+kne create kne/cloudbuild/presubmit/topology.textproto
 popd
 
 pushd "$HOME/kne/cloudbuild/presubmit"
@@ -39,7 +39,7 @@ pushd "$HOME/kne/cloudbuild/presubmit"
 cat >config.yaml << EOF
 username: admin
 password: admin
-topology: ${HOME}/kne/examples/multivendor/multivendor.pb.txt
+topology: ${HOME}/kne/cloudbuild/presubmit/topology.textproto
 EOF
 
 go test -v presubmit_test.go -config config.yaml -testbed testbed.textproto
