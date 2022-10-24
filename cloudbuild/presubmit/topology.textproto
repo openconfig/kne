@@ -58,7 +58,7 @@ nodes: {
   name: "srl"
   vendor: NOKIA
   config: {
-    image: "us-west1-docker.pkg.dev/gep-kne/nokia/srl:ga"
+    image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
     file: "srl.cfg.json"
   }
 }
