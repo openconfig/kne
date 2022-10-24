@@ -10,7 +10,7 @@ steps:
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=source /tmp/workspace/cloudbuild/presubmit.sh 2>&1
 
-timeout: 3600s
+timeout: 1800s
 
 options:
   pool:
