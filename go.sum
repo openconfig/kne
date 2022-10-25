@@ -498,8 +498,8 @@ github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8 h1:V6QU1cocKPRP
 github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
-github.com/openconfig/ondatra v0.0.0-20221017201555-5b9b8e566c68 h1:BSehiOEmajTRUVGZ+4Vt14+GtTVWhhsc6P78AIe64cU=
-github.com/openconfig/ondatra v0.0.0-20221017201555-5b9b8e566c68/go.mod h1:mFyGIwPwX5leWQo2O4Y65esKVONskRWFavHn1QD7gQo=
+github.com/openconfig/ondatra v0.0.0-20221024175406-206ac1d520a5 h1:tVLAfuaUX7AJdr0YAZ5ZteDfQPm13XhN/XhLQvE0Nnk=
+github.com/openconfig/ondatra v0.0.0-20221024175406-206ac1d520a5/go.mod h1:mFyGIwPwX5leWQo2O4Y65esKVONskRWFavHn1QD7gQo=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/ygnmi v0.4.0 h1:j4PfIFAYhp6db7zyVaYGpaRMXmzY7/t1nn+zTE83t0o=
 github.com/openconfig/ygnmi v0.4.0/go.mod h1:L0bYFlUnK11gdX4DbthzBuo///Kamnsk4UmaHlteF34=

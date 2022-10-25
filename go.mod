@@ -13,7 +13,7 @@ require (
 	github.com/kr/pretty v0.3.0
 	github.com/open-traffic-generator/ixia-c-operator v0.1.89
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
-	github.com/openconfig/ondatra v0.0.0-20221017201555-5b9b8e566c68
+	github.com/openconfig/ondatra v0.0.0-20221024175406-206ac1d520a5
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.3
 	github.com/scrapli/scrapligocfg v1.0.0
