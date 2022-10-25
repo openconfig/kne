@@ -3,7 +3,7 @@ module github.com/openconfig/kne
 go 1.18
 
 require (
-	github.com/aristanetworks/arista-ceoslab-operator v1.0.2
+	github.com/aristanetworks/arista-ceoslab-operator v1.1.0
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v1.0.0
