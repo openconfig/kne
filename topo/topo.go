@@ -289,7 +289,7 @@ func (m *Manager) load() error {
 		uid++
 	}
 	for k, n := range nMap {
-		log.Infof("Adding Node: %s:%s:%s", n.Name, n.Vendor, n.Type)
+		log.Infof("Adding Node: %s:%s", n.Name, n.Vendor)
 		nn, err := node.New(m.topo.Name, n, m.kClient, m.rCfg, m.basePath, m.kubecfg)
 		if err != nil {
 			return fmt.Errorf("failed to load topology: %w", err)

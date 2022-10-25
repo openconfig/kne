@@ -55,7 +55,6 @@ func TestNew(t *testing.T) {
 				EntryCommand: "kubectl exec -it test_node -- /bin/bash",
 			},
 			Labels: map[string]string{
-				"type":   tpb.Node_LEMMING.String(),
 				"vendor": tpb.Vendor_OPENCONFIG.String(),
 			},
 			Constraints: map[string]string{

@@ -253,8 +253,8 @@ func defaults(pb *topopb.Node) *topopb.Node {
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
 	}
-	if pb.Labels["type"] == "" {
-		pb.Labels["type"] = topopb.Node_NOKIA_SRL.String()
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = topopb.Vendor_NOKIA.String()
 	}
 	if pb.Config == nil {
 		pb.Config = &topopb.Config{}
@@ -331,6 +331,5 @@ func (n *Node) isConfigDataPresent() bool {
 }
 
 func init() {
-	node.Register(topopb.Node_NOKIA_SRL, New)
 	node.Vendor(topopb.Vendor_NOKIA, New)
 }

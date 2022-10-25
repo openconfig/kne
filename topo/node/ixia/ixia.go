@@ -357,6 +357,5 @@ func defaults(pb *tpb.Node) *tpb.Node {
 }
 
 func init() {
-	node.Register(tpb.Node_IXIA_TG, New)
 	node.Vendor(tpb.Vendor_KEYSIGHT, New)
 }
