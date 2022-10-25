@@ -37,9 +37,9 @@ func NewR(impl *Impl) (Node, error) {
 }
 
 func TestReset(t *testing.T) {
-	Register(topopb.Node_Type(1001), NewR)
-	Register(topopb.Node_Type(1002), NewNR)
-	n, err := New("test", &topopb.Node{Type: topopb.Node_Type(1001)}, nil, nil, "", "")
+	Vendor(topopb.Vendor(1001), NewR)
+	Vendor(topopb.Vendor(1002), NewNR)
+	n, err := New("test", &topopb.Node{Vendor: topopb.Vendor(1001)}, nil, nil, "", "")
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestReset(t *testing.T) {
 	if err := r.ResetCfg(context.Background()); err != nil {
 		t.Errorf("Resettable node failed to reset: %v", err)
 	}
-	nr, err := New("test", &topopb.Node{Type: topopb.Node_Type(1002)}, nil, nil, "", "")
+	nr, err := New("test", &topopb.Node{Vendor: topopb.Vendor(1002)}, nil, nil, "", "")
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
 	}
@@ -70,14 +70,14 @@ func TestService(t *testing.T) {
 		want           []*corev1.Service
 	}{{
 		desc:           "no services",
-		node:           &topopb.Node{Name: "dev1", Type: topopb.Node_Type(1001)},
+		node:           &topopb.Node{Name: "dev1", Vendor: topopb.Vendor(1001)},
 		kClient:        kfake.NewSimpleClientset(),
 		wantServiceErr: `"service-dev1" not found`,
 	}, {
 		desc: "services valid",
 		node: &topopb.Node{
-			Name: "dev1",
-			Type: topopb.Node_Type(1001),
+			Name:   "dev1",
+			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				22: {
 					Name:   "ssh",
@@ -111,8 +111,8 @@ func TestService(t *testing.T) {
 	}, {
 		desc: "services valid multiple mappings",
 		node: &topopb.Node{
-			Name: "dev2",
-			Type: topopb.Node_Type(1001),
+			Name:   "dev2",
+			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				9339: {
 					Name:    "gnmi",
@@ -158,8 +158,8 @@ func TestService(t *testing.T) {
 	}, {
 		desc: "failed create duplicate",
 		node: &topopb.Node{
-			Name: "dev1",
-			Type: topopb.Node_Type(1001),
+			Name:   "dev1",
+			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				22: {
 					Name:   "ssh",

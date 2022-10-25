@@ -89,8 +89,8 @@ func TestNew(t *testing.T) {
 				ConfigFile: "config.json",
 			},
 			Labels: map[string]string{
-				"type": "NOKIA_SRL",
-				"foo":  "test_label",
+				"vendor": "NOKIA",
+				"foo":    "test_label",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {

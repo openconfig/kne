@@ -61,6 +61,5 @@ func defaults(pb *tpb.Node) *tpb.Node {
 }
 
 func init() {
-	node.Register(tpb.Node_GOBGP, New)
 	node.Vendor(tpb.Vendor_GOBGP, New)
 }

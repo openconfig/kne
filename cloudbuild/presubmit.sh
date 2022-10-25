@@ -31,7 +31,7 @@ popd
 # Deploy a cluster + topo
 pushd "$HOME"
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
-kne create kne-internal/examples/multivendor/multivendor.pbtxt
+kne create kne-internal/examples/multivendor/multivendor.pb.txt
 popd
 
 # Log topology

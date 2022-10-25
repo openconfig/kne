@@ -123,7 +123,6 @@ func TestNew(t *testing.T) {
 					ConfigFile:   "startup-config",
 				},
 				Labels: map[string]string{
-					"type":    "ARISTA_CEOS",
 					"vendor":  "ARISTA",
 					"model":   "",
 					"os":      "",
@@ -171,7 +170,6 @@ func TestNew(t *testing.T) {
 						},
 					},
 					Labels: map[string]string{
-						"type":  "test",
 						"model": "foo",
 						"os":    "bar",
 					},
@@ -200,7 +198,6 @@ func TestNew(t *testing.T) {
 					},
 				},
 				Labels: map[string]string{
-					"type":    "test",
 					"vendor":  "ARISTA",
 					"model":   "foo",
 					"os":      "bar",
@@ -270,7 +267,7 @@ func TestResetCfg(t *testing.T) {
 		Namespace:  "test",
 		Proto: &topopb.Node{
 			Name:   "pod1",
-			Type:   2,
+			Vendor: topopb.Vendor_ARISTA,
 			Config: &topopb.Config{},
 		},
 	}
