@@ -120,6 +120,8 @@ func (n *Node) waitForState(ctx context.Context, state string, dur time.Duration
 	return nil, fmt.Errorf("timed out waiting for ixia CRD state to be %s", state)
 }
 
+// Based on OTG node config, get the network topology spec from operator;
+// this will actually create the IxiaTG objects in INITIATED state.
 func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error) {
 	log.Infof("Getting interfaces for ixia node resource %s ...", n.Name())
 	desiredState := "INITIATED"
@@ -134,10 +136,6 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 	_, err = c.IxiaTG(n.Namespace).Create(ctx, crd)
 	if err != nil {
 		return nil, err
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("could not create custom resource for ixia: %v", err)
 	}
 
 	status, err := n.waitForState(ctx, desiredState, 30*time.Second)
@@ -186,6 +184,7 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 	return topos, nil
 }
 
+// For the actual pod create, update the IxiaTG object state to DEPLOYED for the operator.
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating deployment for node resource %s", n.Name())
 	desiredState := "DEPLOYED"
