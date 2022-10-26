@@ -34,13 +34,13 @@ kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 kne create kne/cloudbuild/presubmit/topology.textproto
 popd
 
-pushd "$HOME/kne/cloudbuild/presubmit"
-# Run an ondatra test
-cat >config.yaml << EOF
-username: admin
-password: admin
-topology: ${HOME}/kne/cloudbuild/presubmit/topology.textproto
-EOF
+# pushd "$HOME/kne/cloudbuild/presubmit"
+# # Run an ondatra test
+# cat >config.yaml << EOF
+# username: admin
+# password: admin
+# topology: ${HOME}/kne/cloudbuild/presubmit/topology.textproto
+# EOF
 
-go test -v presubmit_test.go -config config.yaml -testbed testbed.textproto
-popd
+# go test -v presubmit_test.go -config config.yaml -testbed testbed.textproto
+# popd
