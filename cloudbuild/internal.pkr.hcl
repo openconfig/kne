@@ -68,7 +68,7 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "echo \"fs.inotify.max_user_watches=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco containers
+      "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco containers
       "sudo sysctl -p",
       "echo Pulling containers...",
       "gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure sudoless docker
