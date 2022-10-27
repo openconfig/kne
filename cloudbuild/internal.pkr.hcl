@@ -41,7 +41,9 @@ build {
 
   provisioner "shell" {
     inline = [
+      "echo Waiting for initial updates...",
       "/usr/bin/cloud-init status --wait",
+      "sleep 60",
     ]
   }
 
