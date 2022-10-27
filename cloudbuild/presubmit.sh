@@ -31,9 +31,16 @@ popd
 # Deploy a cluster + topo
 pushd "$HOME"
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
-kne create kne-internal/examples/multivendor/multivendor.pb.txt
+kne create kne/cloudbuild/presubmit/topology.textproto
 popd
 
-# Log topology
-kubectl get pods -A
-kubectl get services -A
+# pushd "$HOME/kne/cloudbuild/presubmit"
+# # Run an ondatra test
+# cat >config.yaml << EOF
+# username: admin
+# password: admin
+# topology: ${HOME}/kne/cloudbuild/presubmit/topology.textproto
+# EOF
+
+# go test -v presubmit_test.go -config config.yaml -testbed testbed.textproto
+# popd
