@@ -1,10 +1,11 @@
-name: "multivendor"
+name: "presubmit"
 nodes: {
   name: "ceos"
   vendor: ARISTA
   model: "ceos"
   os: "eos"
   config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga"
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "ceos.cfg"
@@ -23,6 +24,7 @@ nodes: {
   model: "cptx"
   os: "evo"
   config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga"
     config_path: "/home/evo/configdisk"
     config_file: "juniper.conf"
     file: "cptx.cfg"
@@ -56,6 +58,7 @@ nodes: {
   name: "srl"
   vendor: NOKIA
   config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
     file: "srl.cfg.json"
   }
 }
@@ -65,6 +68,7 @@ nodes: {
   model: "xrd"
   os: "ios-xr"
   config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga"
     file: "xrd.cfg"
   }
 }

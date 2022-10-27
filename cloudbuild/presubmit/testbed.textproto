@@ -1,0 +1,120 @@
+duts {
+  id: "ceos"
+  vendor: ARISTA
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+duts {
+  id: "cptx"
+  vendor: JUNIPER
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+duts {
+  id: "srl"
+  vendor: NOKIA
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+duts {
+  id: "xrd"
+  vendor: CISCO
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+ates {
+  id: "otg"
+  vendor: IXIA
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+links {
+  a: "ceos:port1"
+  b: "otg:port1"
+}
+links {
+  a: "cptx:port1"
+  b: "otg:port2"
+}
+links {
+  a: "srl:port1"
+  b: "otg:port3"
+}
+links {
+  a: "xrd:port1"
+  b: "otg:port4"
+}
+links {
+  a: "ceos:port2"
+  b: "cptx:port2"
+}
+links {
+  a: "ceos:port3"
+  b: "srl:port2"
+}
+links {
+  a: "ceos:port4"
+  b: "xrd:port2"
+}
+links {
+  a: "cptx:port3"
+  b: "srl:port3"
+}
+links {
+  a: "cptx:port4"
+  b: "xrd:port3"
+}
+links {
+  a: "srl:port4"
+  b: "xrd:port4"
+}

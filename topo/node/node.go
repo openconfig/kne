@@ -509,6 +509,7 @@ func getImpl(impl *Impl) (Node, error) {
 	if impl.Proto == nil {
 		return nil, fmt.Errorf("node implementation proto cannot be nil")
 	}
+	//nolint:staticcheck
 	if impl.Proto.Type != tpb.Node_UNKNOWN {
 		log.Warnf("node.Type (%v) is a DEPRECATED field, node.Vendor is required", impl.Proto.Type)
 	}
