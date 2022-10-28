@@ -134,4 +134,12 @@ build {
       "/usr/local/go/bin/go build -v",
     ]
   }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing Google OS config agent..."
+      "sudo apt-get -o DPkg::Lock::Timeout=60 update",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install google-osconfig-agent -y",
+    ]
+  }
 }
