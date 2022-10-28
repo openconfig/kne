@@ -179,14 +179,8 @@ deployment](#deploy-a-cluster).
 
 ### IxiaTG Controller
 
-> IMPORTANT: Contact Keysight to get access to the IxiaTG controller yaml and
-> container images.
-
-To manually apply the controller run the following command after cloning the
-Keysight controller yaml:
-
 ```bash
-kubectl apply -f ixiatg-operator.yaml
+kubectl apply -f https://github.com/open-traffic-generator/ixia-c-operator/releases/latest/download/ixiatg-operator.yaml
 ```
 
 ### SR Linux Controller
@@ -204,13 +198,8 @@ See more on the
 
 #### cEOS Controller
 
-> IMPORTANT: Contact Arista to get access to the cEOS container image.
-
-To manually apply the controller, first clone the `arista-ceoslab-operator`
-[repo](setup.md#arista-ceoslab-operator) and then run the following command:
-
 ```bash
-kubectl apply -f https://github.com/arista-ceoslab-operator/config/kustomized/manifest.yaml
+kubectl apply -f https://raw.githubusercontent.com/aristanetworks/arista-ceoslab-operator/main/config/kustomized/manifest.yaml
 ```
 
 See more on the
