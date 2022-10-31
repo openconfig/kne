@@ -139,7 +139,7 @@ build {
     inline = [
       "echo Installing Google OS config agent...",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install google-osconfig-agent stackdriver-agent google-fluentd-catch-all-config google-fluentd -y",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install google-osconfig-agent -y",
     ]
   }
 }
