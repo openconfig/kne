@@ -137,11 +137,10 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Installing Google OS config agent...",
-      "sudo su -c \"echo 'deb http://packages.cloud.google.com/apt google-compute-engine-focal-stable main' > /etc/apt/sources.list.d/google-compute-engine.list\"",
-      "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 update",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install google-osconfig-agent -y",
+      "echo Installing Google cloud ops agent...",
+      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
+      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
+      "rm add-google-cloud-ops-agent-repo.sh",
     ]
   }
 }
