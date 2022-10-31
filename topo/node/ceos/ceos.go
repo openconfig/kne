@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	cpb "github.com/openconfig/kne/proto/ceos"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
@@ -34,16 +35,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
-	ceos "github.com/aristanetworks/arista-ceoslab-operator/api/v1alpha1"
-	ceosclient "github.com/aristanetworks/arista-ceoslab-operator/api/v1alpha1/clientset"
+	ceos "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1"
+	ceosclient "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1/dynamic"
 )
 
 const (
 	scrapliPlatformName = "arista_eos"
 )
 
-// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
-var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
+var (
+	// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
+	ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
+	// Function to get client, by default this is a proper client. This can be set to a fake
+	// for unit testing.
+	newClient = ceosclient.NewForConfig
+)
 
 type Node struct {
 	*node.Impl
@@ -115,8 +121,8 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 			InitContainerImage: config.GetInitImage(),
 			Args:               config.GetArgs(),
 			Resources:          proto.GetConstraints(),
-			NumInterfaces:      uint32(len(proto.GetInterfaces())),
-			Sleep:              config.GetSleep(),
+			NumInterfaces:      int32(len(proto.GetInterfaces())),
+			Sleep:              int32(config.GetSleep()),
 		},
 	}
 	for label, v := range proto.GetLabels() {
@@ -128,8 +134,8 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 		}
 		device.Spec.Services[service.Name] = ceos.ServiceConfig{
 			TCPPorts: []ceos.PortConfig{{
-				In:  service.Inside,
-				Out: service.Outside,
+				In:  int32(service.Inside),
+				Out: int32(service.Outside),
 			}},
 		}
 	}
@@ -139,7 +145,7 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 				SelfSignedCerts: []ceos.SelfSignedCertConfig{{
 					CertName:   ssCert.CertName,
 					KeyName:    ssCert.KeyName,
-					KeySize:    ssCert.KeySize,
+					KeySize:    int32(ssCert.KeySize),
 					CommonName: ssCert.CommonName,
 				}},
 			}
@@ -152,8 +158,20 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 		}
 		device.Spec.IntfMapping[k] = v.GetName()
 	}
+	if vendorData := config.GetVendorData(); vendorData != nil {
+		ceosLabConfig := &cpb.CEosLabConfig{}
+		if err := vendorData.UnmarshalTo(ceosLabConfig); err != nil {
+			return err
+		}
+		if toggleOverrides := ceosLabConfig.GetToggleOverrides(); toggleOverrides != nil {
+			device.Spec.ToggleOverrides = toggleOverrides
+		}
+		if waitForAgents := ceosLabConfig.GetWaitForAgents(); waitForAgents != nil {
+			device.Spec.WaitForAgents = waitForAgents
+		}
+	}
 	// Post to k8s
-	client, err := ceosclient.NewForConfig(n.RestConfig)
+	client, err := newClient(n.RestConfig)
 	if err != nil {
 		return err
 	}
@@ -170,7 +188,7 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 	}
 	for e := range w.ResultChan() {
 		p := e.Object.(*corev1.Pod)
-		if p.Status.Phase == corev1.PodPending {
+		if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodRunning {
 			break
 		}
 	}

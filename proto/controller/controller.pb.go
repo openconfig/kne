@@ -154,10 +154,12 @@ type KindSpec struct {
 	GoogleArtifactRegistries []string `protobuf:"bytes,7,rep,name=google_artifact_registries,json=googleArtifactRegistries,proto3" json:"google_artifact_registries,omitempty"`
 	// container_images is a map of source images to target images for containers
 	// to load in the kind cluster. For example:
-	// container_images = {
-	//   "us-west1-docker.pkg.dev/pkg/a:ga": "pkg/a:latest",
-	//   "us-west1-docker.pkg.dev/pkg/b:v0.8.0": "pkg/b:v0.8.0",
-	// }
+	//
+	//	container_images = {
+	//	  "us-west1-docker.pkg.dev/pkg/a:ga": "pkg/a:latest",
+	//	  "us-west1-docker.pkg.dev/pkg/b:v0.8.0": "pkg/b:v0.8.0",
+	//	}
+	//
 	// Would load images "pkg/a:latest" and "pkg/b:v0.8.0" into the cluster
 	// after fetching their source images from "us-west1-docker.pkg.dev".
 	ContainerImages     map[string]string `protobuf:"bytes,8,rep,name=container_images,json=containerImages,proto3" json:"container_images,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
@@ -416,6 +418,7 @@ type ControllerSpec struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Spec:
+	//
 	//	*ControllerSpec_Ixiatg
 	//	*ControllerSpec_Srlinux
 	//	*ControllerSpec_Ceoslab
@@ -783,13 +786,16 @@ type CreateClusterRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to ClusterSpec:
+	//
 	//	*CreateClusterRequest_Kind
 	//	*CreateClusterRequest_External
 	ClusterSpec isCreateClusterRequest_ClusterSpec `protobuf_oneof:"cluster_spec"`
 	// Types that are assignable to IngressSpec:
+	//
 	//	*CreateClusterRequest_Metallb
 	IngressSpec isCreateClusterRequest_IngressSpec `protobuf_oneof:"ingress_spec"`
 	// Types that are assignable to CniSpec:
+	//
 	//	*CreateClusterRequest_Meshnet
 	CniSpec         isCreateClusterRequest_CniSpec `protobuf_oneof:"cni_spec"`
 	ControllerSpecs []*ControllerSpec              `protobuf:"bytes,4,rep,name=controller_specs,json=controllerSpecs,proto3" json:"controller_specs,omitempty"`
