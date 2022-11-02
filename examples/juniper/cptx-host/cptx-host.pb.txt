@@ -7,7 +7,14 @@ nodes: {
     config: {
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
-      file: "cptx-config"
+      file: "juniper.config"
+      cert: {
+            self_signed: {
+                cert_name: "ca-ipsec",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
     }
     interfaces: {
         key: "eth4"

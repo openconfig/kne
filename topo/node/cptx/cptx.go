@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
@@ -60,6 +61,7 @@ type Node struct {
 
 // Add validations for interfaces the node provides
 var (
+	_ node.Certer       = (*Node)(nil)
 	_ node.ConfigPusher = (*Node)(nil)
 	_ node.Resetter     = (*Node)(nil)
 )
@@ -83,6 +85,56 @@ func (n *Node) SpawnCLIConn() error {
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 
 	return err
+}
+
+// GenerateSelfSigned generates a self-signed TLS certificate using Junos PKI
+func (n *Node) GenerateSelfSigned(ctx context.Context) error {
+	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
+	if selfSigned == nil {
+		log.Infof("%s - no cert config", n.Name())
+		return nil
+	}
+	log.Infof("%s - generating self signed certs", n.Name())
+	log.Infof("%s - waiting for pod to be running", n.Name())
+	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(
+			fields.Set{metav1.ObjectNameField: n.Name()},
+		).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for e := range w.ResultChan() {
+		p := e.Object.(*corev1.Pod)
+		if p.Status.Phase == corev1.PodRunning {
+			break
+		}
+	}
+	log.Infof("%s - pod running.", n.Name())
+
+	if err := n.SpawnCLIConn(); err != nil {
+		return err
+	}
+
+	if !n.cliConn.Transport.IsAlive() {
+		return errors.New("scrapligo device driver not open")
+	}
+
+	commands := []string{
+		fmt.Sprintf("request security pki generate-key-pair certificate-id %s", selfSigned.GetCertName()),
+		fmt.Sprintf("request security pki local-certificate generate-self-signed certificate-id %s " +
+			"subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com",
+			selfSigned.GetCertName()),
+	}
+
+	_, err = n.cliConn.SendCommands(commands)
+	if err != nil {
+		return fmt.Errorf("failed sending generate-self-signed command: %v", err)
+	}
+
+	log.Infof("%s - finished cert generation", n.Name())
+
+	return n.cliConn.Close()
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {

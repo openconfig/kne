@@ -1,0 +1,110 @@
+name: "ixia-c"
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-3423-local"
+    services: {
+        key: 443
+        value: {
+            name: "ixia-c"
+            inside: 443
+            outside: 0
+        }
+    }
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+            outside: 0
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+            outside: 0
+        }
+    }
+}
+
+nodes: {
+    name: "cptx1"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+      image: "cptx:test"
+      config_path: "/home/evo/configdisk"
+      config_file: "juniper.conf"
+      file: "juniper.config"
+      cert: {
+            self_signed: {
+                cert_name: "ca-ipsec",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth20"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth28"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+   services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 1000
+        value: {
+            name: "gribi"
+            outside: 1000
+            inside: 50051
+        }
+    }
+    services:{
+        key: 1001
+        value: {
+            name: "gnmi"
+            outside: 1001
+            inside: 50051
+        }
+    }
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "cptx1"
+    z_int: "eth12"
+}
+links: {
+    a_node: "cptx1"
+    a_int: "eth20"
+    z_node: "otg"
+    z_int: "eth2"
+}
+links: {
+    a_node: "cptx1"
+    a_int: "eth28"
+    z_node: "otg"
+    z_int: "eth3"
+}
+
