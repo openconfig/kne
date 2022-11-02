@@ -20,8 +20,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/utils/pointer"
 )
 
 // ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
@@ -122,7 +122,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 
 	commands := []string{
 		fmt.Sprintf("request security pki generate-key-pair certificate-id %s", selfSigned.GetCertName()),
-		fmt.Sprintf("request security pki local-certificate generate-self-signed certificate-id %s " +
+		fmt.Sprintf("request security pki local-certificate generate-self-signed certificate-id %s "+
 			"subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com",
 			selfSigned.GetCertName()),
 	}
