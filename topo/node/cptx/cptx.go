@@ -127,9 +127,17 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 			selfSigned.GetCertName()),
 	}
 
-	_, err = n.cliConn.SendCommands(commands)
+	multiresp, err := n.cliConn.SendCommands(commands)
 	if err != nil {
-		return fmt.Errorf("failed sending generate-self-signed command: %v", err)
+		return fmt.Errorf("failed sending generate-self-signed commands: %v", err)
+	}
+	for _, resp := range multiresp.Responses {
+		if resp.Failed != nil {
+			return resp.Failed
+		}
+		if strings.Contains(resp.Result, "error:") {
+			return fmt.Errorf("failed sending generate-self-signed commands: %s", multiresp.JoinedResult())
+		}
 	}
 
 	log.Infof("%s - finished cert generation", n.Name())

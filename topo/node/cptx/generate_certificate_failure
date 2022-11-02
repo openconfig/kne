@@ -1,0 +1,19 @@
+root@cptx2>
+
+root@cptx2> set cli screen-width 511
+Screen width set to 511
+
+root@cptx2> set cli screen-length 0
+Screen length set to 0
+
+root@cptx2> set cli complete-on-space off
+Disabling complete-on-space
+
+root@cptx2> request security pki generate-key-pair certificate-id ca-ipsec
+error: Command aborted as key pair already exists. Retry after clearing the existing key pair
+
+root@cptx2> request security pki local-certificate generate-self-signed certificate-id ca-ipsec subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com
+error: Command aborted as certificate already exists. Retry after clearing the existing certificate.
+
+root@cptx2>
+root@cptx2>exit
