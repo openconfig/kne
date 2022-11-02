@@ -15,6 +15,8 @@ syntax = "proto3";
 
 package topo;
 
+import "google/protobuf/any.proto";
+
 option go_package = "github.com/openconfig/kne/proto/topo";
 
 // Topology message defines what nodes and links will be created
@@ -131,6 +133,8 @@ message Config {
   }
   // Docker image to use as an init container for the pod.
   string init_image = 10;
+  // Vendor-specific data
+  google.protobuf.Any vendor_data = 11;
 }
 
 message CertificateCfg {
