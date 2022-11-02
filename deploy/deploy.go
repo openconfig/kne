@@ -14,11 +14,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
+	"github.com/google/safetext/yamltemplate"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
 	kexec "github.com/openconfig/kne/os/exec"
@@ -55,7 +55,7 @@ data:
 )
 
 var (
-	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
+	dockerConfigTemplate = yamltemplate.Must(yamltemplate.New("dockerConfig").Parse(dockerConfigTemplateContents))
 	logOut               = log.StandardLogger().Out
 	healthTimeout        = time.Minute
 
