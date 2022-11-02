@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	dtypes "github.com/docker/docker/api/types"
@@ -36,15 +35,9 @@ import (
 )
 
 const (
-	dockerConfigEnvVar           = "DOCKER_CONFIG"
-	kubeletConfigPathTemplate    = "%s:/var/lib/kubelet/config.json"
-	dockerConfigTemplateContents = `{
-  "auths": {
-{{range $val := .}}    "{{$val}}": {}
-{{end}}  }
-}
-`
-	ixiaTGConfigMapHeader = `apiVersion: v1
+	dockerConfigEnvVar        = "DOCKER_CONFIG"
+	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
+	ixiaTGConfigMapHeader     = `apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ixiatg-release-config
@@ -55,9 +48,8 @@ data:
 )
 
 var (
-	dockerConfigTemplate = template.Must(template.New("dockerConfig").Parse(dockerConfigTemplateContents))
-	logOut               = log.StandardLogger().Out
-	healthTimeout        = time.Minute
+	logOut        = log.StandardLogger().Out
+	healthTimeout = time.Minute
 
 	// execer handles all execs on host.
 	execer execerInterface = kexec.NewExecer(logOut, logOut)
@@ -568,13 +560,28 @@ func (k *KindSpec) loadContainerImages() error {
 	return nil
 }
 
+type DockerConfig struct {
+	Auths map[string]struct{} `json:"auths"`
+}
+
 func writeDockerConfig(path string, registries []string) error {
+	dc := &DockerConfig{Auths: map[string]struct{}{}}
+	for _, r := range registries {
+		dc.Auths[r] = struct{}{}
+	}
+	b, err := json.MarshalIndent(dc, "", "  ")
+	if err != nil {
+		return err
+	}
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	return dockerConfigTemplate.Execute(f, registries)
+	if _, err := f.Write(b); err != nil {
+		return err
+	}
+	return nil
 }
 
 type MetalLBSpec struct {
