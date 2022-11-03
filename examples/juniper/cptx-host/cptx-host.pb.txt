@@ -35,10 +35,35 @@ nodes: {
             inside: 22
         }
     }
-    services: {
-        key: 50051
+    services:{
+        key: 9337
+        value: {
+            name: "gnoi"
+            outside: 9337
+            inside: 50051
+        }
+    }
+    services:{
+        key: 9339
         value: {
             name: "gnmi"
+            outside: 9339
+            inside: 50051
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            outside: 9340
+            inside: 50051
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            outside: 9559
             inside: 50051
         }
     }

@@ -2,13 +2,12 @@ name: "ixia-c"
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
-    version: "0.0.1-3423-local"
+    version: "0.0.1-9999"
     services: {
         key: 443
         value: {
             name: "ixia-c"
             inside: 443
-            outside: 0
         }
     }
     services: {
@@ -16,7 +15,6 @@ nodes: {
         value: {
             name: "grpc"
             inside: 40051
-            outside: 0
         }
     }
     services: {
@@ -24,13 +22,12 @@ nodes: {
         value: {
             name: "gnmi"
             inside: 50051
-            outside: 0
         }
     }
 }
 
 nodes: {
-    name: "cptx1"
+    name: "cptx"
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
@@ -73,18 +70,34 @@ nodes: {
         }
     }
     services:{
-        key: 1000
+        key: 9337
         value: {
-            name: "gribi"
-            outside: 1000
+            name: "gnoi"
+            outside: 9337
             inside: 50051
         }
     }
     services:{
-        key: 1001
+        key: 9339
         value: {
             name: "gnmi"
-            outside: 1001
+            outside: 9339
+            inside: 50051
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            outside: 9340
+            inside: 50051
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            outside: 9559
             inside: 50051
         }
     }
@@ -92,17 +105,17 @@ nodes: {
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "cptx1"
+    z_node: "cptx"
     z_int: "eth12"
 }
 links: {
-    a_node: "cptx1"
+    a_node: "cptx"
     a_int: "eth20"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
-    a_node: "cptx1"
+    a_node: "cptx"
     a_int: "eth28"
     z_node: "otg"
     z_int: "eth3"

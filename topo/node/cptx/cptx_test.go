@@ -170,7 +170,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 					scraplilogging.WithLevel("debug"),
 					scraplilogging.WithLogger(t.Log))
 				if err != nil {
-					t.Fatalf("failed created scrapligo logger %v\n", err)
+					t.Fatalf("failed created scrapligo logger %v", err)
 				}
 
 				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
