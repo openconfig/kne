@@ -380,7 +380,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 			return nil, err
 		}
 		if pb.Config.Image == "" {
-			pb.Config.Image = "e8000:latest"
+			pb.Config.Image = "8000e:latest"
 		}
 	}
 	return pb, nil

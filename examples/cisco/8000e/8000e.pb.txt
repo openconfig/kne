@@ -1,4 +1,4 @@
-name: "e8000"
+name: "8000e"
 nodes: {
     name: "vxr1"
     vendor: CISCO
