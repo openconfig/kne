@@ -68,7 +68,7 @@ nodes: {
   model: "xrd"
   os: "ios-xr"
   config: {
-    image: "us-west1-docker.pkg.dev/gep-kne/cisco/ios-xr/xrd:ga"
+    image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga"
     file: "xrd.cfg"
   }
 }

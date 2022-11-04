@@ -259,7 +259,7 @@ func TestNew(t *testing.T) {
 				"vendor": tpb.Vendor_CISCO.String(),
 			},
 			Config: &tpb.Config{
-				Image: "e8000:latest",
+				Image: "8000e:latest",
 				Env: map[string]string{
 					"XR_INTERFACES":                  "MgmtEther0/RP0/CPU0/0:eth0,FourHundredGigE0/0/0/0:eth1,GIG1:eth2,FourHundredGigE0/0/0/23:eth24,HundredGigE0/0/0/24:eth25,HundredGigE0/0/0/35:eth36",
 					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "MgmtEther0/RP0/CPU0/0,FourHundredGigE0/0/0/0,GIG1,FourHundredGigE0/0/0/23,HundredGigE0/0/0/24,HundredGigE0/0/0/35",
@@ -352,7 +352,7 @@ func TestNew(t *testing.T) {
 				"vendor": tpb.Vendor_CISCO.String(),
 			},
 			Config: &tpb.Config{
-				Image: "e8000:latest",
+				Image: "8000e:latest",
 				Env: map[string]string{
 					"XR_INTERFACES":                  "MgmtEther0/RP0/CPU0/0:eth0,HundredGigE0/0/0/0:eth1,GIG1:eth2,HundredGigE0/0/0/47:eth48,FourHundredGigE0/0/0/48:eth49,FourHundredGigE0/0/0/59:eth60,HundredGigE0/0/0/60:eth61,HundredGigE0/0/0/71:eth72",
 					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "MgmtEther0/RP0/CPU0/0,HundredGigE0/0/0/0,GIG1,HundredGigE0/0/0/47,FourHundredGigE0/0/0/48,FourHundredGigE0/0/0/59,HundredGigE0/0/0/60,HundredGigE0/0/0/71",
@@ -452,7 +452,7 @@ func TestNew(t *testing.T) {
 				"vendor": tpb.Vendor_CISCO.String(),
 			},
 			Config: &tpb.Config{
-				Image: "e8000:latest",
+				Image: "8000e:latest",
 				Env: map[string]string{
 					"XR_INTERFACES":                  "MgmtEther0/RP0/CPU0/0:eth0,FourHundredGigE0/0/0/0:eth1,GIG1:eth2,FourHundredGigE0/0/0/31:eth32",
 					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "MgmtEther0/RP0/CPU0/0,FourHundredGigE0/0/0/0,GIG1,FourHundredGigE0/0/0/31",
@@ -522,7 +522,7 @@ func TestNew(t *testing.T) {
 				"vendor": tpb.Vendor_CISCO.String(),
 			},
 			Config: &tpb.Config{
-				Image: "e8000:latest",
+				Image: "8000e:latest",
 				Env: map[string]string{
 					"XR_INTERFACES":                  "MgmtEther0/RP0/CPU0/0:eth0,HundredGigE0/0/0/0:eth1,GIG1:eth2,HundredGigE0/0/0/31:eth32",
 					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "MgmtEther0/RP0/CPU0/0,HundredGigE0/0/0/0,GIG1,HundredGigE0/0/0/31",
@@ -622,7 +622,7 @@ func TestNew(t *testing.T) {
 				"vendor": tpb.Vendor_CISCO.String(),
 			},
 			Config: &tpb.Config{
-				Image: "e8000:latest",
+				Image: "8000e:latest",
 				Env: map[string]string{
 					"XR_INTERFACES":                  "MgmtEther0/RP0/CPU0/0:eth0,HundredGigE0/0/0/0:eth1,GIG1:eth2,HundredGigE0/0/0/63:eth64",
 					"XR_CHECKSUM_OFFLOAD_COUNTERACT": "MgmtEther0/RP0/CPU0/0,HundredGigE0/0/0/0,GIG1,HundredGigE0/0/0/63",
