@@ -9,8 +9,8 @@ Once the KNE cluster is up, get into cPTX and Check the status of GRPC services
 ```bash
 kubectl exec -it -n <NAMESPACE> cptx1 -- cli
 root@cptx1>
-root@cptx1> show system connections |match 50051
-tcp6       0      0 :::50051                :::*                    LISTEN      XXXXX/jsd
+root@cptx1> show system connections |match 32767
+tcp6       0      0 :::32767                :::*                    LISTEN      XXXXX/jsd
 
 root@cptx1>
 root@cptx1> show configuration system services extension-service
@@ -30,5 +30,5 @@ root@cptx1>
 ```bash
 export GNMI_USER=root
 export GNMI_PASS=Google123
-gnmi_cli -a <NODE EXTERNAL IP>:50051 -q "/interfaces/interface/" -tls_skip_verify -with_user_pass
+gnmi_cli -a <NODE EXTERNAL IP>:32767 -q "/interfaces/interface/" -tls_skip_verify -with_user_pass
 ```
