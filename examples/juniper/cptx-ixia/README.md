@@ -192,9 +192,9 @@ entry: {
     et-0/0/2 (eth6)
     -- snip --
     et-0/0/5 (unused)
-    et-0/0/6 (eth8)
+    et-0/0/6 (eth10)
     et-0/0/7 (unused)
-    et-0/0/8 (eth10)
+    et-0/0/8 (eth12)
     -- snip --
     et-0/0/11 (eth15)
     ```
