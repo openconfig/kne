@@ -1,10 +1,38 @@
-name: "cptx-host"
+name: "ixia-c"
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999"
+    services: {
+        key: 443
+        value: {
+            name: "ixia-c"
+            inside: 443
+        }
+    }
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
+    }
+}
+
 nodes: {
     name: "cptx"
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
     config: {
+      image: "cptx:test"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
       file: "juniper.config"
@@ -17,18 +45,24 @@ nodes: {
         }
     }
     interfaces: {
-        key: "eth4"
+        key: "eth12"
         value: {
-          name: "et-0/0/0"
+          name: "et-0/0/1:0"
         }
     }
     interfaces: {
-        key: "eth5"
+        key: "eth20"
         value: {
-          name: "et-0/0/1"
+          name: "et-0/0/2:0"
         }
     }
-    services: {
+    interfaces: {
+        key: "eth28"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+   services:{
         key: 22
         value: {
             name: "ssh"
@@ -68,38 +102,22 @@ nodes: {
         }
     }
 }
-nodes: {
-    name: "vm-1"
-    vendor: HOST
-    services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "cptx"
+    z_int: "eth12"
 }
-nodes: {
-    name: "vm-2"
-    vendor: HOST
-    services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
+links: {
+    a_node: "cptx"
+    a_int: "eth20"
+    z_node: "otg"
+    z_int: "eth2"
+}
+links: {
+    a_node: "cptx"
+    a_int: "eth28"
+    z_node: "otg"
+    z_int: "eth3"
 }
 
-links: {
-    a_node: "vm-1"
-    a_int: "eth1"
-    z_node: "cptx"
-    z_int: "eth4"
-}
-links: {
-    a_node: "vm-2"
-    a_int: "eth1"
-    z_node: "cptx"
-    z_int: "eth5"
-}

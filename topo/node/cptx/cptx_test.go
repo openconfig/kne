@@ -19,6 +19,7 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -31,6 +32,14 @@ import (
 
 type fakeWatch struct {
 	e []watch.Event
+}
+
+// scrapliDebug checks if SCRAPLI_DEBUG env var is set.
+// used in testing to enable debug log of scrapligo.
+func scrapliDebug() bool {
+	_, set := os.LookupEnv("SCRAPLI_DEBUG")
+
+	return set
 }
 
 func (f *fakeWatch) Stop() {}
@@ -72,6 +81,109 @@ func removeCommentsFromConfig(t *testing.T, r io.Reader) io.Reader {
 		}
 	}
 	return &buf
+}
+
+func TestGenerateSelfSigned(t *testing.T) {
+	ki := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod1",
+		},
+	})
+
+	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+		f := &fakeWatch{
+			e: []watch.Event{{
+				Object: &corev1.Pod{
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				},
+			}},
+		}
+		return true, f, nil
+	}
+	ki.PrependWatchReactor("*", reaction)
+
+	ni := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "pod1",
+			Vendor: tpb.Vendor_JUNIPER,
+			Config: &tpb.Config{
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ca-ipsec",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		desc     string
+		wantErr  bool
+		ni       *node.Impl
+		testFile string
+	}{
+		{
+			// successfully configure certificate
+			desc:     "success",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "generate_certificate_success",
+		},
+		{
+			// device returns "Error: something bad happened" -- we expect to fail
+			desc:     "failure",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "generate_certificate_failure",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+
+			if err != nil {
+				t.Fatalf("failed creating kne juniper cptx node")
+			}
+
+			n, _ := nImpl.(*Node)
+
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
+			}
+
+			if scrapliDebug() {
+				li, err := scraplilogging.NewInstance(
+					scraplilogging.WithLevel("debug"),
+					scraplilogging.WithLogger(t.Log))
+				if err != nil {
+					t.Fatalf("failed created scrapligo logger %v", err)
+				}
+
+				n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
+			}
+
+			ctx := context.Background()
+
+			err = n.GenerateSelfSigned(ctx)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
+			}
+		})
+	}
 }
 
 func TestConfigPush(t *testing.T) {
