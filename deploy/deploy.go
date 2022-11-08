@@ -596,13 +596,13 @@ func writeDockerConfig(path string, registries []string) error {
 }
 
 type MetalLBSpec struct {
-	IPCount     int    `yaml:"ip_count"`
-	ManifestDir string `yaml:"manifests"`
+	IPCount                   int    `yaml:"ip_count"`
+	ManifestDir               string `yaml:"manifests"`
 	dockerNetworkResourceName string
-	kClient     kubernetes.Interface
-	mClient     metallbclientv1.Interface
-	rCfg        *rest.Config
-	dClient     dclient.NetworkAPIClient
+	kClient                   kubernetes.Interface
+	mClient                   metallbclientv1.Interface
+	rCfg                      *rest.Config
+	dClient                   dclient.NetworkAPIClient
 }
 
 func (m *MetalLBSpec) SetKClient(c kubernetes.Interface) {
