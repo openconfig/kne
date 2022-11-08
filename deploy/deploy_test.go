@@ -427,18 +427,17 @@ func TestMetalLBSpec(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		desc                      string
-		m                         *MetalLBSpec
-		execer                    execerInterface
-		wantConfig                *metallbv1.IPAddressPool
-		dErr                      string
-		hErr                      string
-		ctx                       context.Context
-		mockExpects               func(*mocks.MockNetworkAPIClient)
-		mockKClient               func(*fake.Clientset)
-		k8sObjects                []runtime.Object
-		mObjects                  []runtime.Object
-		dockerNetworkResourceName string
+		desc        string
+		m           *MetalLBSpec
+		execer      execerInterface
+		wantConfig  *metallbv1.IPAddressPool
+		dErr        string
+		hErr        string
+		ctx         context.Context
+		mockExpects func(*mocks.MockNetworkAPIClient)
+		mockKClient func(*fake.Clientset)
+		k8sObjects  []runtime.Object
+		mObjects    []runtime.Object
 	}{{
 		desc: "namespace error",
 		m: &MetalLBSpec{
@@ -641,7 +640,8 @@ func TestMetalLBSpec(t *testing.T) {
 	}, {
 		desc: "valid deployment - kind",
 		m: &MetalLBSpec{
-			IPCount: 20,
+			IPCount:                   20,
+			dockerNetworkResourceName: "kind",
 		},
 		execer: exec.NewFakeExecer(nil, nil, nil),
 		wantConfig: &metallbv1.IPAddressPool{
