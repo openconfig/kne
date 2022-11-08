@@ -70,6 +70,7 @@ type Cluster interface {
 	Delete() error
 	Healthy() error
 	GetName() string
+	GetDockerNetworkResourceName() string
 }
 
 type Ingress interface {
@@ -77,6 +78,7 @@ type Ingress interface {
 	SetKClient(kubernetes.Interface)
 	Healthy(context.Context) error
 	SetRCfg(*rest.Config)
+	SetDockerNetworkResourceName(string)
 }
 
 type CNI interface {
@@ -172,6 +174,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
+	d.Ingress.SetDockerNetworkResourceName(d.Cluster.GetDockerNetworkResourceName())
 
 	log.Infof("Deploying ingress...")
 	if err := d.Ingress.Deploy(ctx); err != nil {
@@ -268,6 +271,10 @@ func (e *ExternalSpec) Healthy() error {
 
 func (e *ExternalSpec) GetName() string {
 	return "external"
+}
+
+func (e *ExternalSpec) GetDockerNetworkResourceName() string {
+	return ""
 }
 
 type KindSpec struct {
@@ -472,6 +479,10 @@ func (k *KindSpec) GetName() string {
 	return "kind"
 }
 
+func (k *KindSpec) GetDockerNetworkResourceName() string {
+	return "kind"
+}
+
 func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
@@ -587,6 +598,7 @@ func writeDockerConfig(path string, registries []string) error {
 type MetalLBSpec struct {
 	IPCount     int    `yaml:"ip_count"`
 	ManifestDir string `yaml:"manifests"`
+	dockerNetworkResourceName string
 	kClient     kubernetes.Interface
 	mClient     metallbclientv1.Interface
 	rCfg        *rest.Config
@@ -599,6 +611,10 @@ func (m *MetalLBSpec) SetKClient(c kubernetes.Interface) {
 
 func (m *MetalLBSpec) SetRCfg(cfg *rest.Config) {
 	m.rCfg = cfg
+}
+
+func (m *MetalLBSpec) SetDockerNetworkResourceName(name string) {
+	m.dockerNetworkResourceName = name
 }
 
 func inc(ip net.IP, cnt int) {
@@ -687,7 +703,11 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		}
 		var network dtypes.NetworkResource
 		for _, v := range nr {
-			if v.Name == "kind" {
+			name := m.dockerNetworkResourceName
+			if name == "" {
+				name = "bridge"
+			}
+			if v.Name == name {
 				network = v
 				break
 			}
