@@ -378,22 +378,44 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 //go:generate mockgen -destination=mocks/mock_dnetwork.go -package=mocks github.com/docker/docker/client  NetworkAPIClient
 
 func TestMetalLBSpec(t *testing.T) {
-	nl := []dtypes.NetworkResource{{
-		Name: "kind",
-		IPAM: network.IPAM{
-			Config: []network.IPAMConfig{{
-				Subnet: "172.18.0.0/16",
-			}, {
-				Subnet: "127::0/64",
-			}},
+	nl := []dtypes.NetworkResource{
+		{
+			Name: "kind",
+			IPAM: network.IPAM{
+				Config: []network.IPAMConfig{
+					{
+						Subnet: "172.18.0.0/16",
+					},
+					{
+						Subnet: "127::0/64",
+					},
+				},
+			},
 		},
-	}, {
-		Name: "docker",
-		IPAM: network.IPAM{
-			Config: []network.IPAMConfig{{
-				Subnet: "1.1.1.1/16",
-			}}},
-	}}
+		{
+			Name: "bridge",
+			IPAM: network.IPAM{
+				Config: []network.IPAMConfig{
+					{
+						Subnet: "192.18.0.0/16",
+					},
+					{
+						Subnet: "129::0/64",
+					},
+				},
+			},
+		},
+		{
+			Name: "docker",
+			IPAM: network.IPAM{
+				Config: []network.IPAMConfig{
+					{
+						Subnet: "1.1.1.1/16",
+					},
+				},
+			},
+		},
+	}
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	canceledCtx, cancel := context.WithCancel(context.Background())
@@ -560,6 +582,66 @@ func TestMetalLBSpec(t *testing.T) {
 		desc: "valid deployment",
 		m: &MetalLBSpec{
 			IPCount: 20,
+		},
+		execer: exec.NewFakeExecer(nil, nil, nil),
+		wantConfig: &metallbv1.IPAddressPool{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "IPAddressPool",
+				APIVersion: "metallb.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kne-service-pool",
+				Namespace: "metallb-system",
+			},
+			Spec: metallbv1.IPAddressPoolSpec{
+				Addresses: []string{"192.18.0.50 - 192.18.0.70"},
+			},
+		},
+		mockExpects: func(m *mocks.MockNetworkAPIClient) {
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+		},
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}, {
+		desc: "valid deployment - kind",
+		m: &MetalLBSpec{
+			IPCount:                   20,
+			dockerNetworkResourceName: "kind",
 		},
 		execer: exec.NewFakeExecer(nil, nil, nil),
 		wantConfig: &metallbv1.IPAddressPool{
