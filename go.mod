@@ -13,7 +13,7 @@ require (
 	github.com/kr/pretty v0.3.0
 	github.com/open-traffic-generator/ixia-c-operator v0.2.5
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
-	github.com/openconfig/ondatra v0.0.0-20221024175406-206ac1d520a5
+	github.com/openconfig/ondatra v0.0.0-20221109202551-10c91da9d0d7
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.3
 	github.com/scrapli/scrapligocfg v1.0.0
@@ -77,7 +77,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/open-traffic-generator/snappi/gosnappi v0.8.5 // indirect
+	github.com/open-traffic-generator/snappi/gosnappi v0.9.5 // indirect
 	github.com/openconfig/gnoi v0.0.0-20221010125524-c3391aacaa1b // indirect
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
 	github.com/openconfig/goyang v1.1.0 // indirect
@@ -102,12 +102,12 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.11.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
-	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898 // indirect
-	golang.org/x/net v0.0.0-20221004154528-8021a29435af // indirect
+	golang.org/x/crypto v0.1.0 // indirect
+	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.0.0-20221010170243-090e33056c14 // indirect
-	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
-	golang.org/x/text v0.3.8 // indirect
+	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/term v0.1.0 // indirect
+	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
