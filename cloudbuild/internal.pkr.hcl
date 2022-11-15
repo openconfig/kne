@@ -98,7 +98,7 @@ build {
     inline = [
       "echo Installing multinode cluster dependencies...",
       "git clone https://github.com/flannel-io/flannel.git",
-      "git clone https://github.com/mirantis/cri-dockerd.git",
+      "git clone https://github.com/Mirantis/cri-dockerd.git",
       "cd cri-dockerd",
       "/usr/local/go/bin/go build -v",
       "sudo cp cri-dockerd /usr/local/bin/",
