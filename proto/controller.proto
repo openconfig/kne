@@ -61,7 +61,9 @@ message KindSpec {
   repeated string additional_manifests = 10;
 }
 
+// External cluster specifications
 message ExternalSpec {
+  string network = 1; // name of the docker network to use for ingress
 }
 
 // Metallb specifications
