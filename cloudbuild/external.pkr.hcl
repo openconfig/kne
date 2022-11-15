@@ -102,6 +102,7 @@ build {
       "git clone https://github.com/Mirantis/cri-dockerd.git",
       "cd cri-dockerd",
       "echo Checking go license for cri-dockerd",
+      "PATH=$PATH:/usr/local/go/bin",
       "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",
       "echo Saving go license for cri-dockerd",
       "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\"",
