@@ -81,7 +81,7 @@ build {
       "sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
       "echo \"deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install kubectl -y",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install kubelet kubeadm kubectl -y",
       "kubectl version --client",
     ]
   }
@@ -91,6 +91,22 @@ build {
       "echo Installing golang license tool...",
       "/usr/local/go/bin/go install github.com/google/go-licenses@latest",
       "curl --create-dirs -o third_party/licenses/go-licenses/LICENSE https://raw.githubusercontent.com/google/go-licenses/master/LICENSE",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing multinode cluster dependencies...",
+      "git clone https://github.com/flannel-io/flannel.git",
+      "curl --create-dirs -o third_party/licenses/flannel/LICENSE https://raw.githubusercontent.com/flannel-io/flannel/master/LICENSE",
+      "git clone https://github.com/mirantis/cri-dockerd.git",
+      "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",
+      "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\"",
+      "cd cri-dockerd",
+      "/usr/local/go/bin/go build -v",
+      "sudo cp cri-dockerd /usr/local/bin/",
+      "sudo cp -a packaging/systemd/* /etc/systemd/system",
+      "sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service",
     ]
   }
 
