@@ -114,7 +114,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 				Cert: &tpb.CertificateCfg{
 					Config: &tpb.CertificateCfg_SelfSigned{
 						SelfSigned: &tpb.SelfSignedCertCfg{
-							CertName: "ca-ipsec",
+							CertName: "grpc-server-cert",
 							KeyName:  "my_key",
 							KeySize:  2048,
 						},

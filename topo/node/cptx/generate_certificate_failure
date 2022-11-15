@@ -9,11 +9,60 @@ Screen length set to 0
 root@cptx2> set cli complete-on-space off
 Disabling complete-on-space
 
-root@cptx2> request security pki generate-key-pair certificate-id ca-ipsec
+root@cptx2> request security pki generate-key-pair certificate-id grpc-server-cert
 error: Command aborted as key pair already exists. Retry after clearing the existing key pair
 
-root@cptx2> request security pki local-certificate generate-self-signed certificate-id ca-ipsec subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com
+root@cptx2> request security pki local-certificate generate-self-signed certificate-id grpc-server-cert subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com
 error: Command aborted as certificate already exists. Retry after clearing the existing certificate.
 
 root@cptx2>
 root@cptx2>exit
+
+root@cptx2>
+
+root@cptx2> configure
+Entering configuration mode
+
+[edit]
+root@cptx2#
+root@cptx2# set system services extension-service request-response grpc ssl hot-reloading
+
+[edit]
+root@cptx2#
+root@cptx2# set system services extension-service request-response grpc ssl use-pki
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0
+
+[edit]
+root@cptx2#
+root@cptx2# commit
+commit complete
+
+[edit]
+root@cptx2#
+root@cptx2# exit configuration-mode
+Exiting configuration mode
+
+root@cptx2> exit

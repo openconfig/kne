@@ -140,6 +140,26 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		}
 	}
 
+	cfgs := []string{
+		"set system services extension-service request-response grpc ssl hot-reloading",
+		"set system services extension-service request-response grpc ssl use-pki",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+		"commit",
+	}
+	resp, err := n.cliConn.SendConfigs(cfgs)
+	if err != nil {
+		return err
+	}
+
+	if resp.Failed == nil {
+		log.Infof("%s - finshed resetting config", n.Name())
+	}
+
 	log.Infof("%s - finished cert generation", n.Name())
 
 	return n.cliConn.Close()

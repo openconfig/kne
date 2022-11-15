@@ -5,12 +5,13 @@ nodes: {
     model: "cptx"
     os: "evo"
     config: {
+      image: "cptx:test"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
       file: "juniper.config"
       cert: {
             self_signed: {
-                cert_name: "ca-ipsec",
+                cert_name: "grpc-server-cert",
                 key_name: "N/A",
                 key_size: 4096,
             }
@@ -71,6 +72,9 @@ nodes: {
 nodes: {
     name: "vm-1"
     vendor: HOST
+    config: {
+        image: "ubuntu:latest"
+    }
     services: {
         key: 22
         value: {
@@ -82,6 +86,9 @@ nodes: {
 nodes: {
     name: "vm-2"
     vendor: HOST
+    config: {
+        image: "ubuntu:latest"
+    }
     services: {
         key: 22
         value: {
