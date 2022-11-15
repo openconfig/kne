@@ -87,6 +87,21 @@ func (n *Node) SpawnCLIConn() error {
 	return err
 }
 
+// Returns config required to configure gRPC service
+func (n *Node) GetGrpcConfig() []string {
+	return []string{
+		"set system services extension-service request-response grpc ssl hot-reloading",
+		"set system services extension-service request-response grpc ssl use-pki",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
+		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+		"commit",
+	}
+}
+
 // GenerateSelfSigned generates a self-signed TLS certificate using Junos PKI
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
@@ -140,18 +155,8 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		}
 	}
 
-	cfgs := []string{
-		"set system services extension-service request-response grpc ssl hot-reloading",
-		"set system services extension-service request-response grpc ssl use-pki",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
-		"commit",
-	}
-	resp, err := n.cliConn.SendConfigs(cfgs)
+	// Send gRPC config
+	resp, err := n.cliConn.SendConfigs(n.GetGrpcConfig())
 	if err != nil {
 		return err
 	}
@@ -243,16 +248,36 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		"load override /var/vmguest/config/juniper.conf",
 		"commit",
 	}
-	resp, err := n.cliConn.SendConfigs(cfgs)
+	multiresp, err := n.cliConn.SendConfigs(cfgs)
 	if err != nil {
 		return err
 	}
-
-	if resp.Failed == nil {
-		log.Infof("%s - finshed resetting config", n.Name())
+	for _, resp := range multiresp.Responses {
+		if resp.Failed != nil {
+			return resp.Failed
+		}
+		if strings.Contains(resp.Result, "error:") {
+			return fmt.Errorf("failed sending config-reset commands: %s", multiresp.JoinedResult())
+		}
 	}
 
-	return resp.Failed
+	// Reset applies factory config which doesn't contain gRPC config
+	// send gRPC config
+	multiresp, err = n.cliConn.SendConfigs(n.GetGrpcConfig())
+	if err != nil {
+		return err
+	}
+	for _, resp := range multiresp.Responses {
+		if resp.Failed != nil {
+			return resp.Failed
+		}
+		if strings.Contains(resp.Result, "error:") {
+			return fmt.Errorf("failed sending gRPC commands: %s", multiresp.JoinedResult())
+		}
+	}
+
+	log.Infof("%s - finished resetting config", n.Name())
+	return nil
 }
 
 func (n *Node) Create(ctx context.Context) error {

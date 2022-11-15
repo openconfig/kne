@@ -1,0 +1,80 @@
+root@cptx2>
+
+root@cptx2> set cli screen-width 511
+Screen width set to 511
+
+root@cptx2> set cli screen-length 0
+Screen length set to 0
+
+root@cptx2> set cli complete-on-space off
+Disabling complete-on-space
+
+root@cptx2> configure
+Entering configuration mode
+
+[edit]
+root@cptx2#
+root@cptx2# load override /var/vmguest/config/juniper.conf
+
+[edit]
+root@cptx2#
+root@cptx2# commit
+/var/vmguest/config/juniper.conf:1:(4) syntax error: abcd
+  [edit]
+    'abcd'
+      syntax error
+load complete (1 errors)
+
+[edit]
+root@cptx2#
+root@cptx2# exit configuration-mode
+Exiting configuration mode
+
+root@cptx2> exit
+
+root@cptx2> configure
+Entering configuration mode
+
+[edit]
+root@cptx2#
+root@cptx2# set system services extension-service request-response grpc ssl hot-reloading
+
+[edit]
+root@cptx2#
+root@cptx2# set system services extension-service request-response grpc ssl use-pki
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert
+
+[edit]
+root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0
+
+[edit]
+root@cptx2#
+root@cptx2# commit
+commit complete
+
+[edit]
+root@cptx2#
+root@cptx2# exit configuration-mode
+Exiting configuration mode
+
+root@cptx2> exit
