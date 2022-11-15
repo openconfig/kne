@@ -156,8 +156,8 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return err
 	}
 
-	if resp.Failed == nil {
-		log.Infof("%s - finshed resetting config", n.Name())
+	if resp.Failed != nil {
+		return resp.Failed
 	}
 
 	log.Infof("%s - finished cert generation", n.Name())
