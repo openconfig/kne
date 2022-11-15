@@ -1,0 +1,23 @@
+# external.yaml cluster config file sets up ingress, cni, and controllers in an existing k8 cluster.
+# The "external" cluster lifecycle is not managed by the KNE deployment.
+cluster:
+  kind: External
+ingress:
+  kind: MetalLB
+  spec:
+    manifests: ../../manifests/metallb
+    ip_count: 100
+cni:
+  kind: Meshnet
+  spec:
+    manifests: ../../manifests/meshnet
+controllers:
+  - kind: IxiaTG
+    spec:
+      manifests: ../../manifests/controllers/ixiatg
+  - kind: SRLinux
+    spec:
+      manifests: ../../manifests/controllers/srlinux
+  - kind: CEOSLab
+    spec:
+      manifests: ../../manifests/controllers/ceoslab
