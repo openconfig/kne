@@ -5,7 +5,6 @@ nodes: {
     model: "cptx"
     os: "evo"
     config: {
-      image: "cptx:test"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
       file: "juniper.config"
