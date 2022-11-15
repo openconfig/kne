@@ -109,7 +109,9 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		}
 		d.Cluster = k
 	case *cpb.CreateClusterRequest_External:
-		d.Cluster = &deploy.ExternalSpec{}
+		d.Cluster = &deploy.ExternalSpec{
+			Network: req.GetExternal().Network,
+		}
 	default:
 		return nil, fmt.Errorf("cluster type not supported: %T", t)
 	}

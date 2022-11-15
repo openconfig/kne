@@ -250,7 +250,9 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 	return nil
 }
 
-type ExternalSpec struct{}
+type ExternalSpec struct {
+	Network string `yaml:"network"`
+}
 
 func (e *ExternalSpec) Deploy(ctx context.Context) error {
 	log.Infof("Deploy is a no-op for the external cluster type")
@@ -274,7 +276,7 @@ func (e *ExternalSpec) GetName() string {
 }
 
 func (e *ExternalSpec) GetDockerNetworkResourceName() string {
-	return ""
+	return e.Network
 }
 
 type KindSpec struct {
