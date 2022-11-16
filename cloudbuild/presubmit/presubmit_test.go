@@ -1,13 +1,13 @@
 package presubmit_test
 
 import (
-	// "context"
-	// "io"
+	"context"
+	"io"
 	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	// gpb "github.com/openconfig/gribi/v1/proto/service"
+	gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 )
@@ -21,96 +21,50 @@ func lookupTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	sys := dut.Telemetry().System().Lookup(t)
 	if !sys.IsPresent() {
-		t.Fatalf("No System telemetry for %v", dut)
+		t.Fatalf("gNMI failure: no System telemetry for %v", dut)
 	}
 }
 
-func TestGNMICEOS(t *testing.T) {
+// fetchAFTEntries checks for AFT entries using gRIBI for a DUT.
+func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	c := dut.RawAPIs().GRIBI().New(t)
+	req := &gpb.GetRequest{
+		NetworkInstance: &gpb.GetRequest_All{},
+		Aft:             gpb.AFTType_ALL,
+	}
+	stream, err := c.Get(context.Background(), req)
+	if err != nil {
+		t.Fatalf("gRIBI failure: Get request failed: %v", err)
+	}
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("gRIBI failure: failed to recv from stream: %v", err)
+		}
+		t.Logf("Got AFT entries: %v", resp.GetEntry())
+	}
+}
+
+func TestCEOS(t *testing.T) {
 	dut := ondatra.DUT(t, "ceos")
 	lookupTelemetry(t, dut)
 }
 
-func TestGNMICTPX(t *testing.T) {
+func TestCTPX(t *testing.T) {
+	dut := ondatra.DUT(t, "cptx")
+	lookupTelemetry(t, dut)
+	fetchAFTEntries(t, dut)
+}
+
+func TestSRL(t *testing.T) {
 	t.Skip()
 }
 
-func TestGNMISRL(t *testing.T) {
-	t.Skip()
-}
-
-func TestGNMIXRD(t *testing.T) {
-	t.Skip()
-}
-
-func TestGNOICEOS(t *testing.T) {
-	t.Skip()
-}
-
-func TestGNOICTPX(t *testing.T) {
-	t.Skip()
-}
-
-func TestGNOISRL(t *testing.T) {
-	t.Skip()
-}
-
-func TestGNOIXRD(t *testing.T) {
-	t.Skip()
-}
-
-// fetchAFTEntries checks for AFT entries using gRIBI for a DUT.
-// func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
-//	t.Helper()
-//	c := dut.RawAPIs().GRIBI().New(t)
-//	req := &gpb.GetRequest{
-//		NetworkInstance: &gpb.GetRequest_All{},
-//		Aft:             gpb.AFTType_ALL,
-//	}
-//	stream, err := c.Get(context.Background(), req)
-//	if err != nil {
-//		t.Fatalf("gRIBI Get request failed: %v", err)
-//	}
-//	for {
-//		resp, err := stream.Recv()
-//		if err == io.EOF {
-//			break
-//		}
-//		if err != nil {
-//			t.Fatalf("failed to recv from stream: %v", err)
-//		}
-//		t.Logf("Got AFT entries: %v", resp.GetEntry())
-//	}
-// }
-
-func TestGRIBICEOS(t *testing.T) {
-	t.Skip()
-}
-
-func TestGRIBICTPX(t *testing.T) {
-	t.Skip()
-}
-
-func TestGRIBISRL(t *testing.T) {
-	t.Skip()
-}
-
-func TestGRIBIXRD(t *testing.T) {
-	t.Skip()
-}
-
-func TestP4RTCEOS(t *testing.T) {
-	t.Skip()
-}
-
-func TestP4RTCPTX(t *testing.T) {
-	t.Skip()
-}
-
-func TestP4RTSRL(t *testing.T) {
-	t.Skip()
-}
-
-func TestP4RTXRD(t *testing.T) {
+func TestXRD(t *testing.T) {
 	t.Skip()
 }
 
