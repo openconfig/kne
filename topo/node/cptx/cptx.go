@@ -88,7 +88,7 @@ func (n *Node) SpawnCLIConn() error {
 }
 
 // Returns config required to configure gRPC service
-func (n *Node) GetGrpcConfig() []string {
+func (n *Node) GRPCConfig() []string {
 	return []string{
 		"set system services extension-service request-response grpc ssl hot-reloading",
 		"set system services extension-service request-response grpc ssl use-pki",
@@ -156,7 +156,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	}
 
 	// Send gRPC config
-	resp, err := n.cliConn.SendConfigs(n.GetGrpcConfig())
+	resp, err := n.cliConn.SendConfigs(n.GRPCConfig())
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 
 	// Reset applies factory config which doesn't contain gRPC config
 	// send gRPC config
-	multiresp, err = n.cliConn.SendConfigs(n.GetGrpcConfig())
+	multiresp, err = n.cliConn.SendConfigs(n.GRPCConfig())
 	if err != nil {
 		return err
 	}
