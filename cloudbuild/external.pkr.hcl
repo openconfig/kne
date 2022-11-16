@@ -101,14 +101,10 @@ build {
       "curl --create-dirs -o third_party/licenses/flannel/LICENSE https://raw.githubusercontent.com/flannel-io/flannel/master/LICENSE",
       "git clone https://github.com/Mirantis/cri-dockerd.git",
       "cd cri-dockerd",
-      "echo Checking go license for cri-dockerd",
       "PATH=$PATH:/usr/local/go/bin",
       "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",
-      "echo Saving go license for cri-dockerd",
       "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\"",
-      "echo Building cri-dockerd",
-      "/usr/local/go/bin/go build -v",
-      "echo Moving cri-dockerd",
+      "/usr/local/go/bin/go build",
       "sudo cp cri-dockerd /usr/local/bin/",
       "sudo cp -a packaging/systemd/* /etc/systemd/system",
       "sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service",
@@ -135,10 +131,10 @@ build {
       "/home/$USER/go/bin/go-licenses check github.com/openconfig/kne/kne_cli",
       "/home/$USER/go/bin/go-licenses save github.com/openconfig/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\"",
       "cd kne_cli",
-      "/usr/local/go/bin/go build -v -o kne",
+      "/usr/local/go/bin/go build -o kne",
       "sudo cp kne /usr/local/bin/",
       "cd ../controller/server",
-      "/usr/local/go/bin/go build -v",
+      "/usr/local/go/bin/go build",
     ]
   }
 
