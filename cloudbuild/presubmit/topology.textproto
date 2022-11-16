@@ -36,6 +36,30 @@ nodes: {
       }
     }
   }
+  interfaces: {
+    key: "eth4"
+    value: {
+      name: "et-0/0/0"
+    }
+  }
+  interfaces: {
+    key: "eth5"
+    value: {
+      name: "et-0/0/1"
+    }
+  }
+  interfaces: {
+    key: "eth6"
+    value: {
+      name: "et-0/0/2"
+    }
+  }
+  interfaces: {
+    key: "eth7"
+    value: {
+      name: "et-0/0/3"
+    }
+  }
   services: {
     key: 22
     value: {
@@ -73,30 +97,6 @@ nodes: {
       name: "p4rt"
       outside: 9559
       inside: 32767
-    }
-  }
-  interfaces: {
-    key: "eth4"
-    value: {
-      name: "et-0/0/0"
-    }
-  }
-  interfaces: {
-    key: "eth5"
-    value: {
-      name: "et-0/0/1"
-    }
-  }
-  interfaces: {
-    key: "eth6"
-    value: {
-      name: "et-0/0/2"
-    }
-  }
-  interfaces: {
-    key: "eth7"
-    value: {
-      name: "et-0/0/3"
     }
   }
 }
