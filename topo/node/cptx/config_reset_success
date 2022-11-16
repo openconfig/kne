@@ -9,16 +9,24 @@ Screen length set to 0
 root@cptx2> set cli complete-on-space off
 Disabling complete-on-space
 
-root@cptx2> request security pki generate-key-pair certificate-id grpc-server-cert
-error: Command aborted as key pair already exists. Retry after clearing the existing key pair
+root@cptx2> configure
+Entering configuration mode
 
-root@cptx2> request security pki local-certificate generate-self-signed certificate-id grpc-server-cert subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com
-error: Command aborted as certificate already exists. Retry after clearing the existing certificate.
+[edit]
+root@cptx2#
+root@cptx2# load override /var/vmguest/config/juniper.conf
 
-root@cptx2>
-root@cptx2>exit
+[edit]
+root@cptx2#
+root@cptx2# commit
+commit complete
 
-root@cptx2>
+[edit]
+root@cptx2#
+root@cptx2# exit configuration-mode
+Exiting configuration mode
+
+root@cptx2> exit
 
 root@cptx2> configure
 Entering configuration mode

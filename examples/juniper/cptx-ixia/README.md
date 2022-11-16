@@ -85,7 +85,7 @@ $ gnmic -a 172.18.0.100:9339 -u root -p Google123 --encoding json_ietf   get --p
               "gRPC-server": [
                 {
                   "config": {
-                    "certificate-id": "ca-ipsec",
+                    "certificate-id": "grpc-server-cert",
                     "enable": true,
                     "listen-addresses": [
                       "0.0.0.0"
