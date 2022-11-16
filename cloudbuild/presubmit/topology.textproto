@@ -107,6 +107,70 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
     file: "srl.cfg.json"
   }
+  interfaces: {
+    key: "eth1"
+    value: {
+      name: "ethernet-1/1"
+    }
+  }
+  interfaces: {
+    key: "eth2"
+    value: {
+      name: "ethernet-1/2"
+    }
+  }
+  interfaces: {
+    key: "eth3"
+    value: {
+      name: "ethernet-1/3"
+    }
+  }
+  interfaces: {
+    key: "eth4"
+    value: {
+      name: "ethernet-1/4"
+    }
+  }
+  services: {
+    key: 22
+    value: {
+      name: "ssh"
+      inside: 22
+      outside: 22
+    }
+  }
+  services: {
+    key: 9337
+    value: {
+      name: "gnoi"
+      inside: 57400
+      outside: 9337
+    }
+  }
+  services: {
+    key: 9339
+    value: {
+      name: "gnmi"
+      inside: 57400
+      outside: 9339
+    }
+  }
+  services: {
+    key: 9340
+    value: {
+      name: "gribi"
+      inside: 57401
+      outside: 9340
+    }
+  }
+  services: {
+    key: 9559
+    value: {
+      name: "p4rt"
+      inside: 9559
+      outside: 9559
+    }
+  }
 }
 nodes: {
   name: "xrd"

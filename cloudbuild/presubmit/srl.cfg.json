@@ -2122,6 +2122,11 @@
     }
   ],
   "srl_nokia-system:system": {
+    "management": {
+      "srl_nokia-openconfig:openconfig": {
+        "admin-state": "enable"
+      }
+    },
     "srl_nokia-aaa:aaa": {
       "authentication": {
         "idle-timeout": 7200,

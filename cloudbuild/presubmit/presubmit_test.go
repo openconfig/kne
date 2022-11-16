@@ -61,7 +61,9 @@ func TestCTPX(t *testing.T) {
 }
 
 func TestSRL(t *testing.T) {
-	t.Skip()
+	dut := ondatra.DUT(t, "srl")
+	lookupTelemetry(t, dut)
+	fetchAFTEntries(t, dut)
 }
 
 func TestXRD(t *testing.T) {
