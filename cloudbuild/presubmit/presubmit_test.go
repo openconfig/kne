@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	// gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 )
 
@@ -19,7 +20,7 @@ func TestMain(m *testing.M) {
 // lookupTelemetry checks for system telemetry for a DUT.
 func lookupTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	sys := dut.Telemetry().System().Lookup(t)
+	sys := gnmi.Lookup(t, dut, gnmi.OC().System().State())
 	if !sys.IsPresent() {
 		t.Fatalf("No System telemetry for %v", dut)
 	}
@@ -123,7 +124,7 @@ func TestOTG(t *testing.T) {
 	cfg.Ports().Add().SetName("port4")
 	ate.OTG().PushConfig(t, cfg)
 
-	portNames := ate.OTG().Telemetry().PortAny().Name().Get(t)
+	portNames := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Name().State())
 	sort.Strings(portNames)
 	if want := []string{"port1", "port2", "port3", "port4"}; !cmp.Equal(portNames, want) {
 		t.Errorf("Telemetry got port names %v, want %v", portNames, want)
