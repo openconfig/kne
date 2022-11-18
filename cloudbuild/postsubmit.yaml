@@ -20,7 +20,7 @@ steps:
     ]
     waitFor: ["-"] # run the builds concurrently
 
-timeout: 1800s
+timeout: 3600s
 
 substitutions:
   _ZONE: us-central1-b # default value
