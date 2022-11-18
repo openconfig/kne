@@ -1,4 +1,4 @@
-name: "150-node-ceos"
+name: "ceos-150"
 nodes: {
     name: "r1"
     vendor: ARISTA
