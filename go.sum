@@ -436,8 +436,8 @@ github.com/onsi/gomega v0.0.0-20170829124025-dcabb60a477c/go.mod h1:C1qb7wdrVGGV
 github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7JYyY=
 github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1ybHNo=
 github.com/onsi/gomega v1.19.0 h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=
-github.com/open-traffic-generator/ixia-c-operator v0.2.5 h1:V+xau9DiMsvbYt+9IVY/D6WAM1zHQvYM/uARwJCQ7Vk=
-github.com/open-traffic-generator/ixia-c-operator v0.2.5/go.mod h1:Q+ZXCinXxUKcnrJf5PJC1Q7JxUQc5ZPZA85jwVAqIRQ=
+github.com/open-traffic-generator/ixia-c-operator v0.2.6 h1:3PYAwtM7tX0QOdA8+7lzzClO4toHLyWcTcnfkJ8uVho=
+github.com/open-traffic-generator/ixia-c-operator v0.2.6/go.mod h1:Q+ZXCinXxUKcnrJf5PJC1Q7JxUQc5ZPZA85jwVAqIRQ=
 github.com/open-traffic-generator/snappi/gosnappi v0.9.5 h1:KHe9KDXnibkFYUq2LKhAERlfmmTjiN9s4mi6pSkNT5M=
 github.com/open-traffic-generator/snappi/gosnappi v0.9.5/go.mod h1:elsB41LK8QapLrlfZJucYrQhxEw3ylGo3JgKo8kerZI=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
