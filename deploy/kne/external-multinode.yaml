@@ -9,7 +9,7 @@ ingress:
   kind: MetalLB
   spec:
     manifests: ../../manifests/metallb
-    ip_count: 100
+    ip_count: 200
 cni:
   kind: Meshnet
   spec:
