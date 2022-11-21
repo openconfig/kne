@@ -89,8 +89,22 @@ build {
       "sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
       "echo \"deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install kubectl -y",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install kubelet kubeadm kubectl -y",
       "kubectl version --client",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing multinode cluster dependencies...",
+      "git clone https://github.com/flannel-io/flannel.git",
+      "git clone https://github.com/Mirantis/cri-dockerd.git",
+      "cd cri-dockerd",
+      "/usr/local/go/bin/go build",
+      "sudo cp cri-dockerd /usr/local/bin/",
+      "sudo cp -a packaging/systemd/* /etc/systemd/system",
+      "sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service",
+      "sudo systemctl enable cri-docker.socket",
     ]
   }
 
@@ -109,10 +123,10 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 install git -y",
       "git clone -b ${var.branch_name} https://github.com/openconfig/kne.git",
       "cd kne/kne_cli",
-      "/usr/local/go/bin/go build -v -o kne",
+      "/usr/local/go/bin/go build -o kne",
       "sudo cp kne /usr/local/bin/",
       "cd ../controller/server",
-      "/usr/local/go/bin/go build -v",
+      "/usr/local/go/bin/go build",
     ]
   }
 
@@ -131,7 +145,7 @@ build {
       "cd kne-internal",
       "/usr/local/go/bin/go get -d ./...",
       "cd proxy/server",
-      "/usr/local/go/bin/go build -v",
+      "/usr/local/go/bin/go build",
     ]
   }
 
