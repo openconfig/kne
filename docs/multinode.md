@@ -11,8 +11,8 @@ restricts a KNE user using kind (a single node cluster) to less than ~100 DUTs +
 ATE ports. For large testbeds, this is not an acceptable restriction.
 Additionally each device requires CPU and other resources shared from the host.
 
-A multi-node KNE cluster setup addresses these limitations through a controller
-+ worker(s) setup spread across multiple VMs.
+A multi-node KNE cluster setup addresses these limitations through a
+controller + worker(s) setup spread across multiple VMs.
 
 ![cluster nodes](https://d33wubrfki0l68.cloudfront.net/283cc20bb49089cb2ca54d51b4ac27720c1a7902/34424/docs/tutorials/kubernetes-basics/public/images/module_01_cluster.svg)
 
@@ -67,16 +67,16 @@ commands will set up a custom VPC with a known CIDR range in an existing GCP
 project.
 
 ```shell
-$ gcloud compute networks create multinode --subnet-mode custom
-$ gcloud compute networks subnets create multinode-nodes \
+gcloud compute networks create multinode --subnet-mode custom
+gcloud compute networks subnets create multinode-nodes \
   --network multinode \
   --range 10.240.0.0/24 \
   --region us-central1
-$ gcloud compute firewall-rules create multinode-allow-internal \
+gcloud compute firewall-rules create multinode-allow-internal \
   --allow tcp,udp,icmp,ipip \
   --network multinode \
   --source-ranges 10.240.0.0/24
-$ gcloud compute firewall-rules create multinode-allow-external \
+gcloud compute firewall-rules create multinode-allow-external \
   --allow tcp:22,tcp:6443,icmp \
   --network multinode \
   --source-ranges 0.0.0.0/0
@@ -96,8 +96,8 @@ required.
 Create an SSH key pair to use for all of the VMs created below:
 
 ```shell
-$ ssh-keygen -f /tmp/multinode-key -C user -N ""
-$ sed -i '1s/^/user:/' /tmp/multinode-key.pub
+ssh-keygen -f /tmp/multinode-key -C user -N ""
+sed -i '1s/^/user:/' /tmp/multinode-key.pub
 ```
 
 ##### Controller
@@ -106,7 +106,7 @@ Create the controller VM using the `gcloud` CLI. Note that the controller VM is
 assigned the internal IP address `10.240.0.11` in the custom VPC.
 
 ```shell
-$ gcloud compute instances create controller \
+gcloud compute instances create controller \
   --zone=us-central1-a \
   --image-project=kne-external \
   --image-family=kne \
@@ -122,22 +122,22 @@ $ gcloud compute instances create controller \
 SSH to the VM:
 
 ```shell
-$ ssh -i /tmp/multinode-key user@<EXTERNAL IP OF VM>
+ssh -i /tmp/multinode-key user@<EXTERNAL IP OF VM>
 ```
 
 Now run the following commands to setup the cluster:
 
 ```shell
-$ sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
-$ mkdir -p $HOME/.kube
-$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
 Setup the flannel pod networking add-on:
 
 ```shell
-$ kubectl apply -f flannel/Documentation/kube-flannel.yml
+kubectl apply -f flannel/Documentation/kube-flannel.yml
 ```
 
 ##### Workers
@@ -146,7 +146,7 @@ For the purposes of this CodeLab, create 2 worker VMs. Run this command 2 times
 replacing `{n}` with `1` and `2`.
 
 ```shell
-$ gcloud compute instances create worker-{n} \
+gcloud compute instances create worker-{n} \
   --zone=us-central1-a \
   --image-project=kne-external \
   --image-family=kne \
@@ -162,14 +162,14 @@ $ gcloud compute instances create worker-{n} \
 SSH to each VM:
 
 ```shell
-$ ssh -i /tmp/multinode-key user@<EXTERNAL IP OF VM>
+ssh -i /tmp/multinode-key user@<EXTERNAL IP OF VM>
 ```
 
 And run the following command, using the token and SHA output from cluster setup
 on the controller VM:
 
 ```shell
-$ sudo kubeadm join 10.240.0.11:6443 \
+sudo kubeadm join 10.240.0.11:6443 \
   --token {token} \
   --discovery-token-ca-cert-hash sha256:{sha} \
   --cri-socket unix:///var/run/cri-dockerd.sock
@@ -180,7 +180,7 @@ $ sudo kubeadm join 10.240.0.11:6443 \
 SSH to the VM acting as the controller. Confirm that the worker nodes all
 successfully joined the cluster:
 
-```shell {.no-copy}
+```shell
 $ kubectl get nodes
 NAME         STATUS   ROLES           AGE     VERSION
 controller   Ready    control-plane   4m37s   v1.25.4
@@ -191,27 +191,27 @@ worker-2     Ready    <none>          110s    v1.25.4
 Create a new docker network for use in the cluster:
 
 ```shell
-$ docker network create multinode
+docker network create multinode
 ```
 
 Now deploy the KNE dependencies (CNI, ingress, vendor controllers):
 
 ```shell
-$ kne deploy kne/deploy/kne/external-multinode.yaml
+kne deploy kne/deploy/kne/external-multinode.yaml
 ```
 
-IMPORTANT: Contact Arista to get access to the cEOS image.
+> IMPORTANT: Contact Arista to get access to the cEOS image.
 
 Create the 150 node cEOS topology:
 
 ```shell
-$ kne create kne/examples/arista/ceos-150/ceos-150.pb.txt
+kne create kne/examples/arista/ceos-150/ceos-150.pb.txt
 ```
 
 Open a second terminal on the controller VM to track the topology creation
 progress:
 
-```shell {.no-copy}
+```shell
 $ kubectl get pods -n ceos-150 -o wide --watch
 NAME   READY   STATUS     RESTARTS   AGE     IP             NODE       NOMINATED NODE   READINESS GATES
 r1     1/1     Running    0          9m22s   10.244.1.66    worker-1   <none>           <none>
@@ -240,9 +240,9 @@ github.com/openconfig/gnmi/cmd/gnmi_cli@latest` if the CLI is missing from the
 VM.
 
 ```shell
-$ export GNMI_USER=admin
-$ export GNMI_PASS=admin
-$ gnmi_cli -a <service external ip>:6030 -q "/interfaces/interface/state" -tls_skip_verify -with_user_pass
+export GNMI_USER=admin
+export GNMI_PASS=admin
+gnmi_cli -a <service external ip>:6030 -q "/interfaces/interface/state" -tls_skip_verify -with_user_pass
 ```
 
 ## Troubleshooting
@@ -253,7 +253,7 @@ If the topology being deployed has too many pods for number of worker nodes, you
 may see a warning event like below when waiting for a `Pending` pod with no
 assigned node:
 
-```shell {.no-copy}
+```shell
 $ kubectl describe pods r25 -n ceos-150
 ...
 Events:
@@ -275,7 +275,7 @@ with a pool of 200 unique external IP addresses. If your topology has more than
 200 nodes then this issue will be seen. Increase the value to accommodate your
 number of nodes, and redeploy.
 
-```shell {.no-copy}
+```shell
 $ kubectl get services -n ceos-150
 NAME           TYPE           CLUSTER-IP       EXTERNAL-IP    PORT(S)                                     AGE
 service-r1     LoadBalancer   10.106.154.237   172.18.0.110   6030:31407/TCP,22:30550/TCP,443:30990/TCP   29m
