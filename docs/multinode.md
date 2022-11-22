@@ -19,9 +19,8 @@ A multi-node KNE cluster setup addresses these limitations through a controller
 In this cluster diagram we can see that there is a single central `Control
 Plane` along with 3 `Nodes`.
 
-This guide will show you how to use KNE on an
-existing multi-node cluster, as well as provide steps to setup a multi-node
-cluster on GCP.
+This guide will show you how to use KNE on an existing multi-node cluster, as
+well as provide steps to setup a multi-node cluster on GCP.
 
 ### External cluster type
 
@@ -29,16 +28,15 @@ The `kne deploy` command is used to setup a cluster as well as ingress, CNI, and
 vendor controllers inside the cluster. For a multi-node cluster we will be using
 the `External` cluster type in the deployment config.
 
-`External` is essentially a no-op cluster type. It is assumed a k8s
-cluster has already been deployed. In this case, KNE
-does no cluster lifecycle management. KNE only setups the dependencies. This guide will show you how to utilize
-the `External` cluster type option to get KNE up an running on a multi-node
-cluster.
+`External` is essentially a no-op cluster type. It is assumed a k8s cluster has
+already been deployed. In this case, KNE does no cluster lifecycle management.
+KNE only setups the dependencies. This guide will show you how to utilize the
+`External` cluster type option to get KNE up an running on a multi-node cluster.
 
-The `kne` CLI will be run on the host of the controller VM and the created topology will
-be automatically provisioned across the worker nodes depending on available
-resources on each. This setup can easily be scaled up by adding more worker VMs
-with increased resources (CPU, etc.).
+The `kne` CLI will be run on the host of the controller VM and the created
+topology will be automatically provisioned across the worker nodes depending on
+available resources on each. This setup can easily be scaled up by adding more
+worker VMs with increased resources (CPU, etc.).
 
 To conclude this guide we will bring up a
 [150 node topology](https://github.com/openconfig/kne/blob/main/examples/arista/ceos-150/ceos-150.pb.txt)
@@ -46,19 +44,21 @@ in our multi-node cluster.
 
 ## Create a topology in a multi-node cluster
 
-This guide assumes a multi-node cluster has already been set up. The cluster should adhere to these restrictions:
+This guide assumes a multi-node cluster has already been set up. The cluster
+should adhere to these restrictions:
 
--
--
--
+- Use a pod networking add-on [compatible with MetalLB](https://metallb.universe.tf/installation/network-addons/)
+- Use dockerd as the [CRI](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-runtime)
 
-The following optional section shows how to create a multi-node cluster using `kubeadm` on GCP. Skip directly
-to the topology creation step if your existing cluster adheres to the above
-guidelines.
+The following optional section shows how to create a multi-node cluster using
+`kubeadm` on GCP. Skip directly to the
+[topology creation step](#topology-creation) if your existing cluster adheres to
+the above guidelines.
 
 ### Cluster setup
 
-Using GCP we will create a 3 VM setup, 1 VM serving as the `Control Plane` + 2 VMs each serving as a worker `Node`.
+Using GCP we will create a 3 VM setup, 1 VM serving as the `Control Plane` + 2
+VMs each serving as a worker `Node`.
 
 #### VPC
 
@@ -108,7 +108,8 @@ assigned the internal IP address `10.240.0.11` in the custom VPC.
 ```shell
 $ gcloud compute instances create controller \
   --zone=us-central1-a \
-  --image= \
+  --image-project=kne-external \
+  --image-family=kne \
   --machine-type=n2-standard-8 \
   --enable-nested-virtualization \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
@@ -139,12 +140,6 @@ Setup the flannel pod networking add-on:
 $ kubectl apply -f flannel/Documentation/kube-flannel.yml
 ```
 
-Finally, create a new docker network for use in the cluster:
-
-```shell
-$ docker network create multinode
-```
-
 ##### Workers
 
 For the purposes of this CodeLab, create 2 worker VMs. Run this command 2 times
@@ -153,7 +148,8 @@ replacing `{n}` with `1` and `2`.
 ```shell
 $ gcloud compute instances create worker-{n} \
   --zone=us-central1-a \
-  --image= \
+  --image-project=kne-external \
+  --image-family=kne \
   --machine-type=n2-standard-64 \
   --enable-nested-virtualization \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
@@ -181,13 +177,8 @@ $ sudo kubeadm join 10.240.0.11:6443 \
 
 ### Topology Creation
 
-SSH to the controller VM:
-
-```shell
-$ ssh -i /tmp/multinode-key user@<EXTERNAL IP OF VM>
-```
-
-First confirm that the worker nodes all successfully joined the cluster:
+SSH to the VM acting as the controller. Confirm that the worker nodes all
+successfully joined the cluster:
 
 ```shell {.no-copy}
 $ kubectl get nodes
@@ -197,13 +188,19 @@ worker-1     Ready    <none>          134s    v1.25.4
 worker-2     Ready    <none>          110s    v1.25.4
 ```
 
+Create a new docker network for use in the cluster:
+
+```shell
+$ docker network create multinode
+```
+
 Now deploy the KNE dependencies (CNI, ingress, vendor controllers):
 
 ```shell
 $ kne deploy kne/deploy/kne/external-multinode.yaml
 ```
 
-IMPORTANT: Contact arista to get access to the cEOS image.
+IMPORTANT: Contact Arista to get access to the cEOS image.
 
 Create the 150 node cEOS topology:
 
