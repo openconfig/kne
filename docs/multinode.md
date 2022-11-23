@@ -93,6 +93,14 @@ These tools are already installed on the KNE VM image built on ubuntu. The
 created VMs in the next step will use this base image to reduce the manual setup
 required.
 
+Import the KNE VM image:
+
+```shell
+gcloud compute images import kne-09f70847-9623-4536-8430-1f42df18fd94 \
+  --os=ubuntu-2004 \
+  --source-file=gs://kne-vm-image/09f70847-9623-4536-8430-1f42df18fd94.tar.gz
+```
+
 Create an SSH key pair to use for all of the VMs created below:
 
 ```shell
@@ -108,8 +116,7 @@ assigned the internal IP address `10.240.0.11` in the custom VPC.
 ```shell
 gcloud compute instances create controller \
   --zone=us-central1-a \
-  --image-project=kne-external \
-  --image-family=kne \
+  --image=kne-09f70847-9623-4536-8430-1f42df18fd94 \
   --machine-type=n2-standard-8 \
   --enable-nested-virtualization \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
@@ -148,8 +155,7 @@ replacing `{n}` with `1` and `2`.
 ```shell
 gcloud compute instances create worker-{n} \
   --zone=us-central1-a \
-  --image-project=kne-external \
-  --image-family=kne \
+  --image=kne-09f70847-9623-4536-8430-1f42df18fd94 \
   --machine-type=n2-standard-64 \
   --enable-nested-virtualization \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
