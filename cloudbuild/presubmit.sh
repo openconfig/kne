@@ -37,8 +37,20 @@ popd
 # Run an ondatra test
 pushd "$HOME/kne/cloudbuild/presubmit"
 cat >config.yaml << EOF
-username: admin
-password: admin
+credentials:
+  vendor:
+    ARISTA:
+      username: admin
+      password: admin
+    JUNIPER:
+      username: root
+      password: Google123
+    NOKIA:
+      username: admin
+      password: NokiaSrl1!
+    CISCO:
+      username: cisco
+      password: cisco123
 topology: ${HOME}/kne/cloudbuild/presubmit/topology.textproto
 skip_reset: true
 EOF
