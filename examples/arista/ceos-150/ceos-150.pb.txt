@@ -1,0 +1,3601 @@
+name: "ceos-150"
+nodes: {
+    name: "r1"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r2"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r3"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r4"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r5"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r6"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r7"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r8"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r9"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r10"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r11"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r12"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r13"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r14"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r15"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r16"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r17"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r18"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r19"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r20"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r21"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r22"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r23"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r24"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r25"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r26"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r27"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r28"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r29"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r30"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r31"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r32"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r33"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r34"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r35"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r36"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r37"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r38"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r39"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r40"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r41"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r42"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r43"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r44"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r45"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r46"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r47"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r48"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r49"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r50"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r51"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r52"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r53"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r54"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r55"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r56"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r57"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r58"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r59"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r60"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r61"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r62"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r63"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r64"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r65"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r66"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r67"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r68"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r69"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r70"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r71"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r72"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r73"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r74"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r75"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r76"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r77"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r78"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r79"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r80"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r81"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r82"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r83"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r84"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r85"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r86"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r87"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r88"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r89"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r90"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r91"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r92"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r93"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r94"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r95"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r96"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r97"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r98"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r99"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r100"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r101"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r102"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r103"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r104"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r105"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r106"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r107"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r108"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r109"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r110"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r111"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r112"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r113"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r114"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r115"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r116"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r117"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r118"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r119"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r120"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r121"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r122"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r123"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r124"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r125"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r126"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r127"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r128"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r129"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r130"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r131"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r132"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r133"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r134"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r135"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r136"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r137"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r138"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r139"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r140"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r141"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r142"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r143"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r144"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r145"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r146"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r147"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r148"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r149"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+nodes: {
+    name: "r150"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+}
+links: {
+    a_node: "r1"
+    a_int: "eth1"
+    z_node: "r2"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r2"
+    a_int: "eth1"
+    z_node: "r3"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r3"
+    a_int: "eth1"
+    z_node: "r4"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r4"
+    a_int: "eth1"
+    z_node: "r5"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r5"
+    a_int: "eth1"
+    z_node: "r6"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r6"
+    a_int: "eth1"
+    z_node: "r7"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r7"
+    a_int: "eth1"
+    z_node: "r8"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r8"
+    a_int: "eth1"
+    z_node: "r9"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r9"
+    a_int: "eth1"
+    z_node: "r10"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r10"
+    a_int: "eth1"
+    z_node: "r11"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r11"
+    a_int: "eth1"
+    z_node: "r12"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r12"
+    a_int: "eth1"
+    z_node: "r13"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r13"
+    a_int: "eth1"
+    z_node: "r14"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r14"
+    a_int: "eth1"
+    z_node: "r15"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r15"
+    a_int: "eth1"
+    z_node: "r16"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r16"
+    a_int: "eth1"
+    z_node: "r17"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r17"
+    a_int: "eth1"
+    z_node: "r18"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r18"
+    a_int: "eth1"
+    z_node: "r19"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r19"
+    a_int: "eth1"
+    z_node: "r20"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r20"
+    a_int: "eth1"
+    z_node: "r21"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r21"
+    a_int: "eth1"
+    z_node: "r22"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r22"
+    a_int: "eth1"
+    z_node: "r23"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r23"
+    a_int: "eth1"
+    z_node: "r24"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r24"
+    a_int: "eth1"
+    z_node: "r25"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r25"
+    a_int: "eth1"
+    z_node: "r26"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r26"
+    a_int: "eth1"
+    z_node: "r27"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r27"
+    a_int: "eth1"
+    z_node: "r28"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r28"
+    a_int: "eth1"
+    z_node: "r29"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r29"
+    a_int: "eth1"
+    z_node: "r30"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r30"
+    a_int: "eth1"
+    z_node: "r31"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r31"
+    a_int: "eth1"
+    z_node: "r32"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r32"
+    a_int: "eth1"
+    z_node: "r33"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r33"
+    a_int: "eth1"
+    z_node: "r34"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r34"
+    a_int: "eth1"
+    z_node: "r35"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r35"
+    a_int: "eth1"
+    z_node: "r36"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r36"
+    a_int: "eth1"
+    z_node: "r37"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r37"
+    a_int: "eth1"
+    z_node: "r38"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r38"
+    a_int: "eth1"
+    z_node: "r39"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r39"
+    a_int: "eth1"
+    z_node: "r40"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r40"
+    a_int: "eth1"
+    z_node: "r41"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r41"
+    a_int: "eth1"
+    z_node: "r42"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r42"
+    a_int: "eth1"
+    z_node: "r43"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r43"
+    a_int: "eth1"
+    z_node: "r44"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r44"
+    a_int: "eth1"
+    z_node: "r45"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r45"
+    a_int: "eth1"
+    z_node: "r46"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r46"
+    a_int: "eth1"
+    z_node: "r47"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r47"
+    a_int: "eth1"
+    z_node: "r48"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r48"
+    a_int: "eth1"
+    z_node: "r49"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r49"
+    a_int: "eth1"
+    z_node: "r50"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r50"
+    a_int: "eth1"
+    z_node: "r51"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r51"
+    a_int: "eth1"
+    z_node: "r52"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r52"
+    a_int: "eth1"
+    z_node: "r53"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r53"
+    a_int: "eth1"
+    z_node: "r54"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r54"
+    a_int: "eth1"
+    z_node: "r55"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r55"
+    a_int: "eth1"
+    z_node: "r56"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r56"
+    a_int: "eth1"
+    z_node: "r57"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r57"
+    a_int: "eth1"
+    z_node: "r58"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r58"
+    a_int: "eth1"
+    z_node: "r59"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r59"
+    a_int: "eth1"
+    z_node: "r60"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r60"
+    a_int: "eth1"
+    z_node: "r61"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r61"
+    a_int: "eth1"
+    z_node: "r62"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r62"
+    a_int: "eth1"
+    z_node: "r63"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r63"
+    a_int: "eth1"
+    z_node: "r64"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r64"
+    a_int: "eth1"
+    z_node: "r65"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r65"
+    a_int: "eth1"
+    z_node: "r66"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r66"
+    a_int: "eth1"
+    z_node: "r67"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r67"
+    a_int: "eth1"
+    z_node: "r68"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r68"
+    a_int: "eth1"
+    z_node: "r69"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r69"
+    a_int: "eth1"
+    z_node: "r70"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r70"
+    a_int: "eth1"
+    z_node: "r71"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r71"
+    a_int: "eth1"
+    z_node: "r72"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r72"
+    a_int: "eth1"
+    z_node: "r73"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r73"
+    a_int: "eth1"
+    z_node: "r74"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r74"
+    a_int: "eth1"
+    z_node: "r75"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r75"
+    a_int: "eth1"
+    z_node: "r76"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r76"
+    a_int: "eth1"
+    z_node: "r77"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r77"
+    a_int: "eth1"
+    z_node: "r78"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r78"
+    a_int: "eth1"
+    z_node: "r79"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r79"
+    a_int: "eth1"
+    z_node: "r80"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r80"
+    a_int: "eth1"
+    z_node: "r81"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r81"
+    a_int: "eth1"
+    z_node: "r82"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r82"
+    a_int: "eth1"
+    z_node: "r83"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r83"
+    a_int: "eth1"
+    z_node: "r84"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r84"
+    a_int: "eth1"
+    z_node: "r85"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r85"
+    a_int: "eth1"
+    z_node: "r86"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r86"
+    a_int: "eth1"
+    z_node: "r87"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r87"
+    a_int: "eth1"
+    z_node: "r88"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r88"
+    a_int: "eth1"
+    z_node: "r89"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r89"
+    a_int: "eth1"
+    z_node: "r90"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r90"
+    a_int: "eth1"
+    z_node: "r91"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r91"
+    a_int: "eth1"
+    z_node: "r92"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r92"
+    a_int: "eth1"
+    z_node: "r93"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r93"
+    a_int: "eth1"
+    z_node: "r94"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r94"
+    a_int: "eth1"
+    z_node: "r95"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r95"
+    a_int: "eth1"
+    z_node: "r96"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r96"
+    a_int: "eth1"
+    z_node: "r97"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r97"
+    a_int: "eth1"
+    z_node: "r98"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r98"
+    a_int: "eth1"
+    z_node: "r99"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r99"
+    a_int: "eth1"
+    z_node: "r100"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r100"
+    a_int: "eth1"
+    z_node: "r101"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r101"
+    a_int: "eth1"
+    z_node: "r102"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r102"
+    a_int: "eth1"
+    z_node: "r103"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r103"
+    a_int: "eth1"
+    z_node: "r104"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r104"
+    a_int: "eth1"
+    z_node: "r105"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r105"
+    a_int: "eth1"
+    z_node: "r106"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r106"
+    a_int: "eth1"
+    z_node: "r107"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r107"
+    a_int: "eth1"
+    z_node: "r108"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r108"
+    a_int: "eth1"
+    z_node: "r109"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r109"
+    a_int: "eth1"
+    z_node: "r110"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r110"
+    a_int: "eth1"
+    z_node: "r111"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r111"
+    a_int: "eth1"
+    z_node: "r112"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r112"
+    a_int: "eth1"
+    z_node: "r113"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r113"
+    a_int: "eth1"
+    z_node: "r114"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r114"
+    a_int: "eth1"
+    z_node: "r115"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r115"
+    a_int: "eth1"
+    z_node: "r116"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r116"
+    a_int: "eth1"
+    z_node: "r117"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r117"
+    a_int: "eth1"
+    z_node: "r118"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r118"
+    a_int: "eth1"
+    z_node: "r119"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r119"
+    a_int: "eth1"
+    z_node: "r120"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r120"
+    a_int: "eth1"
+    z_node: "r121"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r121"
+    a_int: "eth1"
+    z_node: "r122"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r122"
+    a_int: "eth1"
+    z_node: "r123"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r123"
+    a_int: "eth1"
+    z_node: "r124"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r124"
+    a_int: "eth1"
+    z_node: "r125"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r125"
+    a_int: "eth1"
+    z_node: "r126"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r126"
+    a_int: "eth1"
+    z_node: "r127"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r127"
+    a_int: "eth1"
+    z_node: "r128"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r128"
+    a_int: "eth1"
+    z_node: "r129"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r129"
+    a_int: "eth1"
+    z_node: "r130"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r130"
+    a_int: "eth1"
+    z_node: "r131"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r131"
+    a_int: "eth1"
+    z_node: "r132"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r132"
+    a_int: "eth1"
+    z_node: "r133"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r133"
+    a_int: "eth1"
+    z_node: "r134"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r134"
+    a_int: "eth1"
+    z_node: "r135"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r135"
+    a_int: "eth1"
+    z_node: "r136"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r136"
+    a_int: "eth1"
+    z_node: "r137"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r137"
+    a_int: "eth1"
+    z_node: "r138"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r138"
+    a_int: "eth1"
+    z_node: "r139"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r139"
+    a_int: "eth1"
+    z_node: "r140"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r140"
+    a_int: "eth1"
+    z_node: "r141"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r141"
+    a_int: "eth1"
+    z_node: "r142"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r142"
+    a_int: "eth1"
+    z_node: "r143"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r143"
+    a_int: "eth1"
+    z_node: "r144"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r144"
+    a_int: "eth1"
+    z_node: "r145"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r145"
+    a_int: "eth1"
+    z_node: "r146"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r146"
+    a_int: "eth1"
+    z_node: "r147"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r147"
+    a_int: "eth1"
+    z_node: "r148"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r148"
+    a_int: "eth1"
+    z_node: "r149"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r149"
+    a_int: "eth1"
+    z_node: "r150"
+    z_int: "eth2"
+}
+links: {
+    a_node: "r150"
+    a_int: "eth1"
+    z_node: "r1"
+    z_int: "eth2"
+}

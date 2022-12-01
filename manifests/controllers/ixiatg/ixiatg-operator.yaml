@@ -378,7 +378,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/open-traffic-generator/ixia-c-operator:0.2.1
+        image: ghcr.io/open-traffic-generator/ixia-c-operator:0.2.6
         livenessProbe:
           httpGet:
             path: /healthz
@@ -401,6 +401,8 @@ spec:
             memory: 20Mi
         securityContext:
           allowPrivilegeEscalation: false
+      imagePullSecrets:
+      - name: ixia-pull-secret
       securityContext:
         runAsNonRoot: true
       serviceAccountName: ixiatg-op-controller-manager
