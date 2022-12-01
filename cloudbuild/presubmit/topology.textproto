@@ -103,32 +103,16 @@ nodes: {
 nodes: {
   name: "srl"
   vendor: NOKIA
+  model: "ixr6e"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
     file: "srl.cfg.json"
-  }
-  interfaces: {
-    key: "eth1"
-    value: {
-      name: "ethernet-1/1"
-    }
-  }
-  interfaces: {
-    key: "eth2"
-    value: {
-      name: "ethernet-1/2"
-    }
-  }
-  interfaces: {
-    key: "eth3"
-    value: {
-      name: "ethernet-1/3"
-    }
-  }
-  interfaces: {
-    key: "eth4"
-    value: {
-      name: "ethernet-1/4"
+    cert: {
+      self_signed: {
+        cert_name: "kne-profile"
+        key_name: "N/A"
+        key_size: 4096
+      }
     }
   }
   services: {

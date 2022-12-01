@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	gpb "github.com/openconfig/gribi/v1/proto/service"
+	gribipb "github.com/openconfig/gribi/v1/proto/service"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 )
@@ -16,22 +17,24 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, kinit.Init)
 }
 
-// lookupTelemetry checks for system telemetry for a DUT.
-func lookupTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+// testGNMI checks the status of port1 of the dut.
+func testGNMI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	sys := dut.Telemetry().System().Lookup(t)
-	if !sys.IsPresent() {
-		t.Fatalf("gNMI failure: no System telemetry for %v", dut)
+	c := dut.RawAPIs().GNMI().New(t)
+	resp, err := c.Capabilities(context.Background(), &gnmipb.CapabilityRequest{})
+	if err != nil {
+		t.Fatalf("gNMI failure: Capabilities request failed: %v", err)
 	}
+	t.Logf("Got Capabilities response: %v", resp)
 }
 
-// fetchAFTEntries checks for AFT entries using gRIBI for a DUT.
-func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
+// testGRIBI checks for AFT entries for a DUT.
+func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := dut.RawAPIs().GRIBI().New(t)
-	req := &gpb.GetRequest{
-		NetworkInstance: &gpb.GetRequest_All{},
-		Aft:             gpb.AFTType_ALL,
+	req := &gribipb.GetRequest{
+		NetworkInstance: &gribipb.GetRequest_All{},
+		Aft:             gribipb.AFTType_ALL,
 	}
 	stream, err := c.Get(context.Background(), req)
 	if err != nil {
@@ -49,21 +52,30 @@ func fetchAFTEntries(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// testGNOI checks the system time using gNOI for a DUT.
+func testGNOI(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	systemTime := dut.Operations().Time(t)
+	t.Logf("Got system time: %v", systemTime)
+}
+
 func TestCEOS(t *testing.T) {
 	dut := ondatra.DUT(t, "ceos")
-	lookupTelemetry(t, dut)
+	testGNMI(t, dut)
 }
 
 func TestCTPX(t *testing.T) {
 	dut := ondatra.DUT(t, "cptx")
-	lookupTelemetry(t, dut)
-	fetchAFTEntries(t, dut)
+	testGNMI(t, dut)
+	testGRIBI(t, dut)
+	testGNOI(t, dut)
 }
 
 func TestSRL(t *testing.T) {
 	dut := ondatra.DUT(t, "srl")
-	lookupTelemetry(t, dut)
-	fetchAFTEntries(t, dut)
+	testGNMI(t, dut)
+	testGRIBI(t, dut)
+	testGNOI(t, dut)
 }
 
 func TestXRD(t *testing.T) {
