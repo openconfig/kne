@@ -10,6 +10,7 @@ import (
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 )
 
