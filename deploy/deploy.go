@@ -338,7 +338,8 @@ func getVersion(s string) (*version, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert minor version: %s", s)
 	}
-	v.Patch, err = strconv.Atoi(versions[2])
+	patch := strings.Split(versions[2], "+")
+	v.Patch, err = strconv.Atoi(patch[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert patch version: %s", s)
 	}
