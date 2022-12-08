@@ -21,11 +21,15 @@ import (
 	"io"
 
 	"github.com/openconfig/kne/topo/node"
+	"github.com/openconfig/lemming/operator/api/clientset"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/rest"
 
 	tpb "github.com/openconfig/kne/proto/topo"
+	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -54,6 +58,84 @@ var (
 	_ node.Resetter     = (*Node)(nil)
 )
 
+var clientFn = func(c *rest.Config) (clientset.Interface, error) {
+	return clientset.NewForConfig(c)
+}
+
+func (n *Node) Create(ctx context.Context) error {
+	nodeSpec := n.GetProto()
+	config := nodeSpec.GetConfig()
+
+	ports := map[string]lemmingv1.ServicePort{}
+
+	for _, v := range n.Proto.Services {
+		ports[v.Name] = lemmingv1.ServicePort{
+			InnerPort: int32(v.Inside),
+			OuterPort: int32(v.Outside),
+		}
+	}
+
+	dut := &lemmingv1.Lemming{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nodeSpec.Name,
+			Namespace: n.Namespace,
+			Labels:    nodeSpec.Labels,
+		},
+		Spec: lemmingv1.LemmingSpec{
+			Image:          config.Image,
+			Command:        config.Command[0],
+			Args:           config.Args,
+			Env:            node.ToEnvVar(config.Env),
+			ConfigPath:     config.ConfigPath,
+			ConfigFile:     config.ConfigFile,
+			InitImage:      config.InitImage,
+			Ports:          ports,
+			InterfaceCount: len(nodeSpec.Interfaces) + 1,
+			InitSleep:      int(config.Sleep),
+			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
+		},
+	}
+	if config.Cert != nil {
+		switch tls := config.Cert.Config.(type) {
+		case *tpb.CertificateCfg_SelfSigned:
+			dut.Spec.TLS = lemmingv1.TLSSpec{
+				SelfSigned: lemmingv1.SelfSignedSpec{
+					CommonName: tls.SelfSigned.CommonName,
+					KeySize:    int(tls.SelfSigned.KeySize),
+				},
+			}
+		}
+	}
+
+	cs, err := clientFn(n.RestConfig)
+	if err != nil {
+		return fmt.Errorf("failed to get kubernetes client: %v", err)
+	}
+	l, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Create(ctx, dut, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create lemming: %v", err)
+	}
+	w, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Watch(ctx, metav1.SingleObject(l.ObjectMeta))
+	if err != nil {
+		return fmt.Errorf("failed to start lemming watch: %v", err)
+	}
+	defer w.Stop()
+	for e := range w.ResultChan() {
+		if e.Object.(*lemmingv1.Lemming).Status.Phase == lemmingv1.Running {
+			break
+		}
+	}
+	return nil
+}
+
+func (n *Node) Delete(ctx context.Context) error {
+	cs, err := clientFn(n.RestConfig)
+	if err != nil {
+		return err
+	}
+	return cs.LemmingV1alpha1().Lemmings(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
+}
+
 func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Info("ResetCfg is a noop.")
 	return nil
@@ -72,13 +154,13 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "lemming:latest"
+		pb.Config.Image = "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga"
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
 		pb.Config.Command = []string{"/lemming/lemming"}
 	}
 	if len(pb.GetConfig().GetArgs()) == 0 {
-		pb.Config.Args = []string{"--alsologtostderr"}
+		pb.Config.Args = []string{"--alsologtostderr", "--enable_dataplane"}
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- /bin/bash", pb.Name)

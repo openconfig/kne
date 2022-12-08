@@ -830,6 +830,28 @@ func (c *CEOSLabSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, c.kClient, "arista-ceoslab-operator-system")
 }
 
+type LemmingSpec struct {
+	ManifestDir string `yaml:"manifests"`
+	kClient     kubernetes.Interface
+}
+
+func (c *LemmingSpec) SetKClient(k kubernetes.Interface) {
+	c.kClient = k
+}
+
+func (c *LemmingSpec) Deploy(ctx context.Context) error {
+	log.Infof("Deploying Lemming controller from: %s", c.ManifestDir)
+	if err := execer.Exec("kubectl", "apply", "-f", c.ManifestDir); err != nil {
+		return err
+	}
+	log.Infof("Lemming controller deployed")
+	return nil
+}
+
+func (c *LemmingSpec) Healthy(ctx context.Context) error {
+	return deploymentHealthy(ctx, c.kClient, "lemming-operator")
+}
+
 type SRLinuxSpec struct {
 	ManifestDir string `yaml:"manifests"`
 	kClient     kubernetes.Interface

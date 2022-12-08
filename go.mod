@@ -13,7 +13,8 @@ require (
 	github.com/kr/pretty v0.3.0
 	github.com/open-traffic-generator/ixia-c-operator v0.2.6
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
-	github.com/openconfig/ondatra v0.0.0-20221117003800-7558e3ba93a6
+	github.com/openconfig/lemming v0.0.0-20221202232009-a100a0ac7f13
+	github.com/openconfig/ondatra v0.0.0-20221130193814-844b60762564
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.3
 	github.com/scrapli/scrapligocfg v1.0.0
@@ -23,7 +24,7 @@ require (
 	github.com/srl-labs/srl-controller v0.4.6
 	github.com/srl-labs/srlinux-scrapli v0.5.0
 	go.universe.tf/metallb v0.13.5
-	google.golang.org/grpc v1.50.1
+	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.24.3
@@ -62,7 +63,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jstemmer/go-junit-report/v2 v2.0.1-0.20220823220451-7b10b4285462 // indirect
@@ -81,9 +82,9 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20221111175026-79709cdf28e1 // indirect
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
 	github.com/openconfig/goyang v1.1.0 // indirect
-	github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8 // indirect
-	github.com/openconfig/ygnmi v0.5.0 // indirect
-	github.com/openconfig/ygot v0.25.2 // indirect
+	github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45 // indirect
+	github.com/openconfig/ygnmi v0.6.2 // indirect
+	github.com/openconfig/ygot v0.25.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/p4lang/p4runtime v1.3.0 // indirect
@@ -111,8 +112,7 @@ require (
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20221117204609-8f9c96812029 // indirect
-	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
+	google.golang.org/genproto v0.0.0-20221130183247-a2ec334bae6f // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
