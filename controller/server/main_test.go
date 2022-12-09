@@ -283,6 +283,13 @@ func TestNewDeployment(t *testing.T) {
 						},
 					},
 				},
+				{
+					Spec: &cpb.ControllerSpec_Lemming{
+						Lemming: &cpb.LemmingSpec{
+							ManifestDir: dirTest,
+						},
+					},
+				},
 			},
 		},
 		want: &deploy.Deployment{
@@ -307,6 +314,9 @@ func TestNewDeployment(t *testing.T) {
 					ManifestDir: dirTest,
 				},
 				&deploy.CEOSLabSpec{
+					ManifestDir: dirTest,
+				},
+				&deploy.LemmingSpec{
 					ManifestDir: dirTest,
 				},
 			},
@@ -663,6 +673,7 @@ func TestNewDeployment(t *testing.T) {
 				deploy.IxiaTGSpec{},
 				deploy.SRLinuxSpec{},
 				deploy.CEOSLabSpec{},
+				deploy.LemmingSpec{},
 			)
 			if s := cmp.Diff(tt.want, got, ignore); s != "" {
 				t.Errorf("newDeployment() unexpected diff (-want +got):\n%s", s)

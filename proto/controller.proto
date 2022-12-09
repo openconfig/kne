@@ -83,6 +83,7 @@ message ControllerSpec {
     IxiaTGSpec ixiatg = 1;
     SRLinuxSpec srlinux = 2;
     CEOSLabSpec ceoslab = 3;
+    LemmingSpec lemming = 4;
   }
 }
 
@@ -114,6 +115,12 @@ message SRLinuxSpec {
 message CEOSLabSpec {
   string manifest_dir = 1;
 }
+
+// LemmingSpec specifications
+message LemmingSpec {
+  string manifest_dir = 1;
+}
+
 
 // Request message to create a cluster.
 message CreateClusterRequest {
