@@ -55,6 +55,15 @@ spec:
               desired_state:
                 description: Desired state by network emulation (KNE)
                 type: string
+              init_container:
+                description: Init container image of the node
+                properties:
+                  image:
+                    type: string
+                  sleep:
+                    format: int32
+                    type: integer
+                type: object
               interfaces:
                 description: Interfaces with DUT
                 items:
@@ -378,7 +387,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/open-traffic-generator/ixia-c-operator:0.2.6
+        image: ghcr.io/open-traffic-generator/ixia-c-operator:0.3.0
         livenessProbe:
           httpGet:
             path: /healthz
@@ -395,15 +404,15 @@ spec:
         resources:
           limits:
             cpu: 100m
-            memory: 30Mi
+            memory: 200Mi
           requests:
             cpu: 100m
             memory: 20Mi
         securityContext:
           allowPrivilegeEscalation: false
-      imagePullSecrets:
-      - name: ixia-pull-secret
       securityContext:
         runAsNonRoot: true
       serviceAccountName: ixiatg-op-controller-manager
       terminationGracePeriodSeconds: 10
+      imagePullSecrets:
+        - name: ixia-pull-secret
