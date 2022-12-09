@@ -246,6 +246,7 @@ func TestNew(t *testing.T) {
 				Name: "test_node",
 				Config: &tpb.Config{
 					Image:        "lemming:test",
+					InitImage:    "foo:latest",
 					Command:      []string{"/lemming/lemming2"},
 					Args:         []string{"-v=2"},
 					EntryCommand: "kubectl exec -it test_node -- /bin/sh",
@@ -268,6 +269,7 @@ func TestNew(t *testing.T) {
 			Name: "test_node",
 			Config: &tpb.Config{
 				Image:        "lemming:test",
+				InitImage:    "foo:latest",
 				Command:      []string{"/lemming/lemming2"},
 				Args:         []string{"-v=2"},
 				EntryCommand: "kubectl exec -it test_node -- /bin/sh",
