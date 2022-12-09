@@ -156,6 +156,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config.Image == "" {
 		pb.Config.Image = "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga"
 	}
+	if pb.Config.InitImage == "" {
+		pb.Config.InitImage = node.DefaultInitContainerImage
+	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
 		pb.Config.Command = []string{"/lemming/lemming"}
 	}

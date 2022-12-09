@@ -214,6 +214,7 @@ func TestNew(t *testing.T) {
 			Name: "test_node",
 			Config: &tpb.Config{
 				Image:        "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga",
+				InitImage:    node.DefaultInitContainerImage,
 				Command:      []string{"/lemming/lemming"},
 				Args:         []string{"--alsologtostderr", "--enable_dataplane"},
 				EntryCommand: "kubectl exec -it test_node -- /bin/bash",
