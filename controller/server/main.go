@@ -46,6 +46,7 @@ var (
 	defaultIxiaTGManifestDir  = ""
 	defaultSRLinuxManifestDir = ""
 	defaultCEOSLabManifestDir = ""
+	defaultLemmingManifestDir = ""
 	// Flags.
 	port = flag.Int("port", 50051, "Controller server port")
 )
@@ -165,6 +166,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			}
 			c.ManifestDir = p
 			d.Controllers = append(d.Controllers, c)
+
 		case *cpb.ControllerSpec_Srlinux:
 			s := &deploy.SRLinuxSpec{}
 			path := defaultSRLinuxManifestDir
@@ -202,6 +204,18 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 				}
 			}
 			d.Controllers = append(d.Controllers, i)
+		case *cpb.ControllerSpec_Lemming:
+			c := &deploy.LemmingSpec{}
+			path := defaultLemmingManifestDir
+			if cs.GetLemming().ManifestDir != "" {
+				path = cs.GetLemming().ManifestDir
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			c.ManifestDir = p
+			d.Controllers = append(d.Controllers, c)
 		default:
 			return nil, fmt.Errorf("controller type not supported: %T", t)
 		}
