@@ -173,8 +173,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	}
 
 	// wait for cert infra to be ready and push certs
-	err = n.waitCertInfraReadyAndPushCert()
-	if err != nil {
+	if err := n.waitCertInfraReadyAndPushCert(); err != nil {
 		return err
 	}
 
