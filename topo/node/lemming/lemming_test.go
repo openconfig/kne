@@ -28,7 +28,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -39,31 +38,12 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-type fakeWatch struct {
-	e []watch.Event
-}
-
-func (f *fakeWatch) Stop() {}
-
-func (f *fakeWatch) ResultChan() <-chan watch.Event {
-	eCh := make(chan watch.Event)
-	go func() {
-		for len(f.e) != 0 {
-			e := f.e[0]
-			f.e = f.e[1:]
-			eCh <- e
-		}
-	}()
-	return eCh
-}
-
 func TestCreate(t *testing.T) {
 	tests := []struct {
 		desc        string
 		n           *Node
 		clientFnErr error
 		createErr   error
-		watchErr    error
 		wantErr     string
 		want        *lemmingv1.Lemming
 	}{{
@@ -92,19 +72,6 @@ func TestCreate(t *testing.T) {
 		},
 		createErr: fmt.Errorf("create err"),
 		wantErr:   "create err",
-	}, {
-		desc: "watch error",
-		n: &Node{
-			Impl: &node.Impl{
-				Proto: &tpb.Node{
-					Config: &tpb.Config{
-						Command: []string{"/lemming"},
-					},
-				},
-			},
-		},
-		watchErr: fmt.Errorf("watch err"),
-		wantErr:  "watch err",
 	}, {
 		desc: "success",
 		n: &Node{
@@ -157,15 +124,6 @@ func TestCreate(t *testing.T) {
 			cs := fake.NewSimpleClientset()
 			cs.PrependReactor("create", "lemmings", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 				return tt.createErr != nil, nil, tt.createErr
-			})
-			cs.PrependWatchReactor("lemmings", func(action k8stesting.Action) (handled bool, ret watch.Interface, err error) {
-				return true, &fakeWatch{e: []watch.Event{{
-					Object: &lemmingv1.Lemming{
-						Status: lemmingv1.LemmingStatus{
-							Phase: lemmingv1.Running,
-						},
-					},
-				}}}, tt.watchErr
 			})
 			clientFn = func(c *rest.Config) (clientset.Interface, error) {
 				return cs, tt.clientFnErr
