@@ -30,6 +30,8 @@ var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 var (
 	// For committing a very large config
 	scrapliOperationTimeout = 300 * time.Second
+	// Wait for PKI cert infra
+	certGenTimeout = 300 * time.Second
 )
 
 const (
@@ -102,6 +104,41 @@ func (n *Node) GRPCConfig() []string {
 	}
 }
 
+// Waits and retries until Cert infra is up and certs are applied
+func (n *Node) waitCertInfraReadyAndPushCert() error {
+	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
+	commands := []string{
+		fmt.Sprintf("request security pki generate-key-pair certificate-id %s", selfSigned.GetCertName()),
+		fmt.Sprintf("request security pki local-certificate generate-self-signed certificate-id %s "+
+			"subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com",
+			selfSigned.GetCertName()),
+	}
+
+	log.Infof("Waiting for certificates to be pushed (timeout: %v)", certGenTimeout)
+	start := time.Now()
+	for time.Since(start) < certGenTimeout {
+		multiresp, err := n.cliConn.SendCommands(commands)
+		if err != nil {
+			return fmt.Errorf("failed sending generate-self-signed commands: %v", err)
+		}
+		for _, resp := range multiresp.Responses {
+			if resp.Failed != nil {
+				return resp.Failed
+			}
+			if strings.Contains(resp.Result, "error:") {
+				log.Infof("Cert infra isn't ready. Retrying in 30 sec. Response %s", multiresp.JoinedResult())
+			}
+			if strings.Contains(resp.Result, "successfully") {
+				log.Infof("Cert Infra ready. Configured Certs. Response %s", multiresp.JoinedResult())
+				return nil
+			}
+		}
+		time.Sleep(30 * time.Second)
+	}
+
+	return fmt.Errorf("failed sending generate-self-signed commands")
+}
+
 // GenerateSelfSigned generates a self-signed TLS certificate using Junos PKI
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
@@ -135,24 +172,9 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return errors.New("scrapligo device driver not open")
 	}
 
-	commands := []string{
-		fmt.Sprintf("request security pki generate-key-pair certificate-id %s", selfSigned.GetCertName()),
-		fmt.Sprintf("request security pki local-certificate generate-self-signed certificate-id %s "+
-			"subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com",
-			selfSigned.GetCertName()),
-	}
-
-	multiresp, err := n.cliConn.SendCommands(commands)
-	if err != nil {
-		return fmt.Errorf("failed sending generate-self-signed commands: %v", err)
-	}
-	for _, resp := range multiresp.Responses {
-		if resp.Failed != nil {
-			return resp.Failed
-		}
-		if strings.Contains(resp.Result, "error:") {
-			return fmt.Errorf("failed sending generate-self-signed commands: %s", multiresp.JoinedResult())
-		}
+	// wait for cert infra to be ready and push certs
+	if err := n.waitCertInfraReadyAndPushCert(); err != nil {
+		return err
 	}
 
 	// Send gRPC config
