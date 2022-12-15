@@ -35,13 +35,13 @@ spec:
                       description: Local interface name
                       type: string
                     local_ip:
-                      description: (Optional) Peer IP address
+                      description: (Optional) Local IP address
                       type: string
                     peer_intf:
                       description: Peer interface name
                       type: string
                     peer_ip:
-                      description: (Optional) Local IP address
+                      description: (Optional) Peer IP address
                       type: string
                     peer_pod:
                       description: Name of the peer pod
@@ -177,7 +177,7 @@ spec:
       hostNetwork: true
       hostPID: true
       nodeSelector:
-        beta.kubernetes.io/arch: amd64
+        kubernetes.io/arch: amd64
       serviceAccountName: meshnet
       terminationGracePeriodSeconds: 30
       tolerations:
