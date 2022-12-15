@@ -65,6 +65,7 @@ var clientFn = func(c *rest.Config) (clientset.Interface, error) {
 func (n *Node) Create(ctx context.Context) error {
 	nodeSpec := n.GetProto()
 	config := nodeSpec.GetConfig()
+	log.Infof("create lemming %q", nodeSpec.Name)
 
 	ports := map[string]lemmingv1.ServicePort{}
 
@@ -111,21 +112,33 @@ func (n *Node) Create(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get kubernetes client: %v", err)
 	}
-	l, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Create(ctx, dut, metav1.CreateOptions{})
-	if err != nil {
+	if _, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Create(ctx, dut, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create lemming: %v", err)
 	}
-	w, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Watch(ctx, metav1.SingleObject(l.ObjectMeta))
-	if err != nil {
-		return fmt.Errorf("failed to start lemming watch: %v", err)
-	}
-	defer w.Stop()
-	for e := range w.ResultChan() {
-		if e.Object.(*lemmingv1.Lemming).Status.Phase == lemmingv1.Running {
-			break
-		}
-	}
 	return nil
+}
+
+func (n *Node) Status(ctx context.Context) (node.Status, error) {
+	cs, err := clientFn(n.RestConfig)
+	if err != nil {
+		return node.StatusUnknown, err
+	}
+	got, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err != nil {
+		return node.StatusUnknown, err
+	}
+	switch got.Status.Phase {
+	case lemmingv1.Running:
+		return node.StatusRunning, nil
+	case lemmingv1.Failed:
+		return node.StatusFailed, nil
+	case lemmingv1.Unknown:
+		return node.StatusUnknown, nil
+	case lemmingv1.Pending:
+		return node.StatusPending, nil
+	default:
+		return node.StatusUnknown, nil
+	}
 }
 
 func (n *Node) Delete(ctx context.Context) error {
