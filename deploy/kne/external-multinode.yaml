@@ -13,7 +13,7 @@ ingress:
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet
+    manifests: ../../manifests/meshnet/grpc
 controllers:
   - kind: IxiaTG
     spec:

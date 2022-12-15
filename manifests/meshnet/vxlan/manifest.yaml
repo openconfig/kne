@@ -35,13 +35,13 @@ spec:
                       description: Local interface name
                       type: string
                     local_ip:
-                      description: (Optional) Peer IP address
+                      description: (Optional) Local IP address
                       type: string
                     peer_intf:
                       description: Peer interface name
                       type: string
                     peer_ip:
-                      description: (Optional) Local IP address
+                      description: (Optional) Peer IP address
                       type: string
                     peer_pod:
                       description: Name of the peer pod
@@ -147,7 +147,14 @@ spec:
         name: meshnet
     spec:
       containers:
-      - image: us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.0
+      - env:
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: INTER_NODE_LINK_TYPE
+          value: VXLAN
+        image: us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.1
         imagePullPolicy: IfNotPresent
         name: meshnet
         resources:
@@ -172,7 +179,7 @@ spec:
       nodeSelector:
         kubernetes.io/arch: amd64
       serviceAccountName: meshnet
-      terminationGracePeriodSeconds: 0
+      terminationGracePeriodSeconds: 30
       tolerations:
       - effect: NoSchedule
         operator: Exists
