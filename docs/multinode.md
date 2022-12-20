@@ -96,9 +96,9 @@ required.
 Import the KNE VM image:
 
 ```shell
-gcloud compute images import kne-09f70847-9623-4536-8430-1f42df18fd94 \
+gcloud compute images import kne-f109f429-0573-4b9c-a75a-b6603f6830ae \
   --os=ubuntu-2004 \
-  --source-file=gs://kne-vm-image/09f70847-9623-4536-8430-1f42df18fd94.tar.gz
+  --source-file=gs://kne-vm-image/f109f429-0573-4b9c-a75a-b6603f6830ae.tar.gz
 ```
 
 Create an SSH key pair to use for all of the VMs created below:
@@ -116,7 +116,7 @@ assigned the internal IP address `10.240.0.11` in the custom VPC.
 ```shell
 gcloud compute instances create controller \
   --zone=us-central1-a \
-  --image=kne-09f70847-9623-4536-8430-1f42df18fd94 \
+  --image=kne-f109f429-0573-4b9c-a75a-b6603f6830ae \
   --machine-type=n2-standard-8 \
   --enable-nested-virtualization \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
@@ -135,6 +135,7 @@ ssh -i /tmp/multinode-key user@<EXTERNAL IP OF VM>
 Now run the following commands to setup the cluster:
 
 ```shell
+sudo apt install kubelet=1.25.0-00 kubectl=1.25.0-00 kubeadm=1.25.0-00 --allow-downgrades -y
 sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -155,7 +156,7 @@ replacing `{n}` with `1` and `2`.
 ```shell
 gcloud compute instances create worker-{n} \
   --zone=us-central1-a \
-  --image=kne-09f70847-9623-4536-8430-1f42df18fd94 \
+  --image=kne-f109f429-0573-4b9c-a75a-b6603f6830ae \
   --machine-type=n2-standard-64 \
   --enable-nested-virtualization \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
@@ -175,6 +176,7 @@ And run the following command, using the token and SHA output from cluster setup
 on the controller VM:
 
 ```shell
+sudo apt install kubelet=1.25.0-00 kubectl=1.25.0-00 kubeadm=1.25.0-00 --allow-downgrades -y
 sudo kubeadm join 10.240.0.11:6443 \
   --token {token} \
   --discovery-token-ca-cert-hash sha256:{sha} \
