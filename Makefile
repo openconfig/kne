@@ -25,7 +25,7 @@ test:
 up: kind-start
 
 .PHONY: down
-## Desroy test environment
+## Destroy test environment
 down: kind-stop
 
 .PHONY: build
