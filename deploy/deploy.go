@@ -901,13 +901,21 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		return err
 	}
 	if i.ConfigMap == nil {
-		path := filepath.Join(i.ManifestDir, "ixiatg-configmap.yaml")
-		if _, err := osStat(path); err != nil {
+		var cmPath string
+		for _, cmName := range []string{"ixiatg-configmap.yaml", "ixia-configmap.yaml"} {
+			path := filepath.Join(i.ManifestDir, cmName)
+			if _, err := osStat(path); err == nil {
+				log.Infof("ixia controller configmap found at %q", path)
+				cmPath = path
+				break
+			}
+		}
+		if cmPath == "" {
 			log.Warnf("ixia controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
 			return nil
 		}
-		log.Infof("Deploying IxiaTG configmap from: %s", path)
-		if err := execer.Exec("kubectl", "apply", "-f", path); err != nil {
+		log.Infof("Deploying IxiaTG configmap from: %s", cmPath)
+		if err := execer.Exec("kubectl", "apply", "-f", cmPath); err != nil {
 			return err
 		}
 		log.Infof("IxiaTG controller Deployed")
