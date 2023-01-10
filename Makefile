@@ -36,4 +36,4 @@ build:
 .PHONY: install
 ## Install kne cli binary to user's local bin dir
 install: build
-	mv $(KNE_CLI_BIN) $(INSTALL_DIR)
+	sudo mv $(KNE_CLI_BIN) $(INSTALL_DIR)
