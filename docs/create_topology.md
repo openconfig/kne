@@ -234,7 +234,8 @@ node definitions interfaces, services, and initial configs can be specified.
 
 An example topology containing 3 Arista `cEOS` nodes and 2 Keysight `ixia-tg`
 ATEs can be found at
-[examples/3node-withtraffic.pb.txt](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt).
+[examples/host/3node-host.pb.txt](https://github.com/openconfig/kne/blob/main/examples/host/3node-host.pb.txt).
+
 The initial vendor router configs referenced in the topology are found
 [here](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/ceos-withtraffic/).
 See the [push config](interact_topology.md#push_config) section for details
