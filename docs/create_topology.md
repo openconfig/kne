@@ -104,7 +104,7 @@ Field  | Type      | Description
 
 Field       | Type   | Description
 ----------- | ------ | -----------
-`manifests` | string | Path of the directory holding the manifests to create Meshnet in the cluster. The directory is expected to contain a file with the name `kustomization.yaml`. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/meshnet/base).
+`manifests` | string | Path of the directory holding the manifests to create Meshnet in the cluster. The directory is expected to contain a file with the name `kustomization.yaml`. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/meshnet).
 
 ### Controllers
 
@@ -152,7 +152,7 @@ Field       | Type   | Description
 ---
 
 The basic deployment yaml file can be found in the GitHub repo at
-[deploy/kne/kind-bridge.yaml](https://github.com/openconfig/kne/blob/5e6cf1cbc0748bb48ebf49039bd0ad592378357a/deploy/kne/kind-bridge.yaml).
+[deploy/kne/kind-bridge.yaml](https://github.com/openconfig/kne/tree/main/deploy/kne/kind-bridge.yaml).
 
 This config specifies `kind` as the cluster, `metallb` as the ingress, and
 `meshnet` as the CNI. Additionally, the config instructs `kindnet` CNI to use
@@ -190,7 +190,7 @@ kubectl apply -f https://github.com/open-traffic-generator/ixia-c-operator/relea
 > instead of the default `ptp` cluster CNI that `kind` uses.
 
 ```bash
-kubectl apply -k https://github.com/srl-labs/srl-controller/config/default
+kubectl apply -k https://github.com/srl-labs/srl-controller/tree/main/config/default
 ```
 
 See more on the
@@ -234,9 +234,10 @@ node definitions interfaces, services, and initial configs can be specified.
 
 An example topology containing 3 Arista `cEOS` nodes and 2 Keysight `ixia-tg`
 ATEs can be found at
-[examples/3node-withtraffic.pb.txt](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt).
+[examples/arista/ceos-traffic/ceos-traffic.pb.txt](https://github.com/openconfig/kne/tree/main/examples/arista/ceos-traffic/ceos-traffic.pb.txt).
+
 The initial vendor router configs referenced in the topology are found
-[here](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/ceos-withtraffic/).
+[here](https://github.com/openconfig/kne/tree/main/examples/arista/ceos-traffic)
 See the [push config](interact_topology.md#push_config) section for details
 about pushing config after initial creation.
 
