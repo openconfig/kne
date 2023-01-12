@@ -39,7 +39,7 @@ A deployment yaml file specifies 4 things (*optional in italics*):
 4. *A list of controller specs*
 
 A full definition for valid fields in the deployment yaml can be found within
-[deploy/deploy.go](https://github.com/openconfig/kne/deploy/deploy.go#L212).
+[deploy/deploy.go](https://github.com/openconfig/kne/blob/816133f1cb563555bcdcb12eb27874b77dd41d1d/deploy/deploy.go#L212).
 
 Expand the below section for a full description of all fields in the deployment
 yaml.
@@ -228,7 +228,7 @@ Global Flags:
 ```
 
 A topology file is a textproto of the `Topology`
-[message](https://github.com/openconfig/kne/proto/topo.proto#L26).
+[message](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L26).
 This file specifies all of the nodes and links of your desired topology. In the
 node definitions interfaces, services, and initial configs can be specified.
 
@@ -257,7 +257,7 @@ Container images can be hosted in multiple locations. For example
 [DockerHub](https://hub.docker.com/) hosts open sourced containers. [Google
 Artifact Registries](https://cloud.google.com/artifact-registry) can be used to
 host images with access control. The [KNE topology
-proto](https://github.com/openconfig/kne/proto/topo.proto#L117),
+proto](https://github.com/openconfig/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/kne/proto/topo.proto#L117),
 the manifests, and controllers can all specify containers that get pulled from
 their source locations and get used in the cluster.
 
