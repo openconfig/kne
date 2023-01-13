@@ -38,8 +38,8 @@ const flushTimeout = time.Minute
 var testChannel chan struct{}
 
 // New returns an io.Writer that sends complete lines to the function f.  Each
-// complete line is written to f individually. Incomplete lines way up to one
-// minute for additional data before flushing in the background.
+// complete line is written to f individually. Incomplete lines may wait up to
+// one minute for additional data before flushing in the background.
 func New(f func(...interface{})) *shim {
 	s := &shim{
 		timer:    time.NewTimer(time.Hour),

@@ -49,13 +49,13 @@ partial line 1`))
 	s.timer.Reset(1)
 	<-testChannel
 	if got := b.String(); got != want2 {
-		t.Errorf("First: Got %q, want %q", got, want1)
+		t.Errorf("First: Got %q, want %q", got, want2)
 	}
 
 	// Write another partial line and close the shim
 	s.Write([]byte(`partial line 2`))
 	s.Close()
 	if got := b.String(); got != want3 {
-		t.Errorf("Second: Got %q, want %q", got, want2)
+		t.Errorf("Second: Got %q, want %q", got, want3)
 	}
 }
