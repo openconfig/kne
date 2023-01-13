@@ -71,7 +71,9 @@ func (s *shim) Close() {
 }
 
 // Write implements io.Writer.
-func (s *shim) Write(buf []byte) error {
+func (s *shim) Write(buf []byte) (int, error) {
+	n := len(buf)
+
 	// Prepend anything leftover from the previous write and then split into
 	// lines.  If buf does not terminate in a newline then save the last
 	// line to prefix the next write.
@@ -92,7 +94,7 @@ func (s *shim) Write(buf []byte) error {
 	for _, line := range lines {
 		s.write(string(line))
 	}
-	return nil
+	return n, nil
 }
 
 // flush flushes any partial output.
