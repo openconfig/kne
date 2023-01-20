@@ -37,6 +37,11 @@ func Init() {
 
 func main() {
 	log.InitFlags(nil)
+	// Default logtostderr to off rather than on.
+	if f := flag.Lookup("logtostderr"); f != nil {
+		f.Value.Set("false")
+		f.DefValue = "false"
+	}
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	Init()
 	log.Flush()
