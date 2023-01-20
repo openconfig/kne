@@ -25,9 +25,9 @@ import (
 	"github.com/openconfig/kne/cmd/deploy"
 	"github.com/openconfig/kne/cmd/topology"
 	"github.com/openconfig/kne/topo"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/homedir"
+	log "k8s.io/klog/v2"
 )
 
 var (
@@ -35,6 +35,7 @@ var (
 	dryrun   bool
 	timeout  time.Duration
 	logLevel = "info"
+	logDir   string
 
 	rootCmd = &cobra.Command{
 		Use:   "kne",
@@ -42,19 +43,9 @@ var (
 		Long: `Kubernetes Network Emulation CLI.  Works with meshnet to create
 layer 2 topology used by containers to layout networks in a k8s
 environment.`,
-		SilenceUsage:      true,
-		PersistentPreRunE: rootFn,
+		SilenceUsage: true,
 	}
 )
-
-func rootFn(cmd *cobra.Command, args []string) error {
-	l, err := log.ParseLevel(logLevel)
-	if err != nil {
-		return err
-	}
-	log.SetLevel(l)
-	return nil
-}
 
 // ExecuteContext executes the root command.
 func ExecuteContext(ctx context.Context) error {
@@ -74,7 +65,6 @@ func defaultKubeCfg() string {
 func init() {
 	rootCmd.SetOut(os.Stdout)
 	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg(), "kubeconfig file")
-	rootCmd.PersistentFlags().StringVarP(&logLevel, "verbosity", "v", logLevel, "log level")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
 	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
 	rootCmd.AddCommand(createCmd)

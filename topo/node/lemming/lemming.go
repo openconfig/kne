@@ -28,8 +28,8 @@ import (
 
 	tpb "github.com/openconfig/kne/proto/topo"
 	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	log "k8s.io/klog/v2"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {

@@ -16,13 +16,25 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 
 	"github.com/openconfig/kne/cmd"
+	"github.com/spf13/pflag"
+	"k8s.io/klog/v2"
 )
 
 func main() {
+	klog.InitFlags(nil)
+	// Default logtostderr to off rather than on.
+	if f := flag.Lookup("logtostderr"); f != nil {
+		f.Value.Set("false")
+		f.DefValue = "false"
+	}
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		klog.Flush()
 		os.Exit(1)
 	}
+	klog.Flush()
 }

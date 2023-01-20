@@ -15,17 +15,17 @@
 package main
 
 import (
+	"flag"
 	"path/filepath"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/util/homedir"
+	log "k8s.io/klog/v2"
 )
 
 var (
 	defaultKubeCfg = ""
 	kubecfg        = ""
-	logLevel       = "info"
 )
 
 func Init() {
@@ -33,15 +33,11 @@ func Init() {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
 	}
 	pflag.StringVar(&kubecfg, "kubecfg", defaultKubeCfg, "Kubecfg to use")
-	pflag.StringVarP(&logLevel, "verbosity", "v", logLevel, "log level")
-	l, err := log.ParseLevel(logLevel)
-	if err != nil {
-		log.Errorf("failed to set log level: %v", err)
-		return
-	}
-	log.SetLevel(l)
 }
 
 func main() {
+	log.InitFlags(nil)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	Init()
+	log.Flush()
 }

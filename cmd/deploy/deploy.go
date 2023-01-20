@@ -21,9 +21,9 @@ import (
 	"path/filepath"
 
 	"github.com/openconfig/kne/deploy"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	log "k8s.io/klog/v2"
 )
 
 func New() *cobra.Command {

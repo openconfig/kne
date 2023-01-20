@@ -92,7 +92,9 @@ func (s *shim) Write(buf []byte) (int, error) {
 	s.mu.Unlock()
 
 	for _, line := range lines {
-		s.write(string(line))
+		if len(line) > 0 {
+			s.write(string(line))
+		}
 	}
 	return n, nil
 }

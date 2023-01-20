@@ -22,9 +22,9 @@ import (
 	"strconv"
 
 	"github.com/openconfig/kne/topo/node"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -166,7 +166,7 @@ func (n *Node) Create(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create pod for %q: %w", pb.Name, err)
 	}
-	log.Debugf("Pod created:\n%+v\n", sPod)
+	log.V(1).Infof("Pod created:\n%+v\n", sPod)
 	log.Infof("Created Cisco %s node resource %s pod", n.Proto.Model, n.Name())
 	if err := n.CreateService(ctx); err != nil {
 		return err
