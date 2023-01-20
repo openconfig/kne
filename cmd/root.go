@@ -34,8 +34,6 @@ var (
 	kubecfg  string
 	dryrun   bool
 	timeout  time.Duration
-	logLevel = "info"
-	logDir   string
 
 	rootCmd = &cobra.Command{
 		Use:   "kne",
