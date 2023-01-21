@@ -14,7 +14,7 @@ cni:
 controllers:
   - kind: IxiaTG
     spec:
-      manifests: ../../manifests/controllers/ixiatg
+      manifests: ../../manifests/keysight
   - kind: SRLinux
     spec:
       manifests: ../../manifests/controllers/srlinux
