@@ -14,10 +14,10 @@ cni:
 controllers:
   - kind: IxiaTG
     spec:
-      manifests: ../../manifests/controllers/ixiatg
+      manifests: ../../manifests/keysight
   - kind: SRLinux
     spec:
-      manifests: ../../manifests/keysight
+      manifests: ../../manifests/controllers/srlinux
   - kind: CEOSLab
     spec:
       manifests: ../../manifests/controllers/ceoslab
