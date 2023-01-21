@@ -6,27 +6,27 @@ metadata:
 data:
   versions: |
     {
-      "release": "0.0.1-3698",
+      "release": "0.0.1-9999",
       "images": [
             {
                 "name": "controller",
                 "path": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller",
-                "tag": "0.0.1-3698"
+                "tag": "0.0.1-3724"
             },
             {
                 "name": "gnmi-server",
-                "path": "ghcr.io/open-traffic-generator/licensed/ixia-c-gnmi-server",
-                "tag": "1.10.5"
+                "path": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server",
+                "tag": "1.10.6"
             },
             {
                 "name": "traffic-engine",
-                "path": "ghcr.io/open-traffic-generator/licensed/ixia-c-traffic-engine",
-                "tag": "1.6.0.19"
+                "path": "ghcr.io/open-traffic-generator/ixia-c-traffic-engine",
+                "tag": "1.6.0.24"
             },
             {
                 "name": "protocol-engine",
                 "path": "ghcr.io/open-traffic-generator/licensed/ixia-c-protocol-engine",
-                "tag": "1.00.0.252"
+                "tag": "1.00.0.256"
             }
         ]
     }

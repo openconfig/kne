@@ -17,7 +17,7 @@ controllers:
       manifests: ../../manifests/controllers/ixiatg
   - kind: SRLinux
     spec:
-      manifests: ../../manifests/controllers/srlinux
+      manifests: ../../manifests/keysight
   - kind: CEOSLab
     spec:
       manifests: ../../manifests/controllers/ceoslab
