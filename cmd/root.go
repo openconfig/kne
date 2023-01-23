@@ -31,9 +31,9 @@ import (
 )
 
 var (
-	kubecfg  string
-	dryrun   bool
-	timeout  time.Duration
+	kubecfg string
+	dryrun  bool
+	timeout time.Duration
 
 	rootCmd = &cobra.Command{
 		Use:   "kne",
