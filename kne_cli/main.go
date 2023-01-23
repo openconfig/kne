@@ -25,11 +25,19 @@ import (
 )
 
 func main() {
+	// By default, send logs to files and the screen.
+	// TODO(borman): rework what goes to the screen
 	klog.InitFlags(nil)
-	// Default logtostderr to off rather than on.
-	if f := flag.Lookup("logtostderr"); f != nil {
-		f.Value.Set("false")
-		f.DefValue = "false"
+	// in a nicer format.
+	for k, v := range map[string]string{
+		"logtostderr":     "false",
+		"alsologtostderr": "true",
+		"stderrthreshold": "info",
+	} {
+		if f := flag.Lookup(k); f != nil {
+			f.Value.Set(v)
+			f.DefValue = v
+		}
 	}
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	if err := cmd.ExecuteContext(context.Background()); err != nil {
