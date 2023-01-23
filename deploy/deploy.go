@@ -52,7 +52,11 @@ var (
 	logOut        = os.Stderr
 	healthTimeout = time.Minute
 
-	execer execerInterface = kexec.NewExecer(logOut, logOut)
+	// Default standard out of children to log.Info
+	// and standar error to log.Warning.
+	execer execerInterface = kexec.NewExecer(
+		logshim.New(log.Info),
+		logshim.New(log.Warning))
 
 	// Stubs for testing.
 	execLookPath = exec.LookPath
@@ -510,14 +514,8 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if err := execer.Exec("gcloud", "auth", "print-access-token"); err != nil {
 		return err
 	}
-	// It would be nice to something like:
-	//
-	//	errlog := logshim.New(func(args ...interface{}) {
-	//		log.InfoDepth(2, args...)
-	//	})
-	// So all the log lines don't just say they are coming from logshim, but
-	// it really doesn't help because the lines are coming from a goroutine
-	// that is using io.Copy.  So we just let the logs say logshim.
+	// Logs will show up as coming from logshim.go.  Since this is output
+	// from an external program that is the best we can do.
 	errlog := logshim.New(log.Info)
 	defer errlog.Close()
 	execer.SetStdout(errlog)
