@@ -49,7 +49,6 @@ data:
 )
 
 var (
-	logOut        = os.Stderr
 	healthTimeout = time.Minute
 
 	// Default standard out of children to log.Info
