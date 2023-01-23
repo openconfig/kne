@@ -12,13 +12,13 @@ import (
 	scrapliopopts "github.com/scrapli/scrapligo/driver/opoptions"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-	log "github.com/sirupsen/logrus"
 	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
 	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
 	"github.com/srl-labs/srlinux-scrapli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	log "k8s.io/klog/v2"
 )
 
 const (
@@ -106,7 +106,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	cfg, err := io.ReadAll(r)
 	cfgs := string(cfg)
 
-	log.Debugf("config to push:\n%s", cfgs)
+	log.V(1).Infof("config to push:\n%s", cfgs)
 
 	if err != nil {
 		return err

@@ -14,7 +14,6 @@ import (
 	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scrapliplatform "github.com/scrapli/scrapligo/platform"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
@@ -239,7 +239,7 @@ func (n *Impl) CreateConfig(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("Server Config Map:\n%v\n", sCM)
+		log.V(1).Infof("Server Config Map:\n%v\n", sCM)
 	}
 	return nil
 }
@@ -327,7 +327,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Pod created:\n%+v\n", sPod)
+	log.V(1).Infof("Pod created:\n%+v\n", sPod)
 	return nil
 }
 
@@ -380,7 +380,7 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Created Service:\n%v\n", sS)
+	log.V(1).Infof("Created Service:\n%v\n", sS)
 	return nil
 }
 
@@ -388,14 +388,14 @@ func (n *Impl) CreateService(ctx context.Context) error {
 func (n *Impl) Delete(ctx context.Context) error {
 	// Delete config maps for node
 	if err := n.DeleteConfig(ctx); err != nil {
-		log.Warnf("Error deleting config-map %q: %v", n.Name(), err)
+		log.Warningf("Error deleting config-map %q: %v", n.Name(), err)
 	}
 	if err := n.DeleteService(ctx); err != nil {
-		log.Warnf("Error deleting service %q: %v", n.Name(), err)
+		log.Warningf("Error deleting service %q: %v", n.Name(), err)
 	}
 	// Delete Resource for node
 	if err := n.DeleteResource(ctx); err != nil {
-		log.Warnf("Error deleting resource %q: %v", n.Name(), err)
+		log.Warningf("Error deleting resource %q: %v", n.Name(), err)
 	}
 	return nil
 }
@@ -511,7 +511,7 @@ func getImpl(impl *Impl) (Node, error) {
 	}
 	//nolint:staticcheck
 	if impl.Proto.Type != tpb.Node_UNKNOWN {
-		log.Warnf("node.Type (%v) is a DEPRECATED field, node.Vendor is required", impl.Proto.Type)
+		log.Warningf("node.Type (%v) is a DEPRECATED field, node.Vendor is required", impl.Proto.Type)
 	}
 	if fn, ok := vendorTypes[impl.Proto.Vendor]; ok {
 		return fn(impl)
@@ -540,9 +540,9 @@ func (n *Impl) PatchCLIConnOpen(bin string, cliCmd []string, opts []scrapliutil.
 // GetCLIConn attempts to open the transport channel towards a Network OS and perform scrapligo OnOpen actions
 // for a given platform. Retries indefinitely till success and returns a scrapligo network driver instance.
 func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplinetwork.Driver, error) {
-	if log.GetLevel() == log.DebugLevel {
+	if log.V(1).Enabled() {
 		li, _ := scraplilogging.NewInstance(scraplilogging.WithLevel("debug"),
-			scraplilogging.WithLogger(log.Print))
+			scraplilogging.WithLogger(log.Info))
 		opts = append(opts, scrapliopts.WithLogger(li))
 	}
 
@@ -564,12 +564,12 @@ func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplin
 		}
 
 		if err = d.Open(); err != nil {
-			log.Debugf("%s - Cli not ready (%s) - waiting.", n.Name(), err)
+			log.V(1).Infof("%s - Cli not ready (%s) - waiting.", n.Name(), err)
 			time.Sleep(time.Second * 2)
 			continue
 		}
 
-		log.Debugf("%s - Cli ready.", n.Name())
+		log.V(1).Infof("%s - Cli ready.", n.Name())
 
 		return d, nil
 	}

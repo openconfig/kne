@@ -16,13 +16,33 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 
 	"github.com/openconfig/kne/cmd"
+	"github.com/spf13/pflag"
+	"k8s.io/klog/v2"
 )
 
 func main() {
+	// By default, send logs to files and the screen.
+	// TODO(borman): rework what goes to the screen
+	klog.InitFlags(nil)
+	// in a nicer format.
+	for k, v := range map[string]string{
+		"logtostderr":     "false",
+		"alsologtostderr": "true",
+		"stderrthreshold": "info",
+	} {
+		if f := flag.Lookup(k); f != nil {
+			f.Value.Set(v)
+			f.DefValue = v
+		}
+	}
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		klog.Flush()
 		os.Exit(1)
 	}
+	klog.Flush()
 }

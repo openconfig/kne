@@ -25,11 +25,11 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
+	log "k8s.io/klog/v2"
 )
 
 func New() *cobra.Command {
@@ -192,7 +192,7 @@ func pushFn(cmd *cobra.Command, args []string) error {
 	}
 	defer func() {
 		if err := fp.Close(); err != nil {
-			log.Warnf("failed to close config file %q", args[2])
+			log.Warningf("failed to close config file %q", args[2])
 		}
 	}()
 	return tm.ConfigPush(cmd.Context(), args[1], fp)

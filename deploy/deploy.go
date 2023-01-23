@@ -20,8 +20,8 @@ import (
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
+	logshim "github.com/openconfig/kne/logshim"
 	kexec "github.com/openconfig/kne/os/exec"
-	log "github.com/sirupsen/logrus"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	log "k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
 
@@ -48,11 +49,13 @@ data:
 )
 
 var (
-	logOut        = log.StandardLogger().Out
 	healthTimeout = time.Minute
 
-	// execer handles all execs on host.
-	execer execerInterface = kexec.NewExecer(logOut, logOut)
+	// Default standard out of children to log.Info
+	// and standar error to log.Warning.
+	execer execerInterface = kexec.NewExecer(
+		logshim.New(log.Info),
+		logshim.New(log.Warning))
 
 	// Stubs for testing.
 	execLookPath = exec.LookPath
@@ -163,13 +166,13 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	origMajor := kClientVersion.Major
 	kClientVersion.Major -= 2
 	if kServerVersion.Less(kClientVersion) {
-		log.Warn("Kube client and server versions are not within expected range.")
+		log.Warning("Kube client and server versions are not within expected range.")
 	}
 	kClientVersion.Major = origMajor + 2
 	if kClientVersion.Less(kServerVersion) {
-		log.Warn("Kube client and server versions are not within expected range.")
+		log.Warning("Kube client and server versions are not within expected range.")
 	}
-	log.Info("Found k8s versions:\n", vOut)
+	log.V(1).Info("Found k8s versions:\n", vOut)
 	vOut.Reset()
 
 	d.Ingress.SetKClient(kClient)
@@ -510,7 +513,11 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if err := execer.Exec("gcloud", "auth", "print-access-token"); err != nil {
 		return err
 	}
-	execer.SetStdout(log.StandardLogger().Out)
+	// Logs will show up as coming from logshim.go.  Since this is output
+	// from an external program that is the best we can do.
+	errlog := logshim.New(log.Info)
+	defer errlog.Close()
+	execer.SetStdout(errlog)
 	for _, r := range k.GoogleArtifactRegistries {
 		s := fmt.Sprintf("https://%s", r)
 		if err := execer.Exec("docker", "login", "-u", "oauth2accesstoken", "-p", token.String(), s); err != nil {
@@ -526,7 +533,7 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if err := execer.Exec("kind", args...); err != nil {
 		return err
 	}
-	execer.SetStdout(log.StandardLogger().Out)
+	execer.SetStdout(errlog)
 	// Copy the new docker config to each node and restart kubelet so it
 	// picks up the new config that contains the embedded credentials.
 	for _, node := range strings.Split(nodes.String(), " ") {
@@ -735,7 +742,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			if err == nil || retries == 0 {
 				break
 			}
-			log.Warnf("Failed to create address polling (will retry %d times)", retries)
+			log.Warningf("Failed to create address polling (will retry %d times)", retries)
 			time.Sleep(5 * time.Second)
 		}
 		if err != nil {
@@ -911,7 +918,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 			}
 		}
 		if cmPath == "" {
-			log.Warnf("ixia controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
+			log.Warningf("ixia controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
 			return nil
 		}
 		log.Infof("Deploying IxiaTG configmap from: %s", cmPath)

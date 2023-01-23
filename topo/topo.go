@@ -26,7 +26,6 @@ import (
 	"github.com/kr/pretty"
 	cpb "github.com/openconfig/kne/proto/controller"
 	"github.com/openconfig/kne/topo/node"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -36,6 +35,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	log "k8s.io/klog/v2"
 
 	topologyclientv1 "github.com/openconfig/kne/api/clientset/v1beta1"
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
@@ -143,13 +143,13 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 	if err := m.load(); err != nil {
 		return nil, fmt.Errorf("failed to load topology: %w", err)
 	}
-	log.Infof("Created manager for topology:\n%v", prototext.Format(m.topo))
+	log.V(1).Infof("Created manager for topology:\n%v", prototext.Format(m.topo))
 	return m, nil
 }
 
 // Create creates the topology in the cluster.
 func (m *Manager) Create(ctx context.Context, timeout time.Duration) error {
-	log.Infof("Topology:\n%v", prototext.Format(m.topo))
+	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
 	if err := m.push(ctx); err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (m *Manager) Delete(ctx context.Context) error {
 	for _, n := range m.nodes {
 		// Delete Service for node
 		if err := n.Delete(ctx); err != nil {
-			log.Warnf("Error deleting node %q: %v", n.Name(), err)
+			log.Warningf("Error deleting node %q: %v", n.Name(), err)
 		}
 	}
 
@@ -328,7 +328,7 @@ func (m *Manager) topologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 			return nil, fmt.Errorf("could not fetch topology specs for node %s: %v", n.Name(), err)
 		}
 
-		log.Tracef("Topology specs for node %s: %+v", n.Name(), specs)
+		log.V(2).Infof("Topology specs for node %s: %+v", n.Name(), specs)
 		nodeSpecs[n.Name()] = specs
 	}
 
@@ -398,14 +398,14 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not get meshnet topologies: %v", err)
 	}
-	log.Tracef("Got topology specs for namespace %s: %+v", m.topo.Name, topologies)
+	log.V(2).Infof("Got topology specs for namespace %s: %+v", m.topo.Name, topologies)
 	for _, t := range topologies {
 		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
 		sT, err := m.tClient.Topology(m.topo.Name).Create(ctx, t, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
 		}
-		log.Infof("Meshnet Node:\n%+v\n", sT)
+		log.V(1).Infof("Meshnet Node:\n%+v\n", sT)
 	}
 	return nil
 }
@@ -416,12 +416,12 @@ func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 	if err == nil {
 		for _, n := range nodes {
 			if err := m.tClient.Topology(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
-				log.Warnf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
+				log.Warningf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
 			}
 		}
 	} else {
 		// no need to return warning as deleting meshnet namespace shall delete the resources too
-		log.Warnf("Error getting meshnet nodes: %v", err)
+		log.Warningf("Error getting meshnet nodes: %v", err)
 	}
 
 	return nil
@@ -455,7 +455,7 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 		time.Sleep(100 * time.Millisecond)
 	}
 	if !foundAll {
-		log.Warnf("Failed to determine status of some node resources in %d sec", timeout)
+		log.Warningf("Failed to determine status of some node resources in %d sec", timeout)
 	}
 	return nil
 }
@@ -553,7 +553,7 @@ func (m *Manager) GenerateSelfSigned(ctx context.Context, nodeName string) error
 		return fmt.Errorf("node %q not found", nodeName)
 	}
 	if n.GetProto().GetConfig().GetCert() == nil {
-		log.Debugf("No cert info for %q, skipping cert generation", nodeName)
+		log.V(1).Infof("No cert info for %q, skipping cert generation", nodeName)
 		return nil
 	}
 	c, ok := n.(node.Certer)

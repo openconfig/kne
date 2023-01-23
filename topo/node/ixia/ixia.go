@@ -7,9 +7,9 @@ import (
 
 	ixclient "github.com/open-traffic-generator/ixia-c-operator/api/clientset/v1beta1"
 	ixiatg "github.com/open-traffic-generator/ixia-c-operator/api/v1beta1"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	log "k8s.io/klog/v2"
 
 	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -73,7 +73,7 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 			Group: ifc.Group,
 		})
 	}
-	log.Tracef("Created new ixia CRD for node %s: %+v", n.Name(), ixiaCRD)
+	log.V(2).Infof("Created new ixia CRD for node %s: %+v", n.Name(), ixiaCRD)
 	return ixiaCRD
 }
 

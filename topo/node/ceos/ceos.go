@@ -28,12 +28,12 @@ import (
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	log "k8s.io/klog/v2"
 
 	ceos "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1"
 	ceosclient "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1/dynamic"
@@ -245,7 +245,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	cfg, err := io.ReadAll(r)
 	cfgs := string(cfg)
 
-	log.Debug(cfgs)
+	log.V(1).Info(cfgs)
 
 	if err != nil {
 		return err
