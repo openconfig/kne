@@ -17,7 +17,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/openconfig/kne/cmd"
 	"github.com/spf13/pflag"
@@ -27,11 +32,11 @@ import (
 func main() {
 	// By default, send logs to files and the screen.
 	// TODO(borman): rework what goes to the screen
-	klog.InitFlags(nil)
 	// in a nicer format.
+	klog.InitFlags(nil)
 	for k, v := range map[string]string{
 		"logtostderr":     "false",
-		"alsologtostderr": "true",
+		"alsologtostderr": "false",
 		"stderrthreshold": "info",
 	} {
 		if f := flag.Lookup(k); f != nil {
@@ -40,9 +45,57 @@ func main() {
 		}
 	}
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-	if err := cmd.ExecuteContext(context.Background()); err != nil {
-		klog.Flush()
+	err := cmd.ExecuteContext(context.Background())
+	flushLogs()
+	if err != nil {
 		os.Exit(1)
 	}
+}
+
+// flushLogs flushes the logs to storage and then displays a list of
+// log files associated with this run.
+func flushLogs() {
 	klog.Flush()
+
+	// klog provides no mechanism to determine where the logs are.  This
+	// code mimics the decsion that klog makes to determine the logging
+	// directory.
+
+	f := flag.Lookup("log_dir")
+	var logdir string
+	if f != nil {
+		logdir = f.Value.String()
+	}
+	if logdir == "" {
+		logdir = os.TempDir()
+	}
+
+	// The log files are named command.*.pid, but filepath.Glob only
+	// supports expanding * to full component names.
+	fd, err := os.Open(logdir)
+	if err != nil {
+		return
+	}
+	defer fd.Close()
+	cmd := filepath.Base(os.Args[0]) + "."
+	pid := "." + strconv.Itoa(os.Getpid())
+	var files []string
+	for {
+		names, err := fd.Readdirnames(100)
+		for _, name := range names {
+			if strings.HasPrefix(name, cmd) && strings.HasSuffix(name, pid) {
+				files = append(files, name)
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+	if len(files) > 0 {
+		sort.Strings(files)
+		fmt.Printf("Log files can be found in:\n")
+		for _, file := range files {
+			fmt.Printf("    %s\n", filepath.Join(logdir, file))
+		}
+	}
 }
