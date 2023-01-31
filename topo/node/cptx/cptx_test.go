@@ -441,9 +441,9 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				50051: {
+				32767: {
 					Name:   "gnmi",
-					Inside: 50051,
+					Inside: 32767,
 				},
 			},
 			Labels: map[string]string{
@@ -486,9 +486,9 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				50051: {
+				32767: {
 					Name:   "gnmi",
-					Inside: 50051,
+					Inside: 32767,
 				},
 			},
 			Labels: map[string]string{
