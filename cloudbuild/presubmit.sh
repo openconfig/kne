@@ -25,22 +25,36 @@ cp -r /tmp/workspace "$HOME/kne"
 
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"
-go build -o "$gopath/bin/kne"
+go build -o kne
+cli="$HOME/kne/kne_cli/kne"
 popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-kne deploy kne-internal/deploy/kne/kind-bridge.yaml
-kne create kne/cloudbuild/presubmit/topology.textproto
+$cli deploy kne-internal/deploy/kne/kind-bridge.yaml
+$cli create kne/cloudbuild/presubmit/topology.textproto
 popd
 
 # Run an ondatra test
 pushd "$HOME/kne/cloudbuild/presubmit"
 cat >config.yaml << EOF
-username: admin
-password: admin
+credentials:
+  vendor:
+    ARISTA:
+      username: admin
+      password: admin
+    JUNIPER:
+      username: root
+      password: Google123
+    CISCO:
+      username: cisco
+      password: cisco123
+    NOKIA:
+      username: admin
+      password: NokiaSrl1!
 topology: ${HOME}/kne/cloudbuild/presubmit/topology.textproto
 skip_reset: true
+cli: $cli
 EOF
 
 go test -v presubmit_test.go -config config.yaml -testbed testbed.textproto
