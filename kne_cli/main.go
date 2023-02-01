@@ -93,9 +93,9 @@ func flushLogs() {
 	}
 	if len(files) > 0 {
 		sort.Strings(files)
-		fmt.Printf("Log files can be found in:\n")
+		fmt.Fprintf(os.Stderr, "Log files can be found in:\n")
 		for _, file := range files {
-			fmt.Printf("    %s\n", filepath.Join(logdir, file))
+			fmt.Fprintf(os.Stderr, "    %s\n", filepath.Join(logdir, file))
 		}
 	}
 }
