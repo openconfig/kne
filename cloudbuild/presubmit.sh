@@ -25,7 +25,7 @@ cp -r /tmp/workspace "$HOME/kne"
 
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"
-go build
+go build -o kne
 cli="$HOME/kne/kne_cli/kne"
 popd
 
