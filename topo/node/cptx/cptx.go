@@ -445,9 +445,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Name:   "ssh",
 				Inside: 22,
 			},
-			50051: {
+			32767: {
 				Name:   "gnmi",
-				Inside: 50051,
+				Inside: 32767,
 			},
 		}
 	}
