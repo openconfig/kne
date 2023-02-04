@@ -34,7 +34,6 @@ import (
 	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stesting "k8s.io/client-go/testing"
 )
 
@@ -136,7 +135,7 @@ func TestCreate(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			got, err := cs.LemmingV1alpha1().Lemmings("default").Get(context.Background(), "test", v1.GetOptions{})
+			got, err := cs.LemmingV1alpha1().Lemmings("default").Get(context.Background(), "test", metav1.GetOptions{})
 			if err != nil {
 				t.Fatal(err)
 			}
