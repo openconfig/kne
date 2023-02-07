@@ -2150,6 +2150,7 @@
         {
           "name": "mgmt",
           "admin-state": "enable",
+          "yang-models": "openconfig",
           "tls-profile": "kne-profile"
         }
       ],
