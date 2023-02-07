@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/openconfig/kne/cmd"
-	"github.com/spf13/pflag"
+	"github.com/openconfig/kne/flags"
 	"k8s.io/klog/v2"
 )
 
@@ -44,7 +44,7 @@ func main() {
 			f.DefValue = v
 		}
 	}
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	flags.Import()
 	err := cmd.ExecuteContext(context.Background())
 	flushLogs()
 	if err != nil {
