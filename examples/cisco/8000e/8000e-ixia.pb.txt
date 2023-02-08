@@ -12,10 +12,6 @@ nodes: {
         key: "memory"
         value: "20Gi"
     }
-   constraints:{
-        key: "memory"
-        value: "20Gi"
-    }
     services:{
         key: 22
         value: {
