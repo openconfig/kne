@@ -1,18 +1,22 @@
-name: "8000e"
+name: "cisco-ixia"
 nodes: {
-    name: "vxr1"
+    name: "vxr"
     vendor: CISCO
     model: "8201"
     os: "ios-xr"
     config: {
+        image: "ios-xr:latest" # please update the image
         file: "r1.config"
-        image: "ios-xr:latest"  # please update the image
     }
     constraints:{
         key: "memory"
         value: "20Gi"
     }
-     services:{
+   constraints:{
+        key: "memory"
+        value: "20Gi"
+    }
+    services:{
         key: 22
         value: {
             name: "ssh"
@@ -57,70 +61,74 @@ nodes: {
           name: "FourHundredGigE0/0/0/0"
         }
     }
-}
-nodes: {
-    name: "vxr2"
-    vendor: CISCO
-    model: "8201"
-    os: "ios-xr"
-    config: {
-        file: "r2.config"
-        image: "ios-xr:latest"  # please update the image
-    }
-    constraints:{
-        key: "memory"
-        value: "20Gi"
-    }
-     services:{
-        key: 22
+    interfaces: {
+        key: "eth2"
         value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 57400
-        value: {
-            name: "gnmi"
-            outside: 57400
-            inside: 57400
-        }
-    }
-   services:{
-        key: 57401
-        value: {
-            name: "gribi"
-            outside: 57401
-            inside: 57400
-        }
-    }
-   services:{
-        key: 57402
-        value: {
-            name: "gnoi"
-            outside: 57402
-            inside: 57400
-        }
-    }
-   services:{
-        key: 57403
-        value: {
-            name: "p4rt"
-            outside: 57403
-            inside: 57400
+          name: "FourHundredGigE0/0/0/1"
         }
     }
     interfaces: {
-        key: "eth1"
+        key: "eth3"
         value: {
-          name: "FourHundredGigE0/0/0/0"
+          name: "FourHundredGigE0/0/0/2"
         }
     }
-}
-links: {
-    a_node: "vxr1"
-    a_int: "eth1"
-    z_node: "vxr2"
-    z_int: "eth1"
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "FourHundredGigE0/0/0/3"
+        }
+    }
 }
 
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-3724" # Please update this with the local version from ixiatg-configmap.yaml
+    services: {
+        key: 8443
+        value: {
+            name: "https"
+            inside: 8443
+        }
+    }
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
+    }
+}
+
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "vxr"
+    z_int: "eth1"
+}
+links: {
+    a_node: "vxr"
+    a_int: "eth2"
+    z_node: "otg"
+    z_int: "eth2"
+}
+links: {
+    a_node: "vxr"
+    a_int: "eth3"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "vxr"
+    a_int: "eth4"
+    z_node: "otg"
+    z_int: "eth4"
+}
