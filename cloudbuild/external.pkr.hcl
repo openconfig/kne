@@ -33,7 +33,7 @@ source "googlecompute" "kne-image" {
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
   scopes                = ["https://www.googleapis.com/auth/cloud-platform"]
-  state_timeout         = "15m
+  state_timeout         = "15m"
 }
 
 build {
