@@ -48,6 +48,7 @@ partial line 1`))
 	testChannel = make(chan struct{})
 	s.timer.Reset(1)
 	<-testChannel
+	testChannel = nil
 	if got := b.String(); got != want2 {
 		t.Errorf("First: Got %q, want %q", got, want2)
 	}
