@@ -135,14 +135,14 @@ func TestGenerateSelfSigned(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "generate_certificate_success",
+			testFile: "testdata/generate_certificate_success",
 		},
 		{
 			// device returns "Error: something bad happened" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "generate_certificate_failure",
+			testFile: "testdata/generate_certificate_failure",
 		},
 	}
 
@@ -229,8 +229,8 @@ func TestConfigPush(t *testing.T) {
 				Namespace:  "test",
 				Proto:      validPb,
 			},
-			testFile: "config_push_success",
-			testConf: "cptx-config",
+			testFile: "testdata/config_push_success",
+			testConf: "testdata/cptx-config",
 		},
 		{
 			// We encounter unexpected response -- we expect to fail
@@ -241,8 +241,8 @@ func TestConfigPush(t *testing.T) {
 				Namespace:  "test",
 				Proto:      validPb,
 			},
-			testFile: "config_push_failure",
-			testConf: "cptx-config",
+			testFile: "testdata/config_push_failure",
+			testConf: "testdata/cptx-config",
 		},
 	}
 
@@ -332,14 +332,14 @@ func TestResetCfg(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "config_reset_success",
+			testFile: "testdata/config_reset_success",
 		},
 		{
 			// device returns "Error: something bad happened" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "config_reset_failure",
+			testFile: "testdata/config_reset_failure",
 		},
 	}
 

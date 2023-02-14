@@ -471,14 +471,14 @@ func TestResetCfg(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "reset_config_success",
+			testFile: "testdata/reset_config_success",
 		},
 		{
 			// device returns "% Invalid input" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "reset_config_failure",
+			testFile: "testdata/reset_config_failure",
 		},
 	}
 

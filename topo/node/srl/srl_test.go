@@ -175,14 +175,14 @@ func TestGenerateSelfSigned(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "generate_certificate_success",
+			testFile: "testdata/generate_certificate_success",
 		},
 		{
 			// device returns "Error: something bad happened" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "generate_certificate_failure",
+			testFile: "testdata/generate_certificate_failure",
 		},
 	}
 
@@ -254,14 +254,14 @@ func TestResetCfg(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "reset_config_success",
+			testFile: "testdata/reset_config_success",
 		},
 		{
 			// device returns "Error: %s" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "reset_config_failure",
+			testFile: "testdata/reset_config_failure",
 		},
 	}
 
@@ -334,16 +334,16 @@ func TestConfigPush(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "configpush_success",
-			cmdFile:  "configpush_success_cli.cfg",
+			testFile: "testdata/configpush_success",
+			cmdFile:  "testdata/configpush_success_cli.cfg",
 		},
 		{
 			// device returns an error during config push -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "configpush_failure",
-			cmdFile:  "configpush_failure_cli.cfg",
+			testFile: "testdata/configpush_failure",
+			cmdFile:  "testdata/configpush_failure_cli.cfg",
 		},
 	}
 
