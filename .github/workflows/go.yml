@@ -28,7 +28,8 @@ jobs:
           go-version: 1.18.x
       - run: |
           # shellcheck disable=2046
-          go test -v -coverprofile=profile.cov $(go list ./... | grep -v /cloudbuild/) # ignore cloudbuild tests
+          # ignore cloudbuild tests and vendor node implementations
+          go test -v -coverprofile=profile.cov $(go list ./... | grep -v "/cloudbuild/\|/topo/node/.*")
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1
         with:
