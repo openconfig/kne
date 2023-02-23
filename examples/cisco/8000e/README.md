@@ -1,14 +1,14 @@
 # How to: verify and use the services on Cisco 8000e
 
+**Note:** The following instruction is validated on Ubuntu 20.04.1.
+
 ## Check perquisites and create a kne topology using topology [8000e-ixia.pb.txt](8000e-ixia.pb.txt)
 
 - Ensure you have a healthy kind cluster. Please refer [setup](../../../docs/setup.md) and [topology](../../../docs/create_topology.md) documents for the detailed instructions.
 - Verify if nested virtualization is configured correctly by checking presence of /dev/kvm (`ls /dev/kvm`).
-- Verify if Open vSwitch is installed by running `ovs-vswitchd  --version`.
+- Verify if Open vSwitch is installed by running `ovs-vswitchd  --version` and install  if it is missing by running `sudo apt-get install openvswitch-switch-dpdk`.
 - Set pid_max <= 1048575 using  `echo "kernel.pid_max=1048575" >> /etc/sysctl.conf` or `sysctl kernel.pid_max=1048575`.
 - Create a KNE topology using `kne create path/to/8000e-ixia.pb.txt`
-
-The following instructions assumes that a kne cluster is created using given topology in [8000e-ixia.pb.txt](8000e-ixia.pb.txt).
 
 ## Make sure the topology is healthy
 
@@ -65,6 +65,18 @@ Escape character is '^]'.
 
 RP/0/RP0/CPU0:ios#
  ```
+
+**Note:** Depending on the model, it may takes around 6 minutes for the 8000e to be fully up. You may check `startup.log` and `startup.err` using the following steps if the telnet fails:
+
+``` bash
+$ kubectl exec -it -n cisco-ixia  8000e --  bash 
+Defaulted container "8000e" out of: 8000e, init-8000e (init)
+root@8000e:/# cd /nobackup/
+root@8000e:/nobackup# ls -ltr
+-rw-r--r-- 1 root root    0 Feb 23 14:14 startup.err
+-rw-r--r-- 1 root root 4894 Feb 23 14:18 startup.log
+root@8000e:/nobackup# 
+```
 
 To check if the grpc is configured, you may use `show running-config grpc` after login to the router. By default grpc for 8000e is configured using tls without authentication (`insecure: false & skip_verify: true`).
 
