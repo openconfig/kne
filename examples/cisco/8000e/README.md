@@ -4,6 +4,7 @@
 
 - Ensure you have a healthy kind cluster. Please refer [setup](../../../docs/setup.md) and [topology](../../../docs/create_topology.md) documents for the detailed instructions.
 - Verify if nested virtualization is configured correctly by checking presence of /dev/kvm (`ls /dev/kvm`).
+- Verify if Open vSwitch is installed by running `ovs-vswitchd  --version`.
 - Set pid_max <= 1048575 using  `echo "kernel.pid_max=1048575" >> /etc/sysctl.conf` or `sysctl kernel.pid_max=1048575`.
 - Create a KNE topology using `kne create path/to/8000e-ixia.pb.txt`
 
