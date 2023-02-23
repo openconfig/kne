@@ -1,18 +1,13 @@
 name: "8000e"
 nodes: {
-    name: "vxr1"
+    name: "8000e1"
     vendor: CISCO
     model: "8201"
     os: "ios-xr"
     config: {
         file: "r1.config"
-        image: "ios-xr:latest"  # please update the image
     }
-    constraints:{
-        key: "memory"
-        value: "20Gi"
-    }
-     services:{
+   services:{
         key: 22
         value: {
             name: "ssh"
@@ -20,34 +15,34 @@ nodes: {
         }
     }
     services:{
-        key: 57400
+        key: 9339
         value: {
             name: "gnmi"
-            outside: 57400
+            outside: 9339
             inside: 57400
         }
     }
    services:{
-        key: 57401
+        key: 9340
         value: {
             name: "gribi"
-            outside: 57401
+            outside: 9340
             inside: 57400
         }
     }
    services:{
-        key: 57402
+        key: 9337
         value: {
             name: "gnoi"
-            outside: 57402
+            outside: 9337
             inside: 57400
         }
     }
    services:{
-        key: 57403
+        key: 9559
         value: {
             name: "p4rt"
-            outside: 57403
+            outside: 9559
             inside: 57400
         }
     }
@@ -59,19 +54,14 @@ nodes: {
     }
 }
 nodes: {
-    name: "vxr2"
+    name: "8000e2"
     vendor: CISCO
     model: "8201"
     os: "ios-xr"
     config: {
         file: "r2.config"
-        image: "ios-xr:latest"  # please update the image
     }
-    constraints:{
-        key: "memory"
-        value: "20Gi"
-    }
-     services:{
+  services:{
         key: 22
         value: {
             name: "ssh"
@@ -79,34 +69,34 @@ nodes: {
         }
     }
     services:{
-        key: 57400
+        key: 9339
         value: {
             name: "gnmi"
-            outside: 57400
+            outside: 9339
             inside: 57400
         }
     }
    services:{
-        key: 57401
+        key: 9340
         value: {
             name: "gribi"
-            outside: 57401
+            outside: 9340
             inside: 57400
         }
     }
    services:{
-        key: 57402
+        key: 9337
         value: {
             name: "gnoi"
-            outside: 57402
+            outside: 9337
             inside: 57400
         }
     }
    services:{
-        key: 57403
+        key: 9559
         value: {
             name: "p4rt"
-            outside: 57403
+            outside: 9559
             inside: 57400
         }
     }
@@ -118,9 +108,9 @@ nodes: {
     }
 }
 links: {
-    a_node: "vxr1"
+    a_node: "8000e1"
     a_int: "eth1"
-    z_node: "vxr2"
+    z_node: "8000e2"
     z_int: "eth1"
 }
 

@@ -186,7 +186,7 @@ func constraints(pb *tpb.Node) *tpb.Node {
 			pb.Constraints["cpu"] = "4"
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = "12Gi"
+			pb.Constraints["memory"] = "20Gi"
 		}
 	default:
 		if pb.Constraints["cpu"] == "" {
