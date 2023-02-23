@@ -1,7 +1,7 @@
 # How to: verify and use the services on Cisco 8000e
 
 ## Check perquisites and create a kne topology using topology [8000e-ixia.pb.txt](8000e-ixia.pb.txt)
-- Ensure you have a healthy kind cluster. Please refer [here]() for the detailed instruction. 
+- Ensure you have a healthy kind cluster. Please refer [setup](../../../docs/setup.md) and [topology](../../../docs/create_topology.md) documents for the detailed instructions. 
 - Verify if nested virtualization is configured correctly by checking presence of /dev/kvm (`ls /dev/kvm`)
 - Set pid_max <= 1048575 using  `echo "kernel.pid_max=1048575" >> /etc/sysctl.conf` or `sysctl kernel.pid_max=1048575` 
 - Create a KNE topology using `kne create path/to/8000e-ixia.pb.txt `
