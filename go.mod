@@ -1,6 +1,6 @@
 module github.com/openconfig/kne
 
-go 1.18
+go 1.20
 
 require (
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1
