@@ -41,12 +41,13 @@ import (
 var (
 	defaultKubeCfg            = ""
 	defaultTopoBasePath       = ""
-	defaultMetallbManifestDir = ""
-	defaultMeshnetManifestDir = ""
-	defaultIxiaTGManifestDir  = ""
-	defaultSRLinuxManifestDir = ""
-	defaultCEOSLabManifestDir = ""
-	defaultLemmingManifestDir = ""
+	defaultMetallbManifest = ""
+	defaultMeshnetManifest = ""
+	defaultIxiaTGOperator  = ""
+	defaultIxiaTGConfigMap  = ""
+	defaultSRLinuxOperator = ""
+	defaultCEOSLabOperator = ""
+	defaultLemmingOperator = ""
 	// Flags.
 	port = flag.Int("port", 50051, "Controller server port")
 )
@@ -55,11 +56,13 @@ func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
 		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
-		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet")
-		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
-		defaultIxiaTGManifestDir = filepath.Join(home, "keysight", "athena", "operator")
-		defaultSRLinuxManifestDir = filepath.Join(home, "kne", "manifests", "controllers", "srlinux")
-		defaultCEOSLabManifestDir = filepath.Join(home, "kne", "manifests", "controllers", "ceoslab")
+		defaultMeshnetManifest = filepath.Join(home, "kne", "manifests", "meshnet", "grpc", "manifest.yaml")
+		defaultMetallbManifest = filepath.Join(home, "kne", "manifests", "metallb", "manifest.yaml")
+		defaultIxiaTGOperator = filepath.Join(home, "kne", "manifests", "keysight", "ixiatg-operator.yaml")
+		defaultIxiaTGConfigMap = filepath.Join(home, "kne", "manifests", "keysight", "ixiatg-configmap.yaml")
+		defaultSRLinuxOperator = filepath.Join(home, "kne", "manifests", "controllers", "srlinux", "manifest.yaml")
+		defaultCEOSLabOperator = filepath.Join(home, "kne", "manifests", "controllers", "ceoslab", "manifest.yaml")
+		defaultLemmingOperator = filepath.Join(home, "kne", "manifests", "controllers", "lemming", "manifest.yaml")
 	}
 }
 
@@ -119,15 +122,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch t := req.IngressSpec.(type) {
 	case *cpb.CreateClusterRequest_Metallb:
 		m := &deploy.MetalLBSpec{}
-		path := defaultMetallbManifestDir
-		if req.GetMetallb().ManifestDir != "" {
-			path = req.GetMetallb().ManifestDir
+		switch t := req.GetMetallb().GetManifest().ManifestData.(type) {
+		case *cpb.ManifestData_Data:
+			m.ManifestData = req.GetMetallb().GetManifest().GetManifestData()
+		case *cpb.ManifestData_File:
+			path := defaultMetallbManifest
+			if req.GetMetallb().GetManifest().GetManifestFile() != "" {
+				path = req.GetMetallb().GetManifest().GetManifestFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
 		}
-		p, err := validatePath(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate path %q", path)
-		}
-		m.ManifestDir = p
 		m.IPCount = int(req.GetMetallb().IpCount)
 		d.Ingress = m
 	default:
@@ -136,15 +144,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch t := req.CniSpec.(type) {
 	case *cpb.CreateClusterRequest_Meshnet:
 		m := &deploy.MeshnetSpec{}
-		path := defaultMeshnetManifestDir
-		if req.GetMeshnet().ManifestDir != "" {
-			path = req.GetMeshnet().ManifestDir
+		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
+		case *cpb.ManifestData_Data:
+			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
+		case *cpb.ManifestData_File:
+			path := defaultMeshnetManifest
+			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
+				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
 		}
-		p, err := validatePath(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate path %q", path)
-		}
-		m.ManifestDir = p
 		d.CNI = m
 	default:
 		return nil, fmt.Errorf("cni type not supported: %T", t)
@@ -156,6 +169,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		switch t := cs.Spec.(type) {
 		case *cpb.ControllerSpec_Ceoslab:
 			c := &deploy.CEOSLabSpec{}
+		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
+		case *cpb.ManifestData_Data:
+			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
+		case *cpb.ManifestData_File:
+			path := defaultMeshnetManifest
+			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
+				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
+		}
 			path := defaultCEOSLabManifestDir
 			if cs.GetCeoslab().ManifestDir != "" {
 				path = cs.GetCeoslab().ManifestDir
@@ -169,6 +196,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 
 		case *cpb.ControllerSpec_Srlinux:
 			s := &deploy.SRLinuxSpec{}
+		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
+		case *cpb.ManifestData_Data:
+			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
+		case *cpb.ManifestData_File:
+			path := defaultMeshnetManifest
+			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
+				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
+		}
 			path := defaultSRLinuxManifestDir
 			if cs.GetSrlinux().ManifestDir != "" {
 				path = cs.GetSrlinux().ManifestDir
@@ -181,6 +222,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			d.Controllers = append(d.Controllers, s)
 		case *cpb.ControllerSpec_Ixiatg:
 			i := &deploy.IxiaTGSpec{}
+		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
+		case *cpb.ManifestData_Data:
+			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
+		case *cpb.ManifestData_File:
+			path := defaultMeshnetManifest
+			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
+				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
+		}
 			path := defaultIxiaTGManifestDir
 			if cs.GetIxiatg().ManifestDir != "" {
 				path = cs.GetIxiatg().ManifestDir
@@ -206,6 +261,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			d.Controllers = append(d.Controllers, i)
 		case *cpb.ControllerSpec_Lemming:
 			c := &deploy.LemmingSpec{}
+		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
+		case *cpb.ManifestData_Data:
+			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
+		case *cpb.ManifestData_File:
+			path := defaultMeshnetManifest
+			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
+				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
+		}
 			path := defaultLemmingManifestDir
 			if cs.GetLemming().ManifestDir != "" {
 				path = cs.GetLemming().ManifestDir

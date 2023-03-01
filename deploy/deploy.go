@@ -606,8 +606,8 @@ func writeDockerConfig(path string, registries []string) error {
 
 type MetalLBSpec struct {
 	IPCount                   int    `yaml:"ip_count"`
-	Manifest               string `yaml:"manifest"`
-	ManifestData []byte
+	Manifest                  string `yaml:"manifest"`
+	ManifestData              []byte
 	dockerNetworkResourceName string
 	kClient                   kubernetes.Interface
 	mClient                   metallbclientv1.Interface
@@ -781,9 +781,9 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 }
 
 type MeshnetSpec struct {
-	Manifest string `yaml:"manifest"`
+	Manifest     string `yaml:"manifest"`
 	ManifestData []byte
-	kClient     kubernetes.Interface
+	kClient      kubernetes.Interface
 }
 
 func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
@@ -843,9 +843,9 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 }
 
 type CEOSLabSpec struct {
-	Operator string `yaml:"operator"`
+	Operator     string `yaml:"operator"`
 	OperatorData []byte
-	kClient     kubernetes.Interface
+	kClient      kubernetes.Interface
 }
 
 func (c *CEOSLabSpec) SetKClient(k kubernetes.Interface) {
@@ -880,9 +880,9 @@ func (c *CEOSLabSpec) Healthy(ctx context.Context) error {
 }
 
 type LemmingSpec struct {
-	Operator string `yaml:"operator"`
+	Operator     string `yaml:"operator"`
 	OperatorData []byte
-	kClient     kubernetes.Interface
+	kClient      kubernetes.Interface
 }
 
 func (l *LemmingSpec) SetKClient(k kubernetes.Interface) {
@@ -917,9 +917,9 @@ func (l *LemmingSpec) Healthy(ctx context.Context) error {
 }
 
 type SRLinuxSpec struct {
-	Operator string `yaml:"operator"`
+	Operator     string `yaml:"operator"`
 	OperatorData []byte
-	kClient     kubernetes.Interface
+	kClient      kubernetes.Interface
 }
 
 func (s *SRLinuxSpec) SetKClient(k kubernetes.Interface) {
@@ -954,11 +954,11 @@ func (s *SRLinuxSpec) Healthy(ctx context.Context) error {
 }
 
 type IxiaTGSpec struct {
-	Operator string           `yaml:"operator"`
-	OperatorData []byte
-	ConfigMap string           `yaml:"configMap"`
+	Operator      string `yaml:"operator"`
+	OperatorData  []byte
+	ConfigMap     string `yaml:"configMap"`
 	ConfigMapData []byte
-	kClient     kubernetes.Interface
+	kClient       kubernetes.Interface
 }
 
 func (i *IxiaTGSpec) SetKClient(k kubernetes.Interface) {
@@ -985,7 +985,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		return err
 	}
 
-	if i.ConfigMap == "" && i.ConfigMapData == nil{
+	if i.ConfigMap == "" && i.ConfigMapData == nil {
 		log.Warningf("IxiaTG controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
 		return nil
 	}
