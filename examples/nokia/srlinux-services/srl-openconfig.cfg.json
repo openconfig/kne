@@ -2362,7 +2362,7 @@
   },
   "srl_nokia-network-instance:network-instance": [
     {
-      "name": "default"
+      "name": "DEFAULT"
     },
     {
       "name": "mgmt",
