@@ -2145,6 +2145,7 @@
         {
           "name": "mgmt",
           "admin-state": "enable",
+	  "yang-models": "openconfig",
           "tls-profile": "kne-profile"
         }
       ],
@@ -2286,7 +2287,7 @@
               "facility-name": "local0",
               "priority": {
                 "match-above": "warning"
-              }
+              }>
             },
             {
               "facility-name": "local1",
@@ -2356,7 +2357,7 @@
   },
   "srl_nokia-network-instance:network-instance": [
     {
-      "name": "default"
+      "name": "DEFAULT"
     },
     {
       "name": "mgmt",
