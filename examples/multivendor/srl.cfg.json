@@ -2287,7 +2287,7 @@
               "facility-name": "local0",
               "priority": {
                 "match-above": "warning"
-              }>
+              }
             },
             {
               "facility-name": "local1",
