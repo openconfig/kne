@@ -39,12 +39,12 @@ import (
 )
 
 var (
-	defaultKubeCfg            = ""
-	defaultTopoBasePath       = ""
+	defaultKubeCfg         = ""
+	defaultTopoBasePath    = ""
 	defaultMetallbManifest = ""
 	defaultMeshnetManifest = ""
 	defaultIxiaTGOperator  = ""
-	defaultIxiaTGConfigMap  = ""
+	defaultIxiaTGConfigMap = ""
 	defaultSRLinuxOperator = ""
 	defaultCEOSLabOperator = ""
 	defaultLemmingOperator = ""
@@ -123,18 +123,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	case *cpb.CreateClusterRequest_Metallb:
 		m := &deploy.MetalLBSpec{}
 		switch t := req.GetMetallb().GetManifest().ManifestData.(type) {
-		case *cpb.ManifestData_Data:
-			m.ManifestData = req.GetMetallb().GetManifest().GetManifestData()
-		case *cpb.ManifestData_File:
+		case *cpb.Manifest_Data:
+			m.ManifestData = req.GetMetallb().GetManifest().GetData()
+		case *cpb.Manifest_File:
 			path := defaultMetallbManifest
-			if req.GetMetallb().GetManifest().GetManifestFile() != "" {
-				path = req.GetMetallb().GetManifest().GetManifestFile()
+			if req.GetMetallb().GetManifest().GetFile() != "" {
+				path = req.GetMetallb().GetManifest().GetFile()
 			}
 			p, err := validatePath(path)
 			if err != nil {
 				return nil, fmt.Errorf("failed to validate path %q", path)
 			}
 			m.Manifest = p
+		default:
+			return nil, fmt.Errorf("manifest data type not supported: %T", t)
 		}
 		m.IPCount = int(req.GetMetallb().IpCount)
 		d.Ingress = m
@@ -145,18 +147,20 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	case *cpb.CreateClusterRequest_Meshnet:
 		m := &deploy.MeshnetSpec{}
 		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
-		case *cpb.ManifestData_Data:
-			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
-		case *cpb.ManifestData_File:
+		case *cpb.Manifest_Data:
+			m.ManifestData = req.GetMeshnet().GetManifest().GetData()
+		case *cpb.Manifest_File:
 			path := defaultMeshnetManifest
-			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
-				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			if req.GetMeshnet().GetManifest().GetFile() != "" {
+				path = req.GetMeshnet().GetManifest().GetFile()
 			}
 			p, err := validatePath(path)
 			if err != nil {
 				return nil, fmt.Errorf("failed to validate path %q", path)
 			}
 			m.Manifest = p
+		default:
+			return nil, fmt.Errorf("manifest data type not supported: %T", t)
 		}
 		d.CNI = m
 	default:
@@ -169,122 +173,96 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		switch t := cs.Spec.(type) {
 		case *cpb.ControllerSpec_Ceoslab:
 			c := &deploy.CEOSLabSpec{}
-		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
-		case *cpb.ManifestData_Data:
-			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
-		case *cpb.ManifestData_File:
-			path := defaultMeshnetManifest
-			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
-				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			switch t := cs.GetCeoslab().GetOperator().ManifestData.(type) {
+			case *cpb.Manifest_Data:
+				c.OperatorData = cs.GetCeoslab().GetOperator().GetData()
+			case *cpb.Manifest_File:
+				path := defaultCEOSLabOperator
+				if cs.GetCeoslab().GetOperator().GetFile() != "" {
+					path = cs.GetCeoslab().GetOperator().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				c.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			m.Manifest = p
-		}
-			path := defaultCEOSLabManifestDir
-			if cs.GetCeoslab().ManifestDir != "" {
-				path = cs.GetCeoslab().ManifestDir
-			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			c.ManifestDir = p
 			d.Controllers = append(d.Controllers, c)
-
 		case *cpb.ControllerSpec_Srlinux:
 			s := &deploy.SRLinuxSpec{}
-		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
-		case *cpb.ManifestData_Data:
-			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
-		case *cpb.ManifestData_File:
-			path := defaultMeshnetManifest
-			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
-				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			switch t := cs.GetSrlinux().GetOperator().ManifestData.(type) {
+			case *cpb.Manifest_Data:
+				s.OperatorData = cs.GetCeoslab().GetOperator().GetData()
+			case *cpb.Manifest_File:
+				path := defaultSRLinuxOperator
+				if cs.GetSrlinux().GetOperator().GetFile() != "" {
+					path = cs.GetSrlinux().GetOperator().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				s.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			m.Manifest = p
-		}
-			path := defaultSRLinuxManifestDir
-			if cs.GetSrlinux().ManifestDir != "" {
-				path = cs.GetSrlinux().ManifestDir
-			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			s.ManifestDir = p
 			d.Controllers = append(d.Controllers, s)
 		case *cpb.ControllerSpec_Ixiatg:
 			i := &deploy.IxiaTGSpec{}
-		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
-		case *cpb.ManifestData_Data:
-			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
-		case *cpb.ManifestData_File:
-			path := defaultMeshnetManifest
-			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
-				path = req.GetMeshnet().GetManifest().GetManifestFile()
-			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			m.Manifest = p
-		}
-			path := defaultIxiaTGManifestDir
-			if cs.GetIxiatg().ManifestDir != "" {
-				path = cs.GetIxiatg().ManifestDir
-			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			i.ManifestDir = p
-			if cs.GetIxiatg().ConfigMap != nil {
-				i.ConfigMap = &deploy.IxiaTGConfigMap{
-					Release: cs.GetIxiatg().GetConfigMap().Release,
-					Images:  []*deploy.IxiaTGImage{},
+			switch t := cs.GetIxiatg().GetOperator().ManifestData.(type) {
+			case *cpb.Manifest_Data:
+				i.OperatorData = cs.GetIxiatg().GetOperator().GetData()
+			case *cpb.Manifest_File:
+				path := defaultIxiaTGOperator
+				if cs.GetIxiatg().GetOperator().GetFile() != "" {
+					path = cs.GetIxiatg().GetOperator().GetFile()
 				}
-				for _, image := range cs.GetIxiatg().GetConfigMap().Images {
-					i.ConfigMap.Images = append(i.ConfigMap.Images, &deploy.IxiaTGImage{
-						Name: image.Name,
-						Path: image.Path,
-						Tag:  image.Tag,
-					})
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
 				}
+				i.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
+			}
+			switch t := cs.GetIxiatg().GetConfigMap().ManifestData.(type) {
+			case *cpb.Manifest_Data:
+				i.ConfigMapData = cs.GetIxiatg().GetConfigMap().GetData()
+			case *cpb.Manifest_File:
+				path := defaultIxiaTGConfigMap
+				if cs.GetIxiatg().GetConfigMap().GetFile() != "" {
+					path = cs.GetIxiatg().GetConfigMap().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				i.ConfigMap = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
 			d.Controllers = append(d.Controllers, i)
 		case *cpb.ControllerSpec_Lemming:
-			c := &deploy.LemmingSpec{}
-		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
-		case *cpb.ManifestData_Data:
-			m.ManifestData = req.GetMeshnet().GetManifest().GetManifestData()
-		case *cpb.ManifestData_File:
-			path := defaultMeshnetManifest
-			if req.GetMeshnet().GetManifest().GetManifestFile() != "" {
-				path = req.GetMeshnet().GetManifest().GetManifestFile()
+			l := &deploy.LemmingSpec{}
+			switch t := cs.GetLemming().GetOperator().ManifestData.(type) {
+			case *cpb.Manifest_Data:
+				l.OperatorData = cs.GetLemming().GetOperator().GetData()
+			case *cpb.Manifest_File:
+				path := defaultLemmingOperator
+				if cs.GetLemming().GetOperator().GetFile() != "" {
+					path = cs.GetLemming().GetOperator().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				l.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			m.Manifest = p
-		}
-			path := defaultLemmingManifestDir
-			if cs.GetLemming().ManifestDir != "" {
-				path = cs.GetLemming().ManifestDir
-			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			c.ManifestDir = p
-			d.Controllers = append(d.Controllers, c)
+			d.Controllers = append(d.Controllers, l)
 		default:
 			return nil, fmt.Errorf("controller type not supported: %T", t)
 		}
