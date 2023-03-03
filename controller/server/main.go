@@ -41,7 +41,7 @@ import (
 var (
 	defaultKubeCfg         = ""
 	defaultTopoBasePath    = ""
-	defaultMetallbManifest = ""
+	defaultMetalLBManifest = ""
 	defaultMeshnetManifest = ""
 	defaultIxiaTGOperator  = ""
 	defaultIxiaTGConfigMap = ""
@@ -57,7 +57,7 @@ func init() {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
 		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
 		defaultMeshnetManifest = filepath.Join(home, "kne", "manifests", "meshnet", "grpc", "manifest.yaml")
-		defaultMetallbManifest = filepath.Join(home, "kne", "manifests", "metallb", "manifest.yaml")
+		defaultMetalLBManifest = filepath.Join(home, "kne", "manifests", "metallb", "manifest.yaml")
 		defaultIxiaTGOperator = filepath.Join(home, "kne", "manifests", "keysight", "ixiatg-operator.yaml")
 		defaultIxiaTGConfigMap = filepath.Join(home, "kne", "manifests", "keysight", "ixiatg-configmap.yaml")
 		defaultSRLinuxOperator = filepath.Join(home, "kne", "manifests", "controllers", "srlinux", "manifest.yaml")
@@ -122,11 +122,11 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch t := req.IngressSpec.(type) {
 	case *cpb.CreateClusterRequest_Metallb:
 		m := &deploy.MetalLBSpec{}
-		switch t := req.GetMetallb().GetManifest().ManifestData.(type) {
+		switch t := req.GetMetallb().GetManifest().GetManifestData().(type) {
 		case *cpb.Manifest_Data:
 			m.ManifestData = req.GetMetallb().GetManifest().GetData()
-		case *cpb.Manifest_File:
-			path := defaultMetallbManifest
+		case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+			path := defaultMetalLBManifest
 			if req.GetMetallb().GetManifest().GetFile() != "" {
 				path = req.GetMetallb().GetManifest().GetFile()
 			}
@@ -146,10 +146,10 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch t := req.CniSpec.(type) {
 	case *cpb.CreateClusterRequest_Meshnet:
 		m := &deploy.MeshnetSpec{}
-		switch t := req.GetMeshnet().GetManifest().ManifestData.(type) {
+		switch t := req.GetMeshnet().GetManifest().GetManifestData().(type) {
 		case *cpb.Manifest_Data:
 			m.ManifestData = req.GetMeshnet().GetManifest().GetData()
-		case *cpb.Manifest_File:
+		case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
 			path := defaultMeshnetManifest
 			if req.GetMeshnet().GetManifest().GetFile() != "" {
 				path = req.GetMeshnet().GetManifest().GetFile()
@@ -173,10 +173,10 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		switch t := cs.Spec.(type) {
 		case *cpb.ControllerSpec_Ceoslab:
 			c := &deploy.CEOSLabSpec{}
-			switch t := cs.GetCeoslab().GetOperator().ManifestData.(type) {
+			switch t := cs.GetCeoslab().GetOperator().GetManifestData().(type) {
 			case *cpb.Manifest_Data:
 				c.OperatorData = cs.GetCeoslab().GetOperator().GetData()
-			case *cpb.Manifest_File:
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
 				path := defaultCEOSLabOperator
 				if cs.GetCeoslab().GetOperator().GetFile() != "" {
 					path = cs.GetCeoslab().GetOperator().GetFile()
@@ -192,10 +192,10 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			d.Controllers = append(d.Controllers, c)
 		case *cpb.ControllerSpec_Srlinux:
 			s := &deploy.SRLinuxSpec{}
-			switch t := cs.GetSrlinux().GetOperator().ManifestData.(type) {
+			switch t := cs.GetSrlinux().GetOperator().GetManifestData().(type) {
 			case *cpb.Manifest_Data:
-				s.OperatorData = cs.GetCeoslab().GetOperator().GetData()
-			case *cpb.Manifest_File:
+				s.OperatorData = cs.GetSrlinux().GetOperator().GetData()
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
 				path := defaultSRLinuxOperator
 				if cs.GetSrlinux().GetOperator().GetFile() != "" {
 					path = cs.GetSrlinux().GetOperator().GetFile()
@@ -211,10 +211,10 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			d.Controllers = append(d.Controllers, s)
 		case *cpb.ControllerSpec_Ixiatg:
 			i := &deploy.IxiaTGSpec{}
-			switch t := cs.GetIxiatg().GetOperator().ManifestData.(type) {
+			switch t := cs.GetIxiatg().GetOperator().GetManifestData().(type) {
 			case *cpb.Manifest_Data:
 				i.OperatorData = cs.GetIxiatg().GetOperator().GetData()
-			case *cpb.Manifest_File:
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
 				path := defaultIxiaTGOperator
 				if cs.GetIxiatg().GetOperator().GetFile() != "" {
 					path = cs.GetIxiatg().GetOperator().GetFile()
@@ -227,10 +227,10 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			default:
 				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			switch t := cs.GetIxiatg().GetConfigMap().ManifestData.(type) {
+			switch t := cs.GetIxiatg().GetConfigMap().GetManifestData().(type) {
 			case *cpb.Manifest_Data:
 				i.ConfigMapData = cs.GetIxiatg().GetConfigMap().GetData()
-			case *cpb.Manifest_File:
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
 				path := defaultIxiaTGConfigMap
 				if cs.GetIxiatg().GetConfigMap().GetFile() != "" {
 					path = cs.GetIxiatg().GetConfigMap().GetFile()
@@ -246,10 +246,10 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			d.Controllers = append(d.Controllers, i)
 		case *cpb.ControllerSpec_Lemming:
 			l := &deploy.LemmingSpec{}
-			switch t := cs.GetLemming().GetOperator().ManifestData.(type) {
+			switch t := cs.GetLemming().GetOperator().GetManifestData().(type) {
 			case *cpb.Manifest_Data:
 				l.OperatorData = cs.GetLemming().GetOperator().GetData()
-			case *cpb.Manifest_File:
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
 				path := defaultLemmingOperator
 				if cs.GetLemming().GetOperator().GetFile() != "" {
 					path = cs.GetLemming().GetOperator().GetFile()
