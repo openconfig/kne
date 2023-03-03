@@ -153,7 +153,7 @@ func TestNewDeployment(t *testing.T) {
 								testFile.Name(),
 							},
 						},
-						ConfigMap: &cpb.Manifest{
+						CfgMap: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
 								testFile.Name(),
 							},
@@ -402,7 +402,7 @@ func TestNewDeployment(t *testing.T) {
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{},
 							},
-							ConfigMap: &cpb.Manifest{
+							CfgMap: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{},
 							},
 						},
@@ -506,7 +506,7 @@ func TestNewDeployment(t *testing.T) {
 									testFile.Name(),
 								},
 							},
-							ConfigMap: &cpb.Manifest{
+							CfgMap: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{
 									testFile.Name(),
 								},
@@ -618,7 +618,7 @@ func TestNewDeployment(t *testing.T) {
 									testData,
 								},
 							},
-							ConfigMap: &cpb.Manifest{
+							CfgMap: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_Data{
 									testData,
 								},

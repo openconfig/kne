@@ -38,14 +38,6 @@ import (
 const (
 	dockerConfigEnvVar        = "DOCKER_CONFIG"
 	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
-	ixiaTGConfigMapHeader     = `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ixiatg-release-config
-  namespace: ixiatg-op-system
-data:
-  versions: |
-    `
 )
 
 var (
@@ -59,7 +51,6 @@ var (
 
 	// Stubs for testing.
 	execLookPath = exec.LookPath
-	osStat       = os.Stat
 )
 
 type execerInterface interface {

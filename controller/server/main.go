@@ -227,13 +227,13 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			default:
 				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			switch t := cs.GetIxiatg().GetConfigMap().GetManifestData().(type) {
+			switch t := cs.GetIxiatg().GetCfgMap().GetManifestData().(type) {
 			case *cpb.Manifest_Data:
-				i.ConfigMapData = cs.GetIxiatg().GetConfigMap().GetData()
+				i.ConfigMapData = cs.GetIxiatg().GetCfgMap().GetData()
 			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
 				path := defaultIxiaTGConfigMap
-				if cs.GetIxiatg().GetConfigMap().GetFile() != "" {
-					path = cs.GetIxiatg().GetConfigMap().GetFile()
+				if cs.GetIxiatg().GetCfgMap().GetFile() != "" {
+					path = cs.GetIxiatg().GetCfgMap().GetFile()
 				}
 				p, err := validatePath(path)
 				if err != nil {
