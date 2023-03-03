@@ -39,14 +39,15 @@ import (
 )
 
 var (
-	defaultKubeCfg            = ""
-	defaultTopoBasePath       = ""
-	defaultMetallbManifestDir = ""
-	defaultMeshnetManifestDir = ""
-	defaultIxiaTGManifestDir  = ""
-	defaultSRLinuxManifestDir = ""
-	defaultCEOSLabManifestDir = ""
-	defaultLemmingManifestDir = ""
+	defaultKubeCfg         = ""
+	defaultTopoBasePath    = ""
+	defaultMetalLBManifest = ""
+	defaultMeshnetManifest = ""
+	defaultIxiaTGOperator  = ""
+	defaultIxiaTGConfigMap = ""
+	defaultSRLinuxOperator = ""
+	defaultCEOSLabOperator = ""
+	defaultLemmingOperator = ""
 	// Flags.
 	port = flag.Int("port", 50051, "Controller server port")
 )
@@ -55,11 +56,13 @@ func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
 		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
-		defaultMeshnetManifestDir = filepath.Join(home, "kne", "manifests", "meshnet")
-		defaultMetallbManifestDir = filepath.Join(home, "kne", "manifests", "metallb")
-		defaultIxiaTGManifestDir = filepath.Join(home, "keysight", "athena", "operator")
-		defaultSRLinuxManifestDir = filepath.Join(home, "kne", "manifests", "controllers", "srlinux")
-		defaultCEOSLabManifestDir = filepath.Join(home, "kne", "manifests", "controllers", "ceoslab")
+		defaultMeshnetManifest = filepath.Join(home, "kne", "manifests", "meshnet", "grpc", "manifest.yaml")
+		defaultMetalLBManifest = filepath.Join(home, "kne", "manifests", "metallb", "manifest.yaml")
+		defaultIxiaTGOperator = filepath.Join(home, "kne", "manifests", "keysight", "ixiatg-operator.yaml")
+		defaultIxiaTGConfigMap = filepath.Join(home, "kne", "manifests", "keysight", "ixiatg-configmap.yaml")
+		defaultSRLinuxOperator = filepath.Join(home, "kne", "manifests", "controllers", "srlinux", "manifest.yaml")
+		defaultCEOSLabOperator = filepath.Join(home, "kne", "manifests", "controllers", "ceoslab", "manifest.yaml")
+		defaultLemmingOperator = filepath.Join(home, "kne", "manifests", "controllers", "lemming", "manifest.yaml")
 	}
 }
 
@@ -119,15 +122,22 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch t := req.IngressSpec.(type) {
 	case *cpb.CreateClusterRequest_Metallb:
 		m := &deploy.MetalLBSpec{}
-		path := defaultMetallbManifestDir
-		if req.GetMetallb().ManifestDir != "" {
-			path = req.GetMetallb().ManifestDir
+		switch t := req.GetMetallb().GetManifest().GetManifestData().(type) {
+		case *cpb.Manifest_Data:
+			m.ManifestData = req.GetMetallb().GetManifest().GetData()
+		case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+			path := defaultMetalLBManifest
+			if req.GetMetallb().GetManifest().GetFile() != "" {
+				path = req.GetMetallb().GetManifest().GetFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
+		default:
+			return nil, fmt.Errorf("manifest data type not supported: %T", t)
 		}
-		p, err := validatePath(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate path %q", path)
-		}
-		m.ManifestDir = p
 		m.IPCount = int(req.GetMetallb().IpCount)
 		d.Ingress = m
 	default:
@@ -136,15 +146,22 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	switch t := req.CniSpec.(type) {
 	case *cpb.CreateClusterRequest_Meshnet:
 		m := &deploy.MeshnetSpec{}
-		path := defaultMeshnetManifestDir
-		if req.GetMeshnet().ManifestDir != "" {
-			path = req.GetMeshnet().ManifestDir
+		switch t := req.GetMeshnet().GetManifest().GetManifestData().(type) {
+		case *cpb.Manifest_Data:
+			m.ManifestData = req.GetMeshnet().GetManifest().GetData()
+		case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+			path := defaultMeshnetManifest
+			if req.GetMeshnet().GetManifest().GetFile() != "" {
+				path = req.GetMeshnet().GetManifest().GetFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			m.Manifest = p
+		default:
+			return nil, fmt.Errorf("manifest data type not supported: %T", t)
 		}
-		p, err := validatePath(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate path %q", path)
-		}
-		m.ManifestDir = p
 		d.CNI = m
 	default:
 		return nil, fmt.Errorf("cni type not supported: %T", t)
@@ -156,66 +173,96 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		switch t := cs.Spec.(type) {
 		case *cpb.ControllerSpec_Ceoslab:
 			c := &deploy.CEOSLabSpec{}
-			path := defaultCEOSLabManifestDir
-			if cs.GetCeoslab().ManifestDir != "" {
-				path = cs.GetCeoslab().ManifestDir
+			switch t := cs.GetCeoslab().GetOperator().GetManifestData().(type) {
+			case *cpb.Manifest_Data:
+				c.OperatorData = cs.GetCeoslab().GetOperator().GetData()
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+				path := defaultCEOSLabOperator
+				if cs.GetCeoslab().GetOperator().GetFile() != "" {
+					path = cs.GetCeoslab().GetOperator().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				c.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			c.ManifestDir = p
 			d.Controllers = append(d.Controllers, c)
-
 		case *cpb.ControllerSpec_Srlinux:
 			s := &deploy.SRLinuxSpec{}
-			path := defaultSRLinuxManifestDir
-			if cs.GetSrlinux().ManifestDir != "" {
-				path = cs.GetSrlinux().ManifestDir
+			switch t := cs.GetSrlinux().GetOperator().GetManifestData().(type) {
+			case *cpb.Manifest_Data:
+				s.OperatorData = cs.GetSrlinux().GetOperator().GetData()
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+				path := defaultSRLinuxOperator
+				if cs.GetSrlinux().GetOperator().GetFile() != "" {
+					path = cs.GetSrlinux().GetOperator().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				s.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			s.ManifestDir = p
 			d.Controllers = append(d.Controllers, s)
 		case *cpb.ControllerSpec_Ixiatg:
 			i := &deploy.IxiaTGSpec{}
-			path := defaultIxiaTGManifestDir
-			if cs.GetIxiatg().ManifestDir != "" {
-				path = cs.GetIxiatg().ManifestDir
-			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			i.ManifestDir = p
-			if cs.GetIxiatg().ConfigMap != nil {
-				i.ConfigMap = &deploy.IxiaTGConfigMap{
-					Release: cs.GetIxiatg().GetConfigMap().Release,
-					Images:  []*deploy.IxiaTGImage{},
+			switch t := cs.GetIxiatg().GetOperator().GetManifestData().(type) {
+			case *cpb.Manifest_Data:
+				i.OperatorData = cs.GetIxiatg().GetOperator().GetData()
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+				path := defaultIxiaTGOperator
+				if cs.GetIxiatg().GetOperator().GetFile() != "" {
+					path = cs.GetIxiatg().GetOperator().GetFile()
 				}
-				for _, image := range cs.GetIxiatg().GetConfigMap().Images {
-					i.ConfigMap.Images = append(i.ConfigMap.Images, &deploy.IxiaTGImage{
-						Name: image.Name,
-						Path: image.Path,
-						Tag:  image.Tag,
-					})
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
 				}
+				i.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
+			}
+			switch t := cs.GetIxiatg().GetCfgMap().GetManifestData().(type) {
+			case *cpb.Manifest_Data:
+				i.ConfigMapData = cs.GetIxiatg().GetCfgMap().GetData()
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+				path := defaultIxiaTGConfigMap
+				if cs.GetIxiatg().GetCfgMap().GetFile() != "" {
+					path = cs.GetIxiatg().GetCfgMap().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				i.ConfigMap = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
 			d.Controllers = append(d.Controllers, i)
 		case *cpb.ControllerSpec_Lemming:
-			c := &deploy.LemmingSpec{}
-			path := defaultLemmingManifestDir
-			if cs.GetLemming().ManifestDir != "" {
-				path = cs.GetLemming().ManifestDir
+			l := &deploy.LemmingSpec{}
+			switch t := cs.GetLemming().GetOperator().GetManifestData().(type) {
+			case *cpb.Manifest_Data:
+				l.OperatorData = cs.GetLemming().GetOperator().GetData()
+			case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+				path := defaultLemmingOperator
+				if cs.GetLemming().GetOperator().GetFile() != "" {
+					path = cs.GetLemming().GetOperator().GetFile()
+				}
+				p, err := validatePath(path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to validate path %q", path)
+				}
+				l.Operator = p
+			default:
+				return nil, fmt.Errorf("manifest data type not supported: %T", t)
 			}
-			p, err := validatePath(path)
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", path)
-			}
-			c.ManifestDir = p
-			d.Controllers = append(d.Controllers, c)
+			d.Controllers = append(d.Controllers, l)
 		default:
 			return nil, fmt.Errorf("controller type not supported: %T", t)
 		}

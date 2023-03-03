@@ -14,19 +14,23 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/grpc
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 controllers:
   - kind: IxiaTG
     spec:
-      manifests: ../../manifests/keysight
+      operator: ../../manifests/keysight/ixiatg-operator.yaml
+      configMap: ../../manifests/keysight/ixiatg-configmap.yaml
   - kind: SRLinux
     spec:
-      manifests: ../../manifests/controllers/srlinux
+      operator: ../../manifests/controllers/srlinux/manifest.yaml
   - kind: CEOSLab
     spec:
-      manifests: ../../manifests/controllers/ceoslab
+      operator: ../../manifests/controllers/ceoslab/manifest.yaml
+  - kind: Lemming
+    spec:
+      operator: ../../manifests/controllers/lemming/manifest.yaml
