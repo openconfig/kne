@@ -84,7 +84,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -94,7 +94,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -130,7 +130,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -140,7 +140,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -150,12 +150,12 @@ func TestNewDeployment(t *testing.T) {
 					Ixiatg: &cpb.IxiaTGSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								testFile.Name(),
+								File: testFile.Name(),
 							},
 						},
 						CfgMap: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								testFile.Name(),
+								File: testFile.Name(),
 							},
 						},
 					},
@@ -198,7 +198,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -208,7 +208,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -218,7 +218,7 @@ func TestNewDeployment(t *testing.T) {
 					Srlinux: &cpb.SRLinuxSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								testFile.Name(),
+								File: testFile.Name(),
 							},
 						},
 					},
@@ -260,7 +260,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -270,7 +270,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -280,7 +280,7 @@ func TestNewDeployment(t *testing.T) {
 					Ceoslab: &cpb.CEOSLabSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								testFile.Name(),
+								File: testFile.Name(),
 							},
 						},
 					},
@@ -322,7 +322,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -332,7 +332,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -342,7 +342,7 @@ func TestNewDeployment(t *testing.T) {
 					Lemming: &cpb.LemmingSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								testFile.Name(),
+								File: testFile.Name(),
 							},
 						},
 					},
@@ -482,7 +482,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -492,7 +492,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -503,12 +503,12 @@ func TestNewDeployment(t *testing.T) {
 						Ixiatg: &cpb.IxiaTGSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{
-									testFile.Name(),
+									File: testFile.Name(),
 								},
 							},
 							CfgMap: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{
-									testFile.Name(),
+									File: testFile.Name(),
 								},
 							},
 						},
@@ -519,7 +519,7 @@ func TestNewDeployment(t *testing.T) {
 						Srlinux: &cpb.SRLinuxSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{
-									testFile.Name(),
+									File: testFile.Name(),
 								},
 							},
 						},
@@ -530,7 +530,7 @@ func TestNewDeployment(t *testing.T) {
 						Ceoslab: &cpb.CEOSLabSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{
-									testFile.Name(),
+									File: testFile.Name(),
 								},
 							},
 						},
@@ -541,7 +541,7 @@ func TestNewDeployment(t *testing.T) {
 						Lemming: &cpb.LemmingSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_File{
-									testFile.Name(),
+									File: testFile.Name(),
 								},
 							},
 						},
@@ -594,7 +594,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_Data{
-							testData,
+							Data: testData,
 						},
 					},
 					IpCount: 100,
@@ -604,7 +604,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_Data{
-							testData,
+							Data: testData,
 						},
 					},
 				},
@@ -615,12 +615,12 @@ func TestNewDeployment(t *testing.T) {
 						Ixiatg: &cpb.IxiaTGSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_Data{
-									testData,
+									Data: testData,
 								},
 							},
 							CfgMap: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_Data{
-									testData,
+									Data: testData,
 								},
 							},
 						},
@@ -631,7 +631,7 @@ func TestNewDeployment(t *testing.T) {
 						Srlinux: &cpb.SRLinuxSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_Data{
-									testData,
+									Data: testData,
 								},
 							},
 						},
@@ -642,7 +642,7 @@ func TestNewDeployment(t *testing.T) {
 						Ceoslab: &cpb.CEOSLabSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_Data{
-									testData,
+									Data: testData,
 								},
 							},
 						},
@@ -653,7 +653,7 @@ func TestNewDeployment(t *testing.T) {
 						Lemming: &cpb.LemmingSpec{
 							Operator: &cpb.Manifest{
 								ManifestData: &cpb.Manifest_Data{
-									testData,
+									Data: testData,
 								},
 							},
 						},
@@ -706,7 +706,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -716,7 +716,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -726,7 +726,7 @@ func TestNewDeployment(t *testing.T) {
 					Ixiatg: &cpb.IxiaTGSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								testFile.Name(),
+								File: testFile.Name(),
 							},
 						},
 					},
@@ -769,7 +769,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -779,7 +779,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -789,7 +789,7 @@ func TestNewDeployment(t *testing.T) {
 					Ixiatg: &cpb.IxiaTGSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								testFile.Name(),
+								File: testFile.Name(),
 							},
 						},
 					},
@@ -891,7 +891,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 				},
@@ -913,7 +913,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							testFile.Name(),
+							File: testFile.Name(),
 						},
 					},
 					IpCount: 100,
@@ -941,7 +941,7 @@ func TestNewDeployment(t *testing.T) {
 				Meshnet: &cpb.MeshnetSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							"/foo.yaml",
+							File: "/foo.yaml",
 						},
 					},
 				},
@@ -963,7 +963,7 @@ func TestNewDeployment(t *testing.T) {
 				Metallb: &cpb.MetallbSpec{
 					Manifest: &cpb.Manifest{
 						ManifestData: &cpb.Manifest_File{
-							"/foo.yaml",
+							File: "/foo.yaml",
 						},
 					},
 					IpCount: 100,
@@ -998,7 +998,7 @@ func TestNewDeployment(t *testing.T) {
 					Ixiatg: &cpb.IxiaTGSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								"/foo.yaml",
+								File: "/foo.yaml",
 							},
 						},
 					},
@@ -1030,7 +1030,7 @@ func TestNewDeployment(t *testing.T) {
 					Srlinux: &cpb.SRLinuxSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								"/foo.yaml",
+								File: "/foo.yaml",
 							},
 						},
 					},
@@ -1062,7 +1062,7 @@ func TestNewDeployment(t *testing.T) {
 					Ceoslab: &cpb.CEOSLabSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								"/foo.yaml",
+								File: "/foo.yaml",
 							},
 						},
 					},
@@ -1094,7 +1094,7 @@ func TestNewDeployment(t *testing.T) {
 					Lemming: &cpb.LemmingSpec{
 						Operator: &cpb.Manifest{
 							ManifestData: &cpb.Manifest_File{
-								"/foo.yaml",
+								File: "/foo.yaml",
 							},
 						},
 					},
