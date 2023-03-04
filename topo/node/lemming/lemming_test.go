@@ -89,9 +89,9 @@ func TestCreate(t *testing.T) {
 						},
 					},
 					Services: map[uint32]*tpb.Service{
-						6030: {
-							Inside:  6030,
-							Outside: 6030,
+						9339: {
+							Inside:  9339,
+							Outside: 9339,
 							Name:    "gnmi",
 						},
 					},
@@ -105,7 +105,7 @@ func TestCreate(t *testing.T) {
 			},
 			Spec: lemmingv1.LemmingSpec{
 				Command:        "/lemming",
-				Ports:          map[string]lemmingv1.ServicePort{"gnmi": {InnerPort: 6030, OuterPort: 6030}},
+				Ports:          map[string]lemmingv1.ServicePort{"gnmi": {InnerPort: 9339, OuterPort: 9339}},
 				InterfaceCount: 1,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{},
@@ -184,15 +184,15 @@ func TestNew(t *testing.T) {
 				"memory": "1Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				6030: {
+				9339: {
 					Name:    "gnmi",
-					Inside:  6030,
-					Outside: 6030,
+					Inside:  9339,
+					Outside: 9339,
 				},
-				6031: {
+				9340: {
 					Name:    "gribi",
-					Inside:  6030,
-					Outside: 6031,
+					Inside:  9340,
+					Outside: 9340,
 				},
 			},
 		},

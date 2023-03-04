@@ -194,15 +194,16 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
-			6030: {
+			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
+			9339: {
 				Name:    "gnmi",
-				Inside:  6030,
-				Outside: 6030,
+				Inside:  9339,
+				Outside: 9339,
 			},
-			6031: {
+			9340: {
 				Name:    "gribi",
-				Inside:  6030,
-				Outside: 6031,
+				Inside:  9340,
+				Outside: 9340,
 			},
 		}
 	}
