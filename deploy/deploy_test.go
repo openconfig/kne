@@ -3,6 +3,7 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	dtypes "github.com/docker/docker/api/types"
@@ -637,66 +638,6 @@ func TestMetalLBSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "valid deployment - manifest data instead of file",
-		m: &MetalLBSpec{
-			ManifestData: []byte("a fake manifest"),
-			IPCount:      20,
-		},
-		execer: exec.NewFakeExecer(nil, nil, nil),
-		wantConfig: &metallbv1.IPAddressPool{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "IPAddressPool",
-				APIVersion: "metallb.io/v1beta1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "kne-service-pool",
-				Namespace: "metallb-system",
-			},
-			Spec: metallbv1.IPAddressPoolSpec{
-				Addresses: []string{"192.18.0.50 - 192.18.0.70"},
-			},
-		},
-		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
-		},
-		mockKClient: func(k *fake.Clientset) {
-			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-				f := newFakeWatch([]watch.Event{{
-					Type: watch.Added,
-					Object: &appsv1.Deployment{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "foo",
-							Namespace: "metallb-system",
-						},
-						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   0,
-							ReadyReplicas:       0,
-							Replicas:            0,
-							UnavailableReplicas: 1,
-							UpdatedReplicas:     0,
-						},
-					},
-				}, {
-					Type: watch.Modified,
-					Object: &appsv1.Deployment{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "foo",
-							Namespace: "metallb-system",
-						},
-						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   1,
-							ReadyReplicas:       1,
-							Replicas:            1,
-							UnavailableReplicas: 0,
-							UpdatedReplicas:     1,
-						},
-					},
-				}})
-				return true, f, nil
-			}
-			k.PrependWatchReactor("deployments", reaction)
-		},
-	}, {
 		desc: "valid deployment - kind",
 		m: &MetalLBSpec{
 			IPCount:                   20,
@@ -857,12 +798,6 @@ func TestMeshnetSpec(t *testing.T) {
 		desc:   "valid deployment",
 		m:      &MeshnetSpec{},
 		execer: exec.NewFakeExecer(nil),
-	}, {
-		desc: "valid deployment - manifest data over file",
-		m: &MeshnetSpec{
-			ManifestData: []byte("fake manifest data"),
-		},
-		execer: exec.NewFakeExecer(nil),
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -938,14 +873,12 @@ func TestIxiaTGSpec(t *testing.T) {
 		execer      execerInterface
 		dErr        string
 		hErr        string
+		cmNotFound  bool
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc: "2 replicas",
-		i: &IxiaTGSpec{
-			Operator:  "/path/to/operator.yaml",
-			ConfigMap: "/path/to/configmap.yaml",
-		},
+		desc:   "configmap file found - 2 replicas",
+		i:      &IxiaTGSpec{},
 		execer: exec.NewFakeExecer(nil, nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -991,10 +924,16 @@ func TestIxiaTGSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "1 replica - data over files",
+		desc: "configmap specified - 1 replica",
 		i: &IxiaTGSpec{
-			OperatorData:  []byte("some fake data"),
-			ConfigMapData: []byte("some fake data"),
+			ConfigMap: &IxiaTGConfigMap{
+				Release: "from-arg",
+				Images: []*IxiaTGImage{{
+					Name: "controller",
+					Path: "some/path",
+					Tag:  "latest",
+				}},
+			},
 		},
 		execer: exec.NewFakeExecer(nil, nil),
 		mockKClient: func(k *fake.Clientset) {
@@ -1035,18 +974,10 @@ func TestIxiaTGSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "no operator",
-		i: &IxiaTGSpec{
-			ConfigMap: "/path/to/configmap.yaml",
-		},
-		execer: exec.NewFakeExecer(errors.New("no operator file found")),
-		dErr:   "no operator file found",
-	}, {
-		desc: "no configmap",
-		i: &IxiaTGSpec{
-			Operator: "/path/to/operator.yaml",
-		},
-		execer: exec.NewFakeExecer(nil, errors.New("no configmap file found")), // the second fake result should not be encountered because ConfigMap is empty
+		desc:       "no configmap",
+		i:          &IxiaTGSpec{},
+		cmNotFound: true,
+		execer:     exec.NewFakeExecer(nil, nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -1092,7 +1023,14 @@ func TestIxiaTGSpec(t *testing.T) {
 	}, {
 		desc: "configmap deploy error",
 		i: &IxiaTGSpec{
-			ConfigMap: "/path/to/configmap.yaml",
+			ConfigMap: &IxiaTGConfigMap{
+				Release: "from-arg",
+				Images: []*IxiaTGImage{{
+					Name: "controller",
+					Path: "some/path",
+					Tag:  "latest",
+				}},
+			},
 		},
 		execer: exec.NewFakeExecer(nil, errors.New("failed to apply configmap")),
 		dErr:   "failed to apply configmap",
@@ -1112,6 +1050,13 @@ func TestIxiaTGSpec(t *testing.T) {
 			tt.i.SetKClient(ki)
 			if tt.execer != nil {
 				execer = tt.execer
+			}
+			var cmNotFoundErr error
+			if tt.cmNotFound {
+				cmNotFoundErr = errors.New("file not found")
+			}
+			osStat = func(_ string) (os.FileInfo, error) {
+				return nil, cmNotFoundErr
 			}
 			err := tt.i.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
@@ -1193,10 +1138,8 @@ func TestSRLinuxSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "2 replicas - data over file",
-		srl: &SRLinuxSpec{
-			OperatorData: []byte("some fake data"),
-		},
+		desc:   "2 replicas",
+		srl:    &SRLinuxSpec{},
 		execer: exec.NewFakeExecer(nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -1343,10 +1286,8 @@ func TestCEOSLabSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "2 replicas - data over file",
-		ceos: &CEOSLabSpec{
-			OperatorData: []byte("some fake data"),
-		},
+		desc:   "2 replicas",
+		ceos:   &CEOSLabSpec{},
 		execer: exec.NewFakeExecer(nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -1493,11 +1434,9 @@ func TestLemmingSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "2 replicas - data over file",
-		lemming: &LemmingSpec{
-			OperatorData: []byte("some fake data"),
-		},
-		execer: exec.NewFakeExecer(nil),
+		desc:    "2 replicas",
+		lemming: &LemmingSpec{},
+		execer:  exec.NewFakeExecer(nil),
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
