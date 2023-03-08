@@ -286,7 +286,7 @@ func compareArgs(gotArgs, wantArgs []string) bool {
 			if strings.HasSuffix(got, want[2:]) {
 				continue
 			}
-		case strings.HasPrefix(want, ".*"):
+		case strings.HasSuffix(want, ".*"):
 			if strings.HasPrefix(got, want[:len(want)-2]) {
 				continue
 			}

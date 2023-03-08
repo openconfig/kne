@@ -131,6 +131,22 @@ func TestSuccessfulCommands(t *testing.T) {
 				{Cmd: "cmd1"},
 				{Cmd: "cmd2", Optional: true},
 			},
+		}, {
+			name: "match prefix",
+			send: []Response{
+				{Cmd: "cmd1", Args: []string{"foo-bar"}},
+			},
+			resp: []Response{
+				{Cmd: "cmd1", Args: []string{"foo-.*"}},
+			},
+		}, {
+			name: "match suffix",
+			send: []Response{
+				{Cmd: "cmd1", Args: []string{"foo-bar"}},
+			},
+			resp: []Response{
+				{Cmd: "cmd1", Args: []string{".*-bar"}},
+			},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
