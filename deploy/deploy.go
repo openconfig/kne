@@ -597,6 +597,7 @@ func writeDockerConfig(path string, registries []string) error {
 
 type MetalLBSpec struct {
 	IPCount                   int    `yaml:"ip_count"`
+	ManifestDir               string `yaml:"manifests"`
 	Manifest                  string `yaml:"manifest"`
 	ManifestData              []byte
 	dockerNetworkResourceName string
@@ -677,6 +678,10 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 		m.Manifest = f.Name()
+	}
+	if m.Manifest == "" && m.ManifestDir != "" {
+		log.Errorf("Deploying MetalLB using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the manifest file directly using the 'manifest' field going forward", m.ManifestDir)
+		m.Manifest = filepath.Join(m.ManifestDir, "metallb-native.yaml")
 	}
 	log.Infof("Deploying MetalLB from: %s", m.Manifest)
 	if err := execer.Exec("kubectl", "apply", "-f", m.Manifest); err != nil {
@@ -772,6 +777,7 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 }
 
 type MeshnetSpec struct {
+	ManifestDir  string `yaml:"manifests"`
 	Manifest     string `yaml:"manifest"`
 	ManifestData []byte
 	kClient      kubernetes.Interface
@@ -795,6 +801,10 @@ func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 		m.Manifest = f.Name()
+	}
+	if m.Manifest == "" && m.ManifestDir != "" {
+		log.Errorf("Deploying Meshnet using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the manifest file directly using the 'manifest' field going forward", m.ManifestDir)
+		m.Manifest = filepath.Join(m.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Meshnet from: %s", m.Manifest)
 	if err := execer.Exec("kubectl", "apply", "-f", m.Manifest); err != nil {
@@ -834,6 +844,7 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 }
 
 type CEOSLabSpec struct {
+	ManifestDir  string `yaml:"manifests"`
 	Operator     string `yaml:"operator"`
 	OperatorData []byte
 	kClient      kubernetes.Interface
@@ -858,6 +869,10 @@ func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
 		}
 		c.Operator = f.Name()
 	}
+	if c.Operator == "" && c.ManifestDir != "" {
+		log.Errorf("Deploying CEOSLab controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", c.ManifestDir)
+		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
+	}
 	log.Infof("Deploying CEOSLab controller from: %s", c.Operator)
 	if err := execer.Exec("kubectl", "apply", "-f", c.Operator); err != nil {
 		return err
@@ -871,6 +886,7 @@ func (c *CEOSLabSpec) Healthy(ctx context.Context) error {
 }
 
 type LemmingSpec struct {
+	ManifestDir  string `yaml:"manifests"`
 	Operator     string `yaml:"operator"`
 	OperatorData []byte
 	kClient      kubernetes.Interface
@@ -895,6 +911,10 @@ func (l *LemmingSpec) Deploy(ctx context.Context) error {
 		}
 		l.Operator = f.Name()
 	}
+	if l.Operator == "" && l.ManifestDir != "" {
+		log.Errorf("Deploying Lemming controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", l.ManifestDir)
+		l.Operator = filepath.Join(l.ManifestDir, "manifest.yaml")
+	}
 	log.Infof("Deploying Lemming controller from: %s", l.Operator)
 	if err := execer.Exec("kubectl", "apply", "-f", l.Operator); err != nil {
 		return err
@@ -908,6 +928,7 @@ func (l *LemmingSpec) Healthy(ctx context.Context) error {
 }
 
 type SRLinuxSpec struct {
+	ManifestDir  string `yaml:"manifests"`
 	Operator     string `yaml:"operator"`
 	OperatorData []byte
 	kClient      kubernetes.Interface
@@ -932,6 +953,10 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 		}
 		s.Operator = f.Name()
 	}
+	if s.Operator == "" && s.ManifestDir != "" {
+		log.Errorf("Deploying SRLinux controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", s.ManifestDir)
+		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
+	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
 	if err := execer.Exec("kubectl", "apply", "-f", s.Operator); err != nil {
 		return err
@@ -945,6 +970,7 @@ func (s *SRLinuxSpec) Healthy(ctx context.Context) error {
 }
 
 type IxiaTGSpec struct {
+	ManifestDir   string `yaml:"manifests"`
 	Operator      string `yaml:"operator"`
 	OperatorData  []byte
 	ConfigMap     string `yaml:"configMap"`
@@ -971,9 +997,24 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		}
 		i.Operator = f.Name()
 	}
+	if i.Operator == "" && i.ManifestDir != "" {
+		log.Errorf("Deploying IxiaTG controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", i.ManifestDir)
+		i.Operator = filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")
+	}
 	log.Infof("Deploying IxiaTG controller from: %s", i.Operator)
 	if err := execer.Exec("kubectl", "apply", "-f", i.Operator); err != nil {
 		return err
+	}
+
+	if i.ConfigMap == "" && i.ManifestDir != "" {
+		for _, name := range []string{"ixiatg-configmap.yaml", "ixia-configmap.yaml"} {
+			path := filepath.Join(i.ManifestDir, name)
+			if _, err := os.Stat(path); err == nil {
+				log.Errorf("Deploying IxiaTG configmap using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the configmap file directly using the 'configMap' field going forward", i.ManifestDir)
+				i.ConfigMap = path
+				break
+			}
+		}
 	}
 
 	if i.ConfigMap == "" && i.ConfigMapData == nil {

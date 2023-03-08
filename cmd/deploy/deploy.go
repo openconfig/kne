@@ -115,7 +115,12 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		if err := cfg.CNI.Spec.Decode(v); err != nil {
 			return nil, err
 		}
-		v.Manifest = cleanPath(v.Manifest, basePath)
+		if v.Manifest != "" {
+			v.Manifest = cleanPath(v.Manifest, basePath)
+		}
+		if v.ManifestDir != "" {
+			v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+		}
 		d.CNI = v
 	default:
 		return nil, fmt.Errorf("CNI type not supported: %s", cfg.CNI.Kind)
@@ -126,7 +131,12 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 		if err := cfg.Ingress.Spec.Decode(v); err != nil {
 			return nil, err
 		}
-		v.Manifest = cleanPath(v.Manifest, basePath)
+		if v.Manifest != "" {
+			v.Manifest = cleanPath(v.Manifest, basePath)
+		}
+		if v.ManifestDir != "" {
+			v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+		}
 		d.Ingress = v
 	default:
 		return nil, fmt.Errorf("ingress type not supported: %s", cfg.Ingress.Kind)
@@ -141,29 +151,51 @@ func newDeployment(cfgPath string) (*deploy.Deployment, error) {
 			if err := c.Spec.Decode(v); err != nil {
 				return nil, err
 			}
-			v.Operator = cleanPath(v.Operator, basePath)
-			v.ConfigMap = cleanPath(v.ConfigMap, basePath)
+			if v.Operator != "" {
+				v.Operator = cleanPath(v.Operator, basePath)
+			}
+			if v.ConfigMap != "" {
+				v.ConfigMap = cleanPath(v.ConfigMap, basePath)
+			}
+			if v.ManifestDir != "" {
+				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+			}
 			d.Controllers = append(d.Controllers, v)
 		case "SRLinux":
 			v := &deploy.SRLinuxSpec{}
 			if err := c.Spec.Decode(v); err != nil {
 				return nil, err
 			}
-			v.Operator = cleanPath(v.Operator, basePath)
+			if v.Operator != "" {
+				v.Operator = cleanPath(v.Operator, basePath)
+			}
+			if v.ManifestDir != "" {
+				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+			}
 			d.Controllers = append(d.Controllers, v)
 		case "CEOSLab":
 			v := &deploy.CEOSLabSpec{}
 			if err := c.Spec.Decode(v); err != nil {
 				return nil, err
 			}
-			v.Operator = cleanPath(v.Operator, basePath)
+			if v.Operator != "" {
+				v.Operator = cleanPath(v.Operator, basePath)
+			}
+			if v.ManifestDir != "" {
+				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+			}
 			d.Controllers = append(d.Controllers, v)
 		case "Lemming":
 			v := &deploy.LemmingSpec{}
 			if err := c.Spec.Decode(v); err != nil {
 				return nil, err
 			}
-			v.Operator = cleanPath(v.Operator, basePath)
+			if v.Operator != "" {
+				v.Operator = cleanPath(v.Operator, basePath)
+			}
+			if v.ManifestDir != "" {
+				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
+			}
 			d.Controllers = append(d.Controllers, v)
 		default:
 			return nil, fmt.Errorf("controller type not supported: %s", c.Kind)
