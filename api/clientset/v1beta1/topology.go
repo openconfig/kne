@@ -138,17 +138,14 @@ func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topolo
 		Kind:       gvk.Kind,
 		APIVersion: gvk.GroupVersion().String(),
 	}
-	fmt.Printf("topology pre conv: %+v\n", topology)
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(topology)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert Topology to unstructured: %w", err)
 	}
-	fmt.Printf("topology unstruct: %+v\n", obj)
 	u, err := t.dInterface.Namespace(t.ns).Create(ctx, &unstructured.Unstructured{Object: obj}, opts)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("topology post create unstruct: %+v\n", u)
 	result := topologyv1.Topology{}
 	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.UnstructuredContent(), &result); err != nil {
 		return nil, fmt.Errorf("failed to type assert return to Topology: %w", err)
