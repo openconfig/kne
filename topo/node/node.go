@@ -343,10 +343,13 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		if name == "" {
 			name = fmt.Sprintf("port-%d", k)
 		}
+		if v.Outside != 0 {
+			log.Warningf("Outside should not be set by user. The key is used as the target external port")
+		}
 		sp := corev1.ServicePort{
 			Name:       name,
 			Protocol:   "TCP",
-			Port:       int32(v.Inside),
+			Port:       int32(k),
 			TargetPort: intstr.FromInt(int(v.Inside)),
 		}
 		if v.NodePort != 0 {

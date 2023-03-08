@@ -268,10 +268,14 @@ type Node struct {
 
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // Name of the node in the topology. Must be unique.
 	// Deprecated: Do not use.
-	Type        Node_Type           `protobuf:"varint,2,opt,name=type,proto3,enum=topo.Node_Type" json:"type,omitempty"`
-	Labels      map[string]string   `protobuf:"bytes,4,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`           // Metadata labels describing the node.
-	Config      *Config             `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`                                                                                                   // Pod specific configuration of the node.
-	Services    map[uint32]*Service `protobuf:"bytes,6,rep,name=services,proto3" json:"services,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`      // Map of services to enable on the node.
+	Type   Node_Type         `protobuf:"varint,2,opt,name=type,proto3,enum=topo.Node_Type" json:"type,omitempty"`
+	Labels map[string]string `protobuf:"bytes,4,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` // Metadata labels describing the node.
+	Config *Config           `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`                                                                                         // Pod specific configuration of the node.
+	// Map of services to enable on the node.
+	// The key is the external load balancer port to be used by the service.
+	// Multiple external services can be mapped to a single internal service port
+	// by reusing the inside_port in the service definition.
+	Services    map[uint32]*Service `protobuf:"bytes,6,rep,name=services,proto3" json:"services,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	Constraints map[string]string   `protobuf:"bytes,7,rep,name=constraints,proto3" json:"constraints,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` // Any k8s constraints required by node.
 	Vendor      Vendor              `protobuf:"varint,8,opt,name=vendor,proto3,enum=topo.Vendor" json:"vendor,omitempty"`                                                                                 // Vendor enum replaces type.
 	Model       string              `protobuf:"bytes,9,opt,name=model,proto3" json:"model,omitempty"`                                                                                                     // Model of the node.
@@ -897,19 +901,20 @@ func (x *SelfSignedCertCfg) GetCommonName() string {
 // service is created KNE will fill in the outside information for the user to
 // access the services.
 // The user should specify inside port for this is the port the container will
-// listen on. The outside port if provided will be the load balanced advertised
-// port.  If no outsideport is provided the inside port will be used.
+// listen on. T
 type Service struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name      string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                            // Name of the service (optional)
-	Inside    uint32 `protobuf:"varint,2,opt,name=inside,proto3" json:"inside,omitempty"`                       // Inside port to map Node (container listening port)
-	Outside   uint32 `protobuf:"varint,3,opt,name=outside,proto3" json:"outside,omitempty"`                     // Outside port to map (target port on loadbalancer)
-	InsideIp  string `protobuf:"bytes,4,opt,name=inside_ip,json=insideIp,proto3" json:"inside_ip,omitempty"`    // Assigned by KNE.
-	OutsideIp string `protobuf:"bytes,5,opt,name=outside_ip,json=outsideIp,proto3" json:"outside_ip,omitempty"` // Assigned by KNE.
-	NodePort  uint32 `protobuf:"varint,6,opt,name=node_port,json=nodePort,proto3" json:"node_port,omitempty"`   // Assigned by KNE.
+	Name   string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`      // Name of the service (optional)
+	Inside uint32 `protobuf:"varint,2,opt,name=inside,proto3" json:"inside,omitempty"` // Inside port to map Node (container listening port)
+	// Assigned by KNE.
+	Outside   uint32 `protobuf:"varint,3,opt,name=outside,proto3" json:"outside,omitempty"`                     // Outside port used by service. (same a service key)
+	OutsideIp string `protobuf:"bytes,5,opt,name=outside_ip,json=outsideIp,proto3" json:"outside_ip,omitempty"` // External IP assigned by cluster load balancer.
+	// Used internally by KNE.
+	InsideIp string `protobuf:"bytes,4,opt,name=inside_ip,json=insideIp,proto3" json:"inside_ip,omitempty"`  // Cluster IP for the service.
+	NodePort uint32 `protobuf:"varint,6,opt,name=node_port,json=nodePort,proto3" json:"node_port,omitempty"` // Port on the K8s worker node used by the cluster.
 }
 
 func (x *Service) Reset() {
@@ -965,16 +970,16 @@ func (x *Service) GetOutside() uint32 {
 	return 0
 }
 
-func (x *Service) GetInsideIp() string {
+func (x *Service) GetOutsideIp() string {
 	if x != nil {
-		return x.InsideIp
+		return x.OutsideIp
 	}
 	return ""
 }
 
-func (x *Service) GetOutsideIp() string {
+func (x *Service) GetInsideIp() string {
 	if x != nil {
-		return x.OutsideIp
+		return x.InsideIp
 	}
 	return ""
 }
@@ -1124,10 +1129,10 @@ var file_topo_proto_rawDesc = []byte{
 	0x0a, 0x06, 0x69, 0x6e, 0x73, 0x69, 0x64, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06,
 	0x69, 0x6e, 0x73, 0x69, 0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x6f, 0x75, 0x74, 0x73, 0x69, 0x64,
 	0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x6f, 0x75, 0x74, 0x73, 0x69, 0x64, 0x65,
-	0x12, 0x1b, 0x0a, 0x09, 0x69, 0x6e, 0x73, 0x69, 0x64, 0x65, 0x5f, 0x69, 0x70, 0x18, 0x04, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x08, 0x69, 0x6e, 0x73, 0x69, 0x64, 0x65, 0x49, 0x70, 0x12, 0x1d, 0x0a,
-	0x0a, 0x6f, 0x75, 0x74, 0x73, 0x69, 0x64, 0x65, 0x5f, 0x69, 0x70, 0x18, 0x05, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x09, 0x6f, 0x75, 0x74, 0x73, 0x69, 0x64, 0x65, 0x49, 0x70, 0x12, 0x1b, 0x0a, 0x09,
+	0x12, 0x1d, 0x0a, 0x0a, 0x6f, 0x75, 0x74, 0x73, 0x69, 0x64, 0x65, 0x5f, 0x69, 0x70, 0x18, 0x05,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6f, 0x75, 0x74, 0x73, 0x69, 0x64, 0x65, 0x49, 0x70, 0x12,
+	0x1b, 0x0a, 0x09, 0x69, 0x6e, 0x73, 0x69, 0x64, 0x65, 0x5f, 0x69, 0x70, 0x18, 0x04, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x08, 0x69, 0x6e, 0x73, 0x69, 0x64, 0x65, 0x49, 0x70, 0x12, 0x1b, 0x0a, 0x09,
 	0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x70, 0x6f, 0x72, 0x74, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0d, 0x52,
 	0x08, 0x6e, 0x6f, 0x64, 0x65, 0x50, 0x6f, 0x72, 0x74, 0x2a, 0x8c, 0x01, 0x0a, 0x06, 0x56, 0x65,
 	0x6e, 0x64, 0x6f, 0x72, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10,
