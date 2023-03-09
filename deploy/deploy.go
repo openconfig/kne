@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -20,8 +19,8 @@ import (
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
+	kexec "github.com/openconfig/kne/exec"
 	logshim "github.com/openconfig/kne/logshim"
-	kexec "github.com/openconfig/kne/os/exec"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -40,24 +39,31 @@ const (
 	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
 )
 
+// logCommand runs the specified command but records standard output
+// with log.Info and standard error with log.Warning.
+func logCommand(cmd string, args ...string) error {
+	c := kexec.Command(cmd, args...)
+	c.SetStdout(logshim.New(log.Info))
+	c.SetStderr(logshim.New(log.Warning))
+	return c.Run()
+}
+
+// outCommand runs the specified command and returns any standard output
+// as well as any errors.
+func outCommand(cmd string, args ...string) ([]byte, error) {
+	c := kexec.Command(cmd, args...)
+	var stdout bytes.Buffer
+	c.SetStdout(&stdout)
+	err := c.Run()
+	return stdout.Bytes(), err
+}
+
 var (
 	healthTimeout = time.Minute
-
-	// Default standard out of children to log.Info
-	// and standar error to log.Warning.
-	execer execerInterface = kexec.NewExecer(
-		logshim.New(log.Info),
-		logshim.New(log.Warning))
 
 	// Stubs for testing.
 	execLookPath = exec.LookPath
 )
-
-type execerInterface interface {
-	Exec(string, ...string) error
-	SetStdout(io.Writer)
-	SetStderr(io.Writer)
-}
 
 type Cluster interface {
 	Deploy(context.Context) error
@@ -139,11 +145,12 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	}
 
 	log.Infof("Checking kubectl versions.")
-	if err := vExec.Exec("kubectl", "version", "--output=yaml"); err != nil {
+	output, err := outCommand("kubectl", "version", "--output=yaml")
+	if err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
 	kubeYAML := kubeVersion{}
-	if err := yaml.Unmarshal(vOut.Bytes(), &kubeYAML); err != nil {
+	if err := yaml.Unmarshal(output, &kubeYAML); err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
 	kClientVersion, err := getVersion(kubeYAML.ClientVersion.GitVersion)
@@ -163,8 +170,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	if kClientVersion.Less(kServerVersion) {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
-	log.V(1).Info("Found k8s versions:\n", vOut)
-	vOut.Reset()
+	log.V(1).Info("Found k8s versions:\n", output)
 
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
@@ -259,7 +265,7 @@ func (e *ExternalSpec) Delete() error {
 }
 
 func (e *ExternalSpec) Healthy() error {
-	if err := execer.Exec("kubectl", "cluster-info"); err != nil {
+	if err := logCommand("kubectl", "cluster-info"); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -286,11 +292,6 @@ type KindSpec struct {
 	KindConfigFile           string            `yaml:"config"`
 	AdditionalManifests      []string          `yaml:"additionalManifests"`
 }
-
-var (
-	vOut                  = bytes.NewBuffer([]byte{})
-	vExec execerInterface = kexec.NewExecer(vOut, vOut)
-)
 
 type version struct {
 	Major int
@@ -359,15 +360,14 @@ func (k *KindSpec) checkDependencies() error {
 			return err
 		}
 
-		if err := vExec.Exec("kind", "version"); err != nil {
+		stdout, err := outCommand("kind", "version")
+		if err != nil {
 			return fmt.Errorf("failed to get kind version: %w", err)
 		}
-		// Reset buffer for next read
-		defer vOut.Reset()
 
-		vKindFields := strings.Fields(vOut.String())
+		vKindFields := strings.Fields(string(stdout))
 		if len(vKindFields) < 2 {
-			return fmt.Errorf("failed to parse kind version from: %s", vOut)
+			return fmt.Errorf("failed to parse kind version from: %s", stdout)
 		}
 
 		gotV, err := getVersion(vKindFields[1])
@@ -385,7 +385,7 @@ func (k *KindSpec) checkDependencies() error {
 func (k *KindSpec) create() error {
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
-		if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
+		if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err != nil {
 			log.Infof("Recycling existing cluster %q", k.Name)
 			return nil
 		}
@@ -410,7 +410,7 @@ func (k *KindSpec) create() error {
 		args = append(args, "--config", k.KindConfigFile)
 	}
 	log.Infof("Creating kind cluster with: %v", args)
-	if err := execer.Exec("kind", args...); err != nil {
+	if err := logCommand("kind", args...); err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
@@ -428,7 +428,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 
 	for _, s := range k.AdditionalManifests {
 		log.Infof("Found manifest %q", s)
-		if err := execer.Exec("kubectl", "apply", "-f", s); err != nil {
+		if err := logCommand("kubectl", "apply", "-f", s); err != nil {
 			return fmt.Errorf("failed to deploy manifest: %w", err)
 		}
 	}
@@ -455,14 +455,14 @@ func (k *KindSpec) Delete() error {
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
 	}
-	if err := execer.Exec("kind", args...); err != nil {
+	if err := logCommand("kind", args...); err != nil {
 		return fmt.Errorf("failed to delete cluster using cli: %w", err)
 	}
 	return nil
 }
 
 func (k *KindSpec) Healthy() error {
-	if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
+	if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -499,19 +499,15 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
 		return err
 	}
-	var token bytes.Buffer
-	execer.SetStdout(&token)
-	if err := execer.Exec("gcloud", "auth", "print-access-token"); err != nil {
+	token, err := outCommand("gcloud", "auth", "print-access-token")
+	if err != nil {
 		return err
 	}
 	// Logs will show up as coming from logshim.go.  Since this is output
 	// from an external program that is the best we can do.
-	errlog := logshim.New(log.Info)
-	defer errlog.Close()
-	execer.SetStdout(errlog)
 	for _, r := range k.GoogleArtifactRegistries {
 		s := fmt.Sprintf("https://%s", r)
-		if err := execer.Exec("docker", "login", "-u", "oauth2accesstoken", "-p", token.String(), s); err != nil {
+		if err := logCommand("docker", "login", "-u", "oauth2accesstoken", "-p", string(token), s); err != nil {
 			return err
 		}
 	}
@@ -519,20 +515,18 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
 	}
-	var nodes bytes.Buffer
-	execer.SetStdout(&nodes)
-	if err := execer.Exec("kind", args...); err != nil {
+	nodes, err := outCommand("kind", args...)
+	if err != nil {
 		return err
 	}
-	execer.SetStdout(errlog)
 	// Copy the new docker config to each node and restart kubelet so it
 	// picks up the new config that contains the embedded credentials.
-	for _, node := range strings.Split(nodes.String(), " ") {
+	for _, node := range strings.Split(string(nodes), " ") {
 		node = strings.TrimSuffix(node, "\n")
-		if err := execer.Exec("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
+		if err := logCommand("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
 			return err
 		}
-		if err := execer.Exec("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
+		if err := logCommand("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
 			return err
 		}
 	}
@@ -551,11 +545,11 @@ func (k *KindSpec) loadContainerImages() error {
 		} else {
 			log.Infof("Loading %q as %q", s, d)
 		}
-		if err := execer.Exec("docker", "pull", s); err != nil {
+		if err := logCommand("docker", "pull", s); err != nil {
 			return fmt.Errorf("failed to pull %q: %w", s, err)
 		}
 		if d != s {
-			if err := execer.Exec("docker", "tag", s, d); err != nil {
+			if err := logCommand("docker", "tag", s, d); err != nil {
 				return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
 			}
 		}
@@ -563,7 +557,7 @@ func (k *KindSpec) loadContainerImages() error {
 		if k.Name != "" {
 			args = append(args, "--name", k.Name)
 		}
-		if err := execer.Exec("kind", args...); err != nil {
+		if err := logCommand("kind", args...); err != nil {
 			return fmt.Errorf("failed to load %q: %w", d, err)
 		}
 	}
@@ -684,7 +678,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "metallb-native.yaml")
 	}
 	log.Infof("Deploying MetalLB from: %s", m.Manifest)
-	if err := execer.Exec("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return err
 	}
 	if _, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{}); err != nil {
@@ -807,7 +801,7 @@ func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Meshnet from: %s", m.Manifest)
-	if err := execer.Exec("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")
@@ -874,7 +868,7 @@ func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
 		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying CEOSLab controller from: %s", c.Operator)
-	if err := execer.Exec("kubectl", "apply", "-f", c.Operator); err != nil {
+	if err := logCommand("kubectl", "apply", "-f", c.Operator); err != nil {
 		return err
 	}
 	log.Infof("CEOSLab controller deployed")
@@ -916,7 +910,7 @@ func (l *LemmingSpec) Deploy(ctx context.Context) error {
 		l.Operator = filepath.Join(l.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Lemming controller from: %s", l.Operator)
-	if err := execer.Exec("kubectl", "apply", "-f", l.Operator); err != nil {
+	if err := logCommand("kubectl", "apply", "-f", l.Operator); err != nil {
 		return err
 	}
 	log.Infof("Lemming controller deployed")
@@ -958,7 +952,7 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
-	if err := execer.Exec("kubectl", "apply", "-f", s.Operator); err != nil {
+	if err := logCommand("kubectl", "apply", "-f", s.Operator); err != nil {
 		return err
 	}
 	log.Infof("SRLinux controller deployed")
@@ -1002,7 +996,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.Operator = filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")
 	}
 	log.Infof("Deploying IxiaTG controller from: %s", i.Operator)
-	if err := execer.Exec("kubectl", "apply", "-f", i.Operator); err != nil {
+	if err := logCommand("kubectl", "apply", "-f", i.Operator); err != nil {
 		return err
 	}
 
@@ -1036,7 +1030,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.ConfigMap = f.Name()
 	}
 	log.Infof("Deploying IxiaTG config map from: %s", i.ConfigMap)
-	if err := execer.Exec("kubectl", "apply", "-f", i.ConfigMap); err != nil {
+	if err := logCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
 		return err
 	}
 	log.Infof("IxiaTG controller deployed")
@@ -1054,11 +1048,16 @@ func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string)
 		return err
 	}
 	ch := w.ResultChan()
+	t := time.NewTimer(time.Second * 3)
 	for {
 		select {
+		case <-t.C:
+			return fmt.Errorf("timed out in deploymentHealthy")
 		case <-ctx.Done():
+			t.Stop()
 			return fmt.Errorf("context canceled before healthy")
 		case e, ok := <-ch:
+			t.Reset(time.Second * 3)
 			if !ok {
 				return fmt.Errorf("watch channel closed before healthy")
 			}
