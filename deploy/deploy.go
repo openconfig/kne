@@ -1048,16 +1048,11 @@ func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string)
 		return err
 	}
 	ch := w.ResultChan()
-	t := time.NewTimer(time.Second * 3)
 	for {
 		select {
-		case <-t.C:
-			return fmt.Errorf("timed out in deploymentHealthy")
 		case <-ctx.Done():
-			t.Stop()
 			return fmt.Errorf("context canceled before healthy")
 		case e, ok := <-ch:
-			t.Reset(time.Second * 3)
 			if !ok {
 				return fmt.Errorf("watch channel closed before healthy")
 			}
