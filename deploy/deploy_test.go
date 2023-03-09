@@ -430,9 +430,6 @@ func TestKindSpec(t *testing.T) {
 					t.Logf("%s: %s", tt.desc, s)
 				}
 			}
-			if tt.resp == nil {
-				tt.resp = []fexec.Response{}
-			}
 			cmds := fexec.Commands(tt.resp)
 			kexec.Command = cmds.Command
 			defer checkCmds(t, cmds)
@@ -894,9 +891,6 @@ func TestMetalLBSpec(t *testing.T) {
 					t.Logf("%s: %s", tt.desc, s)
 				}
 			}
-			if tt.resp == nil {
-				tt.resp = []fexec.Response{}
-			}
 			cmds := fexec.Commands(tt.resp)
 			kexec.Command = cmds.Command
 			defer checkCmds(t, cmds)
@@ -1283,9 +1277,6 @@ func TestIxiaTGSpec(t *testing.T) {
 					t.Logf("%s: %s", tt.desc, s)
 				}
 			}
-			if tt.resp == nil {
-				tt.resp = []fexec.Response{}
-			}
 			cmds := fexec.Commands(tt.resp)
 			kexec.Command = cmds.Command
 			defer checkCmds(t, cmds)
@@ -1451,9 +1442,6 @@ func TestSRLinuxSpec(t *testing.T) {
 				fexec.LogCommand = func(s string) {
 					t.Logf("%s: %s", tt.desc, s)
 				}
-			}
-			if tt.resp == nil {
-				tt.resp = []fexec.Response{}
 			}
 			cmds := fexec.Commands(tt.resp)
 			kexec.Command = cmds.Command
@@ -1623,9 +1611,6 @@ func TestCEOSLabSpec(t *testing.T) {
 					t.Logf("%s: %s", tt.desc, s)
 				}
 			}
-			if tt.resp == nil {
-				tt.resp = []fexec.Response{}
-			}
 			cmds := fexec.Commands(tt.resp)
 			kexec.Command = cmds.Command
 			defer checkCmds(t, cmds)
@@ -1792,9 +1777,6 @@ func TestLemmingSpec(t *testing.T) {
 				fexec.LogCommand = func(s string) {
 					t.Logf("%s: %s", tt.desc, s)
 				}
-			}
-			if tt.resp == nil {
-				tt.resp = []fexec.Response{}
 			}
 			cmds := fexec.Commands(tt.resp)
 			kexec.Command = cmds.Command
