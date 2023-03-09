@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/openconfig/gnmi/errdiff"
 )
 
 var (
@@ -147,6 +149,10 @@ func TestSuccessfulCommands(t *testing.T) {
 			resp: []Response{
 				{Cmd: "cmd1", Args: []string{".*-bar"}},
 			},
+		}, {
+			name: "error_as_string",
+			send: []Response{{Cmd: "hello", Err: err1}},
+			resp: []Response{{Cmd: "hello", Err: err1.Error()}},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -161,8 +167,8 @@ func TestSuccessfulCommands(t *testing.T) {
 				c := cmds.Command(cmd.Cmd, cmd.Args...)
 				c.SetStdout(&stdout)
 				c.SetStderr(&stderr)
-				if err := c.Run(); err != cmd.Err {
-					t.Errorf("#%d: got error %v, want %v", i, err, cmd.Err)
+				if s := errdiff.Check(c.Run(), cmd.Err); s != "" {
+					t.Errorf("#%d: %s", i, s)
 				}
 				if stdout.String() != cmd.Stdout {
 					t.Errorf("#%d: got stdout %q, want %q", i, stdout.String(), cmd.Stdout)
@@ -185,7 +191,7 @@ func TestFailed(t *testing.T) {
 
 		// err is our expected "unexpected" error.
 		// This is used for all cases.
-		err error
+		err interface{}
 	}{
 		{
 			name: "one_command",
@@ -386,5 +392,26 @@ unexpected executions:
 				t.Errorf("got %s, want %s", err, tt.done)
 			}
 		})
+	}
+}
+
+func TestComparArg(t *testing.T) {
+	for _, tt := range []struct {
+		got  []string
+		want []string
+		out  bool
+	}{
+		{out: true},
+		{got: []string{"abc"}, out: false},
+		{got: []string{"abc"}, want: []string{"abc"}, out: true},
+		{got: []string{"abc"}, want: []string{"def"}, out: false},
+		{got: []string{"abc/d"}, want: []string{".*/d"}, out: true},
+		{got: []string{"abcd"}, want: []string{".*/d"}, out: false},
+		{got: []string{"abc/d"}, want: []string{"abc/.*"}, out: true},
+	} {
+		out := compareArgs(tt.got, tt.want)
+		if out != tt.out {
+			t.Errorf("compareArgs(%s, %s) got %v, want %v", tt.got, tt.want, out, tt.out)
+		}
 	}
 }

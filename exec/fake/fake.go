@@ -237,30 +237,6 @@ func (c *Command) left() []Response {
 	return resp
 }
 
-// A CommandError is returned when there is an issue with a command.
-type CommandError struct {
-	Source string
-	Cmd    string
-	Args   []string
-	Err    error
-}
-
-func (e *CommandError) Error() string {
-	if e.Err == nil {
-		return ""
-	}
-	var buf strings.Builder
-	if e.Source != "" {
-		fmt.Fprintf(&buf, "%s.", e.Source)
-	}
-	fmt.Fprintf(&buf, "%s", e.Cmd)
-	for _, arg := range e.Args {
-		fmt.Fprintf(&buf, " %q", arg)
-	}
-	fmt.Fprintf(&buf, ": %v", e.Err)
-	return buf.String()
-}
-
 // matches returns true if the current command in c matches r.
 func (c *Command) matches(r Response) bool {
 	if c.cmd != r.Cmd && r.Cmd != "" {
