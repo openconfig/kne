@@ -379,7 +379,7 @@ unexpected executions:
 				c := cmds.Command(cmd.Cmd, cmd.Args...)
 				c.SetStdout(&stdout)
 				c.SetStderr(&stderr)
-				c.Run()
+				_ = c.Run()
 			}
 			err := cmds.Done()
 			if err.Error() != tt.done {

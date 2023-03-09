@@ -68,7 +68,6 @@ func (r Response) String() string {
 	}
 	fmt.Fprintf(&buf, "}")
 	return buf.String()
-
 }
 
 // A Command is an implementation of exec.Cmd that is used to return
