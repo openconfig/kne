@@ -33,6 +33,7 @@ source "googlecompute" "kne-image" {
   service_account_email = "packer@gep-kne.iam.gserviceaccount.com"
   use_internal_ip       = true
   scopes                = ["https://www.googleapis.com/auth/cloud-platform"]
+  state_timeout         = "15m"
 }
 
 build {
@@ -50,9 +51,9 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing golang...",
-      "curl -O https://dl.google.com/go/go1.18.6.linux-amd64.tar.gz",
-      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.6.linux-amd64.tar.gz",
-      "rm go1.18.6.linux-amd64.tar.gz",
+      "curl -O https://dl.google.com/go/go1.20.1.linux-amd64.tar.gz",
+      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.20.1.linux-amd64.tar.gz",
+      "rm go1.20.1.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",

@@ -33,12 +33,12 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 `
 	invalidIngress = `
 cluster:
@@ -51,12 +51,12 @@ cluster:
 ingress:
   kind: InvalidIngress
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 `
 	invalidCNI = `
 cluster:
@@ -69,12 +69,13 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: InvalidCNI
   spec:
-    manifests: ../../manifests/meshnet/base`
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
+`
 	invalidControllers = `
 cluster:
   kind: Kind
@@ -86,16 +87,17 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 controllers:
   - kind: InvalidController
     spec:
-      manifests: path/to/manifest`
+      operator: path/to/manifest.yaml
+`
 	validControllers = `
 cluster:
   kind: Kind
@@ -107,28 +109,27 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 controllers:
   - kind: IxiaTG
     spec:
-      manifests: path/to/manifest
-      configMap:
-        release: some-value
-        images:
-          - name: controller
-            path: some/path
-            tag: latest
+      operator: path/to/manifest.yaml
+      configMap: path/to/configmap.yaml
   - kind: SRLinux
     spec:
-      manifests: path/to/manifest
+      operator: path/to/manifest.yaml
   - kind: CEOSLab
     spec:
-      manifests: path/to/manifest`
+      operator: path/to/manifest.yaml
+  - kind: Lemming
+    spec:
+      operator: path/to/manifest.yaml
+`
 )
 
 func TestNew(t *testing.T) {
@@ -166,7 +167,7 @@ func TestNewDeployment(t *testing.T) {
 	}, {
 		desc: "kind example",
 		cfg:  "",
-		path: "../../deploy/kne/kind-bridge.yaml",
+		path: "testdata/kind-deployment.yaml",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {

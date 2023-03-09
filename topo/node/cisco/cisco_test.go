@@ -239,7 +239,7 @@ func TestNew(t *testing.T) {
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
-				"memory": "12Gi",
+				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
@@ -332,7 +332,7 @@ func TestNew(t *testing.T) {
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
-				"memory": "12Gi",
+				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
@@ -432,7 +432,7 @@ func TestNew(t *testing.T) {
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
-				"memory": "12Gi",
+				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
@@ -502,7 +502,7 @@ func TestNew(t *testing.T) {
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
-				"memory": "12Gi",
+				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
@@ -602,7 +602,7 @@ func TestNew(t *testing.T) {
 			},
 			Constraints: map[string]string{
 				"cpu":    "4",
-				"memory": "12Gi",
+				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
