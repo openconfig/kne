@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/openconfig/gnmi/errdiff"
 )
 
 func TestCommand(t *testing.T) {
@@ -63,19 +65,12 @@ func TestCommand(t *testing.T) {
 	} {
 		stdout.Reset()
 		stderr.Reset()
-		if tt.err == "" {
-			tt.err = "nil"
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			c := Command(tt.cmd, tt.args...)
 			c.SetStdout(&stdout)
 			c.SetStderr(&stderr)
-			got := "nil"
-			if err := c.Run(); err != nil {
-				got = err.Error()
-			}
-			if !matches(got, tt.err) {
-				t.Errorf("Got error\n%v\n, want\n%v", got, tt.err)
+			if s := errdiff.Check(c.Run(), tt.err); s != "" {
+				t.Errorf("%s", s)
 			}
 			if got, want := stdout.String(), tt.stdout; !matches(got, want) {
 				t.Errorf("Got stdout %q, want %q", got, want)
