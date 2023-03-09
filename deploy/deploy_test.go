@@ -557,15 +557,12 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		resp: []fexec.Response{
-			{
-				// CHECK
-				Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "namespace error"},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "namespace error"},
 		},
 		dErr: "namespace error",
 	}, {
 		desc: "secret create",
 		resp: []fexec.Response{
-			// CHECK
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "secret error"},
 		},
 		m: &MetalLBSpec{
@@ -594,7 +591,6 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			//CHECK
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "metallb error"},
 		},
 		dErr: "metallb error",
@@ -653,7 +649,6 @@ func TestMetalLBSpec(t *testing.T) {
 		},
 		ctx: canceledCtx,
 		resp: []fexec.Response{
-			//CHECK
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
 		},
 		hErr: "context canceled",
@@ -703,7 +698,6 @@ func TestMetalLBSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 		resp: []fexec.Response{
-			//CHECK
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
 		},
 		dErr: "dclient error",
@@ -713,7 +707,6 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		resp: []fexec.Response{
-			//CHECK
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
 		},
 		wantConfig: &metallbv1.IPAddressPool{
@@ -838,7 +831,6 @@ func TestMetalLBSpec(t *testing.T) {
 			dockerNetworkResourceName: "kind",
 		},
 		resp: []fexec.Response{
-			//CHECK
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
 		},
 		wantConfig: &metallbv1.IPAddressPool{
