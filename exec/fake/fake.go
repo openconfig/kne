@@ -2,7 +2,7 @@
 //
 // Typical Usage:
 //
-//	import "github.com/openconfig/kne/xec"
+//	import "github.com/openconfig/kne/exec"
 //
 //	{
 //		responses := []fake.Response{...}
