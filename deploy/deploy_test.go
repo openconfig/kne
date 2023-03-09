@@ -7,7 +7,6 @@ import (
 
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
-
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
