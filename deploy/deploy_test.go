@@ -440,9 +440,7 @@ func TestKindSpec(t *testing.T) {
 				}
 				return "fakePath", nil
 			}
-
 			err := tt.k.Deploy(ctx)
-
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
@@ -524,10 +522,8 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 	}
-	_ = nl
 	mockCtrl := gomock.NewController(t)
-	// Bug: this complains we are not calling mocks.MockNetworkAPIClient.NetworkList
-	// mockCtrl.Finish()
+	mockCtrl.Finish()
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 	d := &appsv1.Deployment{
