@@ -554,14 +554,13 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		resp: []fexec.Response{
-			// This should not throw an error but the test hangs if it doesn't.
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "namespace error"},
 		},
 		dErr: "namespace error",
 	}, {
 		desc: "secret create",
 		resp: []fexec.Response{
-			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "secret error"},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
 		},
 		m: &MetalLBSpec{
 			IPCount: 20,
