@@ -123,7 +123,9 @@ func TestKindSpec(t *testing.T) {
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}, Err: "failed to get access token"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}, Err: "failed to get access token"},
 		},
 		wantErr: "failed to get access token",
 	}, {
@@ -146,7 +148,8 @@ func TestKindSpec(t *testing.T) {
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}, Err: "failed to get nodes"},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}, Err: "failed to get nodes"},
 		},
 		wantErr: "failed to get nodes",
 	}, {
@@ -156,7 +159,8 @@ func TestKindSpec(t *testing.T) {
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}, Err: "failed to cp config to node"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}, Err: "failed to cp config to node"},
 		},
 		wantErr: "failed to cp config to node",
 	}, {
@@ -166,7 +170,8 @@ func TestKindSpec(t *testing.T) {
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}, Err: "failed to restart kubelet"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}, Err: "failed to restart kubelet"},
 		},
 		wantErr: "failed to restart kubelet",
 	}, {
@@ -257,9 +262,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"pull", "docker"}},
-			{Cmd: "docker", Args: []string{"tag", "docker", "local"}},
-			{Cmd: "kind", Args: []string{"load", "docker-image", "local", "--name", "test"}, Err: "failed to pull"},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
 		},
 		wantErr: "failed to pull",
 	}, {
@@ -273,8 +276,7 @@ func TestKindSpec(t *testing.T) {
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}},
-			{Cmd: "docker", Args: []string{"tag", "docker", "local"}},
-			{Cmd: "kind", Args: []string{"load", "docker-image", "local", "--name", "test"}, Err: "failed to tag"},
+			{Cmd: "docker", Args: []string{"tag", "docker", "local"}, Err: "failed to tag"},
 		},
 		wantErr: "failed to tag",
 	}, {
@@ -301,7 +303,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}, Err: "source container must not be empty"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 		},
 		wantErr: "source container must not be empty",
 	}, {
@@ -379,7 +381,7 @@ func TestKindSpec(t *testing.T) {
 			Version: "v0.15.0",
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind ", Err: "failed to parse kind version from"},
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind "},
 		},
 		wantErr: "failed to parse kind version from",
 	}, {
@@ -389,7 +391,7 @@ func TestKindSpec(t *testing.T) {
 			Version: "v0.15.0",
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind 0.14.0 go1.18.2 linux/amd64", Err: "kind version check failed: missing prefix on major version"},
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind 0.14.0 go1.18.2 linux/amd64"},
 		},
 		wantErr: "kind version check failed: missing prefix on major version",
 	}, {
@@ -523,7 +525,7 @@ func TestMetalLBSpec(t *testing.T) {
 		},
 	}
 	mockCtrl := gomock.NewController(t)
-	mockCtrl.Finish()
+	defer mockCtrl.Finish()
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 	d := &appsv1.Deployment{
@@ -550,6 +552,7 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		resp: []fexec.Response{
+			// This should not throw an error but the test hangs if it doesn't.
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "namespace error"},
 		},
 		dErr: "namespace error",
