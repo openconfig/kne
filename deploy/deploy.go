@@ -43,8 +43,14 @@ const (
 // with log.Info and standard error with log.Warning.
 func logCommand(cmd string, args ...string) error {
 	c := kexec.Command(cmd, args...)
-	c.SetStdout(logshim.New(log.Info))
-	c.SetStderr(logshim.New(log.Warning))
+	outLog := logshim.New(log.Info)
+	errLog := logshim.New(log.Warning)
+	defer func() {
+		outLog.Close()
+		errLog.Close()
+	}()
+	c.SetStdout(outLog)
+	c.SetStderr(errLog)
 	return c.Run()
 }
 
