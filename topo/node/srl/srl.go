@@ -12,13 +12,14 @@ import (
 	scrapliopopts "github.com/scrapli/scrapligo/driver/opoptions"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-	srlclient "github.com/srl-labs/srl-controller/api/clientset/v1alpha1"
-	srltypes "github.com/srl-labs/srl-controller/api/types/v1alpha1"
+	srlinuxv1 "github.com/srl-labs/srl-controller/api/v1"
 	"github.com/srl-labs/srlinux-scrapli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	log "k8s.io/klog/v2"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -41,6 +42,20 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	n := &Node{
 		Impl: nodeImpl,
 	}
+
+	// initialize the controller-runtime client with srlinux scheme
+	scheme := runtime.NewScheme()
+
+	err := srlinuxv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	n.ControllerClient, err = ctrlclient.New(n.RestConfig, ctrlclient.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
 	return n, nil
 }
 
@@ -50,6 +65,8 @@ type Node struct {
 
 	// scrapli options used in testing
 	testOpts []scrapliutil.Option
+
+	ControllerClient ctrlclient.Client
 }
 
 // Add validations for interfaces the node provides
@@ -140,21 +157,22 @@ func (n *Node) Create(ctx context.Context) error {
 	}
 	log.Infof("Created SR Linux node %s configmap", n.Name())
 
-	srl := &srltypes.Srlinux{
+	srl := &srlinuxv1.Srlinux{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Srlinux",
-			APIVersion: "kne.srlinux.dev/v1alpha1",
+			APIVersion: "kne.srlinux.dev/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: n.Name(),
+			Name:      n.Name(),
+			Namespace: n.Namespace,
 			Labels: map[string]string{
 				"app":  n.Name(),
 				"topo": n.Namespace,
 			},
 		},
-		Spec: srltypes.SrlinuxSpec{
+		Spec: srlinuxv1.SrlinuxSpec{
 			NumInterfaces: len(n.GetProto().GetInterfaces()),
-			Config: &srltypes.NodeConfig{
+			Config: &srlinuxv1.NodeConfig{
 				Command:           n.GetProto().GetConfig().GetCommand(),
 				Args:              n.GetProto().GetConfig().GetArgs(),
 				Image:             n.GetProto().GetConfig().GetImage(),
@@ -163,7 +181,7 @@ func (n *Node) Create(ctx context.Context) error {
 				ConfigPath:        n.GetProto().GetConfig().GetConfigPath(),
 				ConfigFile:        n.GetProto().GetConfig().GetConfigFile(),
 				ConfigDataPresent: n.isConfigDataPresent(),
-				Cert: &srltypes.CertificateCfg{
+				Cert: &srlinuxv1.CertificateCfg{
 					CertName:   n.GetProto().GetConfig().GetCert().GetSelfSigned().GetCertName(),
 					KeyName:    n.GetProto().GetConfig().GetCert().GetSelfSigned().GetKeyName(),
 					CommonName: n.GetProto().GetConfig().GetCert().GetSelfSigned().GetCommonName(),
@@ -177,12 +195,7 @@ func (n *Node) Create(ctx context.Context) error {
 		},
 	}
 
-	c, err := srlclient.NewForConfig(n.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.Srlinux(n.Namespace).Create(ctx, srl)
+	err := n.ControllerClient.Create(ctx, srl)
 	if err != nil {
 		return err
 	}
@@ -211,14 +224,7 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	c, err := srlclient.NewForConfig(n.RestConfig)
-	if err != nil {
-		return err
-	}
-	err = c.Srlinux(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
+	n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{ObjectMeta: metav1.ObjectMeta{Name: n.Name()}})
 	log.Infof("Deleted custom resource: %s", n.Name())
 	if err := n.DeleteService(ctx); err != nil {
 		return err
