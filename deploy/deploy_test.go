@@ -136,7 +136,8 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}, Err: "failed to login to docker"},
+			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}, Err: "failed to login to docker"},
 		},
 		wantErr: "failed to login to docker",
 	}, {
@@ -171,7 +172,8 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}, Err: "failed to restart kubelet"},
+			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}, Err: "failed to restart kubelet"},
 		},
 		wantErr: "failed to restart kubelet",
 	}, {
