@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -27,8 +28,14 @@ const (
 	configResetCmd      = "load factory auto-commit"
 )
 
-// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
-var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
+var (
+	// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
+	ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
+
+	// newSrlinuxClient returns a controller-runtime client for srlinux
+	// resources. This can be set to a fake for unit testing.
+	newSrlinuxClient = newSrlinuxClientWithSchema
+)
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
@@ -43,6 +50,18 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		Impl: nodeImpl,
 	}
 
+	c, err := newSrlinuxClient(n.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	n.ControllerClient = c
+
+	return n, nil
+}
+
+// newSrlinuxClientWithSchema returns a controller-runtime client for srlinux and loads its schema.
+func newSrlinuxClientWithSchema(c *rest.Config) (ctrlclient.Client, error) {
 	// initialize the controller-runtime client with srlinux scheme
 	scheme := runtime.NewScheme()
 
@@ -51,12 +70,7 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		return nil, err
 	}
 
-	n.ControllerClient, err = ctrlclient.New(n.RestConfig, ctrlclient.Options{Scheme: scheme})
-	if err != nil {
-		return nil, err
-	}
-
-	return n, nil
+	return ctrlclient.New(c, ctrlclient.Options{Scheme: scheme})
 }
 
 type Node struct {
