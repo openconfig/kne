@@ -21,7 +21,7 @@ require (
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/srl-labs/srl-controller v0.4.7-0.20230311121052-65d699d94cc8
+	github.com/srl-labs/srl-controller v0.4.7-0.20230311230716-e1c96973d463
 	github.com/srl-labs/srlinux-scrapli v0.5.0
 	go.universe.tf/metallb v0.13.5
 	google.golang.org/grpc v1.51.0
