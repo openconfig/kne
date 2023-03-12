@@ -1,4 +1,4 @@
-# This topology consists of two Nokia SR Linux IXR-6e nodes running 22.6.4 release and connected with a single link over ethernet-1/1 interfaces.
+# This topology consists of two Nokia SR Linux IXR-6e nodes running 22.11.2 release and connected with a single link over ethernet-1/1 interfaces.
 # Each of the nodes comes up with a startup config which is sourced from srl-opeconfig.cfg.json file;
 # the startup config contains a self-signed TLS cert and has gnmi, gnoi, gribi, p4rt services enabled
 #
