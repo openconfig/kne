@@ -54,7 +54,7 @@ func TestCommand(t *testing.T) {
 			// should be.
 			cmd:    os.Args[0],
 			args:   []string{"--bad"},
-			stderr: "flag provided but not defined: -bad\n",
+			stderr: "provided but not defined: -bad",
 			err:    fmt.Sprintf(`"%s --bad"`, os.Args[0]),
 		},
 		{
