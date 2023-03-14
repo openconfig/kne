@@ -43,10 +43,10 @@ const (
 // with log.Info and standard error with log.Warning.
 func logCommand(cmd string, args ...string) error {
 	c := kexec.Command(cmd, args...)
-	outLog := logshim.New(func (v ...interface{}) {
+	outLog := logshim.New(func(v ...interface{}) {
 		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
 	})
-	errLog := logshim.New(func (v ...interface{}) {
+	errLog := logshim.New(func(v ...interface{}) {
 		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
 	})
 	defer func() {
