@@ -37,8 +37,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	log "k8s.io/klog/v2"
 
-	topologyclientv1 "github.com/openconfig/kne/api/clientset/v1beta1"
-	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
+	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
 
 	_ "github.com/openconfig/kne/topo/node/ceos"

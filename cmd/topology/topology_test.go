@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
-	tfake "github.com/openconfig/kne/api/clientset/v1beta1/fake"
+	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
