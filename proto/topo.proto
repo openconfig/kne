@@ -67,7 +67,11 @@ message Node {
   Type type = 2 [deprecated = true];
   map<string, string> labels = 4;     // Metadata labels describing the node.
   Config config = 5;                  // Pod specific configuration of the node.
-  map<uint32, Service> services = 6;  // Map of services to enable on the node.
+  // Map of services to enable on the node.
+  // The key is the external load balancer port to be used by the service.
+  // Multiple external services can be mapped to a single internal service port
+  // by reusing the inside_port in the service definition.
+  map<uint32, Service> services = 6;  
   map<string, string> constraints = 7;  // Any k8s constraints required by node.
   Vendor vendor = 8;                    // Vendor enum replaces type.
   string model = 9;                     // Model of the node.
@@ -162,13 +166,16 @@ message SelfSignedCertCfg {
 // service is created KNE will fill in the outside information for the user to
 // access the services.
 // The user should specify inside port for this is the port the container will
-// listen on. The outside port if provided will be the load balanced advertised
-// port.  If no outsideport is provided the inside port will be used.
+// listen on. T
 message Service {
   string name = 1;        // Name of the service (optional)
   uint32 inside = 2;      // Inside port to map Node (container listening port)
-  uint32 outside = 3;     // Outside port to map (target port on loadbalancer)
-  string inside_ip = 4;   // Assigned by KNE.
-  string outside_ip = 5;  // Assigned by KNE.
-  uint32 node_port = 6;   // Assigned by KNE.
+
+  // Assigned by KNE.
+  uint32 outside = 3;     // Outside port used by service. (same a service key)
+  string outside_ip = 5;  // External IP assigned by cluster load balancer.
+
+  // Used internally by KNE.
+  string inside_ip = 4;   // Cluster IP for the service.
+  uint32 node_port = 6;   // Port on the K8s worker node used by the cluster.
 }
