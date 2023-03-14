@@ -395,7 +395,7 @@ func (k *KindSpec) checkDependencies() error {
 func (k *KindSpec) create() error {
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
-		if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err != nil {
+		if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
 			log.Infof("Recycling existing cluster %q", k.Name)
 			return nil
 		}

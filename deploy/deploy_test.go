@@ -58,7 +58,7 @@ func TestKindSpec(t *testing.T) {
 			Recycle: true,
 		},
 		resp: []fexec.Response{
-			{Cmd: "kubectl", Args: []string{"cluster-info", "--context", "kind-test"}},
+			{Cmd: "kubectl", Args: []string{"cluster-info", "--context", "kind-test"}, Err: "already exists"},
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 		},
 	}, {
@@ -69,7 +69,6 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kubectl", Args: []string{"cluster-info", "--context", "kind-test"}},
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 		},
 	}, {
 		desc: "unable to find kind cli",
