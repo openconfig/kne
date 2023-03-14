@@ -25,7 +25,7 @@ import (
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
-	topologyv1 "github.com/openconfig/kne/api/types/v1beta1"
+	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
