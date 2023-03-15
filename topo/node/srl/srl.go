@@ -238,7 +238,11 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{ObjectMeta: metav1.ObjectMeta{Name: n.Name()}})
+	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{ObjectMeta: metav1.ObjectMeta{Name: n.Name()}})
+	if err != nil {
+		return err
+	}
+
 	log.Infof("Deleted custom resource: %s", n.Name())
 	if err := n.DeleteService(ctx); err != nil {
 		return err
