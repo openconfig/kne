@@ -42,3 +42,7 @@ jobs:
           IGNORE_GENERATED_FILES: true
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MARKDOWN_CONFIG_FILE: .github/linters/.markdownlint.yml
+          PROTOBUF_CONFIG_FILE: .github/linters/.protolintrc.yml
+          YAML_CONFIG_FILE: .github/linters/.yaml-lint.yml
+          GITLEAKS_CONFIG_FILE: .github/linters/.gitleaks.toml

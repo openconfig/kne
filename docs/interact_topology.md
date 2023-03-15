@@ -270,7 +270,6 @@ using `gnmic`:
 
 > TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
-
 > NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
@@ -293,7 +292,6 @@ using `gnoic`:
 
 > TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
-
 > NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
@@ -315,7 +313,6 @@ gRIBI should be running on your nodes on port `9340`, so you can connect
 directly using `gribic`:
 
 > TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
-
 
 > NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
