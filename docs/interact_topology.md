@@ -268,11 +268,9 @@ $ bash -c "$(curl -sL https://get-gnmic.openconfig.net)"
 gNMI should be running on your nodes on port `9339`, so you can connect directly
 using `gnmic`:
 
-TIP: The service external IP can be found using the
-[guide above](#find-the-service-external-ip).
+> TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
-NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot
-be verified.
+> NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
 $ gnmic subscribe -a <external-ip>:9339 --path /components --skip-verify -u <username> -p <password> --format flat
@@ -292,11 +290,9 @@ $ bash -c "$(curl -sL https://get-gnoic.openconfig.net)"
 gNOI should be running on your nodes on port `9337`, so you can connect directly
 using `gnoic`:
 
-TIP: The service external IP can be found using the
-[guide above](#find-the-service-external-ip).
+> TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
-NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot
-be verified.
+> NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
 $ gnoic system time -a <external-ip>:9337 --skip-verify -u <username> -p <password>
@@ -316,11 +312,9 @@ $ bash -c "$(curl -sL https://get-gribic.openconfig.net)"
 gRIBI should be running on your nodes on port `9340`, so you can connect
 directly using `gribic`:
 
-TIP: The service external IP can be found using the
-[guide above](#find-the-service-external-ip).
+> TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
-NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot
-be verified.
+> NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
 $ gribic -a <external-ip>:9340 --skip-verify -u <username> -p <password> get -ns DEFAULT -aft ipv4
@@ -330,7 +324,7 @@ $ gribic -a <external-ip>:9340 --skip-verify -u <username> -p <password> get -ns
 
 #### Using Golang
 
-NOTE: This example uses gNMI, but the other services are very similar.
+> NOTE: This example uses gNMI, but the other services are very similar.
 
 To dial in from Go (if you're not using Ondatra), you need to set your grpc
 connection to skip verifying TLS certificates. Also, per the
@@ -340,8 +334,10 @@ Golang usage therefore looks like:
 
 ```go
 import (
-    "google3/third_party/golang/grpc/grpc"
-    "google3/third_party/golang/grpc/metadata/metadata"
+    ...
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/metadata"
+    gpb "github.com/openconfig/gnmi/proto/gnmi"
     ...
 )
 
@@ -358,9 +354,9 @@ func someFunc(ctx context.Context) {
 
 #### Using Ondatra
 
-NOTE: This example uses gNMI, but the other services are very similar.
+> NOTE: This example uses gNMI, but the other services are very similar.
 
-NOTE: The gNMI sections are about using Ondatra with `knebind` for a local
+> NOTE: The gNMI sections are about using Ondatra with `knebind` for a local
 instance. See the `knegcebind` codelab at go/ggn-kne-codelab-ondatra if your KNE
 cluster is running on a GCE VM. For an overview of Ondatra with KNE see
 go/ggn-kne-ondatra.
