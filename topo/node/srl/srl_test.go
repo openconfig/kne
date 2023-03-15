@@ -63,11 +63,24 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return eCh
 }
 
-func TestNew(t *testing.T) {
+// patchSrlinuxClient patches newSrlinuxClient function to use a fake no-op client for tests.
+// Returns a function to restore the original newSrlinuxClient function.
+func patchSrlinuxClient() func() {
+	origNewSrlinuxClient := newSrlinuxClient
+
 	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
 	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
 		return nil, nil
 	}
+
+	return func() {
+		newSrlinuxClient = origNewSrlinuxClient
+	}
+}
+
+func TestNew(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
 
 	tests := []struct {
 		desc    string
@@ -131,10 +144,8 @@ func TestNew(t *testing.T) {
 	}
 }
 func TestGenerateSelfSigned(t *testing.T) {
-	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
-	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
-		return nil, nil
-	}
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
 
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -239,10 +250,8 @@ func TestGenerateSelfSigned(t *testing.T) {
 }
 
 func TestResetCfg(t *testing.T) {
-	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
-	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
-		return nil, nil
-	}
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
 
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -323,10 +332,8 @@ func TestResetCfg(t *testing.T) {
 }
 
 func TestConfigPush(t *testing.T) {
-	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
-	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
-		return nil, nil
-	}
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
 
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
