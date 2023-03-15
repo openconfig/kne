@@ -15,7 +15,7 @@ then an initial config will be pushed during topology creation and a manual push
 is not required unless a config change is desired. For example:
 
 ```bash
-$ kne topology push examples/multivendor/multivendor.pb.txt r1 examples/multivendor/r1.ceos.cfg
+kne topology push examples/multivendor/multivendor.pb.txt r1 examples/multivendor/r1.ceos.cfg
 ```
 
 ## SSH to pod
@@ -51,7 +51,7 @@ example, the `r1` Arista node has username/password of `admin`/`admin`.
 ### SSH
 
 ```bash
-$ ssh <username>@<service external ip>
+ssh <username>@<service external ip>
 ```
 
 Here is an example for node `r1`:
@@ -64,9 +64,9 @@ $ ssh admin@192.168.11.50
 <details>
 <summary>WARNING: You may need to configure your SSH config to allow SSHing without a proxy.</summary>
 
-1.  Get the IP range used by KNE services:
+1. Get the IP range used by KNE services:
 
-    ```
+    ```bash
     $ kubectl get services -n multivendor
     NAME                           TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                                      AGE
     service-gnmi-otg-controller    LoadBalancer   10.96.179.48    192.168.11.55   50051:30901/TCP                              4m9s
@@ -84,9 +84,9 @@ $ ssh admin@192.168.11.50
 
     In this case the IP range would be `192.168.11.*`.
 
-1.  Edit your SSH config found at `~/.ssh/config` to include:
+1. Edit your SSH config found at `~/.ssh/config` to include:
 
-    ```
+    ```bash
     Host 192.168.11.*
         UserKnownHostsFile /dev/null
         StrictHostKeyChecking no
@@ -130,7 +130,7 @@ Notification timestamp: last change time
 Regardless of the vendor, the topology file should expose the service like the
 following gNMI example:
 
-```
+```bash
 nodes: {
     ...
     services: {
@@ -147,7 +147,7 @@ This will configure the node to expose `gnmi` on port `9339` externally
 regardless of which port the gNMI server is running on inside the container.
 
 <details>
-<summary><h4>Arista</h3></summary>
+<summary><h4>Arista</h4></summary>
 
 gNMI is enabled for Arista node `r1` in the multivendor node by default.
 Outlined below are the key pieces for configuring gNMI in general.
@@ -156,7 +156,7 @@ Outlined below are the key pieces for configuring gNMI in general.
 
 Ensure the following snippet is included in the device config:
 
-```
+```bash
 management api gnmi
    transport grpc default
       ssl profile octa-ssl-profile
@@ -175,7 +175,7 @@ management security
 
 ##### Topology
 
-```
+```bash
 nodes: {
     ...
     type: ARISTA_CEOS
@@ -262,7 +262,7 @@ See the external cptx with services
 Install the `gNMIc` command line tool:
 
 ```bash
-$ bash -c "$(curl -sL https://get-gnmic.openconfig.net)"
+bash -c "$(curl -sL https://get-gnmic.openconfig.net)"
 ```
 
 gNMI should be running on your nodes on port `9339`, so you can connect directly
@@ -270,10 +270,11 @@ using `gnmic`:
 
 > TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
+
 > NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
-$ gnmic subscribe -a <external-ip>:9339 --path /components --skip-verify -u <username> -p <password> --format flat
+gnmic subscribe -a <external-ip>:9339 --path /components --skip-verify -u <username> -p <password> --format flat
 ```
 
 </details>
@@ -284,7 +285,7 @@ $ gnmic subscribe -a <external-ip>:9339 --path /components --skip-verify -u <use
 Install the `gNOIc` command line tool:
 
 ```bash
-$ bash -c "$(curl -sL https://get-gnoic.openconfig.net)"
+bash -c "$(curl -sL https://get-gnoic.openconfig.net)"
 ```
 
 gNOI should be running on your nodes on port `9337`, so you can connect directly
@@ -292,10 +293,11 @@ using `gnoic`:
 
 > TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
+
 > NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
-$ gnoic system time -a <external-ip>:9337 --skip-verify -u <username> -p <password>
+gnoic system time -a <external-ip>:9337 --skip-verify -u <username> -p <password>
 ```
 
 </details>
@@ -306,7 +308,7 @@ $ gnoic system time -a <external-ip>:9337 --skip-verify -u <username> -p <passwo
 Install the `gRIBIc` command line tool:
 
 ```bash
-$ bash -c "$(curl -sL https://get-gribic.openconfig.net)"
+bash -c "$(curl -sL https://get-gribic.openconfig.net)"
 ```
 
 gRIBI should be running on your nodes on port `9340`, so you can connect
@@ -314,10 +316,11 @@ directly using `gribic`:
 
 > TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
 
+
 > NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
 
 ```bash
-$ gribic -a <external-ip>:9340 --skip-verify -u <username> -p <password> get -ns DEFAULT -aft ipv4
+gribic -a <external-ip>:9340 --skip-verify -u <username> -p <password> get -ns DEFAULT -aft ipv4
 ```
 
 </details>

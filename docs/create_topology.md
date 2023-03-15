@@ -56,14 +56,14 @@ Field         | Type             | Description
 
 #### Cluster
 
-Field  | Type      | Description                                        
+Field  | Type      | Description
 ------ | --------- | ---------------------------------------------------
 `kind` | string    | Name of the cluster type. The options currently are `Kind` or `External`.
 `spec` | yaml.Node | Fields that set the options for the cluster type.
 
 ##### Kind
 
-Field                      | Type              | Description               
+Field                      | Type              | Description
 -------------------------- | ----------------- | --------------------------
 `name`                     | string            | Cluster name, overrides `KIND_CLUSTER_NAME`, config (default `kind`).
 `recycle`                  | bool              | Reuse an existing cluster of the same name if it exists.
@@ -79,13 +79,13 @@ Field                      | Type              | Description
 
 ##### External
 
-Field     | Type   | Description                                            
+Field     | Type   | Description
 --------- | ------ | -------------------------------------------------------
 `network` | string | Name of the docker network to create a pool of external IP addresses for ingress to assign to services.
 
 #### Ingress
 
-Field  | Type      | Description                                           
+Field  | Type      | Description
 ------ | --------- | ------------------------------------------------------
 `kind` | string    | Name of the ingress type. The only option currently is `MetalLB`.
 `spec` | yaml.Node | Fields that set the options for the ingress type.
@@ -100,7 +100,7 @@ Field           | Type       | Description
 
 #### CNI
 
-Field  | Type      | Description                                       
+Field  | Type      | Description
 ------ | --------- | --------------------------------------------------
 `kind` | string    | Name of the CNI type. The only option currently is `Meshnet`.
 `spec` | yaml.Node | Fields that set the options for the CNI type.
@@ -114,9 +114,9 @@ Field           | Type       | Description
 
 #### Controllers
 
-Field  | Type      | Description                                         
+Field  | Type      | Description
 ------ | --------- | ----------------------------------------------------
-`kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, `CEOSLab`, and `Lemming`.                                          
+`kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, `CEOSLab`, and `Lemming`.
 `spec` | yaml.Node | Fields that set the options for the controller type.
 
 ##### IxiaTG
@@ -173,10 +173,10 @@ nodes. If you did not specify these in your deployment configuration, you will
 need to manually create them **before** deploying a topology. Currently the
 following vendors use a controller:
 
--   Keysight: `ixiatg`
--   Nokia: `srlinux`
--   Arista: `ceoslab`
--   OpenConfig: `lemming`
+- Keysight: `ixiatg`
+- Nokia: `srlinux`
+- Arista: `ceoslab`
+- OpenConfig: `lemming`
 
 These controllers can be deployed as part of [cluster
 deployment](#deploy-a-cluster).
@@ -184,14 +184,14 @@ deployment](#deploy-a-cluster).
 ### IxiaTG Controller
 
 ```bash
-$ kubectl apply -f manifests/controllers/keysight/ixiatg-operator.yaml
-$ kubectl apply -f manifests/controllers/keysight/ixiatg-configmap.yaml
+kubectl apply -f manifests/controllers/keysight/ixiatg-operator.yaml
+kubectl apply -f manifests/controllers/keysight/ixiatg-configmap.yaml
 ```
 
 ### SR Linux Controller
 
 ```bash
-$ kubectl apply -f manifests/controllers/srlinux/manifest.yaml
+kubectl apply -f manifests/controllers/srlinux/manifest.yaml
 ```
 
 See more on the
@@ -200,7 +200,7 @@ See more on the
 #### cEOS Controller
 
 ```bash
-$ kubectl apply -f manifests/controllers/ceoslab/manifest.yaml
+kubectl apply -f manifests/controllers/ceoslab/manifest.yaml
 ```
 
 See more on the
@@ -211,7 +211,7 @@ See more on the
 To manually apply the controller run the following command:
 
 ```bash
-$ kubectl apply -f manifests/controllers/lemming/manifest.yaml
+kubectl apply -f manifests/controllers/lemming/manifest.yaml
 ```
 
 ## Container images

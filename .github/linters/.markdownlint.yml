@@ -1,0 +1,5 @@
+default: true
+
+MD001: false # header levels
+
+MD028: false # blank lines between indents
