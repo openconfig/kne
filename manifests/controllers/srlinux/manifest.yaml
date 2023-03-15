@@ -464,7 +464,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/srl-labs/srl-controller:0.5.0-rc1
+        image: ghcr.io/srl-labs/srl-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz
