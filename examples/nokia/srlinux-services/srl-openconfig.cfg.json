@@ -2402,6 +2402,9 @@
   },
   "srl_nokia-network-instance:network-instance": [
     {
+      "name": "DEFAULT"
+    },
+    {
       "name": "mgmt",
       "type": "srl_nokia-network-instance:ip-vrf",
       "admin-state": "enable",
