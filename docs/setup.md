@@ -16,14 +16,14 @@ The following dependencies and required to use KNE:
 ## Install Golang
 
 1. If golang is already installed then check the version using `go version`. If
-   `1.17` or newer then golang installation is complete.
+   `1.20` or newer then golang installation is complete.
 
 1. Install the new version:
 
    ```bash
-   curl -O https://dl.google.com/go/go1.17.7.linux-amd64.tar.gz
-   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.17.7.linux-amd64.tar.gz
-   rm go1.17.7.linux-amd64.tar.gz
+   curl -O https://dl.google.com/go/go1.20.1.linux-amd64.tar.gz
+   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.20.1.linux-amd64.tar.gz
+   rm go1.20.1.linux-amd64.tar.gz
    export PATH=$PATH:/usr/local/go/bin
    export PATH=$PATH:$(go env GOPATH)/bin
    ```
@@ -53,23 +53,23 @@ The following dependencies and required to use KNE:
 
 ## Install kubectl
 
-> NOTE: This will install version `1.24.1` which was known to work with KNE at
+> NOTE: This will install version `1.26.2` which was known to work with KNE at
 > some point in time. You can instead install a newer version if you need new
 > features or are having problems.
 
 ```bash
-curl -LO https://dl.k8s.io/release/v1.24.1/bin/linux/amd64/kubectl
+curl -LO https://dl.k8s.io/release/v1.26.2/bin/linux/amd64/kubectl
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 ```
 
 ## Install Kind
 
-> NOTE: This will install version `0.14.0` which was known to work with KNE at
+> NOTE: This will install version `0.17.0` which was known to work with KNE at
 > some point in time. You can instead install a newer version if you need new
 > features or are having problems.
 
 ```bash
-go install sigs.k8s.io/kind@v0.14.0
+go install sigs.k8s.io/kind@v0.17.0
 ```
 
 ## Clone openconfig/kne GitHub repo
