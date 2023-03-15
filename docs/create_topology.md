@@ -56,73 +56,39 @@ Field         | Type             | Description
 
 #### Cluster
 
-| Field  | Type      | Description                                         |
-| ------ | --------- | --------------------------------------------------- |
-| `kind` | string    | Name of the cluster type. The options currently are |
-:        :           : `Kind` or `External`.                               :
-| `spec` | yaml.Node | Fields that set the options for the cluster type.   |
+Field  | Type      | Description                                        
+------ | --------- | ---------------------------------------------------
+`kind` | string    | Name of the cluster type. The options currently are `Kind` or `External`.
+`spec` | yaml.Node | Fields that set the options for the cluster type.
 
 ##### Kind
 
-| Field                      | Type              | Description                |
-| -------------------------- | ----------------- | -------------------------- |
-| `name`                     | string            | Cluster name, overrides    |
-:                            :                   : `KIND_CLUSTER_NAME`,       :
-:                            :                   : config (default `kind`).   :
-| `recycle`                  | bool              | Reuse an existing cluster  |
-:                            :                   : of the same name if it     :
-:                            :                   : exists.                    :
-| `version`                  | string            | Desired version of the     |
-:                            :                   : `kubectl` client.          :
-| `image`                    | string            | Node docker image to use   |
-:                            :                   : for booting the cluster.   :
-| `retain`                   | bool              | Retain nodes for debugging |
-:                            :                   : when cluster creation      :
-:                            :                   : fails.                     :
-| `wait`                     | time.Duration     | Wait for control plane     |
-:                            :                   : node to be ready (default  :
-:                            :                   : 0s).                       :
-| `kubecfg`                  | string            | Sets kubeconfig path       |
-:                            :                   : instead of `$KUBECONFIG`   :
-:                            :                   : or `$HOME/.kube/config`.   :
-| `googleArtifactRegistries` | []string          | List of Google Artifact    |
-:                            :                   : Registries to setup        :
-:                            :                   : credentials for in the     :
-:                            :                   : cluster. Example value for :
-:                            :                   : registry would be          :
-:                            :                   : `us-west1-docker.pkg.dev`. :
-:                            :                   : Credentials used are       :
-:                            :                   : associated with the        :
-:                            :                   : configured `gcloud` user   :
-:                            :                   : on the host.               :
-| `containerImages`          | map[string]string | Map of source images to    |
-:                            :                   : target images for          :
-:                            :                   : containers to load in the  :
-:                            :                   : cluster. Empty values      :
-:                            :                   : cause the source image to  :
-:                            :                   : be loaded into the cluster :
-:                            :                   : without being renamed.     :
-| `config`                   | string            | Path to a kind config      |
-:                            :                   : file.                      :
-| `additionalManifests`      | []string          | List of paths to manifests |
-:                            :                   : to be applied using        :
-:                            :                   : `kubectl` directly after   :
-:                            :                   : cluster creation.          :
+Field                      | Type              | Description               
+-------------------------- | ----------------- | --------------------------
+`name`                     | string            | Cluster name, overrides `KIND_CLUSTER_NAME`, config (default `kind`).
+`recycle`                  | bool              | Reuse an existing cluster of the same name if it exists.
+`version`                  | string            | Desired version of the `kubectl` client.
+`image`                    | string            | Node docker image to use for booting the cluster.
+`retain`                   | bool              | Retain nodes for debugging when cluster creation fails.
+`wait`                     | time.Duration     | Wait for control plane node to be ready (default 0s).
+`kubecfg`                  | string            | Sets kubeconfig path instead of `$KUBECONFIG` or `$HOME/.kube/config`.
+`googleArtifactRegistries` | []string          | List of Google Artifact Registries to setup credentials for in the cluster. Example value for registry would be `us-west1-docker.pkg.dev`. Credentials used are associated with the configured `gcloud` user on the host.
+`containerImages`          | map[string]string | Map of source images to target images for containers to load in the cluster. Empty values cause the source image to be loaded into the cluster without being renamed.
+`config`                   | string            | Path to a kind config file.
+`additionalManifests`      | []string          | List of paths to manifests to be applied using `kubectl` directly after cluster creation.
 
 ##### External
 
-| Field     | Type   | Description                                             |
-| --------- | ------ | ------------------------------------------------------- |
-| `network` | string | Name of the docker network to create a pool of external |
-:           :        : IP addresses for ingress to assign to services.         :
+Field     | Type   | Description                                            
+--------- | ------ | -------------------------------------------------------
+`network` | string | Name of the docker network to create a pool of external IP addresses for ingress to assign to services.
 
 #### Ingress
 
-| Field  | Type      | Description                                            |
-| ------ | --------- | ------------------------------------------------------ |
-| `kind` | string    | Name of the ingress type. The only option currently is |
-:        :           : `MetalLB`.                                             :
-| `spec` | yaml.Node | Fields that set the options for the ingress type.      |
+Field  | Type      | Description                                           
+------ | --------- | ------------------------------------------------------
+`kind` | string    | Name of the ingress type. The only option currently is `MetalLB`.
+`spec` | yaml.Node | Fields that set the options for the ingress type.
 
 ##### MetalLB
 
@@ -134,11 +100,10 @@ Field           | Type       | Description
 
 #### CNI
 
-| Field  | Type      | Description                                        |
-| ------ | --------- | -------------------------------------------------- |
-| `kind` | string    | Name of the CNI type. The only option currently is |
-:        :           : `Meshnet`.                                         :
-| `spec` | yaml.Node | Fields that set the options for the CNI type.      |
+Field  | Type      | Description                                       
+------ | --------- | --------------------------------------------------
+`kind` | string    | Name of the CNI type. The only option currently is `Meshnet`.
+`spec` | yaml.Node | Fields that set the options for the CNI type.
 
 ##### Meshnet
 
@@ -149,12 +114,10 @@ Field           | Type       | Description
 
 #### Controllers
 
-| Field  | Type      | Description                                          |
-| ------ | --------- | ---------------------------------------------------- |
-| `kind` | string    | Name of the controller type. The current options     |
-:        :           : currently are `IxiaTG`, `SRLinux`, `CEOSLab`, and    :
-:        :           : `Lemming`.                                           :
-| `spec` | yaml.Node | Fields that set the options for the controller type. |
+Field  | Type      | Description                                         
+------ | --------- | ----------------------------------------------------
+`kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, `CEOSLab`, and `Lemming`.                                          
+`spec` | yaml.Node | Fields that set the options for the controller type.
 
 ##### IxiaTG
 
