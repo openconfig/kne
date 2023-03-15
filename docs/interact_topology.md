@@ -356,12 +356,7 @@ func someFunc(ctx context.Context) {
 
 > NOTE: This example uses gNMI, but the other services are very similar.
 
-> NOTE: The gNMI sections are about using Ondatra with `knebind` for a local
-instance. See the `knegcebind` codelab at go/ggn-kne-codelab-ondatra if your KNE
-cluster is running on a GCE VM. For an overview of Ondatra with KNE see
-go/ggn-kne-ondatra.
-
-[KNEBind](http://google3/third_party/openconfig/ondatra/knebind/knebind.go) is
+[KNEBind](https://github.com/openconfig/ondatra/blob/main/knebind/README.md) is
 an Ondatra binding that uses the `kne` CLI to connect to an existing KNE cluster
 and automatically finds appropriate devices within your topology.
 

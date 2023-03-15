@@ -26,7 +26,7 @@ Flags:
   -h, --help   help for deploy
 
 Global Flags:
-      --kubecfg string     kubeconfig file (default "/usr/local/google/home/{{USERNAME}}/.kube/config")
+      --kubecfg string     kubeconfig file (default "/path/to/home/{{USERNAME}}/.kube/config")
   -v, --verbosity string   log level (default "info")
 ```
 
@@ -45,7 +45,7 @@ yaml.
 <details>
 <summary><h3>Deployment yaml reference</h3></summary>
 
-NOTE: ~~Strikethrough~~ fields are DEPRECATED and should not be used.
+> NOTE: ~~Strikethrough~~ fields are DEPRECATED and should not be used.
 
 Field         | Type             | Description
 ------------- | ---------------- | ---------------------------------------------
@@ -275,7 +275,7 @@ Flags:
       --timeout duration   Timeout for pod status enquiry
 
 Global Flags:
-      --kubecfg string     kubeconfig file (default "/usr/local/google/home/{{USERNAME}}/.kube/config")
+      --kubecfg string     kubeconfig file (default "/path/to/home/{{USERNAME}}/.kube/config")
   -v, --verbosity string   log level (default "info")
 ```
 
@@ -299,7 +299,7 @@ Make sure to load all 4 vendor images into the cluster following the above guide
 - `xrd:latest`
 - `ghcr.io/nokia/srlinux:latest`
 
-WARNING: This example topology requires a host with at least 16 CPU cores.
+> WARNING: This example topology requires a host with at least 16 CPU cores.
 
 This topology can be created using the following command.
 
