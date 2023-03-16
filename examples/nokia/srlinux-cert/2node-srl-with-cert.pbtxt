@@ -3,6 +3,7 @@ nodes: {
     name: "r1"
     vendor: NOKIA
     config: {
+        # when `image` is not specified under `config`, the "ghcr.io/nokia/srlinux:latest" container image is used by default
         cert: {
             self_signed: {
                 cert_name: "kne-profile",
@@ -30,6 +31,7 @@ nodes: {
     name: "r2"
     vendor: NOKIA
     config: {
+        # when `image` is not specified under `config`, the "ghcr.io/nokia/srlinux:latest" container image is used by default
         cert: {
             self_signed: {
                 cert_name: "kne-profile",

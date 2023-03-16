@@ -32,7 +32,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type fakeWatch struct {
@@ -61,7 +63,25 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return eCh
 }
 
+// patchSrlinuxClient patches newSrlinuxClient function to use a fake no-op client for tests.
+// Returns a function to restore the original newSrlinuxClient function.
+func patchSrlinuxClient() func() {
+	origNewSrlinuxClient := newSrlinuxClient
+
+	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
+	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
+		return nil, nil
+	}
+
+	return func() {
+		newSrlinuxClient = origNewSrlinuxClient
+	}
+}
+
 func TestNew(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	tests := []struct {
 		desc    string
 		nImpl   *node.Impl
@@ -124,6 +144,9 @@ func TestNew(t *testing.T) {
 	}
 }
 func TestGenerateSelfSigned(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -227,6 +250,9 @@ func TestGenerateSelfSigned(t *testing.T) {
 }
 
 func TestResetCfg(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -306,6 +332,9 @@ func TestResetCfg(t *testing.T) {
 }
 
 func TestConfigPush(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
