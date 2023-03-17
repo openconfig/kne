@@ -71,7 +71,7 @@ message Node {
   // The key is the external load balancer port to be used by the service.
   // Multiple external services can be mapped to a single internal service port
   // by reusing the inside_port in the service definition.
-  map<uint32, Service> services = 6;  
+  map<uint32, Service> services = 6;
   map<string, string> constraints = 7;  // Any k8s constraints required by node.
   Vendor vendor = 8;                    // Vendor enum replaces type.
   string model = 9;                     // Model of the node.
