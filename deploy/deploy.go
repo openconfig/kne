@@ -508,14 +508,11 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error 
 	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
 		return err
 	}
-	scopes := []string{
-		"https://www.googleapis.com/auth/cloud-platform",
-	}
-	credentials, err := googleFindDefaultCredentials(ctx, scopes...)
+	creds, err := googleFindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		return fmt.Errorf("failed to find gcloud credentials: %v", err)
 	}
-	token, err := credentials.TokenSource.Token()
+	token, err := creds.TokenSource.Token()
 	if err != nil {
 		return fmt.Errorf("failed to get token from gcloud credentials: %v", err)
 	}
