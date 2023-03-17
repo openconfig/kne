@@ -16,6 +16,8 @@ import (
 	fexec "github.com/openconfig/kne/exec/fake"
 	"github.com/pkg/errors"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,12 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
-
 	ktest "k8s.io/client-go/testing"
 	"k8s.io/klog/v2"
 )
 
-const verbose = true
+const (
+	verbose         = true
+	fakeAccessToken = "some-fake-token"
+)
 
 func init() {
 	klog.LogToStderr(false)
@@ -38,11 +42,13 @@ func TestKindSpec(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		desc        string
-		k           *KindSpec
-		resp        []fexec.Response
-		execPathErr bool
-		wantErr     string
+		desc           string
+		k              *KindSpec
+		resp           []fexec.Response
+		execPathErr    bool
+		findCredsErr   bool
+		tokenSourceErr bool
+		wantErr        string
 	}{{
 		desc: "create cluster with cli",
 		k: &KindSpec{
@@ -94,8 +100,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
 			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
 			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
 			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}},
@@ -108,13 +113,23 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-central1-docker.pkg.dev"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-central1-docker.pkg.dev"}},
 			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
 			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
 			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}},
 		},
+	}, {
+		desc: "create cluster with GAR - failed to get creds",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
+		findCredsErr: true,
+		wantErr:      "failed to find gcloud credentials",
 	}, {
 		desc: "create cluster with GAR - failed to get access token",
 		k: &KindSpec{
@@ -123,10 +138,9 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}, Err: "failed to get access token"},
 		},
-		wantErr: "failed to get access token",
+		tokenSourceErr: true,
+		wantErr:        "unable to generate token",
 	}, {
 		desc: "create cluster with GAR - failed docker login",
 		k: &KindSpec{
@@ -135,8 +149,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}, Err: "failed to login to docker"},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}, Err: "failed to login to docker"},
 		},
 		wantErr: "failed to login to docker",
 	}, {
@@ -147,8 +160,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
 			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}, Err: "failed to get nodes"},
 		},
 		wantErr: "failed to get nodes",
@@ -160,7 +172,9 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}, Err: "failed to cp config to node"},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}, Err: "failed to cp config to node"},
 		},
 		wantErr: "failed to cp config to node",
 	}, {
@@ -171,8 +185,10 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "gcloud", Args: []string{"auth", "print-access-token"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", "", "https://us-west1-docker.pkg.dev"}, Err: "failed to restart kubelet"},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
+			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}, Err: "failed to restart kubelet"},
 		},
 		wantErr: "failed to restart kubelet",
 	}, {
@@ -443,12 +459,29 @@ func TestKindSpec(t *testing.T) {
 				}
 				return "fakePath", nil
 			}
+			googleFindDefaultCredentials = func(_ context.Context, _ ...string) (*google.Credentials, error) {
+				if tt.findCredsErr {
+					return nil, errors.New("unable to find default credentials")
+				}
+				return &google.Credentials{TokenSource: &fakeTokenSource{tokenErr: tt.tokenSourceErr}}, nil
+			}
 			err := tt.k.Deploy(ctx)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
 		})
 	}
+}
+
+type fakeTokenSource struct {
+	tokenErr bool
+}
+
+func (f *fakeTokenSource) Token() (*oauth2.Token, error) {
+	if f.tokenErr {
+		return nil, errors.New("unable to generate token")
+	}
+	return &oauth2.Token{AccessToken: fakeAccessToken}, nil
 }
 
 type fakeWatch struct {

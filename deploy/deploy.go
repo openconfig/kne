@@ -22,6 +22,7 @@ import (
 	kexec "github.com/openconfig/kne/exec"
 	logshim "github.com/openconfig/kne/logshim"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
+	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,7 +73,8 @@ var (
 	healthTimeout = time.Minute
 
 	// Stubs for testing.
-	execLookPath = exec.LookPath
+	execLookPath                 = exec.LookPath
+	googleFindDefaultCredentials = google.FindDefaultCredentials
 )
 
 type Cluster interface {
@@ -353,9 +355,6 @@ func getVersion(s string) (*version, error) {
 func (k *KindSpec) checkDependencies() error {
 	var errs errlist.List
 	bins := []string{"kind"}
-	if len(k.GoogleArtifactRegistries) != 0 {
-		bins = append(bins, "gcloud")
-	}
 	for _, bin := range bins {
 		if _, err := execLookPath(bin); err != nil {
 			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
@@ -445,7 +444,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 
 	if len(k.GoogleArtifactRegistries) != 0 {
 		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
-		if err := k.setupGoogleArtifactRegistryAccess(); err != nil {
+		if err := k.setupGoogleArtifactRegistryAccess(ctx); err != nil {
 			return fmt.Errorf("failed to setup Google artifact registry access: %w", err)
 		}
 	}
@@ -489,7 +488,7 @@ func (k *KindSpec) GetDockerNetworkResourceName() string {
 	return "kind"
 }
 
-func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
+func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
 	// the temporary docker config.
@@ -509,15 +508,19 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
 		return err
 	}
-	token, err := outCommand("gcloud", "auth", "print-access-token")
+	creds, err := googleFindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find gcloud credentials: %v", err)
+	}
+	token, err := creds.TokenSource.Token()
+	if err != nil {
+		return fmt.Errorf("failed to get token from gcloud credentials: %v", err)
 	}
 	// Logs will show up as coming from logshim.go.  Since this is output
 	// from an external program that is the best we can do.
 	for _, r := range k.GoogleArtifactRegistries {
 		s := fmt.Sprintf("https://%s", r)
-		if err := logCommand("docker", "login", "-u", "oauth2accesstoken", "-p", string(token), s); err != nil {
+		if err := logCommand("docker", "login", "-u", "oauth2accesstoken", "-p", token.AccessToken, s); err != nil {
 			return err
 		}
 	}
