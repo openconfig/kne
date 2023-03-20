@@ -106,10 +106,10 @@ type Controller interface {
 }
 
 type Deployment struct {
-	Cluster     Cluster
-	Ingress     Ingress
-	CNI         CNI
-	Controllers []Controller
+	Cluster     Cluster      `kne:"cluster"`
+	Ingress     Ingress      `kne:"ingress"`
+	CNI         CNI          `kne:"cni"`
+	Controllers []Controller `kne:"controllers"`
 }
 
 func (d *Deployment) String() string {
@@ -298,11 +298,11 @@ type KindSpec struct {
 	Image                    string            `yaml:"image"`
 	Retain                   bool              `yaml:"retain"`
 	Wait                     time.Duration     `yaml:"wait"`
-	Kubecfg                  string            `yaml:"kubecfg"`
+	Kubecfg                  string            `yaml:"kubecfg" kne:"yaml"`
 	GoogleArtifactRegistries []string          `yaml:"googleArtifactRegistries"`
 	ContainerImages          map[string]string `yaml:"containerImages"`
-	KindConfigFile           string            `yaml:"config"`
-	AdditionalManifests      []string          `yaml:"additionalManifests"`
+	KindConfigFile           string            `yaml:"config" kne:"yaml"`
+	AdditionalManifests      []string          `yaml:"additionalManifests" kne:"yaml"`
 }
 
 type version struct {
@@ -605,7 +605,7 @@ func writeDockerConfig(path string, registries []string) error {
 type MetalLBSpec struct {
 	IPCount                   int    `yaml:"ip_count"`
 	ManifestDir               string `yaml:"manifests"`
-	Manifest                  string `yaml:"manifest"`
+	Manifest                  string `yaml:"manifest" kne:"yaml"`
 	ManifestData              []byte
 	dockerNetworkResourceName string
 	kClient                   kubernetes.Interface
@@ -785,7 +785,7 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 
 type MeshnetSpec struct {
 	ManifestDir  string `yaml:"manifests"`
-	Manifest     string `yaml:"manifest"`
+	Manifest     string `yaml:"manifest" kne:"yaml"`
 	ManifestData []byte
 	kClient      kubernetes.Interface
 }
@@ -852,7 +852,7 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 
 type CEOSLabSpec struct {
 	ManifestDir  string `yaml:"manifests"`
-	Operator     string `yaml:"operator"`
+	Operator     string `yaml:"operator" kne:"yaml"`
 	OperatorData []byte
 	kClient      kubernetes.Interface
 }
@@ -894,7 +894,7 @@ func (c *CEOSLabSpec) Healthy(ctx context.Context) error {
 
 type LemmingSpec struct {
 	ManifestDir  string `yaml:"manifests"`
-	Operator     string `yaml:"operator"`
+	Operator     string `yaml:"operator" kne:"yaml"`
 	OperatorData []byte
 	kClient      kubernetes.Interface
 }
@@ -936,7 +936,7 @@ func (l *LemmingSpec) Healthy(ctx context.Context) error {
 
 type SRLinuxSpec struct {
 	ManifestDir  string `yaml:"manifests"`
-	Operator     string `yaml:"operator"`
+	Operator     string `yaml:"operator" kne:"yaml"`
 	OperatorData []byte
 	kClient      kubernetes.Interface
 }
@@ -978,9 +978,9 @@ func (s *SRLinuxSpec) Healthy(ctx context.Context) error {
 
 type IxiaTGSpec struct {
 	ManifestDir   string `yaml:"manifests"`
-	Operator      string `yaml:"operator"`
+	Operator      string `yaml:"operator" kne:"yaml"`
 	OperatorData  []byte
-	ConfigMap     string `yaml:"configMap"`
+	ConfigMap     string `yaml:"configMap" kne:"yaml"`
 	ConfigMapData []byte
 	kClient       kubernetes.Interface
 }
