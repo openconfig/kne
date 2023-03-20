@@ -107,7 +107,6 @@ func (n *Node) Create(ctx context.Context) error {
 			}
 		}
 	}
-	log.Warningf("lemming spec: %+v", dut)
 
 	cs, err := clientFn(n.RestConfig)
 	if err != nil {
