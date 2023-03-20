@@ -24,8 +24,9 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"github.com/openconfig/lemming/operator/api/clientset"
 	"github.com/openconfig/lemming/operator/api/clientset/fake"
-	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -110,8 +111,8 @@ func TestCreate(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{},
 				},
-				TLS: lemmingv1.TLSSpec{
-					SelfSigned: lemmingv1.SelfSignedSpec{
+				TLS: &lemmingv1.TLSSpec{
+					SelfSigned: &lemmingv1.SelfSignedSpec{
 						CommonName: "foo",
 					},
 				},
@@ -146,6 +147,133 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+func TestStatus(t *testing.T) {
+	tests := []struct {
+		desc        string
+		clientFnErr error
+		getErr      error
+		inPhase     lemmingv1.LemmingPhase
+		wantErr     string
+		want        node.Status
+	}{{
+		desc:        "error creating client set",
+		clientFnErr: fmt.Errorf("client err"),
+		wantErr:     "client err",
+	}, {
+		desc:    "get error",
+		getErr:  fmt.Errorf("create err"),
+		wantErr: "create err",
+	}, {
+		desc:    "running",
+		want:    node.StatusRunning,
+		inPhase: lemmingv1.Running,
+	}, {
+		desc:    "running",
+		want:    node.StatusRunning,
+		inPhase: lemmingv1.Running,
+	}, {
+		desc:    "failed",
+		want:    node.StatusFailed,
+		inPhase: lemmingv1.Failed,
+	}, {
+		desc:    "pending",
+		want:    node.StatusPending,
+		inPhase: lemmingv1.Pending,
+	}, {
+		desc:    "unknown",
+		want:    node.StatusUnknown,
+		inPhase: lemmingv1.Unknown,
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			cs := fake.NewSimpleClientset()
+			cs.PrependReactor("get", "lemmings", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, &lemmingv1.Lemming{
+					Status: lemmingv1.LemmingStatus{
+						Phase: tt.inPhase,
+					},
+				}, tt.getErr
+			})
+			clientFn = func(c *rest.Config) (clientset.Interface, error) {
+				return cs, tt.clientFnErr
+			}
+			n := &Node{&node.Impl{Proto: &tpb.Node{}}}
+			got, err := n.Status(context.Background())
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("Status() unexpected error: got: %v, want: %s", err, s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Status() unexpected result: got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResetCfg(t *testing.T) {
+	n := &Node{}
+	err := n.ResetCfg(context.Background())
+	if err != nil {
+		t.Fatalf("ResetCfg() unexpected error: %v", err)
+	}
+}
+
+func TestConfigPush(t *testing.T) {
+	n := &Node{}
+	err := n.ConfigPush(context.Background(), nil)
+	want := codes.Unimplemented
+	if s, ok := status.FromError(err); !ok || s.Code() != want {
+		t.Fatalf("ConfigPush() unexpected error get %v, want %v", s, want)
+	}
+}
+
+func TestGenerateSelfSigned(t *testing.T) {
+	n := &Node{}
+	err := n.GenerateSelfSigned(context.Background())
+	want := codes.Unimplemented
+	if s, ok := status.FromError(err); !ok || s.Code() != want {
+		t.Fatalf("GenerateSelfSigned() unexpected error get %v, want %v", s, want)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	tests := []struct {
+		desc        string
+		clientFnErr error
+		deleteErr   error
+		wantErr     string
+		want        node.Status
+	}{{
+		desc:        "error creating client set",
+		clientFnErr: fmt.Errorf("client err"),
+		wantErr:     "client err",
+	}, {
+		desc:      "delete error",
+		deleteErr: fmt.Errorf("delete err"),
+		wantErr:   "delete err",
+	}, {
+		desc: "success",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			cs := fake.NewSimpleClientset()
+			cs.PrependReactor("delete", "lemmings", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, tt.deleteErr
+			})
+			clientFn = func(c *rest.Config) (clientset.Interface, error) {
+				return cs, tt.clientFnErr
+			}
+			n := &Node{&node.Impl{Proto: &tpb.Node{}}}
+			err := n.Delete(context.Background())
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("Delete() unexpected error: got: %v, want: %s", err, s)
+			}
+		})
+	}
+}
+
 func TestNew(t *testing.T) {
 	tests := []struct {
 		desc    string
@@ -163,8 +291,7 @@ func TestNew(t *testing.T) {
 		desc: "test defaults",
 		ni: &node.Impl{
 			Proto: &tpb.Node{
-				Name:   "test_node",
-				Config: &tpb.Config{},
+				Name: "test_node",
 			},
 		},
 		wantPB: &tpb.Node{
@@ -173,8 +300,15 @@ func TestNew(t *testing.T) {
 				Image:        "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga",
 				InitImage:    node.DefaultInitContainerImage,
 				Command:      []string{"/lemming/lemming"},
-				Args:         []string{"--alsologtostderr", "--enable_dataplane"},
 				EntryCommand: "kubectl exec -it test_node -- /bin/bash",
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CommonName: "test_node",
+							KeySize:    2048,
+						},
+					},
+				},
 			},
 			Labels: map[string]string{
 				"vendor": tpb.Vendor_OPENCONFIG.String(),
@@ -185,14 +319,20 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				9339: {
-					Name:    "gnmi",
-					Inside:  9339,
-					Outside: 9339,
+					Name:   "gnmi",
+					Inside: 9339,
 				},
 				9340: {
-					Name:    "gribi",
-					Inside:  9340,
-					Outside: 9340,
+					Name:   "gribi",
+					Inside: 9340,
+				},
+				9341: {
+					Name:   "gnsi",
+					Inside: 9339,
+				},
+				9342: {
+					Name:   "gnoi",
+					Inside: 9339,
 				},
 			},
 		},
@@ -207,6 +347,7 @@ func TestNew(t *testing.T) {
 					Command:      []string{"/lemming/lemming2"},
 					Args:         []string{"-v=2"},
 					EntryCommand: "kubectl exec -it test_node -- /bin/sh",
+					Cert:         &tpb.CertificateCfg{},
 				},
 				Constraints: map[string]string{
 					"cpu": "10",
@@ -230,6 +371,7 @@ func TestNew(t *testing.T) {
 				Command:      []string{"/lemming/lemming2"},
 				Args:         []string{"-v=2"},
 				EntryCommand: "kubectl exec -it test_node -- /bin/sh",
+				Cert:         &tpb.CertificateCfg{},
 			},
 			Constraints: map[string]string{
 				"cpu": "10",
@@ -254,8 +396,8 @@ func TestNew(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if !proto.Equal(impl.GetProto(), tt.wantPB) {
-				t.Fatalf("New() failed: got\n%swant\n%s", prototext.Format(impl.GetProto()), prototext.Format(tt.wantPB))
+			if d := cmp.Diff(impl.GetProto(), tt.wantPB, protocmp.Transform()); d != "" {
+				t.Fatalf("New() failed: diff %s", d)
 			}
 		})
 	}

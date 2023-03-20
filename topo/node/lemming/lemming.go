@@ -69,10 +69,10 @@ func (n *Node) Create(ctx context.Context) error {
 
 	ports := map[string]lemmingv1.ServicePort{}
 
-	for _, v := range n.Proto.Services {
+	for k, v := range n.Proto.Services {
 		ports[v.Name] = lemmingv1.ServicePort{
 			InnerPort: int32(v.Inside),
-			OuterPort: int32(v.Outside),
+			OuterPort: int32(k),
 		}
 	}
 
@@ -99,14 +99,15 @@ func (n *Node) Create(ctx context.Context) error {
 	if config.Cert != nil {
 		switch tls := config.Cert.Config.(type) {
 		case *tpb.CertificateCfg_SelfSigned:
-			dut.Spec.TLS = lemmingv1.TLSSpec{
-				SelfSigned: lemmingv1.SelfSignedSpec{
+			dut.Spec.TLS = &lemmingv1.TLSSpec{
+				SelfSigned: &lemmingv1.SelfSignedSpec{
 					CommonName: tls.SelfSigned.CommonName,
 					KeySize:    int(tls.SelfSigned.KeySize),
 				},
 			}
 		}
 	}
+	log.Warningf("lemming spec: %+v", dut)
 
 	cs, err := clientFn(n.RestConfig)
 	if err != nil {
@@ -132,8 +133,6 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 		return node.StatusRunning, nil
 	case lemmingv1.Failed:
 		return node.StatusFailed, nil
-	case lemmingv1.Unknown:
-		return node.StatusUnknown, nil
 	case lemmingv1.Pending:
 		return node.StatusPending, nil
 	default:
@@ -175,11 +174,18 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if len(pb.GetConfig().GetCommand()) == 0 {
 		pb.Config.Command = []string{"/lemming/lemming"}
 	}
-	if len(pb.GetConfig().GetArgs()) == 0 {
-		pb.Config.Args = []string{"--alsologtostderr", "--enable_dataplane"}
-	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- /bin/bash", pb.Name)
+	}
+	if pb.Config.Cert == nil {
+		pb.Config.Cert = &tpb.CertificateCfg{
+			Config: &tpb.CertificateCfg_SelfSigned{
+				SelfSigned: &tpb.SelfSignedCertCfg{
+					CommonName: pb.Name,
+					KeySize:    2048,
+				},
+			},
+		}
 	}
 	if pb.Constraints == nil {
 		pb.Constraints = map[string]string{
@@ -196,14 +202,20 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Services = map[uint32]*tpb.Service{
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			9339: {
-				Name:    "gnmi",
-				Inside:  9339,
-				Outside: 9339,
+				Name:   "gnmi",
+				Inside: 9339,
 			},
 			9340: {
-				Name:    "gribi",
-				Inside:  9340,
-				Outside: 9340,
+				Name:   "gribi",
+				Inside: 9340,
+			},
+			9341: {
+				Name:   "gnsi",
+				Inside: 9339,
+			},
+			9342: {
+				Name:   "gnoi",
+				Inside: 9339,
 			},
 		}
 	}
