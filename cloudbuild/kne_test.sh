@@ -75,7 +75,7 @@ $cli deploy /tmp/dep-cfg.yaml
 kubectl get pods -A
 
 # Check for existence of preloaded image
-if ! docker exec -it kne-control-plane crictl images | grep "docker.io/networkop/init-wait"; then
+if ! docker exec kne-control-plane crictl images | grep "docker.io/networkop/init-wait"; then
   echo "Unable to find preloaded image in cluster"
   exit 1
 fi
