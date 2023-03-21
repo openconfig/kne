@@ -19,6 +19,9 @@ issues:
     - linters:
       - revive
       text: "var-naming: don't use leading k"
+    - linters:
+      - staticcheck
+      text: "SA1019:"
 linters:
   disable-all: true
   enable:

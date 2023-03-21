@@ -449,7 +449,6 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 		return err
 	}
 	log.Infof("Execing %s on %s", cmd, n.Name())
-	//lint:ignore SA1019 exec.StreamWithContext is not available in k8 v1.23 which is used internally
 	return exec.Stream(remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
