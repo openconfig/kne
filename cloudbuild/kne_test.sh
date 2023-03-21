@@ -56,18 +56,18 @@ cluster:
       - us-west1-docker.pkg.dev
     containerImages:
       'us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga': 'networkop/init-wait:latest'
-    config: ../../kind/kind-no-cni.yaml
+    config: ${HOME}/kne/kind/kind-no-cni.yaml
     additionalManifests:
-      - ../../manifests/kind/kind-bridge.yaml
+      - ${HOME}/kne/manifests/kind/kind-bridge.yaml
 ingress:
   kind: MetalLB
   spec:
-    manifest: ../../manifests/metallb/manifest.yaml
+    manifest: ${HOME}/kne/manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifest: ../../manifests/meshnet/grpc/manifest.yaml
+    manifest: ${HOME}/kne/manifests/meshnet/grpc/manifest.yaml
 EOF
 
 $cli deploy /tmp/dep-cfg.yaml
