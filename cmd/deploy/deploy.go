@@ -14,13 +14,11 @@
 package deploy
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/openconfig/kne/deploy"
+	"github.com/openconfig/kne/load"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	log "k8s.io/klog/v2"
@@ -62,153 +60,32 @@ type DeploymentConfig struct {
 	Controllers []*ControllerSpec `yaml:"controllers"`
 }
 
-func newDeployment(cfgPath string) (*deploy.Deployment, error) {
-	p, err := filepath.Abs(cfgPath)
+// newDeployment reads in a deployment config file and returns a
+// deploy.Deployment or an error.  If the testing flag is true the no errors
+// will be reported for missing files.
+func newDeployment(cfgPath string, testing bool) (*deploy.Deployment, error) {
+	c, err := load.NewConfig(cfgPath, &DeploymentConfig{})
+	c.IgnoreMissingFiles = testing
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Reading deployment config: %q", p)
-	b, err := os.ReadFile(p)
-	if err != nil {
+	var cfg deploy.Deployment
+	if err := c.Decode(&cfg); err != nil {
 		return nil, err
 	}
-	basePath := filepath.Dir(p)
-	cfg := &DeploymentConfig{}
-	decoder := yaml.NewDecoder(bytes.NewBuffer(b))
-	decoder.KnownFields(true)
-	if err := decoder.Decode(cfg); err != nil {
-		return nil, err
+	if cfg.Cluster == nil {
+		return nil, fmt.Errorf("Cluster not specified")
 	}
-
-	d := &deploy.Deployment{}
-	switch cfg.Cluster.Kind {
-	case "Kind":
-		log.Infof("Using kind cluster")
-		v := &deploy.KindSpec{}
-		if err := cfg.Cluster.Spec.Decode(v); err != nil {
-			return nil, err
-		}
-		// make sure manifests are correct relative to configuration.
-		for i, s := range v.AdditionalManifests {
-			v.AdditionalManifests[i] = cleanPath(s, basePath)
-		}
-
-		// make sure kind config file is relative to configuration.
-		if v.KindConfigFile != "" {
-			v.KindConfigFile = cleanPath(v.KindConfigFile, basePath)
-		}
-
-		d.Cluster = v
-	case "External":
-		log.Infof("Using external cluster")
-		v := &deploy.ExternalSpec{}
-		if err := cfg.Cluster.Spec.Decode(v); err != nil {
-			return nil, err
-		}
-		d.Cluster = v
-	default:
-		return nil, fmt.Errorf("cluster type not supported: %s", cfg.Cluster.Kind)
+	if cfg.Ingress == nil {
+		return nil, fmt.Errorf("Ingress not specified")
 	}
-	switch cfg.CNI.Kind {
-	case "Meshnet":
-		v := &deploy.MeshnetSpec{}
-		if err := cfg.CNI.Spec.Decode(v); err != nil {
-			return nil, err
-		}
-		if v.Manifest != "" {
-			v.Manifest = cleanPath(v.Manifest, basePath)
-		}
-		if v.ManifestDir != "" {
-			v.ManifestDir = cleanPath(v.ManifestDir, basePath)
-		}
-		d.CNI = v
-	default:
-		return nil, fmt.Errorf("CNI type not supported: %s", cfg.CNI.Kind)
+	if cfg.CNI == nil {
+		return nil, fmt.Errorf("CNI not specified")
 	}
-	switch cfg.Ingress.Kind {
-	case "MetalLB":
-		v := &deploy.MetalLBSpec{}
-		if err := cfg.Ingress.Spec.Decode(v); err != nil {
-			return nil, err
-		}
-		if v.Manifest != "" {
-			v.Manifest = cleanPath(v.Manifest, basePath)
-		}
-		if v.ManifestDir != "" {
-			v.ManifestDir = cleanPath(v.ManifestDir, basePath)
-		}
-		d.Ingress = v
-	default:
-		return nil, fmt.Errorf("ingress type not supported: %s", cfg.Ingress.Kind)
+	if len(cfg.Controllers) == 0 {
+		return nil, fmt.Errorf("no controllers specified")
 	}
-	if len(cfg.Controllers) != 0 {
-		d.Controllers = []deploy.Controller{}
-	}
-	for _, c := range cfg.Controllers {
-		switch c.Kind {
-		case "IxiaTG":
-			v := &deploy.IxiaTGSpec{}
-			if err := c.Spec.Decode(v); err != nil {
-				return nil, err
-			}
-			if v.Operator != "" {
-				v.Operator = cleanPath(v.Operator, basePath)
-			}
-			if v.ConfigMap != "" {
-				v.ConfigMap = cleanPath(v.ConfigMap, basePath)
-			}
-			if v.ManifestDir != "" {
-				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
-			}
-			d.Controllers = append(d.Controllers, v)
-		case "SRLinux":
-			v := &deploy.SRLinuxSpec{}
-			if err := c.Spec.Decode(v); err != nil {
-				return nil, err
-			}
-			if v.Operator != "" {
-				v.Operator = cleanPath(v.Operator, basePath)
-			}
-			if v.ManifestDir != "" {
-				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
-			}
-			d.Controllers = append(d.Controllers, v)
-		case "CEOSLab":
-			v := &deploy.CEOSLabSpec{}
-			if err := c.Spec.Decode(v); err != nil {
-				return nil, err
-			}
-			if v.Operator != "" {
-				v.Operator = cleanPath(v.Operator, basePath)
-			}
-			if v.ManifestDir != "" {
-				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
-			}
-			d.Controllers = append(d.Controllers, v)
-		case "Lemming":
-			v := &deploy.LemmingSpec{}
-			if err := c.Spec.Decode(v); err != nil {
-				return nil, err
-			}
-			if v.Operator != "" {
-				v.Operator = cleanPath(v.Operator, basePath)
-			}
-			if v.ManifestDir != "" {
-				v.ManifestDir = cleanPath(v.ManifestDir, basePath)
-			}
-			d.Controllers = append(d.Controllers, v)
-		default:
-			return nil, fmt.Errorf("controller type not supported: %s", c.Kind)
-		}
-	}
-	return d, nil
-}
-
-func cleanPath(path, basePath string) string {
-	if filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(basePath, path)
+	return &cfg, nil
 }
 
 func deployFn(cmd *cobra.Command, args []string) error {
@@ -222,7 +99,7 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	d, err := newDeployment(args[0])
+	d, err := newDeployment(args[0], false)
 	if err != nil {
 		return err
 	}

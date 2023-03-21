@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app: meshnet
+  name: meshnet
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app: meshnet
+  name: topologies.networkop.co.uk
+spec:
+  group: networkop.co.uk
+  names:
+    kind: Topology
+    plural: topologies
+    shortNames:
+    - topo
+    singular: topology
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              links:
+                items:
+                  description: A complete definition of a p2p link
+                  properties:
+                    local_intf:
+                      description: Local interface name
+                      type: string
+                    local_ip:
+                      description: (Optional) Local IP address
+                      type: string
+                    peer_intf:
+                      description: Peer interface name
+                      type: string
+                    peer_ip:
+                      description: (Optional) Peer IP address
+                      type: string
+                    peer_pod:
+                      description: Name of the peer pod
+                      type: string
+                    uid:
+                      description: Unique identified of a p2p link
+                      type: integer
+                  required:
+                  - uid
+                  - peer_pod
+                  - local_intf
+                  - peer_intf
+                  type: object
+                type: array
+            type: object
+          status:
+            properties:
+              net_ns:
+                description: Network namespace of the POD
+                type: string
+              skipped:
+                description: List of pods that are skipped by local pod
+                items:
+                  description: peer pod name
+                  type: string
+                type: array
+              src_ip:
+                description: Source IP of the POD
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: meshnet
+  name: meshnet
+  namespace: meshnet
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: meshnet
+  name: meshnet-clusterrole
+rules:
+- apiGroups:
+  - networkop.co.uk
+  resources:
+  - topologies
+  verbs:
+  - '*'
+- apiGroups:
+  - networkop.co.uk
+  resources:
+  - topologies/status
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: meshnet
+  name: meshnet-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: meshnet-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: meshnet
+  namespace: meshnet
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: meshnet
+    k8s-app: meshnet
+  name: meshnet
+  namespace: meshnet
+spec:
+  selector:
+    matchLabels:
+      app: meshnet
+      name: meshnet
+  template:
+    metadata:
+      labels:
+        app: meshnet
+        name: meshnet
+    spec:
+      containers:
+      - env:
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: INTER_NODE_LINK_TYPE
+          value: GRPC
+        image: us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.1
+        imagePullPolicy: IfNotPresent
+        name: meshnet
+        resources:
+          limits:
+            memory: 1000Mi
+          requests:
+            cpu: 100m
+            memory: 1000Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /etc/cni/net.d
+          name: cni-cfg
+        - mountPath: /opt/cni/bin
+          name: cni-bin
+        - mountPath: /var/run/netns
+          mountPropagation: Bidirectional
+          name: var-run-netns
+      hostIPC: true
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      serviceAccountName: meshnet
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /opt/cni/bin
+        name: cni-bin
+      - hostPath:
+          path: /etc/cni/net.d
+        name: cni-cfg
+      - hostPath:
+          path: /var/run/netns
+        name: var-run-netns
