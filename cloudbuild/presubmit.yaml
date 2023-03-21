@@ -16,7 +16,7 @@ steps:
     env:
       - USERNAME=user
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
-      - INSTANCE_NAME=kne-presubmit-kne-$BUILD_ID
+      - INSTANCE_NAME=kne-presubmit-vendors-$BUILD_ID
       - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-16 --preemptible
       - ZONE=us-central1-a
       - REMOTE_WORKSPACE=/tmp/workspace
