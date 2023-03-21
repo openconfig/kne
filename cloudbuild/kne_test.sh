@@ -43,12 +43,49 @@ kubectl get pods -A
 # Cleanup the kind cluster
 kind delete cluster --name kne
 
+# Create a kind cluster with GAR access and image loading
+cat >/tmp/dep-cfg.yaml << EOF
+cluster:
+  kind: Kind
+  spec:
+    name: kne
+    recycle: True
+    version: v0.17.0
+    image: 'kindest/node:v1.26.0'
+    googleArtifactRegistries:
+      - us-west1-docker.pkg.dev
+    containerImages:
+      'us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga': 'networkop/init-wait:latest'
+    config: ../../kind/kind-no-cni.yaml
+    additionalManifests:
+      - ../../manifests/kind/kind-bridge.yaml
+ingress:
+  kind: MetalLB
+  spec:
+    manifest: ../../manifests/metallb/manifest.yaml
+    ip_count: 100
+cni:
+  kind: Meshnet
+  spec:
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
+EOF
+
+$cli deploy /tmp/dep-cfg.yaml
+
+kubectl get pods -A
+
+# Check for existence of preloaded image
+if ! docker exec -it kne-control-plane crictl images | grep "docker.io/networkop/init-wait"; then
+  echo "Unable to find preloaded image in cluster"
+  exit 1
+fi
+
 # Create a kubeadm single node cluster
 sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-kubectl apply -f $HOME/flannel/Documentation/kube-flannel.yml
+mkdir -p "$HOME"/.kube
+sudo cp -i /etc/kubernetes/admin.conf "$HOME"/.kube/config
+sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
+kubectl apply -f "$HOME"/flannel/Documentation/kube-flannel.yml
 docker network create multinode
 
 # Deploy an external cluster

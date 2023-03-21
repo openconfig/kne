@@ -34,9 +34,9 @@ pushd "$HOME"
 $cli deploy kne/deploy/kne/kind-bridge.yaml
 
 load_image () {
-  docker pull $1
-  docker tag $1 $2
-  kind load docker-image $2 --name kne
+  docker pull "$1"
+  docker tag "$1" "$2"
+  kind load docker-image "$2" --name kne
 }
 
 load_image us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga ceos:latest
@@ -51,7 +51,7 @@ popd
 pushd "$HOME/kne/cloudbuild"
 go test -v vendors_test.go \
   -testbed testbed.textproto \
-  -topology $HOME/kne/examples/multivendor/multivendor.pb.txt \
+  -topology "$HOME"/kne/examples/multivendor/multivendor.pb.txt \
   -skip_reset \
   -vendor_creds ARISTA/admin/admin \
   -vendor_creds JUNIPER/root/Google123 \
