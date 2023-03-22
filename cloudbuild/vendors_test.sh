@@ -31,7 +31,7 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-$cli deploy kne/deploy/kne/kind-bridge.yaml
+$cli deploy kne/deploy/kne/kind-bridge-unlicensed.yaml
 
 load_image () {
   docker pull "$1"
