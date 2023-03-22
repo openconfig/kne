@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2022 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -84,10 +84,10 @@ fi
 kind delete cluster --name kne
 
 # Create a kubeadm single node cluster
-sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
+kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
 mkdir -p "$HOME"/.kube
-sudo cp /etc/kubernetes/admin.conf "$HOME"/.kube/config
-sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
+cp /etc/kubernetes/admin.conf "$HOME"/.kube/config
+chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 kubectl apply -f "$HOME"/flannel/Documentation/kube-flannel.yml
 docker network create multinode
 
