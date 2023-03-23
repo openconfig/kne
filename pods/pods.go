@@ -19,12 +19,22 @@ type PodStatus struct {
 	Name       string // name of pod
 	Namespace  string
 	Containers []ContainerStatus
-	Phase      string // current phase
-	Error      error  // If there was an error
+	Phase      corev1.PodPhase // current phase
+	Error      error           // If there was an error
 }
 
+// These constants are copied from k8s.io/api/core/v1 as a convenience.
+const (
+	PodPending   = corev1.PodPending   // Accepted but not all containers have started.
+	PodRunning   = corev1.PodRunning   // All containers have started and at least one is running.
+	PodSucceeded = corev1.PodSucceeded // All containers terminated without error.
+	PodFailed    = corev1.PodFailed    // All containers terminated with at least one error.
+)
+
+// A ContainerStatus contains the status of a single container in the pod.
 type ContainerStatus struct {
-	Name    string // name of pod
+	Name    string // name of container
+	Image   string // path of requested image
 	Ready   bool   // true if ready
 	Reason  string // if not empty, the reason it isn't ready
 	Message string // human readable reason
@@ -131,12 +141,13 @@ func podStatus(pod corev1.Pod) PodStatus {
 	s := PodStatus{
 		Name:      pod.ObjectMeta.Name,
 		Namespace: pod.ObjectMeta.Namespace,
-		Phase:     string(pod.Status.Phase),
+		Phase:     pod.Status.Phase,
 	}
 	for _, cs := range pod.Status.ContainerStatuses {
 		c := ContainerStatus{
 			Name:  cs.Name,
 			Ready: cs.Ready,
+			Image: cs.Image,
 		}
 		if w := cs.State.Waiting; w != nil {
 			c.Reason = w.Reason
