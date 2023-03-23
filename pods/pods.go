@@ -9,7 +9,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // A PodStatus represents the status of a single Pod.  Error is only set by
@@ -60,17 +61,13 @@ func GetPodStatus(namespace string) ([]PodStatus, error) {
 		data = testData
 	}
 
-	m := map[string]any{}
-	if err := json.Unmarshal(data, &m); err != nil {
+	var pods corev1.PodList
+	var statuses []PodStatus
+	if err := json.Unmarshal(data, &pods); err != nil {
 		return nil, err
 	}
-	statuses := []PodStatus{}
-	for _, i := range asList(follow(m, "items")) {
-		if asString(follow(i, "kind")) == "Pod" {
-			if s := podStatus(i); s.Name != "" {
-				statuses = append(statuses, s)
-			}
-		}
+	for _, pod := range pods.Items {
+		statuses = append(statuses, podStatus(pod))
 	}
 	return statuses, nil
 }
@@ -92,8 +89,8 @@ func WatchPodStatus(namespace string, quit chan struct{}) (chan PodStatus, error
 		}
 		fmt.Printf("args: %q\n", args)
 		cmd := exec.Command("kubectl", args...)
-		cmd.Stderr = os.Stderr
 		stdout, err := cmd.StdoutPipe()
+		cmd.Stderr = os.Stderr
 		if err != nil {
 			return nil, err
 		}
@@ -110,8 +107,8 @@ func WatchPodStatus(namespace string, quit chan struct{}) (chan PodStatus, error
 		defer close(ch)
 		d := json.NewDecoder(r)
 		for {
-			m := map[string]any{}
-			if err := d.Decode(&m); err != nil {
+			var pod corev1.Pod
+			if err := d.Decode(&pod); err != nil {
 				if err != io.EOF {
 					select {
 					case <-quit:
@@ -120,118 +117,32 @@ func WatchPodStatus(namespace string, quit chan struct{}) (chan PodStatus, error
 				}
 				return
 			}
-			if asString(follow(m, "kind")) == "Pod" {
-				select {
-				case <-quit:
-					return
-				case ch <- podStatus(m):
-				}
-			}
 			select {
 			case <-quit:
 				return
-			default:
+			case ch <- podStatus(pod):
 			}
 		}
 	}()
 	return ch, nil
 }
 
-func podStatus(m any) PodStatus {
+func podStatus(pod corev1.Pod) PodStatus {
 	s := PodStatus{
-		Name:      asString(follow(m, "metadata.name")),
-		Namespace: asString(follow(m, "metadata.namespace")),
-		Phase:     asString(follow(m, "status.phase")),
+		Name:      pod.ObjectMeta.Name,
+		Namespace: pod.ObjectMeta.Namespace,
+		Phase:     string(pod.Status.Phase),
 	}
-	cstatus, ok := follow(m, "status.containerStatuses").([]any)
-	if !ok {
-		return s
-	}
-	for _, c := range cstatus {
-		s.Containers = append(s.Containers, ContainerStatus{
-			Name:    asString(follow(c, "name")),
-			Ready:   asBool(follow(c, "ready")),
-			Reason:  asString(follow(c, "state.waiting.reason")),
-			Message: asString(follow(c, "state.waiting.message")),
-		})
+	for _, cs := range pod.Status.ContainerStatuses {
+		c := ContainerStatus{
+			Name:  cs.Name,
+			Ready: cs.Ready,
+		}
+		if w := cs.State.Waiting; w != nil {
+			c.Reason = w.Reason
+			c.Message = w.Message
+		}
+		s.Containers = append(s.Containers, c)
 	}
 	return s
-}
-
-// follow follows m down path.  If m is nil or path is empty then m is returned.
-func follow(m any, path string) any {
-	if m == nil || path == "" {
-		return m
-	}
-	switch t := m.(type) {
-	case map[string]any:
-		x := strings.Index(path, ".")
-		if x < 0 {
-			return t[path]
-		}
-		node := path[:x]
-		path = path[x+1:]
-		if n, ok := t[node]; ok {
-			return follow(n, path)
-		}
-		return nil
-	case []any:
-		switch len(t) {
-		case 0:
-		case 1:
-			return follow(t[0], path)
-		default:
-			var a []any
-			for _, i := range t {
-				if r := follow(i, path); r != nil {
-					a = append(a, r)
-				}
-			}
-			return a
-		}
-	}
-	return fmt.Sprintf("%s: can't index %T", path, m)
-}
-
-func asString(a any) string {
-	switch s := a.(type) {
-	case string:
-		return s
-	case map[string]any:
-		return ""
-	case []any:
-		switch len(s) {
-		case 0:
-		case 1:
-			return asString(s[0])
-		}
-	}
-	return ""
-}
-
-func asBool(a any) bool {
-	switch s := a.(type) {
-	case bool:
-		return s
-	case map[string]any:
-	case []any:
-		switch len(s) {
-		case 0:
-		case 1:
-			return asBool(s[0])
-		}
-	}
-	return false
-}
-
-func asList(a any) []any {
-	switch s := a.(type) {
-	case []any:
-		if len(s) == 0 {
-			return nil
-		}
-		return s
-	default:
-		return []any{s}
-	}
 }
