@@ -37,7 +37,7 @@ popd
 
 # Run an ondatra test
 pushd "$HOME/kne/cloudbuild"
-go test -v vendors_test.go \
+go test -v vendors/vendors_test.go \
   -testbed vendors/testbed.textproto \
   -topology vendors/topology.textproto \
   -skip_reset \
