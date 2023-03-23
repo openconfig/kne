@@ -31,27 +31,15 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-$cli deploy kne/deploy/kne/kind-bridge-unlicensed.yaml
-
-load_image () {
-  docker pull "$1"
-  docker tag "$1" "$2"
-  kind load docker-image "$2" --name kne
-}
-
-load_image us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga ceos:latest
-load_image us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga cptx:latest
-load_image us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga xrd:latest
-load_image us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga ghcr.io/nokia/srlinux:latest
-
-$cli create kne/examples/multivendor/multivendor.pb.txt
+$cli deploy kne/cloudbuild/vendors/deployment.yaml
+$cli create kne/cloudbuild/vendors/topology.textproto
 popd
 
 # Run an ondatra test
 pushd "$HOME/kne/cloudbuild"
 go test -v vendors_test.go \
-  -testbed testbed.textproto \
-  -topology "$HOME"/kne/examples/multivendor/multivendor.pb.txt \
+  -testbed vendors/testbed.textproto \
+  -topology vendors/topology.textproto \
   -skip_reset \
   -vendor_creds ARISTA/admin/admin \
   -vendor_creds JUNIPER/root/Google123 \
