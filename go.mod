@@ -16,7 +16,7 @@ require (
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
 	github.com/openconfig/gribi v0.1.1-0.20221218044856-ec9f4fc18013
 	github.com/openconfig/lemming/operator v0.2.0
-	github.com/openconfig/ondatra v0.1.8
+	github.com/openconfig/ondatra v0.1.9
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.6
