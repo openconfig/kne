@@ -135,6 +135,7 @@ nodes: {
 nodes: {
   name: "srl"
   vendor: NOKIA
+  model: "ixr6e"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
     file: "srl.cfg.json"
