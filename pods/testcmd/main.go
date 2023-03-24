@@ -3,10 +3,18 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/openconfig/kne/pods"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 func usage() {
@@ -14,11 +22,7 @@ func usage() {
 	os.Exit(1)
 }
 
-func printStatus(s pods.PodStatus) {
-	if s.Error != nil {
-		fmt.Printf("Error: %v\n", s.Error)
-		return
-	}
+func printStatus(s *pods.PodStatus) {
 	fmt.Printf("%s:%s: %s\n", s.Namespace, s.Name, s.Phase)
 	for _, c := range s.Containers {
 		switch {
@@ -29,21 +33,35 @@ func printStatus(s pods.PodStatus) {
 		default:
 			fmt.Printf("\t%s: %s: %s\n", c.Name, c.Reason, c.Message)
 		}
+		fmt.Printf("\t\tImage: %s\n", c.Image)
 	}
 }
 
 func main() {
-	var namespace string
-	switch len(os.Args) {
-	case 2:
-	case 3:
-		namespace = os.Args[2]
-	default:
-		usage()
+	var kubeconfig, namespace *string
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
-	switch os.Args[1] {
-	case "get":
-		statuses, err := pods.GetPodStatus(namespace)
+	namespace = flag.String("namespace", "", "namespace to query")
+	watch := flag.Bool("watch", false, "continue to watch")
+	flag.Parse()
+
+	// use the current context in kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// create the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if !*watch {
+		statuses, err := pods.GetPodStatus(context.Background(), clientset, *namespace)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -51,16 +69,14 @@ func main() {
 		for _, status := range statuses {
 			printStatus(status)
 		}
-	case "watch":
-		ch, err := pods.WatchPodStatus(namespace, nil)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		for status := range ch {
-			printStatus(status)
-		}
-	default:
-		usage()
+		return
+	}
+	ch, _, err := pods.WatchPodStatus(context.Background(), clientset, *namespace)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	for status := range ch {
+		printStatus(status)
 	}
 }

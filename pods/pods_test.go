@@ -1,90 +1,175 @@
 package pods
 
 import (
-	"io"
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	kfake "k8s.io/client-go/kubernetes/fake"
+	ktest "k8s.io/client-go/testing"
 )
 
-// myReader is used to test the WatchPodStatus function.
-type myReader struct {
-	data []string
-}
+func newClient() *kfake.Clientset {
+	client := kfake.NewSimpleClientset()
+	scheme := runtime.NewScheme()
+	codecs := serializer.NewCodecFactory(scheme)
+	_ = codecs
 
-func (r *myReader) Read(buf []byte) (int, error) {
-	if len(r.data) == 0 {
-		return 0, io.EOF
-	}
-	n := copy(buf, ([]byte)(r.data[0]))
-	if n < len(r.data[0]) {
-		r.data[0] = r.data[0][n:]
-	} else {
-		r.data = r.data[1:]
-	}
-	return n, nil
+	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
+	utilruntime.Must(kfake.AddToScheme(scheme))
+	return client
 }
 
 func TestGetPodStatus(t *testing.T) {
-	testData = consolidated
-	got, err := GetPodStatus("")
-	if err != nil {
-		t.Fatal(err)
+	client := newClient()
+	var podUpdates = [][]*corev1.Pod{
+		{ceos1pod, ixia1pod},
+		{ceos2pod, ixia2pod},
+		{ceos3pod, ixia3pod},
+		{ceos4pod},
+		{ceos5pod},
+		{ceos6pod},
+		{ceos7pod},
+		{meshnet1pod},
 	}
-	if s := cmp.Diff(got, wantStatus); s != "" {
-		t.Errorf("%s\n", s)
+
+	var podGetUpdatesStatus = [][]PodStatus{
+		{ceos1status, ixia1status},
+		{ceos2status, ixia2status},
+		{ceos3status, ixia3status},
+		{ceos4status},
+		{ceos5status},
+		{ceos6status},
+		{ceos7status},
+		{meshnet1status},
+	}
+
+	next := -1
+
+	client.PrependReactor("list", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
+		next++
+		if next >= len(podUpdates) {
+			return false, nil, nil
+		}
+		pl := corev1.PodList{}
+		for _, p := range podUpdates[next] {
+			pl.Items = append(pl.Items, *p)
+		}
+		return true, &pl, nil
+	})
+
+	for i := range podUpdates {
+		got, err := GetPodStatus(context.Background(), client, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := podGetUpdatesStatus[i]
+		j := -1
+		for len(got) > 0 {
+			j++
+			gotpod := got[0]
+			got = got[1:]
+			if len(want) == 0 {
+				t.Errorf("%d-%d: extra pod: %v", i, j, got)
+				continue
+			}
+			wantpod := want[0]
+			want = want[1:]
+			if !gotpod.Equal(&wantpod) {
+				t.Errorf("%d-%d FAIL:\ngot : %s\nwant: %s", i, j, gotpod.String(), wantpod.String())
+			} else if false {
+				t.Logf("%d-%d okay:\ngot : %s\nwant: %s", i, j, gotpod.String(), wantpod.String())
+			}
+
+			if false {
+				if s := cmp.Diff(got, want); s != "" {
+					t.Errorf("update %d: %s\n", i, s)
+				}
+			}
+		}
+		for len(want) > 0 {
+			wantpod := want[0]
+			want = want[1:]
+			t.Errorf("%d: missing pod: %v", i, wantpod)
+		}
 	}
 }
 
-func TestBadJsonGet(t *testing.T) {
-	testData = ([]byte)("bad json")
+type fakeWatch struct {
+	ch   chan watch.Event
+	done chan struct{}
+}
 
-	s, err := GetPodStatus("multivendor")
-	if err != nil {
-		return
-	}
-	t.Errorf("Did not get error, got %#v", s)
+func (f *fakeWatch) Stop() {
+	close(f.done)
+}
+
+func (f *fakeWatch) ResultChan() <-chan watch.Event {
+	return f.ch
 }
 
 func TestWatchPodStatus(t *testing.T) {
-	var r myReader
-	r.data = append([]string{}, rawStream...)
-	testReader = &r
+	client := newClient()
 
-	ch, err := WatchPodStatus("multivendor", nil)
+	var wanted = []*PodStatus{
+		&ceos1status,
+		&ceos2status,
+		&ceos3status,
+		&ceos4status,
+		&ceos5status,
+		&ceos6status,
+		&ceos7status,
+	}
+	var updates = []*corev1.Pod{
+		ceos1pod,
+		ceos2pod,
+		ceos3pod,
+		ceos4pod,
+		ceos5pod,
+		ceos6pod,
+		ceos7pod,
+	}
+	client.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
+		f := &fakeWatch{
+			ch:   make(chan watch.Event, 1),
+			done: make(chan struct{}),
+		}
+		go func() {
+			kind := watch.Added
+			for _, u := range updates {
+				select {
+				case f.ch <- watch.Event{
+					Type:   kind,
+					Object: u,
+				}:
+					kind = watch.Modified
+				case <-f.done:
+					return
+				}
+			}
+		}()
+		return true, f, nil
+	})
+
+	ch, stop, err := WatchPodStatus(context.Background(), client, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	i := -1
-	for got := range ch {
-		i++
-		want := wantStatus[i]
-		if s := cmp.Diff(got, want); s != "" {
-			t.Errorf("slice %d\n%s\n", i, s)
+	defer stop()
+	for _, want := range wanted {
+		got, ok := <-ch
+		if !ok {
+			t.Fatalf("channel closed early")
 		}
-	}
-}
-
-func TestBadJsonWatch(t *testing.T) {
-	var r myReader
-	r.data = []string{
-		"bad json",
-	}
-	testReader = &r
-
-	ch, err := WatchPodStatus("multivendor", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := <-ch
-	if got.Error == nil {
-		t.Errorf("Did not get an error response")
-	}
-	select {
-	case got, ok := <-ch:
-		if ok {
-			t.Errorf("Got more than 1 response: %#v", got)
+		if !got.Equal(want) {
+			t.Fatalf("\ngot : %v\nwant: %v", got, want)
 		}
-	default:
 	}
 }

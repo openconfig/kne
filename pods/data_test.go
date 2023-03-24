@@ -1,144 +1,158 @@
 package pods
 
 import (
-	"bytes"
-	"fmt"
+	"encoding/json"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
-// This file contains three variables used for testing.  The data was pruned
-// from "kubectl get pods -A -o json --watch"
-//
-// rawStream contains the individual json blobs
-//
-// consolidated contains the output as if --watch was not provided
-//
-// wantStatus is the data above as a slice of PodStatus
+func json2pod(j string) *corev1.Pod {
+	var pod corev1.Pod
+	if err := json.Unmarshal(([]byte)(j), &pod); err != nil {
+		panic(err)
+	}
+	return &pod
+}
 
-var rawStream = []string{
-	`{
+var (
+	ceos1pod = json2pod(ceos1data)
+	ceos2pod = json2pod(ceos2data)
+	ceos3pod = json2pod(ceos3data)
+	ceos4pod = json2pod(ceos4data)
+	ceos5pod = json2pod(ceos5data)
+	ceos6pod = json2pod(ceos6data)
+	ceos7pod = json2pod(ceos7data)
+
+	ixia1pod = json2pod(ixia1data)
+	ixia2pod = json2pod(ixia2data)
+	ixia3pod = json2pod(ixia3data)
+
+	meshnet1pod = json2pod(meshnet1data)
+)
+
+var (
+	ceos1data = `{
     "apiVersion": "v1",
     "kind": "Pod",
     "metadata": {
-        "creationTimestamp": "2023-03-22T15:38:12Z",
-        "labels": {
-            "app": "ceos",
-            "model": "ceos",
-            "os": "eos",
-            "topo": "multivendor",
-            "vendor": "ARISTA",
-            "version": ""
+        "annotations": {
+            "kubectl.kubernetes.io/default-container": "manager"
         },
-        "name": "ceos",
-        "namespace": "multivendor",
+        "creationTimestamp": "2023-03-24T16:41:45Z",
+        "generateName": "arista-ceoslab-operator-controller-manager-66cb57484f-",
+        "labels": {
+            "control-plane": "controller-manager",
+            "pod-template-hash": "66cb57484f"
+        },
+        "name": "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+        "namespace": "arista-ceoslab-operator-system",
         "ownerReferences": [
             {
-                "apiVersion": "ceoslab.arista.com/v1alpha1",
+                "apiVersion": "apps/v1",
                 "blockOwnerDeletion": true,
                 "controller": true,
-                "kind": "CEosLabDevice",
-                "name": "ceos",
-                "uid": "eaf5ed6d-3689-4e96-b9ce-d1eb5047a870"
+                "kind": "ReplicaSet",
+                "name": "arista-ceoslab-operator-controller-manager-66cb57484f",
+                "uid": "cf1c1859-7ce5-4f0c-8d92-4944a2e25f9d"
             }
         ],
-        "resourceVersion": "1102",
-        "uid": "bc60a503-a347-4409-9b33-e5f29f888cd6"
+        "resourceVersion": "827",
+        "uid": "cdbf21b3-a2e3-4c26-95a5-956945c8c122"
     },
     "spec": {
         "containers": [
             {
                 "args": [
-                    "systemd.setenv=CEOS=1",
-                    "systemd.setenv=EOS_PLATFORM=ceoslab",
-                    "systemd.setenv=ETBA=1",
-                    "systemd.setenv=INTFTYPE=eth",
-                    "systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
-                    "systemd.setenv=container=docker"
+                    "--secure-listen-address=0.0.0.0:8443",
+                    "--upstream=http://127.0.0.1:8080/",
+                    "--logtostderr=true",
+                    "--v=0"
                 ],
-                "command": [
-                    "/sbin/init"
-                ],
-                "env": [
-                    {
-                        "name": "CEOS",
-                        "value": "1"
-                    },
-                    {
-                        "name": "EOS_PLATFORM",
-                        "value": "ceoslab"
-                    },
-                    {
-                        "name": "ETBA",
-                        "value": "1"
-                    },
-                    {
-                        "name": "INTFTYPE",
-                        "value": "eth"
-                    },
-                    {
-                        "name": "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT",
-                        "value": "1"
-                    },
-                    {
-                        "name": "container",
-                        "value": "docker"
-                    }
-                ],
-                "image": "ceos:latest",
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
                 "imagePullPolicy": "IfNotPresent",
-                "name": "ceos",
-                "resources": {
-                    "requests": {
-                        "cpu": "500m",
-                        "memory": "1Gi"
+                "name": "kube-rbac-proxy",
+                "ports": [
+                    {
+                        "containerPort": 8443,
+                        "name": "https",
+                        "protocol": "TCP"
                     }
-                },
-                "securityContext": {
-                    "privileged": true
-                },
-                "startupProbe": {
-                    "exec": {
-                        "command": [
-                            "wfw",
-                            "-t",
-                            "5"
-                        ]
+                ],
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
                     },
-                    "failureThreshold": 24,
-                    "periodSeconds": 5,
-                    "successThreshold": 1,
-                    "timeoutSeconds": 5
+                    "requests": {
+                        "cpu": "5m",
+                        "memory": "64Mi"
+                    }
                 },
                 "terminationMessagePath": "/dev/termination-log",
                 "terminationMessagePolicy": "File",
                 "volumeMounts": [
                     {
-                        "mountPath": "/mnt/flash/startup-config",
-                        "name": "volume-ceos-config",
-                        "subPath": "startup-config"
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-j7pw9",
+                        "readOnly": true
+                    }
+                ]
+            },
+            {
+                "args": [
+                    "--health-probe-bind-address=:8081",
+                    "--metrics-bind-address=127.0.0.1:8080",
+                    "--leader-elect"
+                ],
+                "command": [
+                    "/manager"
+                ],
+                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/healthz",
+                        "port": 8081,
+                        "scheme": "HTTP"
                     },
-                    {
-                        "mountPath": "/mnt/flash/EosIntfMapping.json",
-                        "name": "volume-configmap-intfmapping-ceos",
-                        "subPath": "EosIntfMapping.json"
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "manager",
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/readyz",
+                        "port": 8081,
+                        "scheme": "HTTP"
                     },
-                    {
-                        "mountPath": "/mnt/flash/rc.eos",
-                        "name": "volume-configmap-rceos-ceos",
-                        "subPath": "rc.eos"
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
                     },
-                    {
-                        "mountPath": "/mnt/flash/gnmiCert.pem",
-                        "name": "volume-secret-selfsigned-ceos-0",
-                        "subPath": "gnmiCert.pem"
-                    },
-                    {
-                        "mountPath": "/mnt/flash/gnmiCertKey.pem",
-                        "name": "volume-secret-selfsigned-ceos-0",
-                        "subPath": "gnmiCertKey.pem"
-                    },
+                    "requests": {
+                        "cpu": "10m",
+                        "memory": "64Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
                     {
                         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-d449m",
+                        "name": "kube-api-access-j7pw9",
                         "readOnly": true
                     }
                 ]
@@ -146,35 +160,16 @@ var rawStream = []string{
         ],
         "dnsPolicy": "ClusterFirst",
         "enableServiceLinks": true,
-        "initContainers": [
-            {
-                "args": [
-                    "11",
-                    "0"
-                ],
-                "image": "networkop/init-wait:latest",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "init-ceos",
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-d449m",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
         "preemptionPolicy": "PreemptLowerPriority",
         "priority": 0,
         "restartPolicy": "Always",
         "schedulerName": "default-scheduler",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 0,
+        "securityContext": {
+            "runAsNonRoot": true
+        },
+        "serviceAccount": "arista-ceoslab-operator-controller-manager",
+        "serviceAccountName": "arista-ceoslab-operator-controller-manager",
+        "terminationGracePeriodSeconds": 10,
         "tolerations": [
             {
                 "effect": "NoExecute",
@@ -191,35 +186,7 @@ var rawStream = []string{
         ],
         "volumes": [
             {
-                "configMap": {
-                    "defaultMode": 420,
-                    "name": "ceos-config"
-                },
-                "name": "volume-ceos-config"
-            },
-            {
-                "configMap": {
-                    "defaultMode": 420,
-                    "name": "configmap-intfmapping-ceos"
-                },
-                "name": "volume-configmap-intfmapping-ceos"
-            },
-            {
-                "configMap": {
-                    "defaultMode": 509,
-                    "name": "configmap-rceos-ceos"
-                },
-                "name": "volume-configmap-rceos-ceos"
-            },
-            {
-                "name": "volume-secret-selfsigned-ceos-0",
-                "secret": {
-                    "defaultMode": 420,
-                    "secretName": "secret-selfsigned-ceos-0"
-                }
-            },
-            {
-                "name": "kube-api-access-d449m",
+                "name": "kube-api-access-j7pw9",
                 "projected": {
                     "defaultMode": 420,
                     "sources": [
@@ -263,12 +230,877 @@ var rawStream = []string{
         "qosClass": "Burstable"
     }
 }
-`,
-	`{
+`
+	ceos1status = PodStatus{
+		Name:      "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+		UID:       "cdbf21b3-a2e3-4c26-95a5-956945c8c122",
+		Namespace: "arista-ceoslab-operator-system",
+		Phase:     "Pending",
+	}
+
+	ceos2data = `{
     "apiVersion": "v1",
     "kind": "Pod",
     "metadata": {
-        "creationTimestamp": "2023-03-22T15:38:12Z",
+        "annotations": {
+            "kubectl.kubernetes.io/default-container": "manager"
+        },
+        "creationTimestamp": "2023-03-24T16:41:45Z",
+        "generateName": "arista-ceoslab-operator-controller-manager-66cb57484f-",
+        "labels": {
+            "control-plane": "controller-manager",
+            "pod-template-hash": "66cb57484f"
+        },
+        "name": "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+        "namespace": "arista-ceoslab-operator-system",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "arista-ceoslab-operator-controller-manager-66cb57484f",
+                "uid": "cf1c1859-7ce5-4f0c-8d92-4944a2e25f9d"
+            }
+        ],
+        "resourceVersion": "834",
+        "uid": "cdbf21b3-a2e3-4c26-95a5-956945c8c122"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "--secure-listen-address=0.0.0.0:8443",
+                    "--upstream=http://127.0.0.1:8080/",
+                    "--logtostderr=true",
+                    "--v=0"
+                ],
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "kube-rbac-proxy",
+                "ports": [
+                    {
+                        "containerPort": 8443,
+                        "name": "https",
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
+                    },
+                    "requests": {
+                        "cpu": "5m",
+                        "memory": "64Mi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-j7pw9",
+                        "readOnly": true
+                    }
+                ]
+            },
+            {
+                "args": [
+                    "--health-probe-bind-address=:8081",
+                    "--metrics-bind-address=127.0.0.1:8080",
+                    "--leader-elect"
+                ],
+                "command": [
+                    "/manager"
+                ],
+                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/healthz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "manager",
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/readyz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
+                    },
+                    "requests": {
+                        "cpu": "10m",
+                        "memory": "64Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-j7pw9",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "kne-control-plane",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "runAsNonRoot": true
+        },
+        "serviceAccount": "arista-ceoslab-operator-controller-manager",
+        "serviceAccountName": "arista-ceoslab-operator-controller-manager",
+        "terminationGracePeriodSeconds": 10,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "kube-api-access-j7pw9",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "message": "containers with unready status: [kube-rbac-proxy manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "message": "containers with unready status: [kube-rbac-proxy manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+                "imageID": "",
+                "lastState": {},
+                "name": "kube-rbac-proxy",
+                "ready": false,
+                "restartCount": 0,
+                "started": false,
+                "state": {
+                    "waiting": {
+                        "reason": "ContainerCreating"
+                    }
+                }
+            },
+            {
+                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+                "imageID": "",
+                "lastState": {},
+                "name": "manager",
+                "ready": false,
+                "restartCount": 0,
+                "started": false,
+                "state": {
+                    "waiting": {
+                        "reason": "ContainerCreating"
+                    }
+                }
+            }
+        ],
+        "hostIP": "192.168.8.2",
+        "phase": "Pending",
+        "qosClass": "Burstable",
+        "startTime": "2023-03-24T16:41:45Z"
+    }
+}
+`
+	ceos2status = PodStatus{
+		Name:      "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+		UID:       "cdbf21b3-a2e3-4c26-95a5-956945c8c122",
+		Namespace: "arista-ceoslab-operator-system",
+		Phase:     "Pending",
+		Containers: []ContainerStatus{
+			{Name: "kube-rbac-proxy",
+				Image:   "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+				Ready:   false,
+				Reason:  "ContainerCreating",
+				Message: ""},
+			{
+				Name:    "manager",
+				Image:   "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+				Reason:  "ContainerCreating",
+				Message: "",
+			},
+		},
+	}
+	ceos3data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "annotations": {
+            "kubectl.kubernetes.io/default-container": "manager"
+        },
+        "creationTimestamp": "2023-03-24T16:41:45Z",
+        "generateName": "arista-ceoslab-operator-controller-manager-66cb57484f-",
+        "labels": {
+            "control-plane": "controller-manager",
+            "pod-template-hash": "66cb57484f"
+        },
+        "name": "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+        "namespace": "arista-ceoslab-operator-system",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "arista-ceoslab-operator-controller-manager-66cb57484f",
+                "uid": "cf1c1859-7ce5-4f0c-8d92-4944a2e25f9d"
+            }
+        ],
+        "resourceVersion": "866",
+        "uid": "cdbf21b3-a2e3-4c26-95a5-956945c8c122"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "--secure-listen-address=0.0.0.0:8443",
+                    "--upstream=http://127.0.0.1:8080/",
+                    "--logtostderr=true",
+                    "--v=0"
+                ],
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "kube-rbac-proxy",
+                "ports": [
+                    {
+                        "containerPort": 8443,
+                        "name": "https",
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
+                    },
+                    "requests": {
+                        "cpu": "5m",
+                        "memory": "64Mi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-j7pw9",
+                        "readOnly": true
+                    }
+                ]
+            },
+            {
+                "args": [
+                    "--health-probe-bind-address=:8081",
+                    "--metrics-bind-address=127.0.0.1:8080",
+                    "--leader-elect"
+                ],
+                "command": [
+                    "/manager"
+                ],
+                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/healthz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "manager",
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/readyz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
+                    },
+                    "requests": {
+                        "cpu": "10m",
+                        "memory": "64Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-j7pw9",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "kne-control-plane",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "runAsNonRoot": true
+        },
+        "serviceAccount": "arista-ceoslab-operator-controller-manager",
+        "serviceAccountName": "arista-ceoslab-operator-controller-manager",
+        "terminationGracePeriodSeconds": 10,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "kube-api-access-j7pw9",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "message": "containers with unready status: [manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "message": "containers with unready status: [manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "containerd://6b2c82de9295a77cee346280ec605a66e53316dd51d6db19132017c025683445",
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+                "imageID": "gcr.io/kubebuilder/kube-rbac-proxy@sha256:0df4ae70e3bd0feffcec8f5cdb428f4abe666b667af991269ec5cb0bbda65869",
+                "lastState": {},
+                "name": "kube-rbac-proxy",
+                "ready": true,
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2023-03-24T16:41:48Z"
+                    }
+                }
+            },
+            {
+                "containerID": "containerd://e1dced1c61e7ec5cff99208579b8ab25aae8d8080c07d4b0b2b41340541e7dba",
+                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+                "imageID": "ghcr.io/aristanetworks/arista-ceoslab-operator@sha256:cd7c12b30096843b20304911705b178db4c13c915223b0e58a6d4c4f800c24d1",
+                "lastState": {},
+                "name": "manager",
+                "ready": false,
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2023-03-24T16:41:50Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "192.168.8.2",
+        "phase": "Running",
+        "podIP": "10.244.0.8",
+        "podIPs": [
+            {
+                "ip": "10.244.0.8"
+            }
+        ],
+        "qosClass": "Burstable",
+        "startTime": "2023-03-24T16:41:45Z"
+    }
+}
+`
+	ceos3status = PodStatus{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+		UID:       "cdbf21b3-a2e3-4c26-95a5-956945c8c122",
+		Namespace: "arista-ceoslab-operator-system",
+		Phase:     "Running",
+		Containers: []ContainerStatus{
+			{
+				Name:  "kube-rbac-proxy",
+				Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+				Ready: true,
+			},
+			{
+				Name:  "manager",
+				Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+			},
+		},
+	}
+
+	ceos4data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "annotations": {
+            "kubectl.kubernetes.io/default-container": "manager"
+        },
+        "creationTimestamp": "2023-03-24T16:41:45Z",
+        "generateName": "arista-ceoslab-operator-controller-manager-66cb57484f-",
+        "labels": {
+            "control-plane": "controller-manager",
+            "pod-template-hash": "66cb57484f"
+        },
+        "name": "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+        "namespace": "arista-ceoslab-operator-system",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "arista-ceoslab-operator-controller-manager-66cb57484f",
+                "uid": "cf1c1859-7ce5-4f0c-8d92-4944a2e25f9d"
+            }
+        ],
+        "resourceVersion": "881",
+        "uid": "cdbf21b3-a2e3-4c26-95a5-956945c8c122"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "--secure-listen-address=0.0.0.0:8443",
+                    "--upstream=http://127.0.0.1:8080/",
+                    "--logtostderr=true",
+                    "--v=0"
+                ],
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "kube-rbac-proxy",
+                "ports": [
+                    {
+                        "containerPort": 8443,
+                        "name": "https",
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
+                    },
+                    "requests": {
+                        "cpu": "5m",
+                        "memory": "64Mi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-j7pw9",
+                        "readOnly": true
+                    }
+                ]
+            },
+            {
+                "args": [
+                    "--health-probe-bind-address=:8081",
+                    "--metrics-bind-address=127.0.0.1:8080",
+                    "--leader-elect"
+                ],
+                "command": [
+                    "/manager"
+                ],
+                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/healthz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "manager",
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/readyz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "128Mi"
+                    },
+                    "requests": {
+                        "cpu": "10m",
+                        "memory": "64Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-j7pw9",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "kne-control-plane",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "runAsNonRoot": true
+        },
+        "serviceAccount": "arista-ceoslab-operator-controller-manager",
+        "serviceAccountName": "arista-ceoslab-operator-controller-manager",
+        "terminationGracePeriodSeconds": 10,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "kube-api-access-j7pw9",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:55Z",
+                "status": "True",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:55Z",
+                "status": "True",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:45Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "containerd://6b2c82de9295a77cee346280ec605a66e53316dd51d6db19132017c025683445",
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+                "imageID": "gcr.io/kubebuilder/kube-rbac-proxy@sha256:0df4ae70e3bd0feffcec8f5cdb428f4abe666b667af991269ec5cb0bbda65869",
+                "lastState": {},
+                "name": "kube-rbac-proxy",
+                "ready": true,
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2023-03-24T16:41:48Z"
+                    }
+                }
+            },
+            {
+                "containerID": "containerd://e1dced1c61e7ec5cff99208579b8ab25aae8d8080c07d4b0b2b41340541e7dba",
+                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+                "imageID": "ghcr.io/aristanetworks/arista-ceoslab-operator@sha256:cd7c12b30096843b20304911705b178db4c13c915223b0e58a6d4c4f800c24d1",
+                "lastState": {},
+                "name": "manager",
+                "ready": true,
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2023-03-24T16:41:50Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "192.168.8.2",
+        "phase": "Running",
+        "podIP": "10.244.0.8",
+        "podIPs": [
+            {
+                "ip": "10.244.0.8"
+            }
+        ],
+        "qosClass": "Burstable",
+        "startTime": "2023-03-24T16:41:45Z"
+    }
+}
+`
+	ceos4status = PodStatus{
+		Name:      "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+		UID:       "cdbf21b3-a2e3-4c26-95a5-956945c8c122",
+		Namespace: "arista-ceoslab-operator-system",
+		Phase:     "Running",
+		Containers: []ContainerStatus{
+			{
+				Name:    "kube-rbac-proxy",
+				Image:   "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
+				Ready:   true,
+				Reason:  "",
+				Message: ""},
+			{
+				Name:    "manager",
+				Image:   "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+				Ready:   true,
+				Reason:  "",
+				Message: ""},
+		},
+	}
+
+	ceos5data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2023-03-24T16:42:12Z",
         "labels": {
             "app": "ceos",
             "model": "ceos",
@@ -286,11 +1118,11 @@ var rawStream = []string{
                 "controller": true,
                 "kind": "CEosLabDevice",
                 "name": "ceos",
-                "uid": "eaf5ed6d-3689-4e96-b9ce-d1eb5047a870"
+                "uid": "4c92d4bb-afa4-4320-9157-8d5371df1510"
             }
         ],
-        "resourceVersion": "1111",
-        "uid": "bc60a503-a347-4409-9b33-e5f29f888cd6"
+        "resourceVersion": "1149",
+        "uid": "ec41a7f2-4f33-4eaf-8d34-df552c81445d"
     },
     "spec": {
         "containers": [
@@ -387,7 +1219,7 @@ var rawStream = []string{
                     },
                     {
                         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-d449m",
+                        "name": "kube-api-access-h9hc8",
                         "readOnly": true
                     }
                 ]
@@ -410,7 +1242,262 @@ var rawStream = []string{
                 "volumeMounts": [
                     {
                         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-d449m",
+                        "name": "kube-api-access-h9hc8",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 0,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "configMap": {
+                    "defaultMode": 420,
+                    "name": "ceos-config"
+                },
+                "name": "volume-ceos-config"
+            },
+            {
+                "configMap": {
+                    "defaultMode": 420,
+                    "name": "configmap-intfmapping-ceos"
+                },
+                "name": "volume-configmap-intfmapping-ceos"
+            },
+            {
+                "configMap": {
+                    "defaultMode": 509,
+                    "name": "configmap-rceos-ceos"
+                },
+                "name": "volume-configmap-rceos-ceos"
+            },
+            {
+                "name": "volume-secret-selfsigned-ceos-0",
+                "secret": {
+                    "defaultMode": 420,
+                    "secretName": "secret-selfsigned-ceos-0"
+                }
+            },
+            {
+                "name": "kube-api-access-h9hc8",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "phase": "Pending",
+        "qosClass": "Burstable"
+    }
+}
+`
+	ceos5status = PodStatus{
+		Name:      "ceos",
+		UID:       "ec41a7f2-4f33-4eaf-8d34-df552c81445d",
+		Namespace: "multivendor",
+		Phase:     "Pending",
+	}
+	ceos6data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2023-03-24T16:42:12Z",
+        "labels": {
+            "app": "ceos",
+            "model": "ceos",
+            "os": "eos",
+            "topo": "multivendor",
+            "vendor": "ARISTA",
+            "version": ""
+        },
+        "name": "ceos",
+        "namespace": "multivendor",
+        "ownerReferences": [
+            {
+                "apiVersion": "ceoslab.arista.com/v1alpha1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "CEosLabDevice",
+                "name": "ceos",
+                "uid": "4c92d4bb-afa4-4320-9157-8d5371df1510"
+            }
+        ],
+        "resourceVersion": "1158",
+        "uid": "ec41a7f2-4f33-4eaf-8d34-df552c81445d"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "systemd.setenv=CEOS=1",
+                    "systemd.setenv=EOS_PLATFORM=ceoslab",
+                    "systemd.setenv=ETBA=1",
+                    "systemd.setenv=INTFTYPE=eth",
+                    "systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
+                    "systemd.setenv=container=docker"
+                ],
+                "command": [
+                    "/sbin/init"
+                ],
+                "env": [
+                    {
+                        "name": "CEOS",
+                        "value": "1"
+                    },
+                    {
+                        "name": "EOS_PLATFORM",
+                        "value": "ceoslab"
+                    },
+                    {
+                        "name": "ETBA",
+                        "value": "1"
+                    },
+                    {
+                        "name": "INTFTYPE",
+                        "value": "eth"
+                    },
+                    {
+                        "name": "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT",
+                        "value": "1"
+                    },
+                    {
+                        "name": "container",
+                        "value": "docker"
+                    }
+                ],
+                "image": "ceos:latest",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "ceos",
+                "resources": {
+                    "requests": {
+                        "cpu": "500m",
+                        "memory": "1Gi"
+                    }
+                },
+                "securityContext": {
+                    "privileged": true
+                },
+                "startupProbe": {
+                    "exec": {
+                        "command": [
+                            "wfw",
+                            "-t",
+                            "5"
+                        ]
+                    },
+                    "failureThreshold": 24,
+                    "periodSeconds": 5,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 5
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/mnt/flash/startup-config",
+                        "name": "volume-ceos-config",
+                        "subPath": "startup-config"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/EosIntfMapping.json",
+                        "name": "volume-configmap-intfmapping-ceos",
+                        "subPath": "EosIntfMapping.json"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/rc.eos",
+                        "name": "volume-configmap-rceos-ceos",
+                        "subPath": "rc.eos"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/gnmiCert.pem",
+                        "name": "volume-secret-selfsigned-ceos-0",
+                        "subPath": "gnmiCert.pem"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/gnmiCertKey.pem",
+                        "name": "volume-secret-selfsigned-ceos-0",
+                        "subPath": "gnmiCertKey.pem"
+                    },
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-h9hc8",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "initContainers": [
+            {
+                "args": [
+                    "11",
+                    "0"
+                ],
+                "image": "networkop/init-wait:latest",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "init-ceos",
+                "resources": {},
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-h9hc8",
                         "readOnly": true
                     }
                 ]
@@ -469,7 +1556,7 @@ var rawStream = []string{
                 }
             },
             {
-                "name": "kube-api-access-d449m",
+                "name": "kube-api-access-h9hc8",
                 "projected": {
                     "defaultMode": 420,
                     "sources": [
@@ -512,7 +1599,7 @@ var rawStream = []string{
         "conditions": [
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:12Z",
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
                 "message": "containers with incomplete status: [init-ceos]",
                 "reason": "ContainersNotInitialized",
                 "status": "False",
@@ -520,7 +1607,7 @@ var rawStream = []string{
             },
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:12Z",
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
                 "message": "containers with unready status: [ceos]",
                 "reason": "ContainersNotReady",
                 "status": "False",
@@ -528,7 +1615,7 @@ var rawStream = []string{
             },
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:12Z",
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
                 "message": "containers with unready status: [ceos]",
                 "reason": "ContainersNotReady",
                 "status": "False",
@@ -536,7 +1623,7 @@ var rawStream = []string{
             },
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:12Z",
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
                 "status": "True",
                 "type": "PodScheduled"
             }
@@ -575,935 +1662,36 @@ var rawStream = []string{
         ],
         "phase": "Pending",
         "qosClass": "Burstable",
-        "startTime": "2023-03-22T15:38:12Z"
+        "startTime": "2023-03-24T16:42:12Z"
     }
 }
-`,
-	`{
+`
+	ceos6status = PodStatus{
+		Name:      "ceos",
+		UID:       "ec41a7f2-4f33-4eaf-8d34-df552c81445d",
+		Namespace: "multivendor",
+		Phase:     "Pending",
+		Containers: []ContainerStatus{
+			{
+				Name:    "ceos",
+				Image:   "ceos:latest",
+				Ready:   false,
+				Reason:  "PodInitializing",
+				Message: ""},
+		},
+		InitContainers: []ContainerStatus{
+			{
+				Name:   "init-ceos",
+				Image:  "networkop/init-wait:latest",
+				Reason: "PodInitializing",
+			},
+		},
+	}
+	ceos7data = `{
     "apiVersion": "v1",
     "kind": "Pod",
     "metadata": {
-        "creationTimestamp": "2023-03-22T15:38:13Z",
-        "labels": {
-            "app": "otg-controller"
-        },
-        "name": "otg-controller",
-        "namespace": "multivendor",
-        "resourceVersion": "1269",
-        "uid": "45154f21-3636-400d-9679-a2c23dbe519a"
-    },
-    "spec": {
-        "containers": [
-            {
-                "args": [
-                    "--accept-eula",
-                    "--debug"
-                ],
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "ixia-c",
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/home/ixia-c/controller/config",
-                        "name": "config",
-                        "readOnly": true
-                    },
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-s6d9p",
-                        "readOnly": true
-                    }
-                ]
-            },
-            {
-                "args": [
-                    "-http-server",
-                    "https://localhost:8443",
-                    "--debug"
-                ],
-                "image": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.10.14",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "gnmi",
-                "ports": [
-                    {
-                        "containerPort": 50051,
-                        "name": "gnmi",
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-s6d9p",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "enableServiceLinks": true,
-        "imagePullSecrets": [
-            {
-                "name": "ixia-pull-secret"
-            }
-        ],
-        "nodeName": "kne-control-plane",
-        "preemptionPolicy": "PreemptLowerPriority",
-        "priority": 0,
-        "restartPolicy": "Always",
-        "schedulerName": "default-scheduler",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 5,
-        "tolerations": [
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/not-ready",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            },
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/unreachable",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            }
-        ],
-        "volumes": [
-            {
-                "configMap": {
-                    "defaultMode": 420,
-                    "name": "controller-config"
-                },
-                "name": "config"
-            },
-            {
-                "name": "kube-api-access-s6d9p",
-                "projected": {
-                    "defaultMode": 420,
-                    "sources": [
-                        {
-                            "serviceAccountToken": {
-                                "expirationSeconds": 3607,
-                                "path": "token"
-                            }
-                        },
-                        {
-                            "configMap": {
-                                "items": [
-                                    {
-                                        "key": "ca.crt",
-                                        "path": "ca.crt"
-                                    }
-                                ],
-                                "name": "kube-root-ca.crt"
-                            }
-                        },
-                        {
-                            "downwardAPI": {
-                                "items": [
-                                    {
-                                        "fieldRef": {
-                                            "apiVersion": "v1",
-                                            "fieldPath": "metadata.namespace"
-                                        },
-                                        "path": "namespace"
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [ixia-c gnmi]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [ixia-c gnmi]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "ContainersReady"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "image": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.10.14",
-                "imageID": "",
-                "lastState": {},
-                "name": "gnmi",
-                "ready": false,
-                "restartCount": 0,
-                "started": false,
-                "state": {
-                    "waiting": {
-                        "reason": "ContainerCreating"
-                    }
-                }
-            },
-            {
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807",
-                "imageID": "",
-                "lastState": {},
-                "name": "ixia-c",
-                "ready": false,
-                "restartCount": 0,
-                "started": false,
-                "state": {
-                    "waiting": {
-                        "reason": "ContainerCreating"
-                    }
-                }
-            }
-        ],
-        "hostIP": "192.168.8.2",
-        "phase": "Pending",
-        "qosClass": "BestEffort",
-        "startTime": "2023-03-22T15:38:13Z"
-    }
-}
-`,
-	`{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2023-03-22T15:38:13Z",
-        "labels": {
-            "app": "otg-port-eth1",
-            "topo": "multivendor"
-        },
-        "name": "otg-port-eth1",
-        "namespace": "multivendor",
-        "resourceVersion": "1271",
-        "uid": "a75d155b-fc81-4288-8664-d49c3cfa4ebc"
-    },
-    "spec": {
-        "containers": [
-            {
-                "env": [
-                    {
-                        "name": "ARG_CORE_LIST",
-                        "value": "2 3 4"
-                    },
-                    {
-                        "name": "ARG_IFACE_LIST",
-                        "value": "virtual@af_packet,eth1"
-                    },
-                    {
-                        "name": "OPT_NO_HUGEPAGES",
-                        "value": "Yes"
-                    },
-                    {
-                        "name": "OPT_LISTEN_PORT",
-                        "value": "5555"
-                    }
-                ],
-                "image": "ghcr.io/open-traffic-generator/ixia-c-traffic-engine:1.6.0.30",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "otg-port-eth1-traffic-engine",
-                "resources": {},
-                "securityContext": {
-                    "privileged": true
-                },
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-5hf5d",
-                        "readOnly": true
-                    }
-                ]
-            },
-            {
-                "env": [
-                    {
-                        "name": "INTF_LIST",
-                        "value": "eth1"
-                    }
-                ],
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-protocol-engine:1.00.0.271",
-                "imagePullPolicy": "IfNotPresent",
-                "livenessProbe": {
-                    "failureThreshold": 3,
-                    "initialDelaySeconds": 10,
-                    "periodSeconds": 1,
-                    "successThreshold": 1,
-                    "tcpSocket": {
-                        "port": 50071
-                    },
-                    "terminationGracePeriodSeconds": 1,
-                    "timeoutSeconds": 1
-                },
-                "name": "otg-port-eth1-protocol-engine",
-                "resources": {},
-                "securityContext": {
-                    "privileged": true
-                },
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-5hf5d",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "enableServiceLinks": true,
-        "imagePullSecrets": [
-            {
-                "name": "ixia-pull-secret"
-            }
-        ],
-        "initContainers": [
-            {
-                "args": [
-                    "2",
-                    "10"
-                ],
-                "image": "networkop/init-wait:latest",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "init-container",
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-5hf5d",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "nodeName": "kne-control-plane",
-        "preemptionPolicy": "PreemptLowerPriority",
-        "priority": 0,
-        "restartPolicy": "Always",
-        "schedulerName": "default-scheduler",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 5,
-        "tolerations": [
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/not-ready",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            },
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/unreachable",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            }
-        ],
-        "volumes": [
-            {
-                "name": "kube-api-access-5hf5d",
-                "projected": {
-                    "defaultMode": 420,
-                    "sources": [
-                        {
-                            "serviceAccountToken": {
-                                "expirationSeconds": 3607,
-                                "path": "token"
-                            }
-                        },
-                        {
-                            "configMap": {
-                                "items": [
-                                    {
-                                        "key": "ca.crt",
-                                        "path": "ca.crt"
-                                    }
-                                ],
-                                "name": "kube-root-ca.crt"
-                            }
-                        },
-                        {
-                            "downwardAPI": {
-                                "items": [
-                                    {
-                                        "fieldRef": {
-                                            "apiVersion": "v1",
-                                            "fieldPath": "metadata.namespace"
-                                        },
-                                        "path": "namespace"
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with incomplete status: [init-container]",
-                "reason": "ContainersNotInitialized",
-                "status": "False",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [otg-port-eth1-traffic-engine otg-port-eth1-protocol-engine]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [otg-port-eth1-traffic-engine otg-port-eth1-protocol-engine]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "ContainersReady"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-protocol-engine:1.00.0.271",
-                "imageID": "",
-                "lastState": {},
-                "name": "otg-port-eth1-protocol-engine",
-                "ready": false,
-                "restartCount": 0,
-                "started": false,
-                "state": {
-                    "waiting": {
-                        "reason": "PodInitializing"
-                    }
-                }
-            },
-            {
-                "image": "ghcr.io/open-traffic-generator/ixia-c-traffic-engine:1.6.0.30",
-                "imageID": "",
-                "lastState": {},
-                "name": "otg-port-eth1-traffic-engine",
-                "ready": false,
-                "restartCount": 0,
-                "started": false,
-                "state": {
-                    "waiting": {
-                        "reason": "PodInitializing"
-                    }
-                }
-            }
-        ],
-        "hostIP": "192.168.8.2",
-        "initContainerStatuses": [
-            {
-                "image": "networkop/init-wait:latest",
-                "imageID": "",
-                "lastState": {},
-                "name": "init-container",
-                "ready": false,
-                "restartCount": 0,
-                "state": {
-                    "waiting": {
-                        "reason": "PodInitializing"
-                    }
-                }
-            }
-        ],
-        "phase": "Pending",
-        "qosClass": "BestEffort",
-        "startTime": "2023-03-22T15:38:13Z"
-    }
-}
-`,
-	`{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2023-03-22T15:38:13Z",
-        "labels": {
-            "app": "otg-controller"
-        },
-        "name": "otg-controller",
-        "namespace": "multivendor",
-        "resourceVersion": "1325",
-        "uid": "45154f21-3636-400d-9679-a2c23dbe519a"
-    },
-    "spec": {
-        "containers": [
-            {
-                "args": [
-                    "--accept-eula",
-                    "--debug"
-                ],
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "ixia-c",
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/home/ixia-c/controller/config",
-                        "name": "config",
-                        "readOnly": true
-                    },
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-s6d9p",
-                        "readOnly": true
-                    }
-                ]
-            },
-            {
-                "args": [
-                    "-http-server",
-                    "https://localhost:8443",
-                    "--debug"
-                ],
-                "image": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.10.14",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "gnmi",
-                "ports": [
-                    {
-                        "containerPort": 50051,
-                        "name": "gnmi",
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-s6d9p",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "enableServiceLinks": true,
-        "imagePullSecrets": [
-            {
-                "name": "ixia-pull-secret"
-            }
-        ],
-        "nodeName": "kne-control-plane",
-        "preemptionPolicy": "PreemptLowerPriority",
-        "priority": 0,
-        "restartPolicy": "Always",
-        "schedulerName": "default-scheduler",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 5,
-        "tolerations": [
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/not-ready",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            },
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/unreachable",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            }
-        ],
-        "volumes": [
-            {
-                "configMap": {
-                    "defaultMode": 420,
-                    "name": "controller-config"
-                },
-                "name": "config"
-            },
-            {
-                "name": "kube-api-access-s6d9p",
-                "projected": {
-                    "defaultMode": 420,
-                    "sources": [
-                        {
-                            "serviceAccountToken": {
-                                "expirationSeconds": 3607,
-                                "path": "token"
-                            }
-                        },
-                        {
-                            "configMap": {
-                                "items": [
-                                    {
-                                        "key": "ca.crt",
-                                        "path": "ca.crt"
-                                    }
-                                ],
-                                "name": "kube-root-ca.crt"
-                            }
-                        },
-                        {
-                            "downwardAPI": {
-                                "items": [
-                                    {
-                                        "fieldRef": {
-                                            "apiVersion": "v1",
-                                            "fieldPath": "metadata.namespace"
-                                        },
-                                        "path": "namespace"
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [ixia-c]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [ixia-c]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "ContainersReady"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "containerID": "containerd://35d030d1e4d432640a83d1f7336a7493a6f5278dafa67e6b923f0a31919c1a47",
-                "image": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.10.14",
-                "imageID": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server@sha256:c5ee8b62c9fe0629e431b2a6a3424355018399bed75d634601d2a4dacd3b7ede",
-                "lastState": {},
-                "name": "gnmi",
-                "ready": true,
-                "restartCount": 0,
-                "started": true,
-                "state": {
-                    "running": {
-                        "startedAt": "2023-03-22T15:38:22Z"
-                    }
-                }
-            },
-            {
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807",
-                "imageID": "",
-                "lastState": {},
-                "name": "ixia-c",
-                "ready": false,
-                "restartCount": 0,
-                "started": false,
-                "state": {
-                    "waiting": {
-                        "message": "rpc error: code = Unknown desc = failed to pull and unpack image \"ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807\": failed to resolve reference \"ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807\": failed to authorize: failed to fetch anonymous token: unexpected status: 401 Unauthorized",
-                        "reason": "ErrImagePull"
-                    }
-                }
-            }
-        ],
-        "hostIP": "192.168.8.2",
-        "phase": "Pending",
-        "podIP": "10.244.0.16",
-        "podIPs": [
-            {
-                "ip": "10.244.0.16"
-            }
-        ],
-        "qosClass": "BestEffort",
-        "startTime": "2023-03-22T15:38:13Z"
-    }
-}
-`,
-	`{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2023-03-22T15:38:13Z",
-        "labels": {
-            "app": "otg-controller"
-        },
-        "name": "otg-controller",
-        "namespace": "multivendor",
-        "resourceVersion": "1335",
-        "uid": "45154f21-3636-400d-9679-a2c23dbe519a"
-    },
-    "spec": {
-        "containers": [
-            {
-                "args": [
-                    "--accept-eula",
-                    "--debug"
-                ],
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "ixia-c",
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/home/ixia-c/controller/config",
-                        "name": "config",
-                        "readOnly": true
-                    },
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-s6d9p",
-                        "readOnly": true
-                    }
-                ]
-            },
-            {
-                "args": [
-                    "-http-server",
-                    "https://localhost:8443",
-                    "--debug"
-                ],
-                "image": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.10.14",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "gnmi",
-                "ports": [
-                    {
-                        "containerPort": 50051,
-                        "name": "gnmi",
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-s6d9p",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "enableServiceLinks": true,
-        "imagePullSecrets": [
-            {
-                "name": "ixia-pull-secret"
-            }
-        ],
-        "nodeName": "kne-control-plane",
-        "preemptionPolicy": "PreemptLowerPriority",
-        "priority": 0,
-        "restartPolicy": "Always",
-        "schedulerName": "default-scheduler",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 5,
-        "tolerations": [
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/not-ready",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            },
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/unreachable",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            }
-        ],
-        "volumes": [
-            {
-                "configMap": {
-                    "defaultMode": 420,
-                    "name": "controller-config"
-                },
-                "name": "config"
-            },
-            {
-                "name": "kube-api-access-s6d9p",
-                "projected": {
-                    "defaultMode": 420,
-                    "sources": [
-                        {
-                            "serviceAccountToken": {
-                                "expirationSeconds": 3607,
-                                "path": "token"
-                            }
-                        },
-                        {
-                            "configMap": {
-                                "items": [
-                                    {
-                                        "key": "ca.crt",
-                                        "path": "ca.crt"
-                                    }
-                                ],
-                                "name": "kube-root-ca.crt"
-                            }
-                        },
-                        {
-                            "downwardAPI": {
-                                "items": [
-                                    {
-                                        "fieldRef": {
-                                            "apiVersion": "v1",
-                                            "fieldPath": "metadata.namespace"
-                                        },
-                                        "path": "namespace"
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [ixia-c]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "message": "containers with unready status: [ixia-c]",
-                "reason": "ContainersNotReady",
-                "status": "False",
-                "type": "ContainersReady"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T15:38:13Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "containerID": "containerd://35d030d1e4d432640a83d1f7336a7493a6f5278dafa67e6b923f0a31919c1a47",
-                "image": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.10.14",
-                "imageID": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server@sha256:c5ee8b62c9fe0629e431b2a6a3424355018399bed75d634601d2a4dacd3b7ede",
-                "lastState": {},
-                "name": "gnmi",
-                "ready": true,
-                "restartCount": 0,
-                "started": true,
-                "state": {
-                    "running": {
-                        "startedAt": "2023-03-22T15:38:22Z"
-                    }
-                }
-            },
-            {
-                "image": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807",
-                "imageID": "",
-                "lastState": {},
-                "name": "ixia-c",
-                "ready": false,
-                "restartCount": 0,
-                "started": false,
-                "state": {
-                    "waiting": {
-                        "message": "Back-off pulling image \"ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807\"",
-                        "reason": "ImagePullBackOff"
-                    }
-                }
-            }
-        ],
-        "hostIP": "192.168.8.2",
-        "phase": "Pending",
-        "podIP": "10.244.0.16",
-        "podIPs": [
-            {
-                "ip": "10.244.0.16"
-            }
-        ],
-        "qosClass": "BestEffort",
-        "startTime": "2023-03-22T15:38:13Z"
-    }
-}
-`,
-	`{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2023-03-22T16:59:15Z",
+        "creationTimestamp": "2023-03-24T16:42:12Z",
         "labels": {
             "app": "ceos",
             "model": "ceos",
@@ -1521,11 +1709,11 @@ var rawStream = []string{
                 "controller": true,
                 "kind": "CEosLabDevice",
                 "name": "ceos",
-                "uid": "5ec9c206-67b4-4bf0-a7b8-d7bd6e072013"
+                "uid": "4c92d4bb-afa4-4320-9157-8d5371df1510"
             }
         ],
-        "resourceVersion": "2175",
-        "uid": "8e7ada76-f00d-41f0-a52b-34bbe1059108"
+        "resourceVersion": "1404",
+        "uid": "ec41a7f2-4f33-4eaf-8d34-df552c81445d"
     },
     "spec": {
         "containers": [
@@ -1567,7 +1755,7 @@ var rawStream = []string{
                         "value": "docker"
                     }
                 ],
-                "image": "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
+                "image": "ceos:latest",
                 "imagePullPolicy": "IfNotPresent",
                 "name": "ceos",
                 "resources": {
@@ -1622,7 +1810,7 @@ var rawStream = []string{
                     },
                     {
                         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-kkc5c",
+                        "name": "kube-api-access-h9hc8",
                         "readOnly": true
                     }
                 ]
@@ -1645,7 +1833,7 @@ var rawStream = []string{
                 "volumeMounts": [
                     {
                         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-kkc5c",
+                        "name": "kube-api-access-h9hc8",
                         "readOnly": true
                     }
                 ]
@@ -1704,7 +1892,7 @@ var rawStream = []string{
                 }
             },
             {
-                "name": "kube-api-access-kkc5c",
+                "name": "kube-api-access-h9hc8",
                 "projected": {
                     "defaultMode": 420,
                     "sources": [
@@ -1747,42 +1935,46 @@ var rawStream = []string{
         "conditions": [
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T17:00:03Z",
+                "lastTransitionTime": "2023-03-24T16:42:29Z",
                 "status": "True",
                 "type": "Initialized"
             },
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T17:02:02Z",
-                "status": "True",
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
+                "message": "containers with unready status: [ceos]",
+                "reason": "ContainersNotReady",
+                "status": "False",
                 "type": "Ready"
             },
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T17:02:02Z",
-                "status": "True",
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
+                "message": "containers with unready status: [ceos]",
+                "reason": "ContainersNotReady",
+                "status": "False",
                 "type": "ContainersReady"
             },
             {
                 "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-22T16:59:15Z",
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
                 "status": "True",
                 "type": "PodScheduled"
             }
         ],
         "containerStatuses": [
             {
-                "containerID": "containerd://31c18ff1a0d4f8ec8be2a25b272254fda352547e4a00a3a35a6c7e56efd8f37f",
-                "image": "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
-                "imageID": "us-west1-docker.pkg.dev/gep-kne/arista/ceos@sha256:483f662ec489b151930c590fed32e1f4a08469e5db459828e433a9a94f3cd482",
+                "image": "ceos:latest",
+                "imageID": "",
                 "lastState": {},
                 "name": "ceos",
-                "ready": true,
+                "ready": false,
                 "restartCount": 0,
-                "started": true,
+                "started": false,
                 "state": {
-                    "running": {
-                        "startedAt": "2023-03-22T17:01:54Z"
+                    "waiting": {
+                        "message": "rpc error: code = Unknown desc = failed to pull and unpack image \"docker.io/library/ceos:latest\": failed to resolve reference \"docker.io/library/ceos:latest\": pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed",
+                        "reason": "ErrImagePull"
                     }
                 }
             }
@@ -1790,153 +1982,1111 @@ var rawStream = []string{
         "hostIP": "192.168.8.2",
         "initContainerStatuses": [
             {
-                "containerID": "containerd://1ca46df4a01384b73cd48dbdbeb88a799ef56f1e6d5dc072c39e8c73923f35ce",
+                "containerID": "containerd://ba3b38aac71af3108010f5ca1f7e0698a0bc1aeb76959450539f41b70f937cab",
                 "image": "docker.io/networkop/init-wait:latest",
-                "imageID": "docker.io/library/import-2023-03-22@sha256:b042a644d6eeaaf21576db428a7aa86927df4cf09645d63ab2bcc0ea4e9b873a",
+                "imageID": "docker.io/networkop/init-wait@sha256:a54e253ce78be8ea66942051296c3676e254bc37460e19a9eb540517faaaf4d7",
                 "lastState": {},
                 "name": "init-ceos",
                 "ready": true,
                 "restartCount": 0,
                 "state": {
                     "terminated": {
-                        "containerID": "containerd://1ca46df4a01384b73cd48dbdbeb88a799ef56f1e6d5dc072c39e8c73923f35ce",
+                        "containerID": "containerd://ba3b38aac71af3108010f5ca1f7e0698a0bc1aeb76959450539f41b70f937cab",
                         "exitCode": 0,
-                        "finishedAt": "2023-03-22T17:00:02Z",
+                        "finishedAt": "2023-03-24T16:42:29Z",
                         "reason": "Completed",
-                        "startedAt": "2023-03-22T17:00:02Z"
+                        "startedAt": "2023-03-24T16:42:29Z"
                     }
                 }
             }
         ],
-        "phase": "Running",
-        "podIP": "10.244.0.21",
+        "phase": "Pending",
+        "podIP": "10.244.0.17",
         "podIPs": [
             {
-                "ip": "10.244.0.21"
+                "ip": "10.244.0.17"
             }
         ],
         "qosClass": "Burstable",
-        "startTime": "2023-03-22T16:59:15Z"
+        "startTime": "2023-03-24T16:42:12Z"
     }
-}`,
 }
-
-var consolidated []byte
-
-func init() {
-	const (
-		prefix = `
-{
-    "apiVersion": "v1",
-    "items": [
 `
-		suffix = `
-    ],
-    "kind": "List",
-    "metadata": {
-        "resourceVersion": ""
-    }
-}`
-	)
-
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s", prefix)
-	for _, item := range rawStream[:len(rawStream)-1] {
-		fmt.Fprintf(&buf, "%s,\n", item)
-	}
-	fmt.Fprintf(&buf, "%s", rawStream[len(rawStream)-1])
-	fmt.Fprintf(&buf, "%s", suffix)
-	consolidated = buf.Bytes()
-}
-
-var wantStatus = []PodStatus{
-	{
+	ceos7status = PodStatus{
 		Name:      "ceos",
+		UID:       "ec41a7f2-4f33-4eaf-8d34-df552c81445d",
 		Namespace: "multivendor",
 		Phase:     "Pending",
-	},
-	{
-		Name:      "ceos",
-		Namespace: "multivendor",
 		Containers: []ContainerStatus{
 			{
-				Name:   "ceos",
-				Reason: "PodInitializing",
-			},
-		},
-		Phase: "Pending",
-	},
-	{
-		Name:      "otg-controller",
-		Namespace: "multivendor",
-		Containers: []ContainerStatus{
-			{
-				Name:   "gnmi",
-				Reason: "ContainerCreating",
-			},
-			{
-				Name:   "ixia-c",
-				Reason: "ContainerCreating",
-			},
-		},
-		Phase: "Pending",
-	},
-	{
-		Name:      "otg-port-eth1",
-		Namespace: "multivendor",
-		Containers: []ContainerStatus{
-			{
-				Name:   "otg-port-eth1-protocol-engine",
-				Reason: "PodInitializing",
-			},
-			{
-				Name:   "otg-port-eth1-traffic-engine",
-				Reason: "PodInitializing",
-			},
-		},
-		Phase: "Pending",
-	},
-	{
-		Name:      "otg-controller",
-		Namespace: "multivendor",
-		Containers: []ContainerStatus{
-			{
-				Name:  "gnmi",
-				Ready: true,
-			},
-			{
-				Name:    "ixia-c",
+				Name:    "ceos",
+				Image:   "ceos:latest",
+				Ready:   false,
 				Reason:  "ErrImagePull",
-				Message: "rpc error: code = Unknown desc = failed to pull and unpack image \"ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807\": failed to resolve reference \"ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807\": failed to authorize: failed to fetch anonymous token: unexpected status: 401 Unauthorized",
-			},
+				Message: `rpc error: code = Unknown desc = failed to pull and unpack image "docker.io/library/ceos:latest": failed to resolve reference "docker.io/library/ceos:latest": pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed`},
 		},
-		Phase: "Pending",
-	},
-	{
-		Name:      "otg-controller",
-		Namespace: "multivendor",
-		Containers: []ContainerStatus{
+		InitContainers: []ContainerStatus{
 			{
-				Name:  "gnmi",
-				Ready: true,
-			},
-			{
-				Name:    "ixia-c",
-				Reason:  "ImagePullBackOff",
-				Message: "Back-off pulling image \"ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-3807\"",
-			},
-		},
-		Phase: "Pending",
-	},
-	{
-		Name:      "ceos",
-		Namespace: "multivendor",
-		Containers: []ContainerStatus{
-			{
-				Name:  "ceos",
+				Name:  "init-ceos",
+				Image: "docker.io/networkop/init-wait:latest",
 				Ready: true,
 			},
 		},
-		Phase: "Running",
-	},
+	}
+
+	ixia1data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2023-03-24T16:41:02Z",
+        "generateName": "ixiatg-op-controller-manager-7b5db775d9-",
+        "labels": {
+            "control-plane": "controller-manager",
+            "pod-template-hash": "7b5db775d9"
+        },
+        "name": "ixiatg-op-controller-manager-7b5db775d9-kz2mb",
+        "namespace": "ixiatg-op-system",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "ixiatg-op-controller-manager-7b5db775d9",
+                "uid": "7960b609-1877-4fb8-8010-5a9fbd4695c7"
+            }
+        ],
+        "resourceVersion": "621",
+        "uid": "53fd2ce7-bcf3-489a-9f4a-aa457e01980f"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "--secure-listen-address=0.0.0.0:8443",
+                    "--upstream=http://127.0.0.1:8080/",
+                    "--logtostderr=true",
+                    "--v=10"
+                ],
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "kube-rbac-proxy",
+                "ports": [
+                    {
+                        "containerPort": 8443,
+                        "name": "https",
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {},
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-c9mg6",
+                        "readOnly": true
+                    }
+                ]
+            },
+            {
+                "args": [
+                    "--health-probe-bind-address=:8081",
+                    "--metrics-bind-address=127.0.0.1:8080",
+                    "--leader-elect"
+                ],
+                "command": [
+                    "/manager"
+                ],
+                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/healthz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "manager",
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/readyz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "100m",
+                        "memory": "200Mi"
+                    },
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "20Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-c9mg6",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "imagePullSecrets": [
+            {
+                "name": "ixia-pull-secret"
+            }
+        ],
+        "nodeName": "kne-control-plane",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "runAsNonRoot": true
+        },
+        "serviceAccount": "ixiatg-op-controller-manager",
+        "serviceAccountName": "ixiatg-op-controller-manager",
+        "terminationGracePeriodSeconds": 10,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "kube-api-access-c9mg6",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "phase": "Pending",
+        "qosClass": "Burstable"
+    }
 }
+`
+	ixia1status = PodStatus{
+		Name:      "ixiatg-op-controller-manager-7b5db775d9-kz2mb",
+		UID:       "53fd2ce7-bcf3-489a-9f4a-aa457e01980f",
+		Namespace: "ixiatg-op-system",
+		Phase:     "Pending",
+	}
+
+	ixia2data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2023-03-24T16:41:02Z",
+        "generateName": "ixiatg-op-controller-manager-7b5db775d9-",
+        "labels": {
+            "control-plane": "controller-manager",
+            "pod-template-hash": "7b5db775d9"
+        },
+        "name": "ixiatg-op-controller-manager-7b5db775d9-kz2mb",
+        "namespace": "ixiatg-op-system",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "ixiatg-op-controller-manager-7b5db775d9",
+                "uid": "7960b609-1877-4fb8-8010-5a9fbd4695c7"
+            }
+        ],
+        "resourceVersion": "626",
+        "uid": "53fd2ce7-bcf3-489a-9f4a-aa457e01980f"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "--secure-listen-address=0.0.0.0:8443",
+                    "--upstream=http://127.0.0.1:8080/",
+                    "--logtostderr=true",
+                    "--v=10"
+                ],
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "kube-rbac-proxy",
+                "ports": [
+                    {
+                        "containerPort": 8443,
+                        "name": "https",
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {},
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-c9mg6",
+                        "readOnly": true
+                    }
+                ]
+            },
+            {
+                "args": [
+                    "--health-probe-bind-address=:8081",
+                    "--metrics-bind-address=127.0.0.1:8080",
+                    "--leader-elect"
+                ],
+                "command": [
+                    "/manager"
+                ],
+                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/healthz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "manager",
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/readyz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "100m",
+                        "memory": "200Mi"
+                    },
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "20Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-c9mg6",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "imagePullSecrets": [
+            {
+                "name": "ixia-pull-secret"
+            }
+        ],
+        "nodeName": "kne-control-plane",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "runAsNonRoot": true
+        },
+        "serviceAccount": "ixiatg-op-controller-manager",
+        "serviceAccountName": "ixiatg-op-controller-manager",
+        "terminationGracePeriodSeconds": 10,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "kube-api-access-c9mg6",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "message": "containers with unready status: [kube-rbac-proxy manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "message": "containers with unready status: [kube-rbac-proxy manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+                "imageID": "",
+                "lastState": {},
+                "name": "kube-rbac-proxy",
+                "ready": false,
+                "restartCount": 0,
+                "started": false,
+                "state": {
+                    "waiting": {
+                        "reason": "ContainerCreating"
+                    }
+                }
+            },
+            {
+                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "imageID": "",
+                "lastState": {},
+                "name": "manager",
+                "ready": false,
+                "restartCount": 0,
+                "started": false,
+                "state": {
+                    "waiting": {
+                        "reason": "ContainerCreating"
+                    }
+                }
+            }
+        ],
+        "hostIP": "192.168.8.2",
+        "phase": "Pending",
+        "qosClass": "Burstable",
+        "startTime": "2023-03-24T16:41:02Z"
+    }
+}
+`
+	ixia2status = PodStatus{
+		Name:      "ixiatg-op-controller-manager-7b5db775d9-kz2mb",
+		UID:       "53fd2ce7-bcf3-489a-9f4a-aa457e01980f",
+		Namespace: "ixiatg-op-system",
+		Phase:     "Pending",
+		Containers: []ContainerStatus{
+			{
+				Name:   "kube-rbac-proxy",
+				Image:  "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+				Reason: "ContainerCreating",
+			},
+			{
+				Name:   "manager",
+				Image:  "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+				Reason: "ContainerCreating",
+			},
+		},
+	}
+
+	meshnet1data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2023-03-24T16:41:02Z",
+        "generateName": "meshnet-",
+        "labels": {
+            "app": "meshnet",
+            "controller-revision-hash": "75558679b9",
+            "name": "meshnet",
+            "pod-template-generation": "1"
+        },
+        "name": "meshnet-gdsj6",
+        "namespace": "meshnet",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "DaemonSet",
+                "name": "meshnet",
+                "uid": "4448143b-3e4f-4e5b-8825-0a46c8a8890e"
+            }
+        ],
+        "resourceVersion": "642",
+        "uid": "9980cafe-0b1a-4eff-b3ae-4c905a0535d4"
+    },
+    "spec": {
+        "affinity": {
+            "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                    "nodeSelectorTerms": [
+                        {
+                            "matchFields": [
+                                {
+                                    "key": "metadata.name",
+                                    "operator": "In",
+                                    "values": [
+                                        "kne-control-plane"
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "containers": [
+            {
+                "env": [
+                    {
+                        "name": "HOST_IP",
+                        "valueFrom": {
+                            "fieldRef": {
+                                "apiVersion": "v1",
+                                "fieldPath": "status.hostIP"
+                            }
+                        }
+                    },
+                    {
+                        "name": "INTER_NODE_LINK_TYPE",
+                        "value": "GRPC"
+                    }
+                ],
+                "image": "us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.1",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "meshnet",
+                "resources": {
+                    "limits": {
+                        "memory": "1000Mi"
+                    },
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "1000Mi"
+                    }
+                },
+                "securityContext": {
+                    "privileged": true
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/etc/cni/net.d",
+                        "name": "cni-cfg"
+                    },
+                    {
+                        "mountPath": "/opt/cni/bin",
+                        "name": "cni-bin"
+                    },
+                    {
+                        "mountPath": "/var/run/netns",
+                        "mountPropagation": "Bidirectional",
+                        "name": "var-run-netns"
+                    },
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-rctrf",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "hostIPC": true,
+        "hostNetwork": true,
+        "hostPID": true,
+        "nodeName": "kne-control-plane",
+        "nodeSelector": {
+            "kubernetes.io/arch": "amd64"
+        },
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "serviceAccount": "meshnet",
+        "serviceAccountName": "meshnet",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+            {
+                "effect": "NoSchedule",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "node.kubernetes.io/disk-pressure",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "node.kubernetes.io/memory-pressure",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "node.kubernetes.io/pid-pressure",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "node.kubernetes.io/unschedulable",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "node.kubernetes.io/network-unavailable",
+                "operator": "Exists"
+            }
+        ],
+        "volumes": [
+            {
+                "hostPath": {
+                    "path": "/opt/cni/bin",
+                    "type": ""
+                },
+                "name": "cni-bin"
+            },
+            {
+                "hostPath": {
+                    "path": "/etc/cni/net.d",
+                    "type": ""
+                },
+                "name": "cni-cfg"
+            },
+            {
+                "hostPath": {
+                    "path": "/var/run/netns",
+                    "type": ""
+                },
+                "name": "var-run-netns"
+            },
+            {
+                "name": "kube-api-access-rctrf",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:06Z",
+                "status": "True",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:06Z",
+                "status": "True",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "containerd://edac8386fab91bf66ef9b6068295db05071bde53dd014c719445001a10b8d5e2",
+                "image": "us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.1",
+                "imageID": "us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet@sha256:90973cb7e8e5f9fa52b2bc14c3d8eb75378810b255c014fc562dc258a74a8cd7",
+                "lastState": {},
+                "name": "meshnet",
+                "ready": true,
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2023-03-24T16:41:05Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "192.168.8.2",
+        "phase": "Running",
+        "podIP": "192.168.8.2",
+        "podIPs": [
+            {
+                "ip": "192.168.8.2"
+            }
+        ],
+        "qosClass": "Burstable",
+        "startTime": "2023-03-24T16:41:02Z"
+    }
+}
+`
+	meshnet1status = PodStatus{
+		Name:      "meshnet-gdsj6",
+		UID:       "9980cafe-0b1a-4eff-b3ae-4c905a0535d4",
+		Namespace: "meshnet",
+		Phase:     "Running",
+		Containers: []ContainerStatus{
+			{
+				Name:  "meshnet",
+				Image: "us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.1",
+				Ready: true,
+			},
+		},
+	}
+
+	ixia3data = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2023-03-24T16:41:02Z",
+        "generateName": "ixiatg-op-controller-manager-7b5db775d9-",
+        "labels": {
+            "control-plane": "controller-manager",
+            "pod-template-hash": "7b5db775d9"
+        },
+        "name": "ixiatg-op-controller-manager-7b5db775d9-kz2mb",
+        "namespace": "ixiatg-op-system",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "ixiatg-op-controller-manager-7b5db775d9",
+                "uid": "7960b609-1877-4fb8-8010-5a9fbd4695c7"
+            }
+        ],
+        "resourceVersion": "657",
+        "uid": "53fd2ce7-bcf3-489a-9f4a-aa457e01980f"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "--secure-listen-address=0.0.0.0:8443",
+                    "--upstream=http://127.0.0.1:8080/",
+                    "--logtostderr=true",
+                    "--v=10"
+                ],
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "kube-rbac-proxy",
+                "ports": [
+                    {
+                        "containerPort": 8443,
+                        "name": "https",
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {},
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-c9mg6",
+                        "readOnly": true
+                    }
+                ]
+            },
+            {
+                "args": [
+                    "--health-probe-bind-address=:8081",
+                    "--metrics-bind-address=127.0.0.1:8080",
+                    "--leader-elect"
+                ],
+                "command": [
+                    "/manager"
+                ],
+                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/healthz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "manager",
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/readyz",
+                        "port": 8081,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "100m",
+                        "memory": "200Mi"
+                    },
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "20Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-c9mg6",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "imagePullSecrets": [
+            {
+                "name": "ixia-pull-secret"
+            }
+        ],
+        "nodeName": "kne-control-plane",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "runAsNonRoot": true
+        },
+        "serviceAccount": "ixiatg-op-controller-manager",
+        "serviceAccountName": "ixiatg-op-controller-manager",
+        "terminationGracePeriodSeconds": 10,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "kube-api-access-c9mg6",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "message": "containers with unready status: [manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "message": "containers with unready status: [manager]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:41:02Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "containerd://4ff3350898caa2a707fbacc78375eb1f032f70961cfa999b3053a048a8eda4bc",
+                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+                "imageID": "gcr.io/kubebuilder/kube-rbac-proxy@sha256:db06cc4c084dd0253134f156dddaaf53ef1c3fb3cc809e5d81711baa4029ea4c",
+                "lastState": {},
+                "name": "kube-rbac-proxy",
+                "ready": true,
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2023-03-24T16:41:07Z"
+                    }
+                }
+            },
+            {
+                "containerID": "containerd://2f69e4e109842b198534badca065147a6c64de6af15c652c98e909e4e7395d0c",
+                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "imageID": "ghcr.io/open-traffic-generator/ixia-c-operator@sha256:157c99a77f89db86ba5074656c9b43b8edce828e863704b631e624cbfac7e813",
+                "lastState": {},
+                "name": "manager",
+                "ready": false,
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2023-03-24T16:41:12Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "192.168.8.2",
+        "phase": "Running",
+        "podIP": "10.244.0.6",
+        "podIPs": [
+            {
+                "ip": "10.244.0.6"
+            }
+        ],
+        "qosClass": "Burstable",
+        "startTime": "2023-03-24T16:41:02Z"
+    }
+}
+`
+	ixia3status = PodStatus{Name: "ixiatg-op-controller-manager-7b5db775d9-kz2mb",
+		UID:       "53fd2ce7-bcf3-489a-9f4a-aa457e01980f",
+		Namespace: "ixiatg-op-system",
+		Phase:     "Running",
+		Containers: []ContainerStatus{{Name: "kube-rbac-proxy",
+			Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+			Ready: true,
+		},
+			{Name: "manager",
+				Image: "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+			},
+		},
+	}
+)
