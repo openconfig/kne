@@ -22,7 +22,7 @@ steps:
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=source /tmp/workspace/cloudbuild/vendors_test.sh 2>&1
 
-timeout: 2700s
+timeout: 1800s
 
 options:
   pool:
