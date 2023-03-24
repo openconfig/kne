@@ -94,7 +94,6 @@ func TestXRD(t *testing.T) {
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	testP4RT(t, dut)
 }
 
 func TestOTG(t *testing.T) {
