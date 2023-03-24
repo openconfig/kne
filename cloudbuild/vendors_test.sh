@@ -31,31 +31,18 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-$cli deploy kne-internal/deploy/kne/kind-bridge.yaml
-$cli create kne/cloudbuild/presubmit/topology.textproto
+$cli deploy kne/cloudbuild/vendors/deployment.yaml
+$cli create kne/cloudbuild/vendors/topology.textproto
 popd
 
 # Run an ondatra test
-pushd "$HOME/kne/cloudbuild/presubmit"
-cat >config.yaml << EOF
-credentials:
-  vendor:
-    ARISTA:
-      username: admin
-      password: admin
-    JUNIPER:
-      username: root
-      password: Google123
-    CISCO:
-      username: cisco
-      password: cisco123
-    NOKIA:
-      username: admin
-      password: NokiaSrl1!
-topology: ${HOME}/kne/cloudbuild/presubmit/topology.textproto
-skip_reset: true
-cli: $cli
-EOF
-
-go test -v presubmit_test.go -config config.yaml -testbed testbed.textproto
+pushd "$HOME/kne/cloudbuild"
+go test -v vendors/vendors_test.go \
+  -testbed testbed.textproto \
+  -topology topology.textproto \
+  -skip_reset \
+  -vendor_creds ARISTA/admin/admin \
+  -vendor_creds JUNIPER/root/Google123 \
+  -vendor_creds CISCO/cisco/cisco123 \
+  -vendor_creds NOKIA/admin/NokiaSrl1!
 popd
