@@ -8,29 +8,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnmi/errdiff"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	ktest "k8s.io/client-go/testing"
 )
 
-func newClient() *kfake.Clientset {
-	client := kfake.NewSimpleClientset()
-	scheme := runtime.NewScheme()
-	codecs := serializer.NewCodecFactory(scheme)
-	_ = codecs
-
-	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
-	utilruntime.Must(kfake.AddToScheme(scheme))
-	return client
-}
-
 func TestGetPodStatus(t *testing.T) {
-	client := newClient()
+	client := kfake.NewSimpleClientset()
 	var podUpdates = [][]*corev1.Pod{
 		{ceos1pod, ixia1pod},
 		{ceos2pod, ixia2pod},
@@ -105,7 +90,7 @@ func TestGetPodStatus(t *testing.T) {
 }
 func TestGetPodStatusError(t *testing.T) {
 	myError := errors.New("pod error")
-	client := newClient()
+	client := kfake.NewSimpleClientset()
 	client.PrependReactor("list", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
 		return true, nil, myError
 	})
@@ -130,7 +115,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 }
 
 func TestWatchPodStatus(t *testing.T) {
-	client := newClient()
+	client := kfake.NewSimpleClientset()
 
 	var wanted = []*PodStatus{
 		&ceos1status,
@@ -193,7 +178,7 @@ func TestWatchPodStatus(t *testing.T) {
 }
 
 func TestWatchPodStatusError(t *testing.T) {
-	client := newClient()
+	client := kfake.NewSimpleClientset()
 	myError := errors.New("watch error")
 	client.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
 		f := &fakeWatch{
