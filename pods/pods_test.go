@@ -229,7 +229,9 @@ func TestString(t *testing.T) {
 func TestEqual(t *testing.T) {
 	different := &ceos6Istatus
 	for i, pod := range []*PodStatus{&ceos1status, &ceos2status, &ceos3status, &ceos6status} {
-		if !pod.Equal(pod) {
+		// Lint thinks pod.Equal(pod) is suspicious.
+		lintPod := pod
+		if !pod.Equal(lintPod) {
 			t.Errorf("#%d: Equal returned false on equal pods", i)
 		}
 		if pod.Equal(different) {

@@ -6,7 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-
 // Variables are named
 //
 //   name#data    Raw json from kubectl
