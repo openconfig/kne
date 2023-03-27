@@ -20,6 +20,7 @@ import (
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
 	kexec "github.com/openconfig/kne/exec"
+	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/oauth2/google"
@@ -262,6 +263,13 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 	return nil
 }
 
+func init() {
+	load.Register("External", &load.Spec{
+		Type: ExternalSpec{},
+		Tag:  "cluster",
+	})
+}
+
 type ExternalSpec struct {
 	Network string `yaml:"network"`
 }
@@ -289,6 +297,13 @@ func (e *ExternalSpec) GetName() string {
 
 func (e *ExternalSpec) GetDockerNetworkResourceName() string {
 	return e.Network
+}
+
+func init() {
+	load.Register("Kind", &load.Spec{
+		Type: KindSpec{},
+		Tag:  "cluster",
+	})
 }
 
 type KindSpec struct {
@@ -602,6 +617,13 @@ func writeDockerConfig(path string, registries []string) error {
 	return nil
 }
 
+func init() {
+	load.Register("MetalLB", &load.Spec{
+		Type: MetalLBSpec{},
+		Tag:  "ingress",
+	})
+}
+
 type MetalLBSpec struct {
 	IPCount                   int    `yaml:"ip_count"`
 	ManifestDir               string `yaml:"manifests"`
@@ -783,6 +805,13 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, m.kClient, "metallb-system")
 }
 
+func init() {
+	load.Register("Meshnet", &load.Spec{
+		Type: MeshnetSpec{},
+		Tag:  "cni",
+	})
+}
+
 type MeshnetSpec struct {
 	ManifestDir  string `yaml:"manifests"`
 	Manifest     string `yaml:"manifest" kne:"yaml"`
@@ -850,6 +879,13 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 	}
 }
 
+func init() {
+	load.Register("CEOSLab", &load.Spec{
+		Type: CEOSLabSpec{},
+		Tag:  "controllers",
+	})
+}
+
 type CEOSLabSpec struct {
 	ManifestDir  string `yaml:"manifests"`
 	Operator     string `yaml:"operator" kne:"yaml"`
@@ -890,6 +926,13 @@ func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
 
 func (c *CEOSLabSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, c.kClient, "arista-ceoslab-operator-system")
+}
+
+func init() {
+	load.Register("Lemming", &load.Spec{
+		Type: LemmingSpec{},
+		Tag:  "controllers",
+	})
 }
 
 type LemmingSpec struct {
@@ -934,6 +977,13 @@ func (l *LemmingSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, l.kClient, "lemming-operator")
 }
 
+func init() {
+	load.Register("SRLinux", &load.Spec{
+		Type: SRLinuxSpec{},
+		Tag:  "controllers",
+	})
+}
+
 type SRLinuxSpec struct {
 	ManifestDir  string `yaml:"manifests"`
 	Operator     string `yaml:"operator" kne:"yaml"`
@@ -974,6 +1024,13 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 
 func (s *SRLinuxSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, s.kClient, "srlinux-controller")
+}
+
+func init() {
+	load.Register("IxiaTG", &load.Spec{
+		Type: IxiaTGSpec{},
+		Tag:  "controllers",
+	})
 }
 
 type IxiaTGSpec struct {

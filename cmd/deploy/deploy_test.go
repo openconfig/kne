@@ -148,19 +148,19 @@ func TestNewDeployment(t *testing.T) {
 	}{{
 		desc:    "invalid cluster",
 		cfg:     invalidCluster,
-		wantErr: "cluster type not supported",
+		wantErr: "InvalidCluster not supported",
 	}, {
 		desc:    "invalid ingress",
 		cfg:     invalidIngress,
-		wantErr: "ingress type not supported",
+		wantErr: "InvalidIngress not supported",
 	}, {
 		desc:    "invalid cni",
 		cfg:     invalidCNI,
-		wantErr: "CNI type not supported",
+		wantErr: "InvalidCNI not supported",
 	}, {
 		desc:    "invalid controllers",
 		cfg:     invalidControllers,
-		wantErr: "controller type not supported",
+		wantErr: "InvalidController not supported",
 	}, {
 		desc: "valid controllers",
 		cfg:  validControllers,
@@ -185,7 +185,7 @@ func TestNewDeployment(t *testing.T) {
 				tt.path = f.Name()
 				defer os.Remove(f.Name())
 			}
-			d, err := newDeployment(tt.path)
+			d, err := newDeployment(tt.path, true)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
