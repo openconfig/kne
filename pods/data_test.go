@@ -6,6 +6,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+
+// Variables are named
+//
+//   name#data    Raw json from kubectl
+//   name#pod     Data converted into a corev1.Pod
+//   name#status  PodStatus version
+//   name#string  PodStatus as a string
+
 func json2pod(j string) *corev1.Pod {
 	var pod corev1.Pod
 	if err := json.Unmarshal(([]byte)(j), &pod); err != nil {
@@ -15,19 +23,28 @@ func json2pod(j string) *corev1.Pod {
 }
 
 var (
-	ceos1pod = json2pod(ceos1data)
-	ceos2pod = json2pod(ceos2data)
-	ceos3pod = json2pod(ceos3data)
-	ceos4pod = json2pod(ceos4data)
-	ceos5pod = json2pod(ceos5data)
-	ceos6pod = json2pod(ceos6data)
-	ceos7pod = json2pod(ceos7data)
+	ceos1pod  = json2pod(ceos1data)
+	ceos2pod  = json2pod(ceos2data)
+	ceos3pod  = json2pod(ceos3data)
+	ceos4pod  = json2pod(ceos4data)
+	ceos5pod  = json2pod(ceos5data)
+	ceos6pod  = json2pod(ceos6data)
+	ceos6Ipod = json2pod(ceos6Idata) // second init container is different
+	ceos7pod  = json2pod(ceos7data)
 
 	ixia1pod = json2pod(ixia1data)
 	ixia2pod = json2pod(ixia2data)
 	ixia3pod = json2pod(ixia3data)
 
 	meshnet1pod = json2pod(meshnet1data)
+)
+
+// We only use 4 pods when checking PodStatus.String as these cover all the cases.
+var (
+	ceos1string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Pending"}`
+	ceos2string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Pending", Containers: {{Name: "kube-rbac-proxy"Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0"Reason: "ContainerCreating"}, {Name: "manager"Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1"Reason: "ContainerCreating"}}}`
+	ceos3string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Running", Containers: {{Name: "kube-rbac-proxy"Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0"Ready: "true"}, {Name: "manager"Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1"}}}`
+	ceos6string = `{Name: "ceos", UID: "ec41a7f2-4f33-4eaf-8d34-df552c81445d", Namespace: "multivendor", Phase: "Pending", Containers: {{Name: "ceos"Image: "ceos:latest"Reason: "PodInitializing"}}, InitContainers: {{Name: "init-ceos"Image: "networkop/init-wait:latest"Reason: "PodInitializing"}, {Name: "init2-ceos"Image: "networkop/init-wait:latest"Reason: "PodInitializing"}}}`
 )
 
 var (
@@ -1351,6 +1368,7 @@ var (
 		Namespace: "multivendor",
 		Phase:     "Pending",
 	}
+
 	ceos6data = `{
     "apiVersion": "v1",
     "kind": "Pod",
@@ -1658,6 +1676,19 @@ var (
                         "reason": "PodInitializing"
                     }
                 }
+            },
+            {
+                "image": "networkop/init-wait:latest",
+                "imageID": "",
+                "lastState": {},
+                "name": "init2-ceos",
+                "ready": false,
+                "restartCount": 0,
+                "state": {
+                    "waiting": {
+                        "reason": "PodInitializing"
+                    }
+                }
             }
         ],
         "phase": "Pending",
@@ -1684,6 +1715,366 @@ var (
 				Name:   "init-ceos",
 				Image:  "networkop/init-wait:latest",
 				Reason: "PodInitializing",
+			},
+			{
+				Name:   "init2-ceos",
+				Image:  "networkop/init-wait:latest",
+				Reason: "PodInitializing",
+			},
+		},
+	}
+
+	ceos6Idata = `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2023-03-24T16:42:12Z",
+        "labels": {
+            "app": "ceos",
+            "model": "ceos",
+            "os": "eos",
+            "topo": "multivendor",
+            "vendor": "ARISTA",
+            "version": ""
+        },
+        "name": "ceos",
+        "namespace": "multivendor",
+        "ownerReferences": [
+            {
+                "apiVersion": "ceoslab.arista.com/v1alpha1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "CEosLabDevice",
+                "name": "ceos",
+                "uid": "4c92d4bb-afa4-4320-9157-8d5371df1510"
+            }
+        ],
+        "resourceVersion": "1158",
+        "uid": "ec41a7f2-4f33-4eaf-8d34-df552c81445d"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "systemd.setenv=CEOS=1",
+                    "systemd.setenv=EOS_PLATFORM=ceoslab",
+                    "systemd.setenv=ETBA=1",
+                    "systemd.setenv=INTFTYPE=eth",
+                    "systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
+                    "systemd.setenv=container=docker"
+                ],
+                "command": [
+                    "/sbin/init"
+                ],
+                "env": [
+                    {
+                        "name": "CEOS",
+                        "value": "1"
+                    },
+                    {
+                        "name": "EOS_PLATFORM",
+                        "value": "ceoslab"
+                    },
+                    {
+                        "name": "ETBA",
+                        "value": "1"
+                    },
+                    {
+                        "name": "INTFTYPE",
+                        "value": "eth"
+                    },
+                    {
+                        "name": "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT",
+                        "value": "1"
+                    },
+                    {
+                        "name": "container",
+                        "value": "docker"
+                    }
+                ],
+                "image": "ceos:latest",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "ceos",
+                "resources": {
+                    "requests": {
+                        "cpu": "500m",
+                        "memory": "1Gi"
+                    }
+                },
+                "securityContext": {
+                    "privileged": true
+                },
+                "startupProbe": {
+                    "exec": {
+                        "command": [
+                            "wfw",
+                            "-t",
+                            "5"
+                        ]
+                    },
+                    "failureThreshold": 24,
+                    "periodSeconds": 5,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 5
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/mnt/flash/startup-config",
+                        "name": "volume-ceos-config",
+                        "subPath": "startup-config"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/EosIntfMapping.json",
+                        "name": "volume-configmap-intfmapping-ceos",
+                        "subPath": "EosIntfMapping.json"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/rc.eos",
+                        "name": "volume-configmap-rceos-ceos",
+                        "subPath": "rc.eos"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/gnmiCert.pem",
+                        "name": "volume-secret-selfsigned-ceos-0",
+                        "subPath": "gnmiCert.pem"
+                    },
+                    {
+                        "mountPath": "/mnt/flash/gnmiCertKey.pem",
+                        "name": "volume-secret-selfsigned-ceos-0",
+                        "subPath": "gnmiCertKey.pem"
+                    },
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-h9hc8",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "initContainers": [
+            {
+                "args": [
+                    "11",
+                    "0"
+                ],
+                "image": "networkop/init-wait:latest",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "init-ceos",
+                "resources": {},
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-h9hc8",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "nodeName": "kne-control-plane",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 0,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "configMap": {
+                    "defaultMode": 420,
+                    "name": "ceos-config"
+                },
+                "name": "volume-ceos-config"
+            },
+            {
+                "configMap": {
+                    "defaultMode": 420,
+                    "name": "configmap-intfmapping-ceos"
+                },
+                "name": "volume-configmap-intfmapping-ceos"
+            },
+            {
+                "configMap": {
+                    "defaultMode": 509,
+                    "name": "configmap-rceos-ceos"
+                },
+                "name": "volume-configmap-rceos-ceos"
+            },
+            {
+                "name": "volume-secret-selfsigned-ceos-0",
+                "secret": {
+                    "defaultMode": 420,
+                    "secretName": "secret-selfsigned-ceos-0"
+                }
+            },
+            {
+                "name": "kube-api-access-h9hc8",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
+                "message": "containers with incomplete status: [init-ceos]",
+                "reason": "ContainersNotInitialized",
+                "status": "False",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
+                "message": "containers with unready status: [ceos]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
+                "message": "containers with unready status: [ceos]",
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2023-03-24T16:42:12Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "image": "ceos:latest",
+                "imageID": "",
+                "lastState": {},
+                "name": "ceos",
+                "ready": false,
+                "restartCount": 0,
+                "started": false,
+                "state": {
+                    "waiting": {
+                        "reason": "PodInitializing"
+                    }
+                }
+            }
+        ],
+        "hostIP": "192.168.8.2",
+        "initContainerStatuses": [
+            {
+                "image": "networkop/init-wait:latest",
+                "imageID": "",
+                "lastState": {},
+                "name": "init-ceos",
+                "ready": false,
+                "restartCount": 0,
+                "state": {
+                    "waiting": {
+                        "reason": "PodInitializing"
+                    }
+                }
+            },
+            {
+                "image": "networkop/init-wait:latest",
+                "imageID": "",
+                "lastState": {},
+                "name": "init2-ceos",
+                "ready": false,
+                "restartCount": 0,
+                "state": {
+                    "waiting": {
+                        "reason": "PodInTheSky"
+                    }
+                }
+            }
+        ],
+        "phase": "Pending",
+        "qosClass": "Burstable",
+        "startTime": "2023-03-24T16:42:12Z"
+    }
+}
+`
+	ceos6Istatus = PodStatus{
+		Name:      "ceos",
+		UID:       "ec41a7f2-4f33-4eaf-8d34-df552c81445d",
+		Namespace: "multivendor",
+		Phase:     "Pending",
+		Containers: []ContainerStatus{
+			{
+				Name:    "ceos",
+				Image:   "ceos:latest",
+				Ready:   false,
+				Reason:  "PodInitializing",
+				Message: ""},
+		},
+		InitContainers: []ContainerStatus{
+			{
+				Name:   "init-ceos",
+				Image:  "networkop/init-wait:latest",
+				Reason: "PodInitializing",
+			},
+			{
+				Name:   "init2-ceos",
+				Image:  "networkop/init-wait:latest",
+				Reason: "PodInTheSky",
 			},
 		},
 	}

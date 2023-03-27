@@ -2,9 +2,11 @@ package pods
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/gnmi/errdiff"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -101,6 +103,18 @@ func TestGetPodStatus(t *testing.T) {
 		}
 	}
 }
+func TestGetPodStatusError(t *testing.T) {
+	myError := errors.New("pod error")
+	client := newClient()
+	client.PrependReactor("list", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
+		return true, nil, myError
+	})
+
+	_, err := GetPodStatus(context.Background(), client, "")
+	if s := errdiff.Check(err, myError); s != "" {
+		t.Error(s)
+	}
+}
 
 type fakeWatch struct {
 	ch   chan watch.Event
@@ -125,15 +139,19 @@ func TestWatchPodStatus(t *testing.T) {
 		&ceos4status,
 		&ceos5status,
 		&ceos6status,
+		&ceos6Istatus,
 		&ceos7status,
 	}
 	var updates = []*corev1.Pod{
+		ceos1pod,
 		ceos1pod,
 		ceos2pod,
 		ceos3pod,
 		ceos4pod,
 		ceos5pod,
 		ceos6pod,
+		ceos6pod,
+		ceos6Ipod,
 		ceos7pod,
 	}
 	client.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
@@ -170,6 +188,52 @@ func TestWatchPodStatus(t *testing.T) {
 		}
 		if !got.Equal(want) {
 			t.Fatalf("\ngot : %v\nwant: %v", got, want)
+		}
+	}
+}
+
+func TestWatchPodStatusError(t *testing.T) {
+	client := newClient()
+	myError := errors.New("watch error")
+	client.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
+		f := &fakeWatch{
+			ch:   make(chan watch.Event, 1),
+			done: make(chan struct{}),
+		}
+		return true, f, myError
+	})
+
+	_, _, err := WatchPodStatus(context.Background(), client, "")
+	if s := errdiff.Check(err, myError); s != "" {
+		t.Error(s)
+	}
+}
+
+func TestString(t *testing.T) {
+	for _, tt := range []struct {
+		pod    *PodStatus
+		status string
+	}{
+		{&ceos1status, ceos1string}, // No containers
+		{&ceos2status, ceos2string}, // containers not ready
+		{&ceos3status, ceos3string}, // containers ready
+		{&ceos6status, ceos6string}, // init containers
+	} {
+		status := tt.pod.String()
+		if status != tt.status {
+			t.Errorf("Got/Want:\n%s\n%s", status, tt.status)
+		}
+	}
+}
+
+func TestEqual(t *testing.T) {
+	different := &ceos6Istatus
+	for i, pod := range []*PodStatus{&ceos1status, &ceos2status, &ceos3status, &ceos6status} {
+		if !pod.Equal(pod) {
+			t.Errorf("#%d: Equal returned false on equal pods", i)
+		}
+		if pod.Equal(different) {
+			t.Errorf("#%d: Equal returned true on different pods", i)
 		}
 	}
 }
