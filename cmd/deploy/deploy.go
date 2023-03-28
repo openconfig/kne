@@ -83,7 +83,7 @@ func newDeployment(cfgPath string, testing bool) (*deploy.Deployment, error) {
 		return nil, fmt.Errorf("CNI not specified")
 	}
 	if len(cfg.Controllers) == 0 {
-		return nil, fmt.Errorf("no controllers specified")
+		log.Infof("no controllers specified")
 	}
 	return &cfg, nil
 }
