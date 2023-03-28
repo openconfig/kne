@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
@@ -286,8 +287,15 @@ func defaults(pb *topopb.Node) *topopb.Node {
 	if pb.Config.Image == "" {
 		pb.Config.Image = "ghcr.io/nokia/srlinux:latest"
 	}
+	// SR Linux default name for config file is either config.json or config.cli.
+	// This depends on the extension of the provided startup-config file.
 	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "config.json"
+		ext := filepath.Ext(pb.Config.GetFile())
+		if ext != ".json" {
+			ext = ".cli"
+		}
+
+		pb.Config.ConfigFile = "config" + ext
 	}
 	return pb
 }
