@@ -150,7 +150,7 @@ func WatchPodStatus(ctx context.Context, client kubernetes.Interface, namespace 
 
 	go func() {
 		defer close(ch)
-		// seen keeps track of
+		// seen is used to drop duplicate updates
 		seen := map[types.UID]*PodStatus{}
 		for event := range kch {
 			s := PodToStatus(event.Object.(*corev1.Pod))
