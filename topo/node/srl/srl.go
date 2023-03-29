@@ -26,7 +26,9 @@ import (
 
 const (
 	scrapliPlatformName = "nokia_srl"
-	configResetCmd      = "load factory auto-commit"
+	// srl-controller v0.6.0+ creates a named checkpoint "initial" on node startup
+	// configuration reset is therefore done by reverting to this checkpoint
+	configResetCmd = "/tools system configuration checkpoint initial revert"
 )
 
 var (
