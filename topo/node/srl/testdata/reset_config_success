@@ -15,12 +15,9 @@ A:pod1# info from state system configuration commit 1 status | grep complete
 --{ running }--[  ]--
 A:pod1# enter candidate private
 --{ candidate private private-admin }--[  ]--
-A:pod1# load factory auto-commit  
-/system/configuration/checkpoint[id=__factory__]:
-    Reverting to factory configuration
-
-/:
-    Preamble must be present in configuration file
+A:pod1# /tools system configuration checkpoint initial revert
+/system/configuration/checkpoint[id=initial]:
+    Reverting to checkpoint 0 (name 'initial' comment '')
 
 /:
     Successfully reverted configuration
@@ -28,7 +25,7 @@ A:pod1# load factory auto-commit
 --{ + candidate private private-admin }--[  ]--
 A:pod1#
 --{ + candidate private private-admin }--[  ]--
-A:pod1# discard now 
+A:pod1# discard now
 Nothing to discard. Leaving candidate mode.
 --{ + running }--[  ]--
 A:pod1#
