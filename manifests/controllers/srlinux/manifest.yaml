@@ -28,12 +28,18 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.image
-      name: Image
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - jsonPath: .status.image
+      name: Image
+      type: string
+    - jsonPath: .status.status
+      name: Status
+      type: string
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
     name: v1
     schema:
       openAPIV3Schema:
@@ -133,6 +139,23 @@ spec:
             properties:
               image:
                 description: Image used to run srlinux pod
+                type: string
+              ready:
+                description: Ready is true if the srlinux NOS is ready to receive
+                  config. This is when management server is running and initial commit
+                  is processed.
+                type: boolean
+              startup-config:
+                description: StartupConfig contains the status of the startup-config.
+                properties:
+                  phase:
+                    description: 'Phase is the phase startup-config is in. Can be
+                      one of: "pending", "loaded", "not-provided", "failed".'
+                    type: string
+                type: object
+              status:
+                description: 'Status is the status of the srlinux custom resource.
+                  Can be one of: "created", "running", "error".'
                 type: string
             type: object
         type: object
@@ -464,7 +487,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/srl-labs/srl-controller:v0.5.0
+        image: ghcr.io/srl-labs/srl-controller:v0.6.0
         livenessProbe:
           httpGet:
             path: /healthz
