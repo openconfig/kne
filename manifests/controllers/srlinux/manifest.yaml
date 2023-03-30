@@ -40,6 +40,9 @@ spec:
     - jsonPath: .status.ready
       name: Ready
       type: boolean
+    - jsonPath: .status.startup-config.phase
+      name: Config
+      type: string
     name: v1
     schema:
       openAPIV3Schema:
