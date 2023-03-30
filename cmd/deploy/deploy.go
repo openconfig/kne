@@ -24,12 +24,15 @@ import (
 	log "k8s.io/klog/v2"
 )
 
+var progress bool
+
 func New() *cobra.Command {
 	deployCmd := &cobra.Command{
 		Use:   "deploy <deployment yaml>",
 		Short: "Deploy cluster.",
 		RunE:  deployFn,
 	}
+        deployCmd.Flags().BoolVar(&progress, "progress", false, "Display progress of container bringup")
 	return deployCmd
 }
 
@@ -69,7 +72,9 @@ func newDeployment(cfgPath string, testing bool) (*deploy.Deployment, error) {
 	if err != nil {
 		return nil, err
 	}
-	var cfg deploy.Deployment
+	cfg := deploy.Deployment {
+		Verbose: progress,
+	}
 	if err := c.Decode(&cfg); err != nil {
 		return nil, err
 	}

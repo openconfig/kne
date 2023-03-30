@@ -111,6 +111,10 @@ type Deployment struct {
 	Ingress     Ingress      `kne:"ingress"`
 	CNI         CNI          `kne:"cni"`
 	Controllers []Controller `kne:"controllers"`
+
+	// If Verbose is true then deployment status updates will be sent to
+	// standard output.
+	Verbose bool
 }
 
 func (d *Deployment) String() string {
@@ -134,7 +138,7 @@ type kubeVersion struct {
 	ServerVersion    *kversion.Info `json:"serverVersion,omitempty" yaml:"serverVersion,omitempty"`
 }
 
-func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
+func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if err := d.checkDependencies(); err != nil {
 		return err
 	}
@@ -184,6 +188,16 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
 	log.V(1).Info("Found k8s versions:\n", output)
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	w, err := NewWatcher(ctx, kClient, cancel)
+	w.SetVerbose(d.Verbose)
+	defer func() {
+		cancel()
+		rerr = w.Cleanup(rerr)
+	}()
 
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
