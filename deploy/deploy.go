@@ -112,9 +112,9 @@ type Deployment struct {
 	CNI         CNI          `kne:"cni"`
 	Controllers []Controller `kne:"controllers"`
 
-	// If Verbose is true then deployment status updates will be sent to
+	// If Progress is true then deployment status updates will be sent to
 	// standard output.
-	Verbose bool
+	Progress bool
 }
 
 func (d *Deployment) String() string {
@@ -193,7 +193,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
 	if w, _ := NewWatcher(ctx, kClient, cancel); w != nil {
-		w.SetVerbose(d.Verbose)
+		w.SetProgress(d.Progress)
 		defer func() {
 			cancel()
 			rerr = w.Cleanup(rerr)

@@ -32,7 +32,7 @@ func New() *cobra.Command {
 		Short: "Deploy cluster.",
 		RunE:  deployFn,
 	}
-        deployCmd.Flags().BoolVar(&progress, "progress", false, "Display progress of container bringup")
+	deployCmd.Flags().BoolVar(&progress, "progress", false, "Display progress of container bringup")
 	return deployCmd
 }
 
@@ -72,8 +72,8 @@ func newDeployment(cfgPath string, testing bool) (*deploy.Deployment, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg := deploy.Deployment {
-		Verbose: progress,
+	cfg := deploy.Deployment{
+		Progress: progress,
 	}
 	if err := c.Decode(&cfg); err != nil {
 		return nil, err

@@ -23,13 +23,13 @@ func TestDisplay(t *testing.T) {
 	var buf strings.Builder
 	var w Watcher
 	w.stdout = &buf
-	w.SetVerbose(false)
+	w.SetProgress(false)
 	w.display("hello %s", "world")
 	if got := buf.String(); got != "" {
-		t.Errorf("display w/o verbose got %q, want \"\"", got)
+		t.Errorf("display w/o progress got %q, want \"\"", got)
 	}
 	buf.Reset()
-	w.SetVerbose(true)
+	w.SetProgress(true)
 	w.display("hello %s", "world")
 	want := "01:23:45 hello world\n"
 	got := buf.String()
@@ -48,7 +48,7 @@ func TestUpdatePod(t *testing.T) {
 
 	w := newWatcher(context.TODO(), cancel, nil, stop)
 	w.stdout = &buf
-	w.SetVerbose(true)
+	w.SetProgress(true)
 
 	var seen string
 
@@ -327,7 +327,7 @@ func TestWatcher(t *testing.T) {
 			ch := make(chan *pods.PodStatus, 2)
 			var buf strings.Builder
 			w := newWatcher(ctx, cancel, ch, stop)
-			w.verbose = true
+			w.progress = true
 			w.stdout = &buf
 			if tt.s != nil {
 				ch <- tt.s

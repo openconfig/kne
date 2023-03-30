@@ -28,7 +28,7 @@ type Watcher struct {
 	warningf  func(string, ...any)
 
 	mu               sync.Mutex
-	verbose          bool
+	progress         bool
 	currentNamespace string
 	currentPod       types.UID
 }
@@ -66,10 +66,10 @@ func newWatcher(ctx context.Context, cancel func(), ch chan *pods.PodStatus, sto
 	return w
 }
 
-// SetVerbose determins if verbose output should be displayed while watching.
-func (w *Watcher) SetVerbose(value bool) {
+// SetProgress determins if progress output should be displayed while watching.
+func (w *Watcher) SetProgress(value bool) {
 	w.mu.Lock()
-	w.verbose = value
+	w.progress = value
 	w.mu.Unlock()
 }
 
@@ -117,7 +117,7 @@ func (w *Watcher) watch() {
 var timeNow = func() string { return time.Now().Format("15:04:05 ") }
 
 func (w *Watcher) display(format string, v ...any) {
-	if w.verbose {
+	if w.progress {
 		fmt.Fprintf(w.stdout, timeNow()+format+"\n", v...)
 	}
 }
