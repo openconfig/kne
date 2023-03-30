@@ -192,12 +192,13 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
-	w, err := NewWatcher(ctx, kClient, cancel)
-	w.SetVerbose(d.Verbose)
-	defer func() {
-		cancel()
-		rerr = w.Cleanup(rerr)
-	}()
+	if w, _ := NewWatcher(ctx, kClient, cancel); w != nil {
+		w.SetVerbose(d.Verbose)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
+	}
 
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
