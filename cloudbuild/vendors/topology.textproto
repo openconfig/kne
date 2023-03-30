@@ -138,7 +138,7 @@ nodes: {
   model: "ixr6e"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
-    file: "srl.cfg.json"
+    file: "srlinux.cfg"
   }
   services:{
     key: 22
