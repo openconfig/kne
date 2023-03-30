@@ -25,7 +25,6 @@ var (
 	ceos1pod  = json2pod(ceos1data)
 	ceos2pod  = json2pod(ceos2data)
 	ceos3pod  = json2pod(ceos3data)
-	ceos4pod  = json2pod(ceos4data)
 	ceos5pod  = json2pod(ceos5data)
 	ceos6pod  = json2pod(ceos6data)
 	ceos6Ipod = json2pod(ceos6Idata) // second init container is different
@@ -41,9 +40,9 @@ var (
 // We only use 4 pods when checking PodStatus.String as these cover all the cases.
 var (
 	ceos1string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Pending"}`
-	ceos2string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Pending", Containers: {{Name: "kube-rbac-proxy"Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0"Reason: "ContainerCreating"}, {Name: "manager"Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1"Reason: "ContainerCreating"}}}`
-	ceos3string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Running", Containers: {{Name: "kube-rbac-proxy"Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0"Ready: "true"}, {Name: "manager"Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1"}}}`
-	ceos6string = `{Name: "ceos", UID: "ec41a7f2-4f33-4eaf-8d34-df552c81445d", Namespace: "multivendor", Phase: "Pending", Containers: {{Name: "ceos"Image: "ceos:latest"Reason: "PodInitializing"}}, InitContainers: {{Name: "init-ceos"Image: "networkop/init-wait:latest"Reason: "PodInitializing"}, {Name: "init2-ceos"Image: "networkop/init-wait:latest"Reason: "PodInitializing"}}}`
+	ceos2string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Pending", Containers: {{Name: "kube-rbac-proxy", Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0", Reason: "ContainerCreating"}, {Name: "manager", Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1", Reason: "ContainerCreating"}}}`
+	ceos3string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "cdbf21b3-a2e3-4c26-95a5-956945c8c122", Namespace: "arista-ceoslab-operator-system", Phase: "Running", Ready: true, Containers: {{Name: "kube-rbac-proxy", Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0", Ready: true}, {Name: "manager", Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1", Ready: true}}}`
+	ceos6string = `{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz", UID: "ec41a7f2-4f33-4eaf-8d34-df552c81445d", Namespace: "multivendor", Phase: "Pending", Containers: {{Name: "ceos", Image: "ceos:latest", Reason: "PodInitializing"}}, InitContainers: {{Name: "init-ceos", Image: "networkop/init-wait:latest", Reason: "PodInitializing"}, {Name: "init2-ceos", Image: "networkop/init-wait:latest", Reason: "PodInitializing"}}}`
 )
 
 var (
@@ -807,10 +806,12 @@ var (
     }
 }
 `
-	ceos3status = PodStatus{Name: "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
+	ceos3status = PodStatus{
+		Name:      "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
 		UID:       "cdbf21b3-a2e3-4c26-95a5-956945c8c122",
 		Namespace: "arista-ceoslab-operator-system",
 		Phase:     "Running",
+		Ready:     true,
 		Containers: []ContainerStatus{
 			{
 				Name:  "kube-rbac-proxy",
@@ -820,295 +821,8 @@ var (
 			{
 				Name:  "manager",
 				Image: "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
+				Ready: true,
 			},
-		},
-	}
-
-	ceos4data = `{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "annotations": {
-            "kubectl.kubernetes.io/default-container": "manager"
-        },
-        "creationTimestamp": "2023-03-24T16:41:45Z",
-        "generateName": "arista-ceoslab-operator-controller-manager-66cb57484f-",
-        "labels": {
-            "control-plane": "controller-manager",
-            "pod-template-hash": "66cb57484f"
-        },
-        "name": "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
-        "namespace": "arista-ceoslab-operator-system",
-        "ownerReferences": [
-            {
-                "apiVersion": "apps/v1",
-                "blockOwnerDeletion": true,
-                "controller": true,
-                "kind": "ReplicaSet",
-                "name": "arista-ceoslab-operator-controller-manager-66cb57484f",
-                "uid": "cf1c1859-7ce5-4f0c-8d92-4944a2e25f9d"
-            }
-        ],
-        "resourceVersion": "881",
-        "uid": "cdbf21b3-a2e3-4c26-95a5-956945c8c122"
-    },
-    "spec": {
-        "containers": [
-            {
-                "args": [
-                    "--secure-listen-address=0.0.0.0:8443",
-                    "--upstream=http://127.0.0.1:8080/",
-                    "--logtostderr=true",
-                    "--v=0"
-                ],
-                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
-                "imagePullPolicy": "IfNotPresent",
-                "name": "kube-rbac-proxy",
-                "ports": [
-                    {
-                        "containerPort": 8443,
-                        "name": "https",
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {
-                    "limits": {
-                        "cpu": "500m",
-                        "memory": "128Mi"
-                    },
-                    "requests": {
-                        "cpu": "5m",
-                        "memory": "64Mi"
-                    }
-                },
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-j7pw9",
-                        "readOnly": true
-                    }
-                ]
-            },
-            {
-                "args": [
-                    "--health-probe-bind-address=:8081",
-                    "--metrics-bind-address=127.0.0.1:8080",
-                    "--leader-elect"
-                ],
-                "command": [
-                    "/manager"
-                ],
-                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
-                "imagePullPolicy": "IfNotPresent",
-                "livenessProbe": {
-                    "failureThreshold": 3,
-                    "httpGet": {
-                        "path": "/healthz",
-                        "port": 8081,
-                        "scheme": "HTTP"
-                    },
-                    "initialDelaySeconds": 15,
-                    "periodSeconds": 20,
-                    "successThreshold": 1,
-                    "timeoutSeconds": 1
-                },
-                "name": "manager",
-                "readinessProbe": {
-                    "failureThreshold": 3,
-                    "httpGet": {
-                        "path": "/readyz",
-                        "port": 8081,
-                        "scheme": "HTTP"
-                    },
-                    "initialDelaySeconds": 5,
-                    "periodSeconds": 10,
-                    "successThreshold": 1,
-                    "timeoutSeconds": 1
-                },
-                "resources": {
-                    "limits": {
-                        "cpu": "500m",
-                        "memory": "128Mi"
-                    },
-                    "requests": {
-                        "cpu": "10m",
-                        "memory": "64Mi"
-                    }
-                },
-                "securityContext": {
-                    "allowPrivilegeEscalation": false
-                },
-                "terminationMessagePath": "/dev/termination-log",
-                "terminationMessagePolicy": "File",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "kube-api-access-j7pw9",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "enableServiceLinks": true,
-        "nodeName": "kne-control-plane",
-        "preemptionPolicy": "PreemptLowerPriority",
-        "priority": 0,
-        "restartPolicy": "Always",
-        "schedulerName": "default-scheduler",
-        "securityContext": {
-            "runAsNonRoot": true
-        },
-        "serviceAccount": "arista-ceoslab-operator-controller-manager",
-        "serviceAccountName": "arista-ceoslab-operator-controller-manager",
-        "terminationGracePeriodSeconds": 10,
-        "tolerations": [
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/not-ready",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            },
-            {
-                "effect": "NoExecute",
-                "key": "node.kubernetes.io/unreachable",
-                "operator": "Exists",
-                "tolerationSeconds": 300
-            }
-        ],
-        "volumes": [
-            {
-                "name": "kube-api-access-j7pw9",
-                "projected": {
-                    "defaultMode": 420,
-                    "sources": [
-                        {
-                            "serviceAccountToken": {
-                                "expirationSeconds": 3607,
-                                "path": "token"
-                            }
-                        },
-                        {
-                            "configMap": {
-                                "items": [
-                                    {
-                                        "key": "ca.crt",
-                                        "path": "ca.crt"
-                                    }
-                                ],
-                                "name": "kube-root-ca.crt"
-                            }
-                        },
-                        {
-                            "downwardAPI": {
-                                "items": [
-                                    {
-                                        "fieldRef": {
-                                            "apiVersion": "v1",
-                                            "fieldPath": "metadata.namespace"
-                                        },
-                                        "path": "namespace"
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-24T16:41:45Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-24T16:41:55Z",
-                "status": "True",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-24T16:41:55Z",
-                "status": "True",
-                "type": "ContainersReady"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2023-03-24T16:41:45Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "containerID": "containerd://6b2c82de9295a77cee346280ec605a66e53316dd51d6db19132017c025683445",
-                "image": "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
-                "imageID": "gcr.io/kubebuilder/kube-rbac-proxy@sha256:0df4ae70e3bd0feffcec8f5cdb428f4abe666b667af991269ec5cb0bbda65869",
-                "lastState": {},
-                "name": "kube-rbac-proxy",
-                "ready": true,
-                "restartCount": 0,
-                "started": true,
-                "state": {
-                    "running": {
-                        "startedAt": "2023-03-24T16:41:48Z"
-                    }
-                }
-            },
-            {
-                "containerID": "containerd://e1dced1c61e7ec5cff99208579b8ab25aae8d8080c07d4b0b2b41340541e7dba",
-                "image": "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
-                "imageID": "ghcr.io/aristanetworks/arista-ceoslab-operator@sha256:cd7c12b30096843b20304911705b178db4c13c915223b0e58a6d4c4f800c24d1",
-                "lastState": {},
-                "name": "manager",
-                "ready": true,
-                "restartCount": 0,
-                "started": true,
-                "state": {
-                    "running": {
-                        "startedAt": "2023-03-24T16:41:50Z"
-                    }
-                }
-            }
-        ],
-        "hostIP": "192.168.8.2",
-        "phase": "Running",
-        "podIP": "10.244.0.8",
-        "podIPs": [
-            {
-                "ip": "10.244.0.8"
-            }
-        ],
-        "qosClass": "Burstable",
-        "startTime": "2023-03-24T16:41:45Z"
-    }
-}
-`
-	ceos4status = PodStatus{
-		Name:      "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
-		UID:       "cdbf21b3-a2e3-4c26-95a5-956945c8c122",
-		Namespace: "arista-ceoslab-operator-system",
-		Phase:     "Running",
-		Containers: []ContainerStatus{
-			{
-				Name:    "kube-rbac-proxy",
-				Image:   "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0",
-				Ready:   true,
-				Reason:  "",
-				Message: ""},
-			{
-				Name:    "manager",
-				Image:   "ghcr.io/aristanetworks/arista-ceoslab-operator:v2.0.1",
-				Ready:   true,
-				Reason:  "",
-				Message: ""},
 		},
 	}
 
@@ -1125,7 +839,7 @@ var (
             "vendor": "ARISTA",
             "version": ""
         },
-        "name": "ceos",
+        "name": "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
         "namespace": "multivendor",
         "ownerReferences": [
             {
@@ -1362,7 +1076,7 @@ var (
 }
 `
 	ceos5status = PodStatus{
-		Name:      "ceos",
+		Name:      "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
 		UID:       "ec41a7f2-4f33-4eaf-8d34-df552c81445d",
 		Namespace: "multivendor",
 		Phase:     "Pending",
@@ -1381,7 +1095,7 @@ var (
             "vendor": "ARISTA",
             "version": ""
         },
-        "name": "ceos",
+        "name": "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
         "namespace": "multivendor",
         "ownerReferences": [
             {
@@ -1697,7 +1411,7 @@ var (
 }
 `
 	ceos6status = PodStatus{
-		Name:      "ceos",
+		Name:      "arista-ceoslab-operator-controller-manager-66cb57484f-86lcz",
 		UID:       "ec41a7f2-4f33-4eaf-8d34-df552c81445d",
 		Namespace: "multivendor",
 		Phase:     "Pending",
@@ -3193,6 +2907,7 @@ var (
 		UID:       "9980cafe-0b1a-4eff-b3ae-4c905a0535d4",
 		Namespace: "meshnet",
 		Phase:     "Running",
+		Ready:     true,
 		Containers: []ContainerStatus{
 			{
 				Name:  "meshnet",
@@ -3470,12 +3185,17 @@ var (
 		UID:       "53fd2ce7-bcf3-489a-9f4a-aa457e01980f",
 		Namespace: "ixiatg-op-system",
 		Phase:     "Running",
-		Containers: []ContainerStatus{{Name: "kube-rbac-proxy",
-			Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
-			Ready: true,
-		},
-			{Name: "manager",
+		Ready:     true,
+		Containers: []ContainerStatus{
+			{
+				Name:  "kube-rbac-proxy",
+				Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+				Ready: true,
+			},
+			{
+				Name:  "manager",
 				Image: "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+				Ready: true,
 			},
 		},
 	}

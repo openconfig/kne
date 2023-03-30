@@ -38,6 +38,9 @@ func (p *PodStatus) String() string {
 	add("UID", string(p.UID))
 	add("Namespace", p.Namespace)
 	add("Phase", string(p.Phase))
+	if p.Ready {
+		fmt.Fprintf(&buf, ", Ready: true")
+	}
 	if len(p.Containers) > 0 {
 		fmt.Fprintf(&buf, ", Containers: {%s", p.Containers[0].String())
 		for _, c := range p.Containers[1:] {
@@ -92,7 +95,6 @@ const (
 // A ContainerStatus contains the status of a single container in the pod.
 type ContainerStatus struct {
 	Name    string
-	ID      string
 	Image   string // path of requested image
 	Ready   bool   // true if ready
 	Reason  string // if not empty, the reason it isn't ready
@@ -104,13 +106,13 @@ func (c *ContainerStatus) String() string {
 	var buf strings.Builder
 	add := func(k, v string) {
 		if v != "" {
-			fmt.Fprintf(&buf, "%s: %q", k, v)
+			fmt.Fprintf(&buf, ", %s: %q", k, v)
 		}
 	}
 	fmt.Fprintf(&buf, "{Name: %q", c.Name)
 	add("Image", c.Image)
 	if c.Ready {
-		add("Ready", "true")
+		fmt.Fprintf(&buf, ", Ready: true")
 	}
 	add("Reason", c.Reason)
 	add("Message", c.Message)
@@ -191,9 +193,9 @@ func PodToStatus(pod *corev1.Pod) *PodStatus {
 	pod = &s.Pod // Forget about the original copy
 
 	for i, cs := range pod.Status.ContainerStatuses {
+		_ = i
 		c := ContainerStatus{
 			Name:  cs.Name,
-			ID:    cs.ContainerID,
 			Ready: cs.Ready || (cs.State.Running != nil),
 			Image: cs.Image,
 			Raw:   &pod.Status.ContainerStatuses[i],
@@ -209,9 +211,9 @@ func PodToStatus(pod *corev1.Pod) *PodStatus {
 		return s.Containers[i].Name < s.Containers[j].Name
 	})
 	for i, cs := range pod.Status.InitContainerStatuses {
+		_ = i
 		c := ContainerStatus{
 			Name:  cs.Name,
-			ID:    cs.ContainerID,
 			Ready: cs.Ready || (cs.State.Running != nil),
 			Image: cs.Image,
 			Raw:   &pod.Status.InitContainerStatuses[i],
