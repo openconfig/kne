@@ -65,14 +65,14 @@ spec:
       serviceAccountName: kindnet
       initContainers:
       - name: install-cni-bin
-        image: aojea/kindnetd:v1.0.1
+        image: ghcr.io/aojea/kindnetd:v1.1.0
         command: ['sh', '-c', 'cp -f /opt/cni/bin/* /cni/ ']
         volumeMounts:
         - name: cni-bin
           mountPath: /cni
       containers:
       - name: kindnet-cni
-        image: aojea/kindnetd:v1.0.1
+        image: ghcr.io/aojea/kindnetd:v1.1.0
         env:
         - name: HOST_IP
           valueFrom:
