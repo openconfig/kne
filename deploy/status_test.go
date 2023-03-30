@@ -46,7 +46,7 @@ func TestUpdatePod(t *testing.T) {
 	stopped := false
 	stop := func() { stopped = true }
 
-	w := newWatcher(context.TODO(), nil, cancel, nil, stop)
+	w := newWatcher(context.TODO(), cancel, nil, stop)
 	w.stdout = &buf
 	w.SetVerbose(true)
 
@@ -207,7 +207,7 @@ func TestStop(t *testing.T) {
 	cancel := func() { canceled = true }
 	stopped := false
 	stop := func() { stopped = true }
-	newWatcher(context.TODO(), nil, cancel, nil, stop).stop()
+	newWatcher(context.TODO(), cancel, nil, stop).stop()
 	if stopped != true {
 		t.Errorf("got stopped %v, want %v", stopped, true)
 	}
@@ -257,7 +257,7 @@ func TestCleanup(t *testing.T) {
 			cancel := func() { canceled = true }
 			stopped := false
 			stop := func() { stopped = true }
-			w := newWatcher(context.TODO(), nil, cancel, nil, stop)
+			w := newWatcher(context.TODO(), cancel, nil, stop)
 			w.stdout = &buf
 			if tt.werr != nil {
 				w.errCh <- tt.werr
@@ -326,7 +326,7 @@ func TestWatcher(t *testing.T) {
 			stop := func() { stopped = true }
 			ch := make(chan *pods.PodStatus, 2)
 			var buf strings.Builder
-			w := newWatcher(ctx, nil, cancel, ch, stop)
+			w := newWatcher(ctx, cancel, ch, stop)
 			w.verbose = true
 			w.stdout = &buf
 			if tt.s != nil {
@@ -350,7 +350,7 @@ func TestWatcher(t *testing.T) {
 }
 
 func TestNewWatcher(t *testing.T) {
-	if _, err := NewWatcher(nil, nil, func() {}); err == nil {
+	if _, err := NewWatcher(context.TODO(), nil, func() {}); err == nil {
 		t.Errorf("NewWatcher did not return an error on bad input")
 	}
 	client := kfake.NewSimpleClientset()

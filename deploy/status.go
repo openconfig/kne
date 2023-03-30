@@ -42,12 +42,12 @@ func NewWatcher(ctx context.Context, client kubernetes.Interface, cancel func())
 	if err != nil {
 		return nil, err
 	}
-	w := newWatcher(ctx, client, cancel, ch, stop)
+	w := newWatcher(ctx, cancel, ch, stop)
 	go w.watch()
 	return w, nil
 }
 
-func newWatcher(ctx context.Context, client kubernetes.Interface, cancel func(), ch chan *pods.PodStatus, stop func()) *Watcher {
+func newWatcher(ctx context.Context, cancel func(), ch chan *pods.PodStatus, stop func()) *Watcher {
 	w := &Watcher{
 		ctx:       ctx,
 		ch:        ch,
@@ -158,7 +158,6 @@ func (w *Watcher) updatePod(s *pods.PodStatus) bool {
 		}
 	}
 	showContainer := func(s *pods.PodStatus, c *pods.ContainerStatus, state string) {
-		// c.ID cannot be used as it is "" when the container is being created.
 		id := s.Namespace + ":" + s.Name + ":" + c.Name
 		if oldState := w.cStates[id]; oldState != state {
 			showPodState(s, "", "")
@@ -178,6 +177,7 @@ func (w *Watcher) updatePod(s *pods.PodStatus) bool {
 	}
 
 	for _, c := range append(s.Containers, s.InitContainers...) {
+		c := c // because of lint
 		fullName := fmt.Sprintf("NS:%s POD:%s CONTAINER:%s", s.Namespace, s.Name, c.Name)
 		// We could keep track of all container
 		// states and issue a message each time
