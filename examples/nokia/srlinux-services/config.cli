@@ -1,0 +1,108 @@
+system {
+    management {
+        openconfig {
+            admin-state enable
+        }
+    }
+    lldp {
+        admin-state enable
+    }
+    gnmi-server {
+        admin-state enable
+        rate-limit 65000
+        trace-options [
+            request
+            response
+            common
+        ]
+        network-instance mgmt {
+            admin-state enable
+            yang-models openconfig
+            tls-profile kne-profile
+        }
+        unix-socket {
+            admin-state enable
+        }
+    }
+    tls {
+        server-profile kne-profile {
+            key $aes$02OxmuD5O2kk=$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
+            certificate "-----BEGIN CERTIFICATE-----
+MIIDoTCCAomgAwIBAgIUXlOp1PeztJmBG2MsGPBkJG5M05swDQYJKoZIhvcNAQEL
+BQAwMDEVMBMGA1UEChMMY29udGFpbmVybGFiMRcwFQYDVQQDEw5rbmUtc3JsIGxh
+YiBDQTAeFw0yMzAzMTIwOTI3MDBaFw0yNDAzMTEwOTI3MDBaMDAxFTATBgNVBAoT
+DGNvbnRhaW5lcmxhYjEXMBUGA1UEAxMOc3JsLmtuZS1zcmwuaW8wggEiMA0GCSqG
+SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCnLZqbmeM82O3cPFTzJ/QIQwNScpKujVbM
+pdRNvbxmSfridFxLn+/eCTN6HNE8TOdaJEzX1pRbY3DcpDr10Md4DiKCb/QKuYuE
+cvF1ruhneVrqKZhHwMwGpBTi4h9rYdLfBCxYxi4ptXupbiQAfk6clPsPXlkhZKRJ
+50GqrisQEi+oYC0TG7YtMTscrfY8Pxg8lngRzH7a8eiWdSMnX0ljja1K4bgZ6jdh
+wvsT0NJKs1ao01OLt51rndgywqs+xb7V6S2EbUmMCCF4lTxEqUhu/a05XgpeqL+v
+snmbfuh7MuK5BwQ0FbC8EHXohYPZ1vrzMUaw0Wh+fk1vlN90/uTfAgMBAAGjgbIw
+ga8wDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcD
+AjAMBgNVHRMBAf8EAjAAMB0GA1UdDgQWBBTJ0a23nACfVfQLARYwQ0ufzL+0+DAf
+BgNVHSMEGDAWgBQMZiIkEzdwrX0L+0N+ISOX47DhvDAwBgNVHREEKTAnggNzcmyC
+EGNsYWIta25lLXNybC1zcmyCDnNybC5rbmUtc3JsLmlvMA0GCSqGSIb3DQEBCwUA
+A4IBAQAMG2mSg1STaFKpOet7tAK0sMV/HSeSNYyKrf8SN76+7D0RHredVTFMRX+K
+EvwKtxGGG/0E/w3DGpS1t+QAZUJz9EoJC/e3AXBRf84jPRoiAy3cmkw4uXDaW4ud
+ZU9TnrWJl5hxDyyWfkDZiZ1muQPf+ZUNvV8Qn9G57jv8Wacpkx+2EeFLH7GeTZsF
+9ICindYy3VjJuGIZuAkYqlKMW2RPJLRkAOnQfXRizB0wKXQ6X2OcqRDzd/jLj4W1
+wqzCZrqq3V1A8CpmUWL8P63EFO5W8s2h620KDLRwEmfisQiEP46kn9mCX/F2SqEs
+ufJifhmpItpy3mkUCLEJ33ex2AA6
+-----END CERTIFICATE-----
+"
+        }
+    }
+    gribi-server {
+        admin-state enable
+        network-instance mgmt {
+            admin-state enable
+            tls-profile kne-profile
+        }
+    }
+    json-rpc-server {
+        admin-state enable
+        network-instance mgmt {
+            http {
+                admin-state enable
+            }
+            https {
+                admin-state enable
+                tls-profile kne-profile
+            }
+        }
+    }
+    banner {
+        login-banner "................................................................
+:                  Welcome to Nokia SR Linux!                  :
+:              Open Network OS for the NetOps era.             :
+:                                                              :
+:    This is a freely distributed official container image.    :
+:                      Use it - Share it                       :
+:                                                              :
+: Get started: https://learn.srlinux.dev                       :
+: Container:   https://go.srlinux.dev/container-image          :
+: Docs:        https://doc.srlinux.dev/22-11                   :
+: Rel. notes:  https://doc.srlinux.dev/rn22-11-2               :
+: YANG:        https://yang.srlinux.dev/v22.11.2               :
+: Discord:     https://go.srlinux.dev/discord                  :
+: Contact:     https://go.srlinux.dev/contact-sales            :
+................................................................
+"
+    }
+    p4rt-server {
+        admin-state enable
+        network-instance mgmt {
+            admin-state enable
+            tls-profile kne-profile
+        }
+    }
+}
+network-instance DEFAULT {
+}
+network-instance mgmt {
+    protocols {
+        gribi {
+            admin-state enable
+        }
+    }
+}
