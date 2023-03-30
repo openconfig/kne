@@ -303,8 +303,8 @@ func defaults(pb *topopb.Node) *topopb.Node {
 	return pb
 }
 
-// Implement the resetter for SRL
-// Using load factory auto-commit to reset default configs
+// ResetCfg resets the config of the node by reverting to a named checkpoint "initial"
+// that is created by srl-controller for each node.
 func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Infof("%s resetting config", n.Name())
 
