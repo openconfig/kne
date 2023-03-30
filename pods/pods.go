@@ -187,7 +187,8 @@ func PodToStatus(pod *corev1.Pod) *PodStatus {
 		Namespace: pod.ObjectMeta.Namespace,
 		UID:       pod.ObjectMeta.UID,
 		Phase:     pod.Status.Phase,
-		Ready:     len(pod.Status.ContainerStatuses)+len(pod.Status.InitContainerStatuses) > 0,
+		// Ready will be set to false below if one of the containers is not ready
+		Ready: len(pod.Status.ContainerStatuses)+len(pod.Status.InitContainerStatuses) > 0,
 	}
 	pod.DeepCopyInto(&s.Pod)
 	pod = &s.Pod // Forget about the original copy

@@ -113,6 +113,12 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 }
 
 func TestWatchPodStatus(t *testing.T) {
+	if _, _, err := WatchPodStatus(nil, nil, ""); err == nil { //nolint:all
+		t.Errorf("WatchPodStatus does not return an error on a nil context.")
+	}
+	if _, _, err := WatchPodStatus(context.TODO(), nil, ""); err == nil {
+		t.Errorf("WatchPodStatus does not return an error on a nil client.")
+	}
 	client := kfake.NewSimpleClientset()
 
 	var wanted = []*PodStatus{
@@ -221,5 +227,31 @@ func TestEqual(t *testing.T) {
 		if pod.Equal(different) {
 			t.Errorf("#%d: Equal returned true on different pods", i)
 		}
+	}
+	pod1 := &PodStatus{
+		Containers: []ContainerStatus{
+			{Name: "container1"},
+		},
+	}
+	pod2 := &PodStatus{
+		Containers: []ContainerStatus{
+			{Name: "container2"},
+		},
+	}
+	pod1i := &PodStatus{
+		InitContainers: []ContainerStatus{
+			{Name: "container1"},
+		},
+	}
+	pod2i := &PodStatus{
+		InitContainers: []ContainerStatus{
+			{Name: "container2"},
+		},
+	}
+	if pod1.Equal(pod2) {
+		t.Errorf("Equal returned true with different containers")
+	}
+	if pod1i.Equal(pod2i) {
+		t.Errorf("Equal returned true with different init containers")
 	}
 }
