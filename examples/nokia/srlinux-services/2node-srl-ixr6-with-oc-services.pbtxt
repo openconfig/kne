@@ -13,7 +13,7 @@ nodes: {
         # when `image` is not specified under `config`, the "ghcr.io/nokia/srlinux:latest" container image is used by default
         # SR Linux can accept both complete config files in JSON format, or partial/full config snippets in the CLI format.
         # nodes are configured with a partial config snippet in CLI format that adds configuration relevant for this example lab.
-        file: "config.cli"
+        file: "config.cfg"
     }
     services:{
         key: 22
@@ -64,7 +64,7 @@ nodes: {
     model: "ixr6e"
     config:{
         # when `image` is not specified under `config`, the "ghcr.io/nokia/srlinux:latest" container image is used by default
-        file: "config.cli"
+        file: "config.cfg"
     }
     services:{
         key: 22
