@@ -80,9 +80,9 @@ if ! docker exec kne-control-plane crictl images | grep "docker.io/networkop/ini
   exit 1
 fi
 
-## Cleanup the kind cluster
-#kind delete cluster --name kne
-#
+# Cleanup the kind cluster
+kind delete cluster --name kne
+
 ## Create a kubeadm single node cluster
 #sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
 #mkdir -p "$HOME"/.kube
@@ -94,8 +94,9 @@ fi
 #
 ## Deploy an external cluster
 #$cli deploy kne/deploy/kne/external-multinode.yaml
-#
-#kubectl get pods -A
+$cli deploy kne/deploy/kne/kind-bridge.yaml
+
+kubectl get pods -A
 
 # Create a simple lemming topology
 $cli create kne/examples/openconfig/lemming.pb.txt
