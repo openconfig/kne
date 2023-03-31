@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
@@ -29,6 +30,7 @@ const (
 	// srl-controller v0.6.0+ creates a named checkpoint "initial" on node startup
 	// configuration reset is therefore done by reverting to this checkpoint
 	configResetCmd = "/tools system configuration checkpoint initial revert"
+	pushCfgFile    = "/home/admin/kne-push-config"
 )
 
 var (
@@ -137,10 +139,12 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	log.Infof("%s - pushing config", n.Name())
 
-	cfg, err := io.ReadAll(r)
-	cfgs := string(cfg)
+	cfgBytes, err := io.ReadAll(r)
+	// replace quotes in the config with escaped quotes, so that we can echo this config
+	// via `echo` CLI commands.
+	cfg := strings.ReplaceAll(string(cfgBytes), `"`, `\"`)
 
-	log.V(1).Infof("config to push:\n%s", cfgs)
+	log.V(1).Infof("config to push:\n%s", cfg)
 
 	if err != nil {
 		return err
@@ -153,16 +157,42 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	defer n.cliConn.Close()
 
-	resp, err := n.cliConn.SendConfig(cfgs, scrapliopopts.WithStopOnFailed())
+	echoCmd := fmt.Sprintf("echo \"%s\" > %s", cfg, pushCfgFile)
+
+	resp, err := n.cliConn.SendConfig(echoCmd,
+		scrapliopopts.WithStopOnFailed(),
+		scrapliopopts.WithEager(),
+	)
 	if err != nil {
 		return err
 	}
 
-	if resp.Failed == nil {
-		log.Infof("%s - finshed config push", n.Impl.Proto.Name)
+	if resp.Failed != nil {
+		log.Infof("%s - failed saving config to file", n.Impl.Proto.Name)
+
+		return resp.Failed
 	}
 
-	return resp.Failed
+	// load the config sourced from the pushed file
+	mresp, err := n.cliConn.SendConfigs(
+		[]string{"baseline update",
+			"discard /",
+			"source /home/admin/kne-push-config",
+			"commit save"},
+		scrapliopopts.WithStopOnFailed())
+	if err != nil {
+		return err
+	}
+
+	if mresp.Failed != nil {
+		log.Infof("%s - failed config push", n.Impl.Proto.Name)
+
+		return resp.Failed
+	}
+
+	log.Infof("%s - finished pushing config", n.Name())
+
+	return nil
 }
 
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
