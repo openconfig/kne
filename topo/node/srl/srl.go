@@ -140,15 +140,15 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	log.Infof("%s - pushing config", n.Name())
 
 	cfgBytes, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
 	// replace quotes in the config with escaped quotes, so that we can echo this config
 	// via `echo` CLI commands.
 	cfg := strings.ReplaceAll(string(cfgBytes), `"`, `\"`)
 
 	log.V(1).Infof("config to push:\n%s", cfg)
-
-	if err != nil {
-		return err
-	}
 
 	err = n.SpawnCLIConn()
 	if err != nil {
