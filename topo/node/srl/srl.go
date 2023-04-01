@@ -273,8 +273,9 @@ func (n *Node) Create(ctx context.Context) error {
 func (n *Node) Delete(ctx context.Context) error {
 	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: n.GetNamespace(), Name: n.Name()}},
-	)
+			Namespace: n.GetNamespace(), Name: n.Name(),
+		},
+	})
 	if err != nil {
 		return err
 	}
