@@ -66,7 +66,7 @@ spec:
       initContainers:
       - name: install-cni-bin
         image: ghcr.io/aojea/kindnetd:v1.1.0
-        command: ['sh', '-c', 'cp -f /opt/cni/bin/* /cni/ ']
+        command: ['sh', '-c', 'cd /opt/cni/bin; for i in * ; do cat $i > /cni/$i ; chmod +x /cni/$i ; done']
         volumeMounts:
         - name: cni-bin
           mountPath: /cni
