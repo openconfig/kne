@@ -1,5 +1,5 @@
 # This topology consists of two Nokia SR Linux IXR-6e nodes running 22.11.2 release and connected with a single link over ethernet-1/1 interfaces.
-# Each of the nodes comes up with a startup config which is sourced from srl-opeconfig.cfg.json file;
+# Each of the nodes comes up with a startup config which is sourced from the config.cli file;
 # the startup config contains a self-signed TLS cert and has gnmi, gnoi, gribi, p4rt services enabled
 #
 # Read more about this topology at http://learn.srlinux.dev/tutorials/infrastructure/kne/srl-with-oc-services/
@@ -11,14 +11,15 @@ nodes: {
     model: "ixr6e"
     config:{
         # when `image` is not specified under `config`, the "ghcr.io/nokia/srlinux:latest" container image is used by default
-        file: "srl-openconfig.cfg.json"
+        # SR Linux can accept both complete config files in JSON format, or partial/full config snippets in the CLI format.
+        # nodes are configured with a partial config snippet in CLI format that adds configuration relevant for this example lab.
+        file: "config.cfg"
     }
     services:{
         key: 22
         value: {
             name: "ssh"
             inside: 22
-            outside: 22
         }
     }
     services:{
@@ -26,7 +27,6 @@ nodes: {
         value: {
             name: "gnoi"
             inside: 57400
-            outside: 9337
         }
     }
     services:{
@@ -34,7 +34,6 @@ nodes: {
         value: {
             name: "gnmi"
             inside: 57400
-            outside: 9339
         }
     }
     services:{
@@ -42,7 +41,6 @@ nodes: {
         value: {
             name: "gribi"
             inside: 57401
-            outside: 9340
         }
     }
     services:{
@@ -50,7 +48,6 @@ nodes: {
         value: {
             name: "p4rt"
             inside: 9559
-            outside: 9559
         }
     }
     interfaces: {
@@ -67,14 +64,13 @@ nodes: {
     model: "ixr6e"
     config:{
         # when `image` is not specified under `config`, the "ghcr.io/nokia/srlinux:latest" container image is used by default
-        file: "srl-openconfig.cfg.json"
+        file: "config.cfg"
     }
     services:{
         key: 22
         value: {
             name: "ssh"
             inside: 22
-            outside: 22
         }
     }
     services:{
@@ -82,7 +78,6 @@ nodes: {
         value: {
             name: "gnoi"
             inside: 57400
-            outside: 9337
         }
     }
     services:{
@@ -90,7 +85,6 @@ nodes: {
         value: {
             name: "gnmi"
             inside: 57400
-            outside: 9339
         }
     }
     services:{
@@ -98,7 +92,6 @@ nodes: {
         value: {
             name: "gribi"
             inside: 57401
-            outside: 9340
         }
     }
     services:{
@@ -106,7 +99,6 @@ nodes: {
         value: {
             name: "p4rt"
             inside: 9559
-            outside: 9559
         }
     }
     interfaces: {

@@ -10,12 +10,21 @@ A:pod1# environment complete-on-space false
 A:pod1# info from state system app-management application mgmt_server state | grep running
                 state running
 --{ running }--[  ]--
-A:pod1# info from state system configuration commit 1 status | grep complete
-                status complete
+A:pod1# file cat /etc/opt/srlinux/devices/app_ephemeral.mgmt_server.ready_for_config
+loaded initial configuration
 --{ running }--[  ]--
 A:pod1# enter candidate private
 --{ candidate private private-root }--[  ]--
-A:pod1# set / system information location "set with config push"
+A:pod1# echo "set / system information location \"set with config push\"" > /home/admin/kne-push-config
+--{ candidate private private-root }--[  ]--
+A:pod1# baseline update
+--{ candidate private private-root }--[  ]--
+A:pod1# discard /
+--{ candidate private private-root }--[  ]--
+A:pod1# source /home/admin/kne-push-config
+ourcing commands from 'kne-push-config'
+1 lines
+Executed 1 lines in 0.129982 seconds from file kne-push-config
 --{ * candidate private private-root }--[  ]--
 A:pod1# commit save
 /system:
