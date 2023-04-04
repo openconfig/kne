@@ -552,7 +552,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 					KeySize:  2048,
 				},
 			},
-        }
+		}
 	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
