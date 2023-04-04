@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/api/resource"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 )
@@ -36,6 +37,8 @@ var (
 
 const (
 	scrapliPlatformName = "juniper_junos"
+	ModelNCPTX = "ncptx"
+	ModelCPTX = "cptx"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -81,7 +84,7 @@ func (n *Node) SpawnCLIConn() error {
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
 
-	opts = n.PatchCLIConnOpen("kubectl", []string{"cli", "-c"}, opts)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"cli"}, opts)
 
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
@@ -310,6 +313,7 @@ func (n *Node) Create(ctx context.Context) error {
 	}
 	log.Infof("Created cPTX node %s configmap", n.Name())
 
+	hpd := corev1.HostPathDirectory
 	pb := n.Proto
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -352,23 +356,85 @@ func (n *Node) Create(ctx context.Context) error {
 					Privileged: pointer.Bool(true),
 					RunAsUser:  pointer.Int64(0),
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN"},
+						Add: []corev1.Capability{"SYS_ADMIN", "NET_ADMIN"},
+					},
+					SeccompProfile: &corev1.SeccompProfile{
+						Type: "Unconfined",
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{{
-					Name:      fmt.Sprintf("%s-run-mount", pb.Name),
-					ReadOnly:  false,
-					MountPath: "/run",
-				}},
-			}},
-			Volumes: []corev1.Volume{{
-				Name: fmt.Sprintf("%s-run-mount", pb.Name),
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{
-						Medium: "Memory",
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      fmt.Sprintf("%s-run-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/run",
+					},
+					{
+						Name:      fmt.Sprintf("%s-tmp-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/tmp",
+					},
+					{
+						Name:      fmt.Sprintf("%s-sys-class-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/sys/class",
+					},
+					{
+						Name:      fmt.Sprintf("%s-dev-shm-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/dev/shm",
+					},
+					{
+						Name:      fmt.Sprintf("%s-cgroup-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/sys/fs/cgroup",
 					},
 				},
 			}},
+			Volumes: []corev1.Volume{
+				{
+					Name: fmt.Sprintf("%s-run-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium: "Memory",
+						},
+					},
+				},
+				{
+					Name: fmt.Sprintf("%s-tmp-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium: "Memory",
+						},
+					},
+				},
+				{
+					Name: fmt.Sprintf("%s-sys-class-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/sys/class",
+							Type: &hpd,
+						},
+					},
+				},
+				{
+					Name: fmt.Sprintf("%s-dev-shm-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium: "Memory",
+							SizeLimit: resource.NewQuantity(2*1024*1024*1024, resource.BinarySI),
+						},
+					},
+				},
+				{
+					Name: fmt.Sprintf("%s-cgroup-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/sys/fs/cgroup",
+							Type: &hpd,
+						},
+					},
+				},
+			},
 			TerminationGracePeriodSeconds: pointer.Int64(0),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
@@ -429,10 +495,36 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			Name: "default_cptx_node",
 		}
 	}
-	if pb.Constraints == nil {
-		pb.Constraints = map[string]string{
-			"cpu":    "8",
-			"memory": "8Gi",
+	if pb.Model == "" {
+		pb.Model = ModelCPTX
+	}
+	if pb.Config == nil {
+		pb.Config = &tpb.Config{}
+	}
+	switch pb.Model {
+	case ModelNCPTX:
+		if pb.Constraints == nil {
+			pb.Constraints = map[string]string{
+				"cpu":    "4",
+				"memory": "4Gi",
+			}
+		}
+		if len(pb.Config.GetCommand()) == 0 {
+			pb.Config.Command = []string{
+				"/sbin/cevoCntrEntryPoint",
+			}
+		}
+	default:
+		if pb.Constraints == nil {
+			pb.Constraints = map[string]string{
+				"cpu":    "8",
+				"memory": "8Gi",
+			}
+		}
+		if len(pb.Config.GetCommand()) == 0 {
+			pb.Config.Command = []string{
+				"/entrypoint.sh",
+			}
 		}
 	}
 	if pb.Services == nil {
@@ -457,14 +549,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
 	}
-	if pb.Config == nil {
-		pb.Config = &tpb.Config{}
-	}
-	if len(pb.Config.GetCommand()) == 0 {
-		pb.Config.Command = []string{
-			"/entrypoint.sh",
-		}
-	}
 	if pb.Config.Image == "" {
 		pb.Config.Image = "cptx:latest"
 	}
@@ -474,7 +558,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Config.EntryCommand == "" {
-		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- cli -c", pb.Name)
+		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- cli", pb.Name)
 	}
 	if pb.Config.ConfigPath == "" {
 		pb.Config.ConfigPath = "/home/evo/configdisk"

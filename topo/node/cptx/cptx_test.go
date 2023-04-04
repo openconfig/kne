@@ -428,6 +428,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name: "pod1",
+			Model: "cptx",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -457,7 +458,7 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"CPTX": "1",
 				},
-				EntryCommand: "kubectl exec -it pod1 -- cli -c",
+				EntryCommand: "kubectl exec -it pod1 -- cli",
 				ConfigPath:   "/",
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
@@ -473,6 +474,7 @@ func TestNew(t *testing.T) {
 			Proto:      &tpb.Node{},
 		},
 		want: &tpb.Node{
+			Model: "cptx",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -502,7 +504,7 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"CPTX": "1",
 				},
-				EntryCommand: "kubectl exec -it  -- cli -c",
+				EntryCommand: "kubectl exec -it  -- cli",
 				ConfigPath:   "/home/evo/configdisk",
 				ConfigFile:   "juniper.conf",
 			},

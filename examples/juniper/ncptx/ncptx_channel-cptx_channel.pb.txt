@@ -1,0 +1,154 @@
+name: "ncptx-cptx"
+nodes: {
+    name: "ncptx"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+      config_path: "/home/evo/configdisk/"
+      config_file: "juniper.conf"
+      file: "juniper_channelized.config"
+      image: "ncptx:latest"
+      cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 9337
+        value: {
+            name: "gnoi"
+            outside: 9337
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9339
+        value: {
+            name: "gnmi"
+            outside: 9339
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            outside: 9340
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            outside: 9559
+            inside: 32767
+        }
+    }
+}
+nodes: {
+    name: "cptx"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+      config_path: "/home/evo/configdisk/"
+      config_file: "juniper.conf"
+      file: "juniper_channelized.config"
+      image: "cptx:latest"
+      cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 9337
+        value: {
+            name: "gnoi"
+            outside: 9337
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9339
+        value: {
+            name: "gnmi"
+            outside: 9339
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            outside: 9340
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            outside: 9559
+            inside: 32767
+        }
+    }
+}
+
+links: {
+    a_node: "ncptx"
+    a_int: "eth5"
+    z_node: "cptx"
+    z_int: "eth4"
+}
+links: {
+    a_node: "ncptx"
+    a_int: "eth13"
+    z_node: "cptx"
+    z_int: "eth12"
+}
