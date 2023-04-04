@@ -306,7 +306,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 }
 
 func (n *Node) Create(ctx context.Context) error {
-	log.Infof("Creating cPTX node resource %s", n.Name())
+	log.Infof("Creating cPTX node resource %s model %s", n.Name(), n.Proto.Model)
 
 	if err := n.CreateConfig(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
@@ -481,7 +481,7 @@ func (n *Node) Create(ctx context.Context) error {
 		return fmt.Errorf("failed to create pod for %q: %w", pb.Name, err)
 	}
 	log.V(1).Infof("Pod created:\n%+v\n", sPod)
-	log.Infof("Created cPTX node resource %s pod", n.Name())
+	log.Infof("Created cPTX node resource %s pod model %s", n.Name(), n.Proto.Model)
 	if err := n.CreateService(ctx); err != nil {
 		return err
 	}
