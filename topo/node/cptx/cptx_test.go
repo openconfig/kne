@@ -464,6 +464,15 @@ func TestNew(t *testing.T) {
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
 				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
 			},
 		},
 	}, {
@@ -507,6 +516,15 @@ func TestNew(t *testing.T) {
 				EntryCommand: "kubectl exec -it  -- cli",
 				ConfigPath:   "/home/evo/configdisk",
 				ConfigFile:   "juniper.conf",
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
 			},
 		},
 	}}

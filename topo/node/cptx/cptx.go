@@ -543,6 +543,17 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			},
 		}
 	}
+	if pb.Config.Cert == nil {
+		pb.Config.Cert = &tpb.CertificateCfg{
+			Config: &tpb.CertificateCfg_SelfSigned{
+				SelfSigned: &tpb.SelfSignedCertCfg{
+					CertName: "grpc-server-cert",
+					KeyName:  "my_key",
+					KeySize:  2048,
+				},
+			},
+        }
+	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
 	}
