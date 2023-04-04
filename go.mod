@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1
-	github.com/docker/docker v20.10.12+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0
@@ -47,7 +47,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/containerd/containerd v1.5.18 // indirect
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
