@@ -18,9 +18,9 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	scraplicfg "github.com/scrapli/scrapligocfg"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/api/resource"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 )
@@ -37,8 +37,8 @@ var (
 
 const (
 	scrapliPlatformName = "juniper_junos"
-	ModelNCPTX = "ncptx"
-	ModelCPTX = "cptx"
+	ModelNCPTX          = "ncptx"
+	ModelCPTX           = "cptx"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -420,7 +420,7 @@ func (n *Node) Create(ctx context.Context) error {
 					Name: fmt.Sprintf("%s-dev-shm-mount", pb.Name),
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{
-							Medium: "Memory",
+							Medium:    "Memory",
 							SizeLimit: resource.NewQuantity(2*1024*1024*1024, resource.BinarySI),
 						},
 					},

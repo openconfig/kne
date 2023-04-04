@@ -427,7 +427,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 		want: &tpb.Node{
-			Name: "pod1",
+			Name:  "pod1",
 			Model: "cptx",
 			Constraints: map[string]string{
 				"cpu":    "8",
