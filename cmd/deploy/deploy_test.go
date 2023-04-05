@@ -33,12 +33,12 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 `
 	invalidIngress = `
 cluster:
@@ -51,12 +51,12 @@ cluster:
 ingress:
   kind: InvalidIngress
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 `
 	invalidCNI = `
 cluster:
@@ -69,12 +69,13 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: InvalidCNI
   spec:
-    manifests: ../../manifests/meshnet/base`
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
+`
 	invalidControllers = `
 cluster:
   kind: Kind
@@ -86,16 +87,17 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 controllers:
   - kind: InvalidController
     spec:
-      manifests: path/to/manifest`
+      operator: path/to/manifest.yaml
+`
 	validControllers = `
 cluster:
   kind: Kind
@@ -107,28 +109,27 @@ cluster:
 ingress:
   kind: MetalLB
   spec:
-    manifests: ../../manifests/metallb
+    manifest: ../../manifests/metallb/manifest.yaml
     ip_count: 100
 cni:
   kind: Meshnet
   spec:
-    manifests: ../../manifests/meshnet/base
+    manifest: ../../manifests/meshnet/grpc/manifest.yaml
 controllers:
   - kind: IxiaTG
     spec:
-      manifests: path/to/manifest
-      configMap:
-        release: some-value
-        images:
-          - name: controller
-            path: some/path
-            tag: latest
+      operator: path/to/manifest.yaml
+      configMap: path/to/configmap.yaml
   - kind: SRLinux
     spec:
-      manifests: path/to/manifest
+      operator: path/to/manifest.yaml
   - kind: CEOSLab
     spec:
-      manifests: path/to/manifest`
+      operator: path/to/manifest.yaml
+  - kind: Lemming
+    spec:
+      operator: path/to/manifest.yaml
+`
 )
 
 func TestNew(t *testing.T) {
@@ -147,26 +148,26 @@ func TestNewDeployment(t *testing.T) {
 	}{{
 		desc:    "invalid cluster",
 		cfg:     invalidCluster,
-		wantErr: "cluster type not supported",
+		wantErr: "InvalidCluster not supported",
 	}, {
 		desc:    "invalid ingress",
 		cfg:     invalidIngress,
-		wantErr: "ingress type not supported",
+		wantErr: "InvalidIngress not supported",
 	}, {
 		desc:    "invalid cni",
 		cfg:     invalidCNI,
-		wantErr: "CNI type not supported",
+		wantErr: "InvalidCNI not supported",
 	}, {
 		desc:    "invalid controllers",
 		cfg:     invalidControllers,
-		wantErr: "controller type not supported",
+		wantErr: "InvalidController not supported",
 	}, {
 		desc: "valid controllers",
 		cfg:  validControllers,
 	}, {
 		desc: "kind example",
 		cfg:  "",
-		path: "../../deploy/kne/kind-bridge.yaml",
+		path: "testdata/kind-deployment.yaml",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -184,7 +185,7 @@ func TestNewDeployment(t *testing.T) {
 				tt.path = f.Name()
 				defer os.Remove(f.Name())
 			}
-			d, err := newDeployment(tt.path)
+			d, err := newDeployment(tt.path, true)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}

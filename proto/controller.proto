@@ -68,13 +68,15 @@ message ExternalSpec {
 
 // Metallb specifications
 message MetallbSpec {
-  string manifest_dir = 1;
+  string manifest_dir = 1 [deprecated = true];
   int32 ip_count = 2;
+  Manifest manifest = 3;
 }
 
 // Meshnet specifications
 message MeshnetSpec {
-  string manifest_dir = 1;
+  string manifest_dir = 1 [deprecated = true];
+  Manifest manifest = 2;
 }
 
 // Controller specifications
@@ -89,8 +91,10 @@ message ControllerSpec {
 
 // IxiaTG specifications
 message IxiaTGSpec {
-  string manifest_dir = 1;
-  IxiaTGConfigMap config_map = 2;
+  string manifest_dir = 1 [deprecated = true];
+  IxiaTGConfigMap config_map = 2 [deprecated = true];
+  Manifest operator = 3;
+  Manifest cfg_map = 4;
 }
 
 // IxiaTG config map values
@@ -108,19 +112,30 @@ message IxiaTGImage {
 
 // SRLinux specifications
 message SRLinuxSpec {
-  string manifest_dir = 1;
+  string manifest_dir = 1 [deprecated = true];
+  Manifest operator = 2;
 }
 
 // CEOSLab specifications
 message CEOSLabSpec {
-  string manifest_dir = 1;
+  string manifest_dir = 1 [deprecated = true];
+  Manifest operator = 2;
 }
 
 // LemmingSpec specifications
 message LemmingSpec {
-  string manifest_dir = 1;
+  string manifest_dir = 1 [deprecated = true];
+  Manifest operator = 2;
 }
 
+message Manifest {
+  oneof manifest_data {
+    // Byte data for the manifest.
+    bytes data = 101;
+    // File is an absolute path to the local manifest file.
+    string file = 102;
+  }
+}
 
 // Request message to create a cluster.
 message CreateClusterRequest {

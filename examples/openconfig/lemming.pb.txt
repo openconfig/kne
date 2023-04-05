@@ -1,0 +1,15 @@
+name: "lemming-twodut"
+nodes: {
+    name: "lemming1"
+    vendor: OPENCONFIG
+}
+nodes: {
+    name: "lemming2"
+    vendor: OPENCONFIG
+}
+links: {
+    a_node: "lemming1"
+    a_int: "eth1"
+    z_node: "lemming2"
+    z_int: "eth1"
+}

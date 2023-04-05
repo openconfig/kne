@@ -1,0 +1,204 @@
+Using configuration file(s): []
+Welcome to the srlinux CLI.
+Type 'help' (and press <ENTER>) if you need any help using this.
+Warning: Running in basic cli engine, only limited set of features is enabled.
+--{ running }--[  ]--
+A:pod1# environment cli-engine type basic
+--{ running }--[  ]--
+A:pod1# environment complete-on-space false
+--{ + running }--[  ]--
+A:pod1# info from state system app-management application mgmt_server state | grep running
+                state running
+--{ running }--[  ]--
+A:pod1# file cat /etc/opt/srlinux/devices/app_ephemeral.mgmt_server.ready_for_config
+loaded initial configuration
+--{ running }--[  ]--
+A:pod1# tools system tls generate-self-signed
+/system/tls:
+-----BEGIN PRIVATE KEY-----
+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
+glJFu2t5r4xr+DjtJNs2NMBMOHRX8Q==
+-----END PRIVATE KEY-----
+-----BEGIN CERTIFICATE-----
+MIIE+zCCAuOgAwIBAgIUcjjhhJ49ZV732e0ojW18dNisBiQwDQYJKoZIhvcNAQEL
+BQAwDTELMAkGA1UEBhMCVVMwHhcNMjEwOTMwMTMyODUwWhcNMjIwOTMwMTMyODUw
+WjANMQswCQYDVQQGEwJVUzCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIB
+AL+RC0yIxXqXn1rsfjJCO1I7PxOQXHXQqe+XVv2BFmEnVxBn5rWTV8R+admHuZo0
+lXsvLEuRTUsJBIIG1ZO1gYIiYyccpo2lYcVPPtPIogu6/QVXaV8DfxxcVPWgh7np
+JhuyjpXjuhCy5CLKMA+H/hB3HFw08esWZBib7NNhxqP4PpwAnHtPCxsqpIhTD/H3
+E9VqB6Z8vWUK0iswqdL1XES27UQ8Dhzofqz0c7SRtL+Uk6SLjAAvh6/R7LuNJDLv
+FXHMa0Hdtw1nZyGCjS/gyB1dkt1l9C3RB7XsG1Nk8xACU/Z1Nrl0QKDObqRobr6l
+/PrU+/3ynJ87XffPfyBa3AdvHml7xw5agRMZuHgpTff7UshNHSeVm9jf5YYJc2Cr
+pzpDaed3N4fgZme6RsMrWHd+h+kbkiMWIqCQzD8nuLVkGeMd8aGt73ETf5NK1wXC
+AQjYVvbNI2yWCQRfLbb0xjw99rB93oLzg+WWEyOa7k+ycIgX23ANSX9zAa/5szL7
+iAhUtYWveVIe5eO7xw8JY3F34Hx0eRgC+fzl6W1fdLgHje5pDmBsdBoXh8PyS7jY
+ci3X7bE5wDhZBemKV5H+4C1dkCTTBXKZTfAUkiiLTLLXSzyrT+IcudN49vcvMocC
+UuarQp38Exvwvwx+ie1IELbX2sZ/ZjGt1zItpKrbrNuBAgMBAAGjUzBRMB0GA1Ud
+DgQWBBSNiJhI0vNHjDrzK5eWVIpFxdj5YDAfBgNVHSMEGDAWgBSNiJhI0vNHjDrz
+K5eWVIpFxdj5YDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4ICAQCI
+jbd1AEfL4gvzufy4roUxUISBxv0pa8R7T7voOnKm03SO/Yb+vEmTVtW/6WufXSCc
+3vusJ8Hu1/AFH+SHZFPdX80bnbZ3upeWLUQ5SDuG4dg3jRY/CcTZRX7KQZFAE9F8
+No6ned7qBdTg/omQkwXTHZdjQqYGlZOLVwo3DYOmuDY5jiye+dlUFk7uZINJfuBV
+pCrVrzDRPMZxtlPf3L1hdJfgIngIVRybVlKJf37RNkAnEDMiswVBnuZgW+xTReWZ
+XbLc/lT34hdbLFtky17/jeIhEB+F1h1quS0PIn5o9WRpKtiIiABMKPPsZ9XnvEN1
+QqjgoxSrDC5kjqC2P15M2n/nYQ0nntySia3+0z6LbnBwQnJoHm5HsIdFa3udNyDB
+DJY2N1+ByUHmBFpYQYOtaTA3y7kU/XxKwsBqAsohShOLZLnesxi6jGwpy5kcuZc+
+P32ISL++217Zs/LfvnYi7BU6MbxYYXFhbo0jhOl1YSlVWAYsGUQNXFVFsiNrqDpR
+nCAD6+YHpCknZM821GtBjn8NDG8hfmJxv+rkssL2ioMmMXvUxj6qgimbzV3TIeLb
+fvPow1tCkJt9xg6sRd2Ph6HHtHVaMhcHTVYRChxlEpzz13FCkFlpZiIh0Y6VIrdp
+bzHewmABEFWXy0DvlqBVK7ORLwOOIGOZ6pis2DS73A==
+-----END CERTIFICATE-----
+
+--{ running }--[  ]--
+A:pod1# 
+--{ running }--[  ]--
+A:pod1# enter candidate private 
+--{ candidate private private-root }--[  ]--
+A:pod1# 
+--{ candidate private private-root }--[  ]--
+A:pod1# set / system tls server-profile test
+--{ * candidate private private-root }--[  ]--
+A:pod1# set / system tls server-profile test authenticate-client false
+--{ candidate private private-root }--[  ]--
+A:pod1#
+--{ * candidate private private-root }--[  ]--
+A:pod1# set / system tls server-profile test key "-----BEGIN PRIVATE KEY-----
+...MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQC/kQtMiMV6l59a
+...7H4yQjtSOz8TkFx10Knvl1b9gRZhJ1cQZ+a1k1fEfmnZh7maNJV7LyxLkU1LCQSC
+...BtWTtYGCImMnHKaNpWHFTz7TyKILuv0FV2lfA38cXFT1oIe56SYbso6V47oQsuQi
+...yjAPh/4QdxxcNPHrFmQYm+zTYcaj+D6cAJx7TwsbKqSIUw/x9xPVagemfL1lCtIr
+...MKnS9VxEtu1EPA4c6H6s9HO0kbS/lJOki4wAL4ev0ey7jSQy7xVxzGtB3bcNZ2ch
+...go0v4MgdXZLdZfQt0Qe17BtTZPMQAlP2dTa5dECgzm6kaG6+pfz61Pv98pyfO133
+...z38gWtwHbx5pe8cOWoETGbh4KU33+1LITR0nlZvY3+WGCXNgq6c6Q2nndzeH4GZn
+...ukbDK1h3fofpG5IjFiKgkMw/J7i1ZBnjHfGhre9xE3+TStcFwgEI2Fb2zSNslgkE
+...Xy229MY8Pfawfd6C84PllhMjmu5PsnCIF9twDUl/cwGv+bMy+4gIVLWFr3lSHuXj
+...u8cPCWNxd+B8dHkYAvn85eltX3S4B43uaQ5gbHQaF4fD8ku42HIt1+2xOcA4WQXp
+...ileR/uAtXZAk0wVymU3wFJIoi0yy10s8q0/iHLnTePb3LzKHAlLmq0Kd/BMb8L8M
+...fontSBC219rGf2YxrdcyLaSq26zbgQIDAQABAoICAG9V1BRKFUPXpVUJx5pcJe/3
+...4QP0zdfnSyylb3hsMt6KJ66wRETZepQHyGsV18gIsavjUcIlk599gTI02KI9RiSk
+...6a2MmDwQl08+bExX+d4Jcg5NrD79YD3SZ8pN3zQsjephDz+MF9KmtbKGggI0znMx
+...Vrk8SDGSVOB8ltqPpAweNf0i2c9MtC64zOEyLT06lTteoU2gh86WyGkzoi+qTFLf
+...YexbXvRsJ1tLw4d5e2ww5NIoDFj7RsfnoMesExLLI1J9NQUV39KZezXdk0L1SDjQ
+...7o9gNtb9+pY/v+3q6N0wDS5bF1AXgYw0DdfdnieNfwclC8Oe4mok7csdvEvIosFo
+...gHLT/PMm/pDCYM9AY8QxX3STjoeVYe4WPAjtkg3/MUQ66Ijd6XD/8716pGbIaxwI
+...n8ioJI1/y8wupcdaaRRpEi9rAq1mPE40baFuPAAcj1BLndiU1q1QveSUqYxrdaxr
+...PzESH7MNx3CrOsb8wTROt4deIzYJybrLcUVIAQj51+moeTajXiC1yCkI4p7AHCVA
+...2KA867O+BzZdmKR+D/qpMAYT8r/M2Bjmpnz0/IlMjswQD5CKukRPoe2bdcg7/sno
+...iMrXxdbZQvMWwUI2Tu5gIiNUjT8SpXKULwis4KKA01Mw+hl6XamXwux/MkSm9MoF
+...lpTqGQR9W4sjP1I1hUwBAoIBAQD12vrXVzEC6DiH8M/JJSCk5cpJd8VxaDTuEqsO
+...CS3fO2lXkpFURSNtKb8UuqEaYO0jCpEfK04StPEveIyvHCOXEoK17iSDMc07XREE
+...p63hIyi6h1AEgHWaDy+AllTyxX6stUAYCrl3Eb8693wjBfQbR+gcd1NYzJ7dMV8z
+...CWElw4wU2zpHiFTPasJ9bQbxkMV2Z44fDeXMLNg3x4Env0344mLwmZjqQC5zI8Vm
+...p3dGghC1RTmnhorloJ36Ysiq+4HzJN59XBfdoyD2M2jXdpu8htLIcFINjqyEWGm1
+...z+mE8ZUEGvOPfmGziNaurqxm0DDYgAqvk1W6mBqUn392tw9hAoIBAQDHeJnBWI4N
+...wRaD7ITK83OYdMn/42JzgCMGraxVZaT5lBYKNWuBsS9S7HP20CJiJSdNuCUMFlsk
+...4Jv8n/0FM19AH6gZVfX3RA8fHhEzA3IIfBdUrK4m9XHxqhHvBggiGiyIhwwfoH9E
+...vPPh9Qo89KFNYCQBvs4z3GZ+yWvp+wme+Jxfqh+pQ+uuf3/zRciL/3PADM0l3gq3
+...SfcEsYniF5PsAvG4BM63Yzf0iYAtyqUn7p4YFpoI9+Cxb8IgbHNybVLbNu2joOG0
+...nj62B4eCoVF7zZP9QacqyDWXAPUMArq67SovQxJBW0vErAytkSXJHs3Gu1iY2iys
+...v6Sx+Plv/+AhAoIBAHHX+615b3WEKKEyLlVa/tm8mkYY0vGnqlLPjCvMrlQfQ7FM
+...akVWWogy+4tSvETluwkt3HNNbzKUXNZ5gNOZORW8eZBa/MdPaVRizP2V05tb14FA
+...JRpgjZRQEdP+SMm+D+FTcKFxXd439pAMh4wENrvnOSDtVEfbQHj2YrnUTwrYmOYT
+...edIj2/nL2tGPidaUDgu8+f+BRPadkWWK2VCZcjacRepZhYh7PccNOlxFkaKxmaEG
+...tCLR10FrdZu64GbkXZFEck4kNdzoq9u1hIe5IXZUDAjKkgQ7G8GQ2ypYYy6vWyxy
+...enPotr8WzypGMgjNwMCP0eLpW5oy0qQdkz1amSECggEBAKGgX/2hcqFEdqj4yfTk
+...5SKAZ3kXVxu9lSQBL6WWkeHFE0K8XFsfJfhsLd6scV/TORCpiCNOLhYohVxiipNf
+...N+vuerfkxkPP+uy84TTTst+bJRBwR0C8GtK1eoiR+58eVD1gJ/usgdNBw9+wPNZ9
+...ZgIbR7G+WLj++nH7ZZyW1Ani6lo9sB/oMB0ZpKSLQ9/kYncYKFZpn4c6wJQmA1KW
+...xj4zeIciJhnEpH9ZtunjzIUZvTJJhhCEQaWkp8i796OdX8jOrimq35gJrUizuyKm
+...8i59uk84lmp9BadQmD5eK83xBAB9uVoJztASlMdC2Dop4pUIEtbv2ck0FBA9bGhL
+...DeECggEAQrGjxEtmKFQRwZbGYzT098EulI2a7uMrtHpgrfoWpjl3PoSHCZizjTh3
+...wubhnaVrEE8G6RHMBbcCN6m6HY1QSL5H8Y1KkDxWVKhTBVGraS3xdujgB5J8J6Nr
+...MMSvaHqag5rrSlCyLS9gLauxeEuGDDSNPkO5dd0PM0QOH5qoNYg2BYGa79/Z+0vr
+...EsQcmKAT5WnnuU6zeSIhW5qfAhQ6GG5vHicR9IoZO/FB/c1iuAj5lDrJQ8+hqcAQ
+...1hj8N/8ISJtvygeqyy1dBZlbzOz1pw0M4hC9/xlplWf/DUmbiHlmi5eJJqClqDr1
+...glJFu2t5r4xr+DjtJNs2NMBMOHRX8Q==
+...-----END PRIVATE KEY-----"
+--{ * candidate private private-root }--[  ]--
+A:pod1# set / system tls server-profile test certificate "-----BEGIN CERTIFICATE-----
+...MIIE+zCCAuOgAwIBAgIUcjjhhJ49ZV732e0ojW18dNisBiQwDQYJKoZIhvcNAQEL
+...BQAwDTELMAkGA1UEBhMCVVMwHhcNMjEwOTMwMTMyODUwWhcNMjIwOTMwMTMyODUw
+...WjANMQswCQYDVQQGEwJVUzCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIB
+...AL+RC0yIxXqXn1rsfjJCO1I7PxOQXHXQqe+XVv2BFmEnVxBn5rWTV8R+admHuZo0
+...lXsvLEuRTUsJBIIG1ZO1gYIiYyccpo2lYcVPPtPIogu6/QVXaV8DfxxcVPWgh7np
+...JhuyjpXjuhCy5CLKMA+H/hB3HFw08esWZBib7NNhxqP4PpwAnHtPCxsqpIhTD/H3
+...E9VqB6Z8vWUK0iswqdL1XES27UQ8Dhzofqz0c7SRtL+Uk6SLjAAvh6/R7LuNJDLv
+...FXHMa0Hdtw1nZyGCjS/gyB1dkt1l9C3RB7XsG1Nk8xACU/Z1Nrl0QKDObqRobr6l
+.../PrU+/3ynJ87XffPfyBa3AdvHml7xw5agRMZuHgpTff7UshNHSeVm9jf5YYJc2Cr
+...pzpDaed3N4fgZme6RsMrWHd+h+kbkiMWIqCQzD8nuLVkGeMd8aGt73ETf5NK1wXC
+...AQjYVvbNI2yWCQRfLbb0xjw99rB93oLzg+WWEyOa7k+ycIgX23ANSX9zAa/5szL7
+...iAhUtYWveVIe5eO7xw8JY3F34Hx0eRgC+fzl6W1fdLgHje5pDmBsdBoXh8PyS7jY
+...ci3X7bE5wDhZBemKV5H+4C1dkCTTBXKZTfAUkiiLTLLXSzyrT+IcudN49vcvMocC
+...UuarQp38Exvwvwx+ie1IELbX2sZ/ZjGt1zItpKrbrNuBAgMBAAGjUzBRMB0GA1Ud
+...DgQWBBSNiJhI0vNHjDrzK5eWVIpFxdj5YDAfBgNVHSMEGDAWgBSNiJhI0vNHjDrz
+...K5eWVIpFxdj5YDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4ICAQCI
+...jbd1AEfL4gvzufy4roUxUISBxv0pa8R7T7voOnKm03SO/Yb+vEmTVtW/6WufXSCc
+...3vusJ8Hu1/AFH+SHZFPdX80bnbZ3upeWLUQ5SDuG4dg3jRY/CcTZRX7KQZFAE9F8
+...No6ned7qBdTg/omQkwXTHZdjQqYGlZOLVwo3DYOmuDY5jiye+dlUFk7uZINJfuBV
+...pCrVrzDRPMZxtlPf3L1hdJfgIngIVRybVlKJf37RNkAnEDMiswVBnuZgW+xTReWZ
+...XbLc/lT34hdbLFtky17/jeIhEB+F1h1quS0PIn5o9WRpKtiIiABMKPPsZ9XnvEN1
+...QqjgoxSrDC5kjqC2P15M2n/nYQ0nntySia3+0z6LbnBwQnJoHm5HsIdFa3udNyDB
+...DJY2N1+ByUHmBFpYQYOtaTA3y7kU/XxKwsBqAsohShOLZLnesxi6jGwpy5kcuZc+
+...P32ISL++217Zs/LfvnYi7BU6MbxYYXFhbo0jhOl1YSlVWAYsGUQNXFVFsiNrqDpR
+...nCAD6+YHpCknZM821GtBjn8NDG8hfmJxv+rkssL2ioMmMXvUxj6qgimbzV3TIeLb
+...fvPow1tCkJt9xg6sRd2Ph6HHtHVaMhcHTVYRChxlEpzz13FCkFlpZiIh0Y6VIrdp
+...bzHewmABEFWXy0DvlqBVK7ORLwOOIGOZ6pis2DS73A==
+...-----END CERTIFICATE-----"
+--{ * candidate private private-root }--[  ]--
+A:pod1# commit save
+/system:
+    Saved current running configuration as initial (startup) configuration '/etc/opt/srlinux/config.json'
+
+All changes have been committed. Leaving candidate mode.
+--{ running }--[  ]--
+A:pod1#
+--{ running }--[  ]--
+A:pod1#

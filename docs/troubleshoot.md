@@ -30,90 +30,18 @@ For an exhaustive list use the `-A` flag instead of `-n`.
 
 ## Common issues
 
-### Cannot SSH into instance
-
-```bash
-$ ssh 192.168.18.100
-ssh: connect to host 192.168.18.100 port 22: Connection refused
-```
-
-Validate the pod is running:
-
-```bash
-$ kubectl get pod r1 -n 3node-ceos
-NAME READY STATUS RESTARTS AGE
-r1 1/1 Running 0 4m47s
-```
-
-Validate service is exposed:
-
-```bash
-$ kubectl get services r1 -n 3node-ceos
-NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
-service-r1 LoadBalancer 10.96.134.70 192.168.18.100 443:30001/TCP,22:30004/TCP,6030:30005/TCP 4m22s
-```
-
-Validate you can attach to container:
-
-```bash
-$ kubectl exec -it r1 -n 3node-ceos -- Cli
-Defaulted container "r1" out of: r1, init-r1 (init)
-error: Internal error occurred: error executing command in
-container: failed to exec in container: failed to start exec
-"68abfa4f3742c86f49ec00dff629728d96e589c6848d5247e29d396365d6b697": OCI
-runtime exec failed: exec failed: container_linux.go:370: starting container
-process caused: exec: "Cli": executable file not found in $PATH: unknown
-```
-
-### After reboot of machine KNE cluster stuck in init state
-
-```bash
-$ kubectl get pods -n 3node-ceos
-NAMESPACE NAME READY STATUS RESTARTS AGE
-3node-ceos r1 0/1 Init:0/1 1 7d22h
-3node-ceos r2 0/1 Init:0/1 1 7d22h
-3node-ceos r3 0/1 Init:0/1 1 7d22h
-```
-
-This problem is due to a bug in `meshnet` until this is fixed upstream you will
-just need to delete and recreate the topology.
-
-### MetalLB crash loops
-
-```bash
-$ kubectl get pods -n metallb-system
-NAMESPACE NAME READY STATUS RESTARTS AGE
-metallb-system controller-675995489c-2rv4w 0/1 CrashLoopBackOff 4 3m7s
-metallb-system speaker-nnm9f 1/1 Running 0 3m7s
-```
-
-This issue is often fixed by deleting and redeploying your cluster.
-
 ### Pods stuck in ImagePullBackOff
 
 ```bash
 $ kubectl get pods -A
-NAMESPACE NAME READY STATUS RESTARTS AGE
-ceos-simple r1 0/1 ImagePullBackOff 0 44m
-ceos-simple r2 0/1 ImagePullBackOff 0 44m
-kube-system coredns-78fcd69978-kqj86 1/1 Running 0 45m
-kube-system coredns-78fcd69978-t68cd 1/1 Running 0 45m
-kube-system etcd-kne-control-plane 1/1 Running 0 45m
-kube-system kindnet-nx5z6 1/1 Running 0 45m
-kube-system kube-apiserver-kne-control-plane 1/1 Running 0 45m
-kube-system kube-controller-manager-kne-control-plane 1/1 Running 0 45m
-kube-system kube-proxy-zdjlh 1/1 Running 0 45m
-kube-system kube-scheduler-kne-control-plane 1/1 Running 0 45m
-local-path-storage local-path-provisioner-85494db59d-r8cs7 1/1 Running 0 45m
-meshnet meshnet-9z756 1/1 Running 0 44m
-metallb-system controller-6cc57c4567-xjmmc 1/1 Running 0 45m
-metallb-system speaker-c4mdm 1/1 Running 0 44m
+NAMESPACE     NAME   READY   STATUS             RESTARTS   AGE
+multivendor   r1     0/1     ImagePullBackOff   0          44m
 ```
 
 This is due to an issue with your cluster fetching container images. Follow the
-container image access [steps](#container_images) and then delete/recreate the
-topology. To check which image is causing the issue, use `kubectl describe`
-command on the problematic pod.
+container image access [steps](create_topology.md#container_images) and then
+delete/recreate the topology. To check which image is causing the issue, use
+`kubectl describe` command on the problematic pod.
 
 ### Pods stuck in Init
 
@@ -122,12 +50,9 @@ others may be stuck `Pending`.
 
 ```bash
 $ kubectl get pods -A
-NAMESPACE NAME READY STATUS RESTARTS AGE
-3node-traffic ate1 2/2 Running 1 12m
-3node-traffic ate2 0/2 Init:0/1 0 12m
-3node-traffic r1 0/1 Init:0/1 0 12m
-3node-traffic r2 0/1 Pending 0 12m
-3node-traffic r3 0/1 Pending 0 12m
+NAMESPACE     NAME   READY   STATUS     RESTARTS   AGE
+multivendor   r1     0/1     Init:0/1   0          12m
+multivendor   r2     0/1     Pending    0          12m
 ...
 ```
 
@@ -135,7 +60,7 @@ You may also see logs for the `init-container` on one of the `Init:0/1` pods
 that look like this:
 
 ```bash
-$ kubectl logs pod/ate2 init-container -n 3node-traffic
+$ kubectl logs r1 init-r1 -n multivendor
 Waiting for all 2 interfaces to be connected
 Connected 1 interfaces out of 2
 Connected 1 interfaces out of 2
@@ -146,13 +71,79 @@ Connected 1 interfaces out of 2
 The Pending pods may have an error like the following:
 
 ```bash
-$ kubectl describe pod r2 -n 3node-traffic
+$ kubectl describe pod r2 -n multivendor
 ...
 Events:
 Type Reason Age From Message
 Warning FailedScheduling 9s (x19 over 18m) default-scheduler 0/1 nodes are available: 1 Insufficient cpu.
 ```
 
-Fix To fix this issue you will need a host with more (v)CPUs and memory. It is
-recommended to run on a machine with at least 8 (v)CPUs and 32 GB memory. You
-may also need to deploy a smaller topology instead.
+Fix To fix this issue you will need a VM instance with more vCPUs and memory.
+A machine with 16 vCPUs should be
+sufficient. Optionally you can deploy a smaller topology instead.
+
+### Cannot SSH into instance
+
+```bash
+$ ssh 192.168.18.100
+ssh: connect to host 192.168.18.100 port 22: Connection refused
+```
+
+Validate the pod is running:
+
+```bash
+$ kubectl get pod r1 -n multivendor
+NAME   READY   STATUS    RESTARTS   AGE
+r1     1/1     Running   0          4m47s
+```
+
+Validate service is exposed:
+
+```bash
+$ kubectl get services r1 -n multivendor
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)                                     AGE
+service-r1   LoadBalancer   10.96.134.70   192.168.18.100   443:30001/TCP,22:30004/TCP,6030:30005/TCP   4m22s
+```
+
+Validate you can `exec` on the container:
+
+```bash
+$ kubectl exec -it r1 -n multivendor -- Cli
+Defaulted container "r1" out of: r1, init-r1 (init)
+error: Internal error occurred: error executing command in
+container: failed to exec in container: failed to start exec
+"68abfa4f3742c86f49ec00dff629728d96e589c6848d5247e29d396365d6b697": OCI
+runtime exec failed: exec failed: container_linux.go:370: starting container
+process caused: exec: "Cli": executable file not found in $PATH: unknown
+```
+
+Fix the systemd path and cgroups directory and then delete/recreate topology.
+
+### Vendor container is `Running` but `System is not yet ready...`
+
+If you see something similar to the following on a `cptx` Juniper node:
+
+```bash
+$ kubectl exec -it r4 -n multivendor -- cli
+Defaulted container "r4" out of: r4, init-r4 (init)
+System is not yet ready...
+```
+
+then your host likely does not support nested virtualization. Run the following
+to confirm, if the output is `0` then the host does not support nested
+virtualization.
+
+```bash
+$ grep -cw vmx /proc/cpuinfo
+0
+```
+
+Enable nested virtualization or move to a new machine that supports it.
+When done, run the following ensuring a non-zero output:
+
+```bash
+$ grep -cw vmx /proc/cpuinfo
+16
+```
+
+Then delete your cluster and start again.

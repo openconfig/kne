@@ -1,0 +1,9 @@
+default: true
+
+MD001: false # header levels
+
+MD013: false # line length
+
+MD028: false # blank lines between indents
+
+MD033: false # inline HTML

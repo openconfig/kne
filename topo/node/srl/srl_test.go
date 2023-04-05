@@ -32,7 +32,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type fakeWatch struct {
@@ -61,7 +63,25 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return eCh
 }
 
+// patchSrlinuxClient patches newSrlinuxClient function to use a fake no-op client for tests.
+// Returns a function to restore the original newSrlinuxClient function.
+func patchSrlinuxClient() func() {
+	origNewSrlinuxClient := newSrlinuxClient
+
+	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
+	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
+		return nil, nil
+	}
+
+	return func() {
+		newSrlinuxClient = origNewSrlinuxClient
+	}
+}
+
 func TestNew(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	tests := []struct {
 		desc    string
 		nImpl   *node.Impl
@@ -80,6 +100,42 @@ func TestNew(t *testing.T) {
 			Proto: &topopb.Node{
 				Labels: map[string]string{
 					"foo": "test_label",
+				},
+			},
+		},
+		want: &topopb.Node{
+			Config: &topopb.Config{
+				Image:      "ghcr.io/nokia/srlinux:latest",
+				ConfigFile: "config.cli",
+			},
+			Labels: map[string]string{
+				"vendor": "NOKIA",
+				"foo":    "test_label",
+			},
+			Services: map[uint32]*topopb.Service{
+				443: {
+					Name:   "ssl",
+					Inside: 443,
+				},
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				57400: {
+					Name:   "gnmi",
+					Inside: 57400,
+				},
+			},
+		},
+	}, {
+		desc: "json config file",
+		nImpl: &node.Impl{
+			Proto: &topopb.Node{
+				Labels: map[string]string{
+					"foo": "test_label",
+				},
+				Config: &topopb.Config{
+					ConfigFile: "config.json",
 				},
 			},
 		},
@@ -107,7 +163,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
-	}}
+	},
+	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			n, err := New(tt.nImpl)
@@ -124,6 +181,9 @@ func TestNew(t *testing.T) {
 	}
 }
 func TestGenerateSelfSigned(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -175,14 +235,14 @@ func TestGenerateSelfSigned(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "generate_certificate_success",
+			testFile: "testdata/generate_certificate_success",
 		},
 		{
 			// device returns "Error: something bad happened" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "generate_certificate_failure",
+			testFile: "testdata/generate_certificate_failure",
 		},
 	}
 
@@ -227,6 +287,9 @@ func TestGenerateSelfSigned(t *testing.T) {
 }
 
 func TestResetCfg(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -254,14 +317,14 @@ func TestResetCfg(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "reset_config_success",
+			testFile: "testdata/reset_config_success",
 		},
 		{
 			// device returns "Error: %s" -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "reset_config_failure",
+			testFile: "testdata/reset_config_failure",
 		},
 	}
 
@@ -306,6 +369,9 @@ func TestResetCfg(t *testing.T) {
 }
 
 func TestConfigPush(t *testing.T) {
+	unpatchClient := patchSrlinuxClient()
+	defer unpatchClient()
+
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -334,16 +400,16 @@ func TestConfigPush(t *testing.T) {
 			desc:     "success",
 			wantErr:  false,
 			ni:       ni,
-			testFile: "configpush_success",
-			cmdFile:  "configpush_success_cli.cfg",
+			testFile: "testdata/configpush_success",
+			cmdFile:  "testdata/configpush_success_cli.cfg",
 		},
 		{
 			// device returns an error during config push -- we expect to fail
 			desc:     "failure",
 			wantErr:  true,
 			ni:       ni,
-			testFile: "configpush_failure",
-			cmdFile:  "configpush_failure_cli.cfg",
+			testFile: "testdata/configpush_failure",
+			cmdFile:  "testdata/configpush_failure_cli.cfg",
 		},
 	}
 

@@ -3,7 +3,6 @@ package deploy
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	dtypes "github.com/docker/docker/api/types"
@@ -13,9 +12,12 @@ import (
 	"github.com/h-fam/errdiff"
 	mfake "github.com/openconfig/kne/api/metallb/clientset/v1beta1/fake"
 	"github.com/openconfig/kne/deploy/mocks"
-	"github.com/openconfig/kne/os/exec"
+	kexec "github.com/openconfig/kne/exec"
+	fexec "github.com/openconfig/kne/exec/fake"
 	"github.com/pkg/errors"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,40 +25,57 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
-
 	ktest "k8s.io/client-go/testing"
+	"k8s.io/klog/v2"
 )
+
+const (
+	verbose         = true
+	fakeAccessToken = "some-fake-token"
+)
+
+func init() {
+	klog.LogToStderr(false)
+}
 
 func TestKindSpec(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		desc        string
-		k           *KindSpec
-		execer      execerInterface
-		vExecer     execerInterface
-		execPathErr bool
-		wantErr     string
+		desc           string
+		k              *KindSpec
+		resp           []fexec.Response
+		execPathErr    bool
+		findCredsErr   bool
+		tokenSourceErr bool
+		wantErr        string
 	}{{
 		desc: "create cluster with cli",
 		k: &KindSpec{
 			Name: "test",
 		},
-		execer: exec.NewFakeExecer(nil),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
 	}, {
 		desc: "create cluster with recycle",
 		k: &KindSpec{
 			Name:    "test",
 			Recycle: true,
 		},
-		execer: exec.NewFakeExecer(nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"cluster-info", "--context", "kind-test"}, Err: "already exists"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
 	}, {
 		desc: "exists cluster with recycle",
 		k: &KindSpec{
 			Name:    "test",
 			Recycle: true,
 		},
-		execer: exec.NewFakeExecer(nil),
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"cluster-info", "--context", "kind-test"}},
+		},
 	}, {
 		desc: "unable to find kind cli",
 		k: &KindSpec{
@@ -69,7 +88,9 @@ func TestKindSpec(t *testing.T) {
 		k: &KindSpec{
 			Name: "test",
 		},
-		execer:  exec.NewFakeExecer(errors.New("cmd failed")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}, Err: "failed to create cluster"},
+		},
 		wantErr: "failed to create cluster",
 	}, {
 		desc: "create cluster with GAR - 1 reg",
@@ -77,29 +98,59 @@ func TestKindSpec(t *testing.T) {
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
+			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}},
+		},
 	}, {
 		desc: "create cluster with GAR - 2 regs",
 		k: &KindSpec{
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev", "us-central1-docker.pkg.dev"},
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-central1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
+			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}},
+		},
+	}, {
+		desc: "create cluster with GAR - failed to get creds",
+		k: &KindSpec{
+			Name:                     "test",
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+		},
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
+		findCredsErr: true,
+		wantErr:      "failed to find gcloud credentials",
 	}, {
 		desc: "create cluster with GAR - failed to get access token",
 		k: &KindSpec{
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
-		execer:  exec.NewFakeExecer(nil, errors.New("failed to get access token")),
-		wantErr: "failed to get access token",
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
+		tokenSourceErr: true,
+		wantErr:        "unable to generate token",
 	}, {
 		desc: "create cluster with GAR - failed docker login",
 		k: &KindSpec{
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, errors.New("failed to login to docker")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}, Err: "failed to login to docker"},
+		},
 		wantErr: "failed to login to docker",
 	}, {
 		desc: "create cluster with GAR - failed to get nodes",
@@ -107,7 +158,11 @@ func TestKindSpec(t *testing.T) {
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("failed to get nodes")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}, Err: "failed to get nodes"},
+		},
 		wantErr: "failed to get nodes",
 	}, {
 		desc: "create cluster with GAR - failed to cp config to node",
@@ -115,7 +170,12 @@ func TestKindSpec(t *testing.T) {
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, nil, errors.New("failed to cp config to node")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}, Err: "failed to cp config to node"},
+		},
 		wantErr: "failed to cp config to node",
 	}, {
 		desc: "create cluster with GAR - failed to restart kubelet",
@@ -123,7 +183,13 @@ func TestKindSpec(t *testing.T) {
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, errors.New("failed to restart kubelet")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
+			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}, Err: "failed to restart kubelet"},
+		},
 		wantErr: "failed to restart kubelet",
 	}, {
 		desc: "create cluster load containers",
@@ -139,7 +205,17 @@ func TestKindSpec(t *testing.T) {
 			Kubecfg:        "kubecfg.yaml",
 			KindConfigFile: "test.yaml",
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", "foo:latest", "--retain", "--wait", "180ns", "--kubeconfig", "kubecfg.yaml", "--config", "test.yaml"}},
+
+			{Cmd: "docker", Args: []string{"pull", "docker"}, OutOfOrder: true},
+			{Cmd: "docker", Args: []string{"tag", "docker", "local"}, OutOfOrder: true},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "local", "--name", "test"}, OutOfOrder: true},
+
+			{Cmd: "docker", Args: []string{"pull", "gar"}, OutOfOrder: true},
+			{Cmd: "docker", Args: []string{"tag", "gar", "docker"}, OutOfOrder: true},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "docker", "--name", "test"}, OutOfOrder: true},
+		},
 	}, {
 		desc: "create cluster load containers additional manifests",
 		k: &KindSpec{
@@ -158,7 +234,17 @@ func TestKindSpec(t *testing.T) {
 				"baz:latest",
 			},
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil, nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", "foo:latest", "--retain", "--wait", "180ns", "--kubeconfig", "kubecfg.yaml", "--config", "test.yaml"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "bar:latest"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "baz:latest"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "local", "--name", "test"}, OutOfOrder: true},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "docker", "--name", "test"}, OutOfOrder: true},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, OutOfOrder: true},
+			{Cmd: "docker", Args: []string{"tag", "docker", "local"}, OutOfOrder: true},
+			{Cmd: "docker", Args: []string{"pull", "gar"}, OutOfOrder: true},
+			{Cmd: "docker", Args: []string{"tag", "gar", "docker"}, OutOfOrder: true},
+		},
 	}, {
 		desc: "failed create cluster load containers additional manifests",
 		k: &KindSpec{
@@ -177,7 +263,11 @@ func TestKindSpec(t *testing.T) {
 				"baz:latest",
 			},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, fmt.Errorf("manifest error")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", "foo:latest", "--retain", "--wait", "180ns", "--kubeconfig", "kubecfg.yaml", "--config", "test.yaml"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "bar:latest"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "baz:latest"}, Err: "failed to deploy manifest"},
+		},
 		wantErr: "failed to deploy manifest",
 	}, {
 		desc: "create cluster load containers - failed pull",
@@ -187,7 +277,10 @@ func TestKindSpec(t *testing.T) {
 				"docker": "local",
 			},
 		},
-		execer:  exec.NewFakeExecer(nil, errors.New("unable to pull")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
+		},
 		wantErr: "failed to pull",
 	}, {
 		desc: "create cluster load containers - failed tag",
@@ -197,7 +290,11 @@ func TestKindSpec(t *testing.T) {
 				"docker": "local",
 			},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, errors.New("unable to tag")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"pull", "docker"}},
+			{Cmd: "docker", Args: []string{"tag", "docker", "local"}, Err: "failed to tag"},
+		},
 		wantErr: "failed to tag",
 	}, {
 		desc: "create cluster load containers - failed load",
@@ -207,7 +304,12 @@ func TestKindSpec(t *testing.T) {
 				"docker": "local",
 			},
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, errors.New("unable to load")),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"pull", "docker"}},
+			{Cmd: "docker", Args: []string{"tag", "docker", "local"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "local", "--name", "test"}, Err: "failed to load"},
+		},
 		wantErr: "failed to load",
 	}, {
 		desc: "create cluster load containers - failed empty key",
@@ -217,7 +319,9 @@ func TestKindSpec(t *testing.T) {
 				"": "local",
 			},
 		},
-		execer:  exec.NewFakeExecer(nil),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
 		wantErr: "source container must not be empty",
 	}, {
 		desc: "create cluster load containers - success empty value",
@@ -227,7 +331,11 @@ func TestKindSpec(t *testing.T) {
 				"docker": "",
 			},
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"pull", "docker"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "docker", "--name", "test"}},
+		},
 	}, {
 		desc: "failed kind version - no prefix",
 		k: &KindSpec{
@@ -269,7 +377,9 @@ func TestKindSpec(t *testing.T) {
 			Name:    "test",
 			Version: "v0.15.0",
 		},
-		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v0.14.0 go1.18.2 linux/amd64"}),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.14.0 go1.18.2 linux/amd64", Err: "kind version check failed: got v0.14.0, want v0.15.0"},
+		},
 		wantErr: "kind version check failed: got v0.14.0, want v0.15.0",
 	}, {
 		desc: "failed kind version exec fail",
@@ -277,7 +387,9 @@ func TestKindSpec(t *testing.T) {
 			Name:    "test",
 			Version: "v0.15.0",
 		},
-		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Err: fmt.Errorf("exec error")}),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Err: "failed to get kind version: exec error"},
+		},
 		wantErr: "failed to get kind version: exec error",
 	}, {
 		desc: "failed kind version parse",
@@ -285,7 +397,9 @@ func TestKindSpec(t *testing.T) {
 			Name:    "test",
 			Version: "v0.15.0",
 		},
-		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind "}),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind "},
+		},
 		wantErr: "failed to parse kind version from",
 	}, {
 		desc: "failed kind version got fail parse",
@@ -293,7 +407,9 @@ func TestKindSpec(t *testing.T) {
 			Name:    "test",
 			Version: "v0.15.0",
 		},
-		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind 0.14.0 go1.18.2 linux/amd64"}),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind 0.14.0 go1.18.2 linux/amd64"},
+		},
 		wantErr: "kind version check failed: missing prefix on major version",
 	}, {
 		desc: "kind version pass",
@@ -301,38 +417,53 @@ func TestKindSpec(t *testing.T) {
 			Name:    "test",
 			Version: "v0.15.0",
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
-		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v0.15.0 go1.18.2 linux/amd64"}),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.15.0 go1.18.2 linux/amd64"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
 	}, {
 		desc: "kind version pass - major",
 		k: &KindSpec{
 			Name:    "test",
 			Version: "v0.15.0",
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
-		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v1.15.0 go1.18.2 linux/amd64"}),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v1.15.0 go1.18.2 linux/amd64"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
 	}, {
 		desc: "kind version pass - patch",
 		k: &KindSpec{
 			Name:    "test",
 			Version: "v0.15.0",
 		},
-		execer:  exec.NewFakeExecer(nil, nil, nil, nil, nil, nil, nil),
-		vExecer: exec.NewFakeExecerWithIO(vOut, vOut, exec.Response{Stdout: "kind v0.15.1 go1.18.2 linux/amd64"}),
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.15.1 go1.18.2 linux/amd64"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			if tt.execer != nil {
-				execer = tt.execer
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
 			}
-			if tt.vExecer != nil {
-				vExec = tt.vExecer
-			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
 			execLookPath = func(_ string) (string, error) {
 				if tt.execPathErr {
 					return "", errors.New("unable to find on path")
 				}
 				return "fakePath", nil
+			}
+			googleFindDefaultCredentials = func(_ context.Context, _ ...string) (*google.Credentials, error) {
+				if tt.findCredsErr {
+					return nil, errors.New("unable to find default credentials")
+				}
+				return &google.Credentials{TokenSource: &fakeTokenSource{tokenErr: tt.tokenSourceErr}}, nil
 			}
 			err := tt.k.Deploy(ctx)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
@@ -340,6 +471,17 @@ func TestKindSpec(t *testing.T) {
 			}
 		})
 	}
+}
+
+type fakeTokenSource struct {
+	tokenErr bool
+}
+
+func (f *fakeTokenSource) Token() (*oauth2.Token, error) {
+	if f.tokenErr {
+		return nil, errors.New("unable to generate token")
+	}
+	return &oauth2.Token{AccessToken: fakeAccessToken}, nil
 }
 
 type fakeWatch struct {
@@ -429,7 +571,7 @@ func TestMetalLBSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		m           *MetalLBSpec
-		execer      execerInterface
+		resp        []fexec.Response
 		wantConfig  *metallbv1.IPAddressPool
 		dErr        string
 		hErr        string
@@ -443,14 +585,18 @@ func TestMetalLBSpec(t *testing.T) {
 		m: &MetalLBSpec{
 			IPCount: 20,
 		},
-		execer: exec.NewFakeExecer(errors.New("namespace error")),
-		dErr:   "namespace error",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "namespace error"},
+		},
+		dErr: "namespace error",
 	}, {
 		desc: "secret create",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
 		m: &MetalLBSpec{
 			IPCount: 20,
 		},
-		execer: exec.NewFakeExecer(nil, nil),
 		mockKClient: func(k *fake.Clientset) {
 			k.CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("get", "secrets", func(action ktest.Action) (handled bool, ret runtime.Object, err error) {
 				return true, nil, fmt.Errorf("get secret error")
@@ -465,7 +611,6 @@ func TestMetalLBSpec(t *testing.T) {
 		m: &MetalLBSpec{
 			IPCount: 20,
 		},
-		execer: exec.NewFakeExecer(errors.New("metallb error")),
 		k8sObjects: []runtime.Object{
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -474,13 +619,15 @@ func TestMetalLBSpec(t *testing.T) {
 				},
 			},
 		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "metallb error"},
+		},
 		dErr: "metallb error",
 	}, {
 		desc: "canceled ctx",
 		m: &MetalLBSpec{
 			IPCount: 20,
 		},
-		execer: exec.NewFakeExecer(nil, nil),
 		k8sObjects: []runtime.Object{
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -529,14 +676,16 @@ func TestMetalLBSpec(t *testing.T) {
 			}
 			k.PrependWatchReactor("deployments", reaction)
 		},
-		ctx:  canceledCtx,
+		ctx: canceledCtx,
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
 		hErr: "context canceled",
 	}, {
 		desc: "dclient error",
 		m: &MetalLBSpec{
 			IPCount: 20,
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil),
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
 			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("dclient error"))
 		},
@@ -577,13 +726,18 @@ func TestMetalLBSpec(t *testing.T) {
 			}
 			k.PrependWatchReactor("deployments", reaction)
 		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
 		dErr: "dclient error",
 	}, {
 		desc: "valid deployment",
 		m: &MetalLBSpec{
 			IPCount: 20,
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
 		wantConfig: &metallbv1.IPAddressPool{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "IPAddressPool",
@@ -638,12 +792,76 @@ func TestMetalLBSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
+		desc: "valid deployment - manifest data instead of file",
+		m: &MetalLBSpec{
+			ManifestData: []byte("a fake manifest"),
+			IPCount:      20,
+		},
+		wantConfig: &metallbv1.IPAddressPool{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "IPAddressPool",
+				APIVersion: "metallb.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kne-service-pool",
+				Namespace: "metallb-system",
+			},
+			Spec: metallbv1.IPAddressPoolSpec{
+				Addresses: []string{"192.18.0.50 - 192.18.0.70"},
+			},
+		},
+		mockExpects: func(m *mocks.MockNetworkAPIClient) {
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+		},
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "metallb-system",
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+		},
+	}, {
 		desc: "valid deployment - kind",
 		m: &MetalLBSpec{
 			IPCount:                   20,
 			dockerNetworkResourceName: "kind",
 		},
-		execer: exec.NewFakeExecer(nil, nil, nil),
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
 		wantConfig: &metallbv1.IPAddressPool{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "IPAddressPool",
@@ -700,6 +918,15 @@ func TestMetalLBSpec(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
 			tt.k8sObjects = append(tt.k8sObjects, d)
 			ki := fake.NewSimpleClientset(tt.k8sObjects...)
 			if tt.mockKClient != nil {
@@ -717,9 +944,7 @@ func TestMetalLBSpec(t *testing.T) {
 				tt.mockExpects(m)
 				tt.m.dClient = m
 			}
-			if tt.execer != nil {
-				execer = tt.execer
-			}
+
 			err = tt.m.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -777,30 +1002,50 @@ func TestMeshnetSpec(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		desc   string
-		m      *MeshnetSpec
-		execer execerInterface
-		dErr   string
-		hErr   string
-		ctx    context.Context
+		desc string
+		m    *MeshnetSpec
+		resp []fexec.Response
+		dErr string
+		hErr string
+		ctx  context.Context
 	}{{
-		desc:   "apply error cluster",
-		m:      &MeshnetSpec{},
-		execer: exec.NewFakeExecer(errors.New("apply error")),
-		dErr:   "apply error",
+		desc: "apply error cluster",
+		m:    &MeshnetSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "apply error"},
+		},
+		dErr: "apply error",
 	}, {
-		desc:   "canceled ctx",
-		m:      &MeshnetSpec{},
-		execer: exec.NewFakeExecer(nil),
-		ctx:    canceledCtx,
-		hErr:   "context canceled",
+		desc: "canceled ctx",
+		m:    &MeshnetSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+		ctx:  canceledCtx,
+		hErr: "context canceled",
 	}, {
-		desc:   "valid deployment",
-		m:      &MeshnetSpec{},
-		execer: exec.NewFakeExecer(nil),
+		desc: "valid deployment",
+		m:    &MeshnetSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+	}, {
+		desc: "valid deployment - manifest data over file",
+		m: &MeshnetSpec{
+			ManifestData: []byte("fake manifest data"),
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+
 			ki := fake.NewSimpleClientset(d)
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -834,9 +1079,9 @@ func TestMeshnetSpec(t *testing.T) {
 			}
 			ki.PrependWatchReactor("daemonsets", reaction)
 			tt.m.SetKClient(ki)
-			if tt.execer != nil {
-				execer = tt.execer
-			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
 			err := tt.m.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -870,16 +1115,22 @@ func TestIxiaTGSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		i           *IxiaTGSpec
-		execer      execerInterface
+		resp        []fexec.Response
 		dErr        string
 		hErr        string
-		cmNotFound  bool
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc:   "configmap file found - 2 replicas",
-		i:      &IxiaTGSpec{},
-		execer: exec.NewFakeExecer(nil, nil),
+		desc: "2 replicas",
+		i: &IxiaTGSpec{
+			Operator:  "/path/to/operator.yaml",
+			ConfigMap: "/path/to/configmap.yaml",
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "/path/to/operator.yaml"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "/path/to/configmap.yaml"}},
+		},
+
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -924,18 +1175,69 @@ func TestIxiaTGSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc: "configmap specified - 1 replica",
+		desc: "1 replica - data over files",
 		i: &IxiaTGSpec{
-			ConfigMap: &IxiaTGConfigMap{
-				Release: "from-arg",
-				Images: []*IxiaTGImage{{
-					Name: "controller",
-					Path: "some/path",
-					Tag:  "latest",
-				}},
-			},
+			OperatorData:  []byte("some fake data"),
+			ConfigMapData: []byte("some fake data"),
 		},
-		execer: exec.NewFakeExecer(nil, nil),
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+		},
+	}, {
+		desc: "no operator",
+		i: &IxiaTGSpec{
+			ConfigMap: "/path/to/configmap.yaml",
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "no operator file found"},
+		},
+		dErr: "no operator file found",
+	}, {
+		desc: "no configmap",
+		i: &IxiaTGSpec{
+			Operator: "/path/to/operator.yaml",
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "/path/to/operator.yaml"}},
+		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -974,90 +1276,49 @@ func TestIxiaTGSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:       "no configmap",
-		i:          &IxiaTGSpec{},
-		cmNotFound: true,
-		execer:     exec.NewFakeExecer(nil, nil),
-		mockKClient: func(k *fake.Clientset) {
-			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-				f := newFakeWatch([]watch.Event{{
-					Type: watch.Added,
-					Object: &appsv1.Deployment{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      deploymentName,
-							Namespace: deploymentNS,
-						},
-						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   0,
-							ReadyReplicas:       0,
-							Replicas:            0,
-							UnavailableReplicas: 1,
-							UpdatedReplicas:     0,
-						},
-					},
-				}, {
-					Type: watch.Modified,
-					Object: &appsv1.Deployment{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      deploymentName,
-							Namespace: deploymentNS,
-						},
-						Status: appsv1.DeploymentStatus{
-							AvailableReplicas:   1,
-							ReadyReplicas:       1,
-							Replicas:            1,
-							UnavailableReplicas: 0,
-							UpdatedReplicas:     1,
-						},
-					},
-				}})
-				return true, f, nil
-			}
-			k.PrependWatchReactor("deployments", reaction)
+		desc: "operator deploy error",
+		i:    &IxiaTGSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "failed to apply operator"},
 		},
-	}, {
-		desc:   "operator deploy error",
-		i:      &IxiaTGSpec{},
-		execer: exec.NewFakeExecer(errors.New("failed to apply operator")),
-		dErr:   "failed to apply operator",
+
+		dErr: "failed to apply operator",
 	}, {
 		desc: "configmap deploy error",
 		i: &IxiaTGSpec{
-			ConfigMap: &IxiaTGConfigMap{
-				Release: "from-arg",
-				Images: []*IxiaTGImage{{
-					Name: "controller",
-					Path: "some/path",
-					Tag:  "latest",
-				}},
-			},
+			ConfigMap: "/path/to/configmap.yaml",
 		},
-		execer: exec.NewFakeExecer(nil, errors.New("failed to apply configmap")),
-		dErr:   "failed to apply configmap",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "/path/to/configmap.yaml"}, Err: "failed to apply configmap"},
+		},
+		dErr: "failed to apply configmap",
 	}, {
-		desc:   "context canceled",
-		i:      &IxiaTGSpec{},
-		execer: exec.NewFakeExecer(nil, nil),
-		ctx:    canceledCtx,
-		hErr:   "context canceled",
+		desc: "context canceled",
+		i:    &IxiaTGSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+		ctx:  canceledCtx,
+		hErr: "context canceled",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
 			ki := fake.NewSimpleClientset(d)
 			if tt.mockKClient != nil {
 				tt.mockKClient(ki)
 			}
 			tt.i.SetKClient(ki)
-			if tt.execer != nil {
-				execer = tt.execer
-			}
-			var cmNotFoundErr error
-			if tt.cmNotFound {
-				cmNotFoundErr = errors.New("file not found")
-			}
-			osStat = func(_ string) (os.FileInfo, error) {
-				return nil, cmNotFoundErr
-			}
+
 			err := tt.i.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -1091,15 +1352,17 @@ func TestSRLinuxSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		srl         *SRLinuxSpec
-		execer      execerInterface
+		resp        []fexec.Response
 		dErr        string
 		hErr        string
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc:   "1 replica",
-		srl:    &SRLinuxSpec{},
-		execer: exec.NewFakeExecer(nil),
+		desc: "1 replica",
+		srl:  &SRLinuxSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -1138,9 +1401,14 @@ func TestSRLinuxSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:   "2 replicas",
-		srl:    &SRLinuxSpec{},
-		execer: exec.NewFakeExecer(nil),
+		desc: "2 replicas - data over file",
+		srl: &SRLinuxSpec{
+			OperatorData: []byte("some fake data"),
+		},
+		resp: []fexec.Response{
+			// BUG: Should check to see if the file has the right contents
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -1185,27 +1453,38 @@ func TestSRLinuxSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:   "operator deploy error",
-		srl:    &SRLinuxSpec{},
-		execer: exec.NewFakeExecer(errors.New("failed to apply operator")),
-		dErr:   "failed to apply operator",
+		desc: "operator deploy error",
+		srl:  &SRLinuxSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "failed to apply operator"},
+		},
+		dErr: "failed to apply operator",
 	}, {
-		desc:   "context canceled",
-		srl:    &SRLinuxSpec{},
-		execer: exec.NewFakeExecer(nil),
-		ctx:    canceledCtx,
-		hErr:   "context canceled",
+		desc: "context canceled",
+		srl:  &SRLinuxSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+		ctx:  canceledCtx,
+		hErr: "context canceled",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
 			ki := fake.NewSimpleClientset(d)
 			if tt.mockKClient != nil {
 				tt.mockKClient(ki)
 			}
 			tt.srl.SetKClient(ki)
-			if tt.execer != nil {
-				execer = tt.execer
-			}
+
 			err := tt.srl.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -1239,15 +1518,18 @@ func TestCEOSLabSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		ceos        *CEOSLabSpec
-		execer      execerInterface
+		resp        []fexec.Response
 		dErr        string
 		hErr        string
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc:   "1 replica",
-		ceos:   &CEOSLabSpec{},
-		execer: exec.NewFakeExecer(nil),
+		desc: "1 replica",
+		ceos: &CEOSLabSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -1286,9 +1568,13 @@ func TestCEOSLabSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:   "2 replicas",
-		ceos:   &CEOSLabSpec{},
-		execer: exec.NewFakeExecer(nil),
+		desc: "2 replicas - data over file",
+		ceos: &CEOSLabSpec{
+			OperatorData: []byte("some fake data"),
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -1333,27 +1619,39 @@ func TestCEOSLabSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:   "operator deploy error",
-		ceos:   &CEOSLabSpec{},
-		execer: exec.NewFakeExecer(errors.New("failed to apply operator")),
-		dErr:   "failed to apply operator",
+		desc: "operator deploy error",
+		ceos: &CEOSLabSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "failed to apply operator"},
+		},
+
+		dErr: "failed to apply operator",
 	}, {
-		desc:   "context canceled",
-		ceos:   &CEOSLabSpec{},
-		execer: exec.NewFakeExecer(nil),
-		ctx:    canceledCtx,
-		hErr:   "context canceled",
+		desc: "context canceled",
+		ceos: &CEOSLabSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+
+		ctx:  canceledCtx,
+		hErr: "context canceled",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
 			ki := fake.NewSimpleClientset(d)
 			if tt.mockKClient != nil {
 				tt.mockKClient(ki)
 			}
 			tt.ceos.SetKClient(ki)
-			if tt.execer != nil {
-				execer = tt.execer
-			}
 			err := tt.ceos.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -1387,7 +1685,7 @@ func TestLemmingSpec(t *testing.T) {
 	tests := []struct {
 		desc        string
 		lemming     *LemmingSpec
-		execer      execerInterface
+		resp        []fexec.Response
 		dErr        string
 		hErr        string
 		ctx         context.Context
@@ -1395,7 +1693,10 @@ func TestLemmingSpec(t *testing.T) {
 	}{{
 		desc:    "1 replica",
 		lemming: &LemmingSpec{},
-		execer:  exec.NewFakeExecer(nil),
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -1434,9 +1735,13 @@ func TestLemmingSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:    "2 replicas",
-		lemming: &LemmingSpec{},
-		execer:  exec.NewFakeExecer(nil),
+		desc: "2 replicas - data over file",
+		lemming: &LemmingSpec{
+			OperatorData: []byte("some fake data"),
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 				f := newFakeWatch([]watch.Event{{
@@ -1483,25 +1788,37 @@ func TestLemmingSpec(t *testing.T) {
 	}, {
 		desc:    "operator deploy error",
 		lemming: &LemmingSpec{},
-		execer:  exec.NewFakeExecer(errors.New("failed to apply operator")),
-		dErr:    "failed to apply operator",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "failed to apply operator"},
+		},
+
+		dErr: "failed to apply operator",
 	}, {
 		desc:    "context canceled",
 		lemming: &LemmingSpec{},
-		execer:  exec.NewFakeExecer(nil),
-		ctx:     canceledCtx,
-		hErr:    "context canceled",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+
+		ctx:  canceledCtx,
+		hErr: "context canceled",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
 			ki := fake.NewSimpleClientset(d)
 			if tt.mockKClient != nil {
 				tt.mockKClient(ki)
 			}
 			tt.lemming.SetKClient(ki)
-			if tt.execer != nil {
-				execer = tt.execer
-			}
 			err := tt.lemming.Deploy(context.Background())
 			if s := errdiff.Substring(err, tt.dErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
@@ -1517,5 +1834,12 @@ func TestLemmingSpec(t *testing.T) {
 				t.Fatalf("unexpected error: %s", s)
 			}
 		})
+	}
+}
+
+func checkCmds(t *testing.T, cmds *fexec.Command) {
+	t.Helper()
+	if err := cmds.Done(); err != nil {
+		t.Errorf("%v", err)
 	}
 }

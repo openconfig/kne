@@ -17,7 +17,7 @@ all: docker
 ## Run unit tests
 ## Ignore all tests under the cloudbuild/ tree as these targets are end-to-end
 test:
-	go test `go list ./... | grep -v /cloudbuild/`
+	go test `go list ./... | grep -v /cloudbuild`
 
 ## Targets below are for integration testing only
 

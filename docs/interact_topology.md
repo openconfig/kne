@@ -1,71 +1,99 @@
 # Interact with a KNE topology
 
 This is part of the How-To guide collection. This guide covers how to interact
-with a KNE topology after creation.
+with a KNE topology after creation. All of these sections are optional and are
+meant as a demonstration for various things that can be done with KNE. The
+specific examples included assume the multivendor topology was created following
+the [Create Topology How-To](create_topology.md#create-a-topology).
 
 ## Push config
 
 The `kne topology push` command can be used to push configuration to a node in a
-topology. For example:
+topology. If a config file was specified in the
+[topology textproto](https://github.com/openconfig/kne/blob/main/examples/multivendor/multivendor.pb.txt#L10),
+then an initial config will be pushed during topology creation and a manual push
+is not required unless a config change is desired. For example:
 
 ```bash
-kne topology push examples/3node-ceos.pb.txt r1 examples/ceos-withtraffic/r1-config
+kne topology push examples/multivendor/multivendor.pb.txt r1 examples/multivendor/r1.ceos.cfg
 ```
-
-> TIP: Specify the config file in the [topology
-> textproto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/examples/3node-withtraffic.pb.txt#L8)
-> so initial config will be pushed during topology creation.
 
 ## SSH to pod
 
-### Configure access
+### Find the service external IP
 
-> TIP: This step is not needed if config with user/pass was already pushed.
-
-Configuring access is vendor specific, the following is for an Arista `cEOS`
-node `r1` in a topology called `3node-ceos`:
+Run `kubectl get services`:
 
 ```bash
-$ kubectl exec -it -n 3node-ceos r1 -- Cli
-  enable
-  config t
-  username admin privilege 15 role root secret admin
-  write
+$ kubectl get services -n multivendor
+NAME                           TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                                      AGE
+service-gnmi-otg-controller    LoadBalancer   10.96.179.48    192.168.11.55   50051:30901/TCP                              4m9s
+service-grpc-otg-controller    LoadBalancer   10.96.33.245    192.168.11.56   40051:30449/TCP                              4m9s
+service-https-otg-controller   LoadBalancer   10.96.215.225   192.168.11.54   443:32556/TCP                                4m9s
+service-otg-port-eth1          LoadBalancer   10.96.82.37     192.168.11.58   5555:30886/TCP,50071:30286/TCP               4m9s
+service-otg-port-eth2          LoadBalancer   10.96.204.154   192.168.11.59   5555:31326/TCP,50071:31860/TCP               4m9s
+service-otg-port-eth3          LoadBalancer   10.96.136.253   192.168.11.60   5555:30181/TCP,50071:31619/TCP               4m9s
+service-otg-port-eth4          LoadBalancer   10.96.205.227   192.168.11.57   5555:32636/TCP,50071:31247/TCP               4m9s
+service-r1                     LoadBalancer   10.96.130.198   192.168.11.50   443:32101/TCP,22:32304/TCP,6030:32011/TCP    4m12s
+service-r2                     LoadBalancer   10.96.107.2     192.168.11.51   443:31942/TCP,22:30785/TCP,57400:30921/TCP   4m11s
+service-r3                     LoadBalancer   10.96.80.18     192.168.11.52   22:32410/TCP                                 4m11s
+service-r4                     LoadBalancer   10.96.138.204   192.168.11.53   22:31932/TCP,50051:32666/TCP                 4m10s
 ```
 
-### Connect via the external IP
+In this case we will use `r1` as an example which corresponds to
+`192.168.11.50`.
 
-> TIP: For the default configs found in the [KNE GitHub
-> repo](https://github.com/openconfig/kne/tree/main/examples) the
-> username/passwords can be found in the config files. Often times the password
-> is written as a hash. Try `admin` as a username or password if unknown.
+### Find the credentials
+
+Ask the vendor of a given node to determine the default username/password. For this multivendor
+example, the `r1` Arista node has username/password of `admin`/`admin`.
+
+### SSH
 
 ```bash
-ssh <username>@<service ip>
+ssh <username>@<service external ip>
 ```
 
-Here is an example based on the configured Arista `cEOS` node configured in the
-previous section:
+Here is an example for node `r1`:
 
 ```bash
-$ ssh admin@192.168.18.100
-(admin@192.168.18.100) Password: <admin>
-
-r1>show ip route
-
-VRF: default Codes: C - connected, S - static, K - kernel, \
-O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1, \
-E2 - OSPF external type 2, N1 - OSPF NSSA external type 1, \
-N2 - OSPF NSSA external type2, B - BGP, B I - iBGP, B E - eBGP, \
-R - RIP, I L1 - IS-IS level 1, I L2 - IS-IS level 2, \
-O3 - OSPFv3, A B - BGP Aggregate, A O - OSPF Summary, \
-NG - Nexthop Group Static Route, V - VXLAN Control Service, \
-DH - DHCP client installed default route, M - Martian, \
-DP - Dynamic Policy Route, L - VRF Leaked, \
-RC - Route Cache Route \
-Gateway of last resort is not set \
-! IP routing not enabled \
+$ ssh admin@192.168.11.50
+(admin@192.168.11.50) Password: <admin>
 ```
+
+<details>
+<summary>WARNING: You may need to configure your SSH config to allow SSHing without a proxy.</summary>
+
+1. Get the IP range used by KNE services:
+
+    ```bash
+    $ kubectl get services -n multivendor
+    NAME                           TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                                      AGE
+    service-gnmi-otg-controller    LoadBalancer   10.96.179.48    192.168.11.55   50051:30901/TCP                              4m9s
+    service-grpc-otg-controller    LoadBalancer   10.96.33.245    192.168.11.56   40051:30449/TCP                              4m9s
+    service-https-otg-controller   LoadBalancer   10.96.215.225   192.168.11.54   443:32556/TCP                                4m9s
+    service-otg-port-eth1          LoadBalancer   10.96.82.37     192.168.11.58   5555:30886/TCP,50071:30286/TCP               4m9s
+    service-otg-port-eth2          LoadBalancer   10.96.204.154   192.168.11.59   5555:31326/TCP,50071:31860/TCP               4m9s
+    service-otg-port-eth3          LoadBalancer   10.96.136.253   192.168.11.60   5555:30181/TCP,50071:31619/TCP               4m9s
+    service-otg-port-eth4          LoadBalancer   10.96.205.227   192.168.11.57   5555:32636/TCP,50071:31247/TCP               4m9s
+    service-r1                     LoadBalancer   10.96.130.198   192.168.11.50   443:32101/TCP,22:32304/TCP,6030:32011/TCP    4m12s
+    service-r2                     LoadBalancer   10.96.107.2     192.168.11.51   443:31942/TCP,22:30785/TCP,57400:30921/TCP   4m11s
+    service-r3                     LoadBalancer   10.96.80.18     192.168.11.52   22:32410/TCP                                 4m11s
+    service-r4                     LoadBalancer   10.96.138.204   192.168.11.53   22:31932/TCP,50051:32666/TCP                 4m10s
+    ```
+
+    In this case the IP range would be `192.168.11.*`.
+
+1. Edit your SSH config found at `~/.ssh/config` to include:
+
+    ```bash
+    Host 192.168.11.*
+        UserKnownHostsFile /dev/null
+        StrictHostKeyChecking no
+        ProxyCommand none
+    ```
+
+</details>
 
 ## gNMI
 
@@ -95,45 +123,226 @@ Authorization required: no
 Notification timestamp: last change time
 ```
 
-### Using gNMI
+## OpenConfig services
 
-Install a gNMI command line tool of your preference. We will be using the open
-source `gnmi_cli` tool for the examples in this doc. Install by running the
-following command:
+### Enabling the services
 
-```bash
-go install github.com/openconfig/gnmi/cmd/gnmi_cli@latest
-```
-
-gNMI should be running on your nodes on the default port (6030), so you can
-connect directly using `gnmi_cli`:
-
-> NOTE: The `--tls_skip_verify` flag is important, because our self-signed keys
-> cannot be verified.
+Regardless of the vendor, the topology file should expose the service like the
+following gNMI example:
 
 ```bash
-export GNMI_USER=admin
-export GNMI_PASS=admin
-gnmi_cli -a 192.168.18.100:6030 -q "/interfaces/interface/state" -tls_skip_verify -with_user_pass
+nodes: {
+    ...
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: <VENDOR SPECIFIC gNMI PORT>
+        }
+    }
+}
 ```
 
-### gNMI over gRPC in go
+This will configure the node to expose `gnmi` on port `9339` externally
+regardless of which port the gNMI server is running on inside the container.
+
+<details>
+<summary><h4>Arista</h4></summary>
+
+gNMI is enabled for Arista node `r1` in the multivendor node by default.
+Outlined below are the key pieces for configuring gNMI in general.
+
+##### Config
+
+Ensure the following snippet is included in the device config:
+
+```bash
+management api gnmi
+   transport grpc default
+      ssl profile octa-ssl-profile
+   provider eos-native
+!
+management security
+   ssl profile eapi
+      tls versions 1.2
+      cipher-list EECDH+AESGCM:EDH+AESGCM
+      certificate gnmiCert.pem key gnmiCertKey.pem
+   !
+   ssl profile octa-ssl-profile
+      certificate gnmiCert.pem key gnmiCertKey.pem
+!
+```
+
+##### Topology
+
+```bash
+nodes: {
+    ...
+    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        ...
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 6030
+        }
+    }
+}
+```
+
+##### Verification
+
+Open a `Cli` on an Arista node to confirm that gNMI is running properly:
+
+```bash
+$ kubectl exec -it -n multivendor r1 -- Cli
+r1>en
+r1#show management security ssl profile
+   Profile                      State
+---------------------------- -----------
+   octa-ssl-profile             valid
+   ARISTA_DEFAULT_PROFILE       valid
+
+r1#show management api gnmi
+Octa: enabled
+Transport: ssl
+Enabled: yes
+Server: running on port 6030, in default VRF
+SSL profile: octa-ssl-profile
+QoS DSCP: none
+Authorization required: no
+Notification timestamp: last change time
+```
+
+</details>
+
+<details>
+<summary><h4>Cisco</h4></summary>
+
+See the external 8000e with services
+[README](https://github.com/openconfig/kne/blob/main/examples/cisco/8000e/README.md).
+
+</details>
+
+<details>
+<summary><h4>Nokia</h4></summary>
+
+See the external SR Linux
+[guide](http://learn.srlinux.dev/tutorials/infrastructure/kne/srl-with-oc-services/).
+
+</details>
+
+<details>
+<summary><h4>Juniper</h4></summary>
+
+See the external cptx with services
+[README](https://github.com/openconfig/kne/blob/main/examples/juniper/cptx-ixia/README.md).
+
+</details>
+
+### Using OpenConfig g* services
+
+#### Using the CLI
+
+<details>
+<summary><h5>gNMI</h5></summary>
+
+Install the `gNMIc` command line tool:
+
+```bash
+bash -c "$(curl -sL https://get-gnmic.openconfig.net)"
+```
+
+gNMI should be running on your nodes on port `9339`, so you can connect directly
+using `gnmic`:
+
+> TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
+
+> NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
+
+```bash
+gnmic subscribe -a <external-ip>:9339 --path /components --skip-verify -u <username> -p <password> --format flat
+```
+
+</details>
+
+<details>
+<summary><h5>gNOI</h5></summary>
+
+Install the `gNOIc` command line tool:
+
+```bash
+bash -c "$(curl -sL https://get-gnoic.openconfig.net)"
+```
+
+gNOI should be running on your nodes on port `9337`, so you can connect directly
+using `gnoic`:
+
+> TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
+
+> NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
+
+```bash
+gnoic system time -a <external-ip>:9337 --skip-verify -u <username> -p <password>
+```
+
+</details>
+
+<details>
+<summary><h5>gRIBI</h5></summary>
+
+Install the `gRIBIc` command line tool:
+
+```bash
+bash -c "$(curl -sL https://get-gribic.openconfig.net)"
+```
+
+gRIBI should be running on your nodes on port `9340`, so you can connect
+directly using `gribic`:
+
+> TIP: The service external IP can be found using the [guide above](#find-the-service-external-ip).
+
+> NOTE: The `--skip-verify` flag is important, because our self-signed keys cannot be verified.
+
+```bash
+gribic -a <external-ip>:9340 --skip-verify -u <username> -p <password> get -ns DEFAULT -aft ipv4
+```
+
+</details>
+
+#### Using Golang
+
+> NOTE: This example uses gNMI, but the other services are very similar.
 
 To dial in from Go (if you're not using Ondatra), you need to set your grpc
-connection to skip verifying TLS certificates. Also, per the [gNMI public
-specification](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#31-session-security-authentication-and-rpc-authorization),
+connection to skip verifying TLS certificates. Also, per the
+[gNMI public specification](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#31-session-security-authentication-and-rpc-authorization),
 gNMI expects that the username and password will be passed in via the metadata.
 Golang usage therefore looks like:
 
 ```go
 import (
-    "google3/third_party/golang/grpc/grpc"
-    "google3/third_party/golang/grpc/metadata/metadata"
+    ...
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/metadata"
+    gpb "github.com/openconfig/gnmi/proto/gnmi"
     ...
 )
 
 func someFunc(ctx context.Context) {
-    ctx = metadata.AppendToOutgoingContext(ctx, "username", "somename", "password", "somepassword")
+    ctx = metadata.AppendToOutgoingContext(ctx, "username", "<username>", "password", "<password>")
     tls := &tls.Config{InsecureSkipVerify: true}
     tlsCred := credentials.NewTLS(tls)
     conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(tlsCred))
@@ -143,14 +352,33 @@ func someFunc(ctx context.Context) {
 }
 ```
 
-### gNMI over gRPC with Ondatra
+#### Using Ondatra
 
-[KNEBind](https://github.com/openconfig/ondatra/blob/main/knebind/knebind.go) is
-implemented by using the `kne` within the `ondatra` framework. Currently the
-expectation is the user has already brought up a cluster and now wants to
-develop tests against that cluster for use in vendor certification. See the
-[README](https://github.com/openconfig/ondatra/blob/main/knebind/README.md) for
-details.
+> NOTE: This example uses gNMI, but the other services are very similar.
+
+[KNEBind](https://github.com/openconfig/ondatra/blob/main/knebind/README.md) is
+an Ondatra binding that uses the `kne` CLI to connect to an existing KNE cluster
+and automatically finds appropriate devices within your topology.
+
+To use the KNE binding, import it and pass it into `RunTests`:
+
+```go
+import (
+    ...
+    kinit "github.com/openconfig/ondatra/knebind/init"
+    ...
+)
+
+func TestMain(m *testing.M) {
+    ondatra.RunTests(m, kinit.Init)
+}
+```
+
+and set the topology flag `--topology=<path>` to point to the topology file that
+has been created in KNE.
+
+ex.
+`--topology=/path/to/examples/multivendor/multivendor.pb.txt`
 
 Ondatra will manage a gNMI connection to each device, so you can use Ondatra's
 helper functions to configure and read from the OpenConfig tree:
@@ -159,30 +387,22 @@ helper functions to configure and read from the OpenConfig tree:
 import (
     "testing"
 
-    "google3/ops/netops/lab/wbb/go/wbbtest"
-    "google3/third_party/openconfig/ondatra/ondatra"
+    "github.com/openconfig/ondatra"
+    "github.com/openconfig/ondatra/gnmi"
+    kinit "github.com/openconfig/ondatra/knebind/init"
 )
 
 func TestMain(m *testing.M) {
-    ondatra.RunTests(m, wbbtest.New)
+    ondatra.RunTests(m, kinit.Init)
 }
 
 func TestTrivial(t *testing.T) {
-  // Get a DUT from the topology
-  dut := ondatra.DUT(t, "dut1")
-  // Set the config value of a node
-  dut.Config().System().Hostname().Set("dut1")
-  // Wait for a specific state value
-    dut.Telemetry().System().Hostname().Await(t, time.Second, "dut1")
-  // Read a state value directly
-  hostname := dut.Telemetry().System().Hostname().Get(t)
-  if hostname != "dut1" {
-    t.Errorf("Expected hostname %v, got %v", "dut1", hostname)
-  }
+    // Get a DUT from the topology
+    dut := ondatra.DUT(t, "dut")
+    // Lookup the gNMI leaf value
+    sys := gnmi.Lookup(t, dut, gnmi.OC().System().State())
+    if !sys.IsPresent() {
+        t.Fatalf("No System telemetry for %v", dut)
+    }
 }
 ```
-
-In the example above, `dut.Config().System().Hostname()` corresponds to the path
-`system/config/hostname`, while `dut.Telemetry().System().Hostname()`
-corresponds to path `system/state/hostname`. There is a small delay between when
-the config is set and when the state catches up, hence the need for Await.

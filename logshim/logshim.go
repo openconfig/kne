@@ -112,6 +112,5 @@ func (s *shim) flush() {
 	}
 	if testChannel != nil {
 		close(testChannel)
-		testChannel = nil
 	}
 }

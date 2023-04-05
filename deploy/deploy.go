@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -20,9 +19,11 @@ import (
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
+	kexec "github.com/openconfig/kne/exec"
+	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
-	kexec "github.com/openconfig/kne/os/exec"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
+	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,35 +39,44 @@ import (
 const (
 	dockerConfigEnvVar        = "DOCKER_CONFIG"
 	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
-	ixiaTGConfigMapHeader     = `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ixiatg-release-config
-  namespace: ixiatg-op-system
-data:
-  versions: |
-    `
 )
+
+// logCommand runs the specified command but records standard output
+// with log.Info and standard error with log.Warning.
+func logCommand(cmd string, args ...string) error {
+	c := kexec.Command(cmd, args...)
+	outLog := logshim.New(func(v ...interface{}) {
+		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	errLog := logshim.New(func(v ...interface{}) {
+		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	defer func() {
+		outLog.Close()
+		errLog.Close()
+	}()
+	c.SetStdout(outLog)
+	c.SetStderr(errLog)
+	return c.Run()
+}
+
+// outCommand runs the specified command and returns any standard output
+// as well as any errors.
+func outCommand(cmd string, args ...string) ([]byte, error) {
+	c := kexec.Command(cmd, args...)
+	var stdout bytes.Buffer
+	c.SetStdout(&stdout)
+	err := c.Run()
+	return stdout.Bytes(), err
+}
 
 var (
 	healthTimeout = time.Minute
 
-	// Default standard out of children to log.Info
-	// and standar error to log.Warning.
-	execer execerInterface = kexec.NewExecer(
-		logshim.New(log.Info),
-		logshim.New(log.Warning))
-
 	// Stubs for testing.
-	execLookPath = exec.LookPath
-	osStat       = os.Stat
+	execLookPath                 = exec.LookPath
+	googleFindDefaultCredentials = google.FindDefaultCredentials
 )
-
-type execerInterface interface {
-	Exec(string, ...string) error
-	SetStdout(io.Writer)
-	SetStderr(io.Writer)
-}
 
 type Cluster interface {
 	Deploy(context.Context) error
@@ -97,10 +107,10 @@ type Controller interface {
 }
 
 type Deployment struct {
-	Cluster     Cluster
-	Ingress     Ingress
-	CNI         CNI
-	Controllers []Controller
+	Cluster     Cluster      `kne:"cluster"`
+	Ingress     Ingress      `kne:"ingress"`
+	CNI         CNI          `kne:"cni"`
+	Controllers []Controller `kne:"controllers"`
 }
 
 func (d *Deployment) String() string {
@@ -148,11 +158,12 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	}
 
 	log.Infof("Checking kubectl versions.")
-	if err := vExec.Exec("kubectl", "version", "--output=yaml"); err != nil {
+	output, err := outCommand("kubectl", "version", "--output=yaml")
+	if err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
 	kubeYAML := kubeVersion{}
-	if err := yaml.Unmarshal(vOut.Bytes(), &kubeYAML); err != nil {
+	if err := yaml.Unmarshal(output, &kubeYAML); err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
 	kClientVersion, err := getVersion(kubeYAML.ClientVersion.GitVersion)
@@ -172,8 +183,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 	if kClientVersion.Less(kServerVersion) {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
-	log.V(1).Info("Found k8s versions:\n", vOut)
-	vOut.Reset()
+	log.V(1).Info("Found k8s versions:\n", output)
 
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
@@ -253,6 +263,13 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 	return nil
 }
 
+func init() {
+	load.Register("External", &load.Spec{
+		Type: ExternalSpec{},
+		Tag:  "cluster",
+	})
+}
+
 type ExternalSpec struct {
 	Network string `yaml:"network"`
 }
@@ -268,7 +285,7 @@ func (e *ExternalSpec) Delete() error {
 }
 
 func (e *ExternalSpec) Healthy() error {
-	if err := execer.Exec("kubectl", "cluster-info"); err != nil {
+	if err := logCommand("kubectl", "cluster-info"); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -282,6 +299,13 @@ func (e *ExternalSpec) GetDockerNetworkResourceName() string {
 	return e.Network
 }
 
+func init() {
+	load.Register("Kind", &load.Spec{
+		Type: KindSpec{},
+		Tag:  "cluster",
+	})
+}
+
 type KindSpec struct {
 	Name                     string            `yaml:"name"`
 	Recycle                  bool              `yaml:"recycle"`
@@ -289,17 +313,12 @@ type KindSpec struct {
 	Image                    string            `yaml:"image"`
 	Retain                   bool              `yaml:"retain"`
 	Wait                     time.Duration     `yaml:"wait"`
-	Kubecfg                  string            `yaml:"kubecfg"`
+	Kubecfg                  string            `yaml:"kubecfg" kne:"yaml"`
 	GoogleArtifactRegistries []string          `yaml:"googleArtifactRegistries"`
 	ContainerImages          map[string]string `yaml:"containerImages"`
-	KindConfigFile           string            `yaml:"config"`
-	AdditionalManifests      []string          `yaml:"additionalManifests"`
+	KindConfigFile           string            `yaml:"config" kne:"yaml"`
+	AdditionalManifests      []string          `yaml:"additionalManifests" kne:"yaml"`
 }
-
-var (
-	vOut                  = bytes.NewBuffer([]byte{})
-	vExec execerInterface = kexec.NewExecer(vOut, vOut)
-)
 
 type version struct {
 	Major int
@@ -351,9 +370,6 @@ func getVersion(s string) (*version, error) {
 func (k *KindSpec) checkDependencies() error {
 	var errs errlist.List
 	bins := []string{"kind"}
-	if len(k.GoogleArtifactRegistries) != 0 {
-		bins = append(bins, "gcloud")
-	}
 	for _, bin := range bins {
 		if _, err := execLookPath(bin); err != nil {
 			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
@@ -368,15 +384,14 @@ func (k *KindSpec) checkDependencies() error {
 			return err
 		}
 
-		if err := vExec.Exec("kind", "version"); err != nil {
+		stdout, err := outCommand("kind", "version")
+		if err != nil {
 			return fmt.Errorf("failed to get kind version: %w", err)
 		}
-		// Reset buffer for next read
-		defer vOut.Reset()
 
-		vKindFields := strings.Fields(vOut.String())
+		vKindFields := strings.Fields(string(stdout))
 		if len(vKindFields) < 2 {
-			return fmt.Errorf("failed to parse kind version from: %s", vOut)
+			return fmt.Errorf("failed to parse kind version from: %s", stdout)
 		}
 
 		gotV, err := getVersion(vKindFields[1])
@@ -394,7 +409,7 @@ func (k *KindSpec) checkDependencies() error {
 func (k *KindSpec) create() error {
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
-		if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
+		if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
 			log.Infof("Recycling existing cluster %q", k.Name)
 			return nil
 		}
@@ -419,7 +434,7 @@ func (k *KindSpec) create() error {
 		args = append(args, "--config", k.KindConfigFile)
 	}
 	log.Infof("Creating kind cluster with: %v", args)
-	if err := execer.Exec("kind", args...); err != nil {
+	if err := logCommand("kind", args...); err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
@@ -437,14 +452,14 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 
 	for _, s := range k.AdditionalManifests {
 		log.Infof("Found manifest %q", s)
-		if err := execer.Exec("kubectl", "apply", "-f", s); err != nil {
+		if err := logCommand("kubectl", "apply", "-f", s); err != nil {
 			return fmt.Errorf("failed to deploy manifest: %w", err)
 		}
 	}
 
 	if len(k.GoogleArtifactRegistries) != 0 {
 		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
-		if err := k.setupGoogleArtifactRegistryAccess(); err != nil {
+		if err := k.setupGoogleArtifactRegistryAccess(ctx); err != nil {
 			return fmt.Errorf("failed to setup Google artifact registry access: %w", err)
 		}
 	}
@@ -464,14 +479,14 @@ func (k *KindSpec) Delete() error {
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
 	}
-	if err := execer.Exec("kind", args...); err != nil {
+	if err := logCommand("kind", args...); err != nil {
 		return fmt.Errorf("failed to delete cluster using cli: %w", err)
 	}
 	return nil
 }
 
 func (k *KindSpec) Healthy() error {
-	if err := execer.Exec("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
+	if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -488,7 +503,7 @@ func (k *KindSpec) GetDockerNetworkResourceName() string {
 	return "kind"
 }
 
-func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
+func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
 	// the temporary docker config.
@@ -508,19 +523,19 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
 		return err
 	}
-	var token bytes.Buffer
-	execer.SetStdout(&token)
-	if err := execer.Exec("gcloud", "auth", "print-access-token"); err != nil {
-		return err
+	creds, err := googleFindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		return fmt.Errorf("failed to find gcloud credentials: %v", err)
+	}
+	token, err := creds.TokenSource.Token()
+	if err != nil {
+		return fmt.Errorf("failed to get token from gcloud credentials: %v", err)
 	}
 	// Logs will show up as coming from logshim.go.  Since this is output
 	// from an external program that is the best we can do.
-	errlog := logshim.New(log.Info)
-	defer errlog.Close()
-	execer.SetStdout(errlog)
 	for _, r := range k.GoogleArtifactRegistries {
 		s := fmt.Sprintf("https://%s", r)
-		if err := execer.Exec("docker", "login", "-u", "oauth2accesstoken", "-p", token.String(), s); err != nil {
+		if err := logCommand("docker", "login", "-u", "oauth2accesstoken", "-p", token.AccessToken, s); err != nil {
 			return err
 		}
 	}
@@ -528,20 +543,18 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess() error {
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
 	}
-	var nodes bytes.Buffer
-	execer.SetStdout(&nodes)
-	if err := execer.Exec("kind", args...); err != nil {
+	nodes, err := outCommand("kind", args...)
+	if err != nil {
 		return err
 	}
-	execer.SetStdout(errlog)
 	// Copy the new docker config to each node and restart kubelet so it
 	// picks up the new config that contains the embedded credentials.
-	for _, node := range strings.Split(nodes.String(), " ") {
+	for _, node := range strings.Split(string(nodes), " ") {
 		node = strings.TrimSuffix(node, "\n")
-		if err := execer.Exec("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
+		if err := logCommand("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
 			return err
 		}
-		if err := execer.Exec("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
+		if err := logCommand("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
 			return err
 		}
 	}
@@ -560,11 +573,11 @@ func (k *KindSpec) loadContainerImages() error {
 		} else {
 			log.Infof("Loading %q as %q", s, d)
 		}
-		if err := execer.Exec("docker", "pull", s); err != nil {
+		if err := logCommand("docker", "pull", s); err != nil {
 			return fmt.Errorf("failed to pull %q: %w", s, err)
 		}
 		if d != s {
-			if err := execer.Exec("docker", "tag", s, d); err != nil {
+			if err := logCommand("docker", "tag", s, d); err != nil {
 				return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
 			}
 		}
@@ -572,7 +585,7 @@ func (k *KindSpec) loadContainerImages() error {
 		if k.Name != "" {
 			args = append(args, "--name", k.Name)
 		}
-		if err := execer.Exec("kind", args...); err != nil {
+		if err := logCommand("kind", args...); err != nil {
 			return fmt.Errorf("failed to load %q: %w", d, err)
 		}
 	}
@@ -604,9 +617,18 @@ func writeDockerConfig(path string, registries []string) error {
 	return nil
 }
 
+func init() {
+	load.Register("MetalLB", &load.Spec{
+		Type: MetalLBSpec{},
+		Tag:  "ingress",
+	})
+}
+
 type MetalLBSpec struct {
 	IPCount                   int    `yaml:"ip_count"`
 	ManifestDir               string `yaml:"manifests"`
+	Manifest                  string `yaml:"manifest" kne:"yaml"`
+	ManifestData              []byte
 	dockerNetworkResourceName string
 	kClient                   kubernetes.Interface
 	mClient                   metallbclientv1.Interface
@@ -657,15 +679,14 @@ func makePool(n *net.IPNet, count int) *metallbv1.IPAddressPool {
 }
 
 func (m *MetalLBSpec) Deploy(ctx context.Context) error {
+	var err error
 	if m.dClient == nil {
-		var err error
 		m.dClient, err = dclient.NewClientWithOpts(dclient.FromEnv)
 		if err != nil {
 			return err
 		}
 	}
 	if m.mClient == nil {
-		var err error
 		m.mClient, err = metallbclientv1.NewForConfig(m.rCfg)
 		if err != nil {
 			return err
@@ -673,11 +694,29 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	}
 
 	log.Infof("Creating metallb namespace")
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "metallb-native.yaml")); err != nil {
+	if m.ManifestData != nil {
+		f, err := os.CreateTemp("", "metallb-manifest-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(m.ManifestData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		m.Manifest = f.Name()
+	}
+	if m.Manifest == "" && m.ManifestDir != "" {
+		log.Errorf("Deploying MetalLB using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the manifest file directly using the 'manifest' field going forward", m.ManifestDir)
+		m.Manifest = filepath.Join(m.ManifestDir, "metallb-native.yaml")
+	}
+	log.Infof("Deploying MetalLB from: %s", m.Manifest)
+	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return err
 	}
-	_, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{})
-	if err != nil {
+	if _, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{}); err != nil {
 		log.Infof("Creating metallb secret")
 		d := make([]byte, 16)
 		if _, err := rand.Read(d); err != nil {
@@ -691,8 +730,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 				"secretkey": base64.StdEncoding.EncodeToString(d),
 			},
 		}
-		_, err := m.kClient.CoreV1().Secrets("metallb-system").Create(ctx, s, metav1.CreateOptions{})
-		if err != nil {
+		if _, err := m.kClient.CoreV1().Secrets("metallb-system").Create(ctx, s, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	}
@@ -702,8 +740,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		return err
 	}
 
-	_, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{})
-	if err != nil {
+	if _, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{}); err != nil {
 		log.Infof("Applying metallb ingress config")
 		// Get Network information from docker.
 		nr, err := m.dClient.NetworkList(ctx, dtypes.NetworkListOptions{})
@@ -768,9 +805,18 @@ func (m *MetalLBSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, m.kClient, "metallb-system")
 }
 
+func init() {
+	load.Register("Meshnet", &load.Spec{
+		Type: MeshnetSpec{},
+		Tag:  "cni",
+	})
+}
+
 type MeshnetSpec struct {
-	ManifestDir string `yaml:"manifests"`
-	kClient     kubernetes.Interface
+	ManifestDir  string `yaml:"manifests"`
+	Manifest     string `yaml:"manifest" kne:"yaml"`
+	ManifestData []byte
+	kClient      kubernetes.Interface
 }
 
 func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
@@ -778,8 +824,26 @@ func (m *MeshnetSpec) SetKClient(c kubernetes.Interface) {
 }
 
 func (m *MeshnetSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploying Meshnet from: %s", m.ManifestDir)
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(m.ManifestDir, "manifest.yaml")); err != nil {
+	if m.ManifestData != nil {
+		f, err := os.CreateTemp("", "meshnet-manifest-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(m.ManifestData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		m.Manifest = f.Name()
+	}
+	if m.Manifest == "" && m.ManifestDir != "" {
+		log.Errorf("Deploying Meshnet using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the manifest file directly using the 'manifest' field going forward", m.ManifestDir)
+		m.Manifest = filepath.Join(m.ManifestDir, "manifest.yaml")
+	}
+	log.Infof("Deploying Meshnet from: %s", m.Manifest)
+	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return err
 	}
 	log.Infof("Meshnet Deployed")
@@ -815,9 +879,18 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 	}
 }
 
+func init() {
+	load.Register("CEOSLab", &load.Spec{
+		Type: CEOSLabSpec{},
+		Tag:  "controllers",
+	})
+}
+
 type CEOSLabSpec struct {
-	ManifestDir string `yaml:"manifests"`
-	kClient     kubernetes.Interface
+	ManifestDir  string `yaml:"manifests"`
+	Operator     string `yaml:"operator" kne:"yaml"`
+	OperatorData []byte
+	kClient      kubernetes.Interface
 }
 
 func (c *CEOSLabSpec) SetKClient(k kubernetes.Interface) {
@@ -825,8 +898,26 @@ func (c *CEOSLabSpec) SetKClient(k kubernetes.Interface) {
 }
 
 func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploying CEOSLab controller from: %s", c.ManifestDir)
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(c.ManifestDir, "manifest.yaml")); err != nil {
+	if c.OperatorData != nil {
+		f, err := os.CreateTemp("", "ceoslab-operator-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(c.OperatorData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		c.Operator = f.Name()
+	}
+	if c.Operator == "" && c.ManifestDir != "" {
+		log.Errorf("Deploying CEOSLab controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", c.ManifestDir)
+		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
+	}
+	log.Infof("Deploying CEOSLab controller from: %s", c.Operator)
+	if err := logCommand("kubectl", "apply", "-f", c.Operator); err != nil {
 		return err
 	}
 	log.Infof("CEOSLab controller deployed")
@@ -837,40 +928,94 @@ func (c *CEOSLabSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, c.kClient, "arista-ceoslab-operator-system")
 }
 
+func init() {
+	load.Register("Lemming", &load.Spec{
+		Type: LemmingSpec{},
+		Tag:  "controllers",
+	})
+}
+
 type LemmingSpec struct {
-	ManifestDir string `yaml:"manifests"`
-	kClient     kubernetes.Interface
+	ManifestDir  string `yaml:"manifests"`
+	Operator     string `yaml:"operator" kne:"yaml"`
+	OperatorData []byte
+	kClient      kubernetes.Interface
 }
 
-func (c *LemmingSpec) SetKClient(k kubernetes.Interface) {
-	c.kClient = k
+func (l *LemmingSpec) SetKClient(k kubernetes.Interface) {
+	l.kClient = k
 }
 
-func (c *LemmingSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploying Lemming controller from: %s", c.ManifestDir)
-	if err := execer.Exec("kubectl", "apply", "-f", c.ManifestDir); err != nil {
+func (l *LemmingSpec) Deploy(ctx context.Context) error {
+	if l.OperatorData != nil {
+		f, err := os.CreateTemp("", "lemming-operator-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(l.OperatorData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		l.Operator = f.Name()
+	}
+	if l.Operator == "" && l.ManifestDir != "" {
+		log.Errorf("Deploying Lemming controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", l.ManifestDir)
+		l.Operator = filepath.Join(l.ManifestDir, "manifest.yaml")
+	}
+	log.Infof("Deploying Lemming controller from: %s", l.Operator)
+	if err := logCommand("kubectl", "apply", "-f", l.Operator); err != nil {
 		return err
 	}
 	log.Infof("Lemming controller deployed")
 	return nil
 }
 
-func (c *LemmingSpec) Healthy(ctx context.Context) error {
-	return deploymentHealthy(ctx, c.kClient, "lemming-operator")
+func (l *LemmingSpec) Healthy(ctx context.Context) error {
+	return deploymentHealthy(ctx, l.kClient, "lemming-operator")
+}
+
+func init() {
+	load.Register("SRLinux", &load.Spec{
+		Type: SRLinuxSpec{},
+		Tag:  "controllers",
+	})
 }
 
 type SRLinuxSpec struct {
-	ManifestDir string `yaml:"manifests"`
-	kClient     kubernetes.Interface
+	ManifestDir  string `yaml:"manifests"`
+	Operator     string `yaml:"operator" kne:"yaml"`
+	OperatorData []byte
+	kClient      kubernetes.Interface
 }
 
-func (s *SRLinuxSpec) SetKClient(c kubernetes.Interface) {
-	s.kClient = c
+func (s *SRLinuxSpec) SetKClient(k kubernetes.Interface) {
+	s.kClient = k
 }
 
 func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploying SRLinux controller from: %s", s.ManifestDir)
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(s.ManifestDir, "manifest.yaml")); err != nil {
+	if s.OperatorData != nil {
+		f, err := os.CreateTemp("", "srlinux-operator-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(s.OperatorData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		s.Operator = f.Name()
+	}
+	if s.Operator == "" && s.ManifestDir != "" {
+		log.Errorf("Deploying SRLinux controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", s.ManifestDir)
+		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
+	}
+	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
+	if err := logCommand("kubectl", "apply", "-f", s.Operator); err != nil {
 		return err
 	}
 	log.Infof("SRLinux controller deployed")
@@ -881,68 +1026,81 @@ func (s *SRLinuxSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, s.kClient, "srlinux-controller")
 }
 
+func init() {
+	load.Register("IxiaTG", &load.Spec{
+		Type: IxiaTGSpec{},
+		Tag:  "controllers",
+	})
+}
+
 type IxiaTGSpec struct {
-	ManifestDir string           `yaml:"manifests"`
-	ConfigMap   *IxiaTGConfigMap `yaml:"configMap"`
-	kClient     kubernetes.Interface
+	ManifestDir   string `yaml:"manifests"`
+	Operator      string `yaml:"operator" kne:"yaml"`
+	OperatorData  []byte
+	ConfigMap     string `yaml:"configMap" kne:"yaml"`
+	ConfigMapData []byte
+	kClient       kubernetes.Interface
 }
 
-type IxiaTGConfigMap struct {
-	Release string         `yaml:"release" json:"release"`
-	Images  []*IxiaTGImage `yaml:"images" json:"images"`
-}
-
-type IxiaTGImage struct {
-	Name string `yaml:"name" json:"name"`
-	Path string `yaml:"path" json:"path"`
-	Tag  string `yaml:"tag" json:"tag"`
-}
-
-func (i *IxiaTGSpec) SetKClient(c kubernetes.Interface) {
-	i.kClient = c
+func (i *IxiaTGSpec) SetKClient(k kubernetes.Interface) {
+	i.kClient = k
 }
 
 func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
-	log.Infof("Deploying IxiaTG controller from: %s", i.ManifestDir)
-	if err := execer.Exec("kubectl", "apply", "-f", filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")); err != nil {
+	if i.OperatorData != nil {
+		f, err := os.CreateTemp("", "ixiatg-operator-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(i.OperatorData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		i.Operator = f.Name()
+	}
+	if i.Operator == "" && i.ManifestDir != "" {
+		log.Errorf("Deploying IxiaTG controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", i.ManifestDir)
+		i.Operator = filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")
+	}
+	log.Infof("Deploying IxiaTG controller from: %s", i.Operator)
+	if err := logCommand("kubectl", "apply", "-f", i.Operator); err != nil {
 		return err
 	}
-	if i.ConfigMap == nil {
-		var cmPath string
-		for _, cmName := range []string{"ixiatg-configmap.yaml", "ixia-configmap.yaml"} {
-			path := filepath.Join(i.ManifestDir, cmName)
-			if _, err := osStat(path); err == nil {
-				log.Infof("ixia controller configmap found at %q", path)
-				cmPath = path
+
+	if i.ConfigMap == "" && i.ManifestDir != "" {
+		for _, name := range []string{"ixiatg-configmap.yaml", "ixia-configmap.yaml"} {
+			path := filepath.Join(i.ManifestDir, name)
+			if _, err := os.Stat(path); err == nil {
+				log.Errorf("Deploying IxiaTG configmap using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the configmap file directly using the 'configMap' field going forward", i.ManifestDir)
+				i.ConfigMap = path
 				break
 			}
 		}
-		if cmPath == "" {
-			log.Warningf("ixia controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
-			return nil
-		}
-		log.Infof("Deploying IxiaTG configmap from: %s", cmPath)
-		if err := execer.Exec("kubectl", "apply", "-f", cmPath); err != nil {
-			return err
-		}
-		log.Infof("IxiaTG controller Deployed")
+	}
+
+	if i.ConfigMap == "" && i.ConfigMapData == nil {
+		log.Warningf("IxiaTG controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
 		return nil
 	}
-	b, err := json.MarshalIndent(i.ConfigMap, "    ", "  ")
-	if err != nil {
-		return err
+	if i.ConfigMapData != nil {
+		f, err := os.CreateTemp("", "ixiatg-configmap-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(i.ConfigMapData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		i.ConfigMap = f.Name()
 	}
-	b = append([]byte(ixiaTGConfigMapHeader), b...)
-	f, err := os.CreateTemp("", "ixiatg-configmap-*.yaml")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	if _, err := f.Write(b); err != nil {
-		return err
-	}
-	log.Infof("Deploying IxiaTG configmap from: %s", f.Name())
-	if err := execer.Exec("kubectl", "apply", "-f", f.Name()); err != nil {
+	log.Infof("Deploying IxiaTG config map from: %s", i.ConfigMap)
+	if err := logCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
 		return err
 	}
 	log.Infof("IxiaTG controller deployed")
