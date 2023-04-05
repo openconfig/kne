@@ -15,6 +15,9 @@ package cisco
 
 import (
 	"context"
+	"io/ioutil"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -22,6 +25,12 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/client-go/kubernetes/fake"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	fakerest "k8s.io/client-go/rest/fake"
+	ktest "k8s.io/client-go/testing"
 
 	tpb "github.com/openconfig/kne/proto/topo"
 )
@@ -98,10 +107,6 @@ func TestNew(t *testing.T) {
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -168,10 +173,6 @@ func TestNew(t *testing.T) {
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -242,10 +243,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -335,10 +332,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -435,10 +428,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -505,10 +494,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -605,10 +590,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -652,6 +633,115 @@ func TestNew(t *testing.T) {
 			err = n.Create(context.Background())
 			if s := errdiff.Check(err, tt.cErr); s != "" {
 				t.Fatalf("Unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func TestNodeStatus(t *testing.T) {
+
+	ki := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod1",
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+		},
+	})
+	ki.PrependReactor("get", "pods", func(action ktest.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetSubresource() == "log" {
+			// TODO: fake the log action
+		}
+		obj := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "pod1",
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		}
+		return true, obj, nil
+	})
+
+	node8000e := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "pod1",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{},
+			Model:  "8201-32FH",
+		},
+	}
+
+	nodeXRD := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "pod1",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{},
+			Model:  ModelXRD,
+		},
+	}
+
+	tests := []struct {
+		desc   string
+		status node.Status
+		ni     *node.Impl
+		log    string
+	}{
+		{
+			// successful status for 8000e Node
+			desc:   "Status test for 8000e Node",
+			status: node.StatusRunning,
+			ni:     node8000e,
+			log:    "\n ... Router up ... \n",
+		},
+		{
+			// unsuccessful status for 8000e Node
+			desc:   "Negative Status test for 8000e Node",
+			status: node.StatusPending,
+			ni:     node8000e,
+			log:    "\n ... anything other that expected message ... \n",
+		},
+		{
+			// status for xrd Node
+			desc:   "Status test for XRD Node",
+			status: node.StatusRunning,
+			ni:     nodeXRD,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			nImpl, _ := New(tt.ni)
+			n, _ := nImpl.(*Node)
+			status, err := n.Status(ctx)
+			if err != nil {
+				t.Errorf("Error is not expected for Node Status")
+			}
+			if n.Proto.Model == ModelXRD && status != tt.status {
+				t.Errorf("XRD node status is expected to be running, but  reported as %v", status)
+			}
+			if n.Proto.Model != ModelXRD && tt.log != "" {
+				fakeClient := &fakerest.RESTClient{
+					Client: fakerest.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
+						resp := &http.Response{
+							StatusCode: http.StatusOK,
+							Body:       ioutil.NopCloser(strings.NewReader(tt.log)),
+						}
+						return resp, nil
+					}),
+				}
+				if isNode8000eUp(ctx, fakeClient.Request()) && tt.status != node.StatusRunning {
+					t.Errorf("8000e node status is expected to be Not Running, but reported as Running")
+				}
+				if !isNode8000eUp(ctx, fakeClient.Request()) && tt.status == node.StatusRunning {
+					t.Errorf("8000e node status is expected to be be Running, but reported as not Running")
+				}
+
 			}
 		})
 	}

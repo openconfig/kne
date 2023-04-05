@@ -14,8 +14,10 @@
 package cisco
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -24,6 +26,7 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
@@ -301,7 +304,7 @@ func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 			return fmtInt100(eid), nil
 		}
 		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth72 is supported on %s ", ethID, pb.Model)
-	case "8201-32FH": //nolint:goconst
+	case "8201-32FH":
 		if eid <= 31 {
 			return fmtInt400(eid), nil
 		}
@@ -342,10 +345,6 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	pb = constraints(pb)
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
-			443: {
-				Name:   "ssl",
-				Inside: 443,
-			},
 			22: {
 				Name:   "ssh",
 				Inside: 22,
@@ -374,7 +373,6 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.Config.Image == "" {
 			pb.Config.Image = "xrd:latest"
 		}
-	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
 		if err := setE8000Env(pb); err != nil {
 			return nil, err
@@ -384,6 +382,61 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 	}
 	return pb, nil
+}
+
+// Status returns the current node state.
+// For 8000e nodes it checks the logs and return running if log contains "Router up"
+func (n *Node) Status(ctx context.Context) (node.Status, error) {
+	p, err := n.Pods(ctx)
+	if err != nil {
+		return node.StatusUnknown, err
+	}
+	if len(p) != 1 {
+		return node.StatusUnknown, fmt.Errorf("expected exactly one pod for node %s", n.Name())
+	}
+	switch p[0].Status.Phase {
+	case corev1.PodPending:
+		return node.StatusPending, nil
+	case corev1.PodUnknown:
+		return node.StatusUnknown, nil
+	case corev1.PodFailed:
+		return node.StatusFailed, nil
+	case corev1.PodSucceeded, corev1.PodRunning:
+		pb := n.Proto
+		if pb.GetModel() != ModelXRD {
+			podLogOpts := corev1.PodLogOptions{}
+			req := n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &podLogOpts)
+			if !isNode8000eUp(ctx, req) {
+				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+				return node.StatusPending, nil
+			}
+		}
+		for _, cond := range p[0].Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status != corev1.ConditionTrue {
+				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+				return node.StatusPending, nil
+			}
+		}
+		log.Infof("Cisco %s node %s status is %v ", n.Proto.Model, n.Name(), node.StatusRunning)
+		return node.StatusRunning, nil
+	default:
+		return node.StatusUnknown, nil
+	}
+}
+
+func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return false
+	}
+	defer podLogs.Close()
+	buf := new(bytes.Buffer)
+	len, err := io.Copy(buf, podLogs)
+	if err != nil || len == 0 {
+		return false
+	}
+	podIsUP := regexp.MustCompile(`Router up`) // successful logs for 8000e.
+	return podIsUP.Match(buf.Bytes())
 }
 
 func init() {
