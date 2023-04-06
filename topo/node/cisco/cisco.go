@@ -34,9 +34,10 @@ import (
 )
 
 const (
-	ModelXRD    = "xrd"
-	node8000eUp = `Router up` // successful log message for 8000e node.
+	ModelXRD = "xrd"
 )
+
+var podIsUPRegex = regexp.MustCompile(`Router up`)
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
@@ -436,8 +437,7 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 	if err != nil || len == 0 {
 		return false
 	}
-	podIsUP := regexp.MustCompile(node8000eUp)
-	return podIsUP.Match(buf.Bytes())
+	return podIsUPRegex.Match(buf.Bytes())
 }
 
 func init() {
