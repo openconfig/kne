@@ -34,7 +34,8 @@ import (
 )
 
 const (
-	ModelXRD = "xrd"
+	ModelXRD    = "xrd"
+	node8000eUp = `Router up` // successful log message for 8000e node.
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -304,7 +305,7 @@ func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 			return fmtInt100(eid), nil
 		}
 		return "", fmt.Errorf("interface id %d can not be mapped to a cisco interface, eth1..eth72 is supported on %s ", ethID, pb.Model)
-	case "8201-32FH":
+	case "8201-32FH": //nolint:goconst
 		if eid <= 31 {
 			return fmtInt400(eid), nil
 		}
@@ -373,6 +374,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.Config.Image == "" {
 			pb.Config.Image = "xrd:latest"
 		}
+	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
 		if err := setE8000Env(pb); err != nil {
 			return nil, err
@@ -404,8 +406,7 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	case corev1.PodSucceeded, corev1.PodRunning:
 		pb := n.Proto
 		if pb.GetModel() != ModelXRD {
-			podLogOpts := corev1.PodLogOptions{}
-			req := n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &podLogOpts)
+			req := n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &corev1.PodLogOptions{})
 			if !isNode8000eUp(ctx, req) {
 				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
 				return node.StatusPending, nil
@@ -435,7 +436,7 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 	if err != nil || len == 0 {
 		return false
 	}
-	podIsUP := regexp.MustCompile(`Router up`) // successful logs for 8000e.
+	podIsUP := regexp.MustCompile(node8000eUp)
 	return podIsUP.Match(buf.Bytes())
 }
 
