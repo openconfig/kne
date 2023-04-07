@@ -37,7 +37,7 @@ const (
 	ModelXRD = "xrd"
 )
 
-var podIsUPRegex = regexp.MustCompile(`Router up`)
+var podIsUpRegex = regexp.MustCompile(`Router up`)
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
@@ -437,7 +437,7 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 	if err != nil || len == 0 {
 		return false
 	}
-	return podIsUPRegex.Match(buf.Bytes())
+	return podIsUpRegex.Match(buf.Bytes())
 }
 
 func init() {

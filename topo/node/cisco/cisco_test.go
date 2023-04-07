@@ -15,10 +15,8 @@ package cisco
 
 import (
 	"context"
-	"io/ioutil"
-	"net/http"
-	"strings"
 	"testing"
+	"regexp"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
@@ -28,9 +26,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	fakerest "k8s.io/client-go/rest/fake"
-	ktest "k8s.io/client-go/testing"
 
 	tpb "github.com/openconfig/kne/proto/topo"
 )
@@ -639,35 +634,32 @@ func TestNew(t *testing.T) {
 }
 
 func TestNodeStatus(t *testing.T) {
-
-	ki := fake.NewSimpleClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "pod1",
-		},
-		Status: corev1.PodStatus{
-			Phase: corev1.PodRunning,
-		},
-	})
-	ki.PrependReactor("get", "pods", func(action ktest.Action) (handled bool, ret runtime.Object, err error) {
-		if action.GetSubresource() == "log" {
-			// TODO: fake the log action
-		}
-		obj := &corev1.Pod{
+	ki := fake.NewSimpleClientset(
+		&corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "pod1",
+				Name: "8000e",
+				Namespace:  "test",
 			},
 			Status: corev1.PodStatus{
 				Phase: corev1.PodRunning,
 			},
-		}
-		return true, obj, nil
-	})
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "xrd",
+				Namespace:  "test",
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		},
+	)
 
 	node8000e := &node.Impl{
 		KubeClient: ki,
 		Namespace:  "test",
 		Proto: &tpb.Node{
-			Name:   "pod1",
+			Name:   "8000e",
 			Vendor: tpb.Vendor_CISCO,
 			Config: &tpb.Config{},
 			Model:  "8201-32FH",
@@ -678,7 +670,7 @@ func TestNodeStatus(t *testing.T) {
 		KubeClient: ki,
 		Namespace:  "test",
 		Proto: &tpb.Node{
-			Name:   "pod1",
+			Name:   "xrd",
 			Vendor: tpb.Vendor_CISCO,
 			Config: &tpb.Config{},
 			Model:  ModelXRD,
@@ -689,21 +681,21 @@ func TestNodeStatus(t *testing.T) {
 		desc   string
 		status node.Status
 		ni     *node.Impl
-		log    string
+		logRegexp    string
 	}{
 		{
 			// successful status for 8000e Node
 			desc:   "Status test for 8000e Node",
 			status: node.StatusRunning,
 			ni:     node8000e,
-			log:    "\n ... Router up ... \n",
+			logRegexp:    "fake logs",
 		},
 		{
 			// unsuccessful status for 8000e Node
 			desc:   "Negative Status test for 8000e Node",
 			status: node.StatusPending,
 			ni:     node8000e,
-			log:    "\n ... anything other that expected message ... \n",
+			logRegexp:    "this log will not exist",
 		},
 		{
 			// status for xrd Node
@@ -716,32 +708,19 @@ func TestNodeStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			ctx := context.Background()
+			origPodIsUpRegex := podIsUpRegex
+			defer func() {
+				podIsUpRegex = origPodIsUpRegex
+			}()
+			podIsUpRegex = regexp.MustCompile(tt.logRegexp)
 			nImpl, _ := New(tt.ni)
 			n, _ := nImpl.(*Node)
 			status, err := n.Status(ctx)
 			if err != nil {
 				t.Errorf("Error is not expected for Node Status")
 			}
-			if n.Proto.Model == ModelXRD && status != tt.status {
-				t.Errorf("XRD node status is expected to be running, but  reported as %v", status)
-			}
-			if n.Proto.Model != ModelXRD && tt.log != "" {
-				fakeClient := &fakerest.RESTClient{
-					Client: fakerest.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
-						resp := &http.Response{
-							StatusCode: http.StatusOK,
-							Body:       ioutil.NopCloser(strings.NewReader(tt.log)),
-						}
-						return resp, nil
-					}),
-				}
-				if isNode8000eUp(ctx, fakeClient.Request()) && tt.status != node.StatusRunning {
-					t.Errorf("8000e node status is expected to be Not Running, but reported as Running")
-				}
-				if !isNode8000eUp(ctx, fakeClient.Request()) && tt.status == node.StatusRunning {
-					t.Errorf("8000e node status is expected to be be Running, but reported as not Running")
-				}
-
+			if status != tt.status {
+				t.Errorf("node.Status() = %v, want %v", status, tt.status)
 			}
 		})
 	}
