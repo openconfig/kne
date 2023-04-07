@@ -681,38 +681,42 @@ func TestNodeStatus(t *testing.T) {
 		desc      string
 		status    node.Status
 		ni        *node.Impl
-		logRegexp string
+		podLogErr bool
 	}{
 		{
-			// successful status for 8000e Node
-			desc:      "Status test for 8000e Node",
-			status:    node.StatusRunning,
-			ni:        node8000e,
-			logRegexp: "fake logs",
+			desc:   "Status test for 8000e Node",
+			status: node.StatusRunning,
+			ni:     node8000e,
 		},
 		{
-			// unsuccessful status for 8000e Node
 			desc:      "Negative Status test for 8000e Node",
 			status:    node.StatusPending,
 			ni:        node8000e,
-			logRegexp: "this log will not exist",
+			podLogErr: true,
 		},
 		{
-			// status for xrd Node
 			desc:   "Status test for XRD Node",
 			status: node.StatusRunning,
 			ni:     nodeXRD,
+		},
+		{
+			desc:      "Status test for XRD Node, pod logs do not matter",
+			status:    node.StatusRunning,
+			ni:        nodeXRD,
+			podLogErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			ctx := context.Background()
-			origPodIsUpRegex := podIsUpRegex
-			defer func() {
-				podIsUpRegex = origPodIsUpRegex
-			}()
-			podIsUpRegex = regexp.MustCompile(tt.logRegexp)
+			if !tt.podLogErr {
+				origPodIsUpRegex := podIsUpRegex
+				defer func() {
+					podIsUpRegex = origPodIsUpRegex
+				}()
+				podIsUpRegex = regexp.MustCompile("fake log") // this is the expected log from a fake pod
+			}
 			nImpl, _ := New(tt.ni)
 			n, _ := nImpl.(*Node)
 			status, err := n.Status(ctx)
