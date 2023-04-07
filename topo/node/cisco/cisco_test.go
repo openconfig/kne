@@ -15,8 +15,8 @@ package cisco
 
 import (
 	"context"
-	"testing"
 	"regexp"
+	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
@@ -637,8 +637,8 @@ func TestNodeStatus(t *testing.T) {
 	ki := fake.NewSimpleClientset(
 		&corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "8000e",
-				Namespace:  "test",
+				Name:      "8000e",
+				Namespace: "test",
 			},
 			Status: corev1.PodStatus{
 				Phase: corev1.PodRunning,
@@ -646,8 +646,8 @@ func TestNodeStatus(t *testing.T) {
 		},
 		&corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "xrd",
-				Namespace:  "test",
+				Name:      "xrd",
+				Namespace: "test",
 			},
 			Status: corev1.PodStatus{
 				Phase: corev1.PodRunning,
@@ -678,24 +678,24 @@ func TestNodeStatus(t *testing.T) {
 	}
 
 	tests := []struct {
-		desc   string
-		status node.Status
-		ni     *node.Impl
-		logRegexp    string
+		desc      string
+		status    node.Status
+		ni        *node.Impl
+		logRegexp string
 	}{
 		{
 			// successful status for 8000e Node
-			desc:   "Status test for 8000e Node",
-			status: node.StatusRunning,
-			ni:     node8000e,
-			logRegexp:    "fake logs",
+			desc:      "Status test for 8000e Node",
+			status:    node.StatusRunning,
+			ni:        node8000e,
+			logRegexp: "fake logs",
 		},
 		{
 			// unsuccessful status for 8000e Node
-			desc:   "Negative Status test for 8000e Node",
-			status: node.StatusPending,
-			ni:     node8000e,
-			logRegexp:    "this log will not exist",
+			desc:      "Negative Status test for 8000e Node",
+			status:    node.StatusPending,
+			ni:        node8000e,
+			logRegexp: "this log will not exist",
 		},
 		{
 			// status for xrd Node
