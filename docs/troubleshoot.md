@@ -30,6 +30,8 @@ For an exhaustive list use the `-A` flag instead of `-n`.
 
 ## Common issues
 
+Use the `--progress` option to monitor the state of the pods as KNE is coming up.
+
 ### Pods stuck in ImagePullBackOff
 
 ```bash
@@ -42,6 +44,8 @@ This is due to an issue with your cluster fetching container images. Follow the
 container image access [steps](create_topology.md#container_images) and then
 delete/recreate the topology. To check which image is causing the issue, use
 `kubectl describe` command on the problematic pod.
+
+KNE should normally detect this condition and fail the deployment.
 
 ### Pods stuck in Init
 
