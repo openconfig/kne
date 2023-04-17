@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1
-	github.com/docker/docker v23.0.2+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0
@@ -19,17 +19,16 @@ require (
 	github.com/openconfig/ondatra v0.1.9
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.1.6
+	github.com/scrapli/scrapligo v1.1.7
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/srl-labs/srl-controller v0.5.0
-	github.com/srl-labs/srlinux-scrapli v0.5.0
+	github.com/srl-labs/srl-controller v0.6.0
+	github.com/srl-labs/srlinux-scrapli v0.6.0
 	go.universe.tf/metallb v0.13.5
 	golang.org/x/oauth2 v0.6.0
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.30.0
-	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
@@ -86,8 +85,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/onsi/ginkgo/v2 v2.8.0 // indirect
-	github.com/onsi/gomega v1.26.0 // indirect
 	github.com/open-traffic-generator/snappi/gosnappi v0.11.1 // indirect
 	github.com/openconfig/gnoi v0.0.0-20221111175026-79709cdf28e1 // indirect
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
@@ -104,14 +101,15 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
-	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.14.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.6.0 // indirect
@@ -122,6 +120,7 @@ require (
 	google.golang.org/genproto v0.0.0-20230320173215-1fe4d14fc725 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiextensions-apiserver v0.26.3 // indirect
 	k8s.io/component-base v0.26.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
