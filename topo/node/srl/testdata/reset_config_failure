@@ -10,12 +10,12 @@ A:pod1# environment complete-on-space false
 A:pod1# info from state system app-management application mgmt_server state | grep running
                 state running
 --{ running }--[  ]--
-A:pod1# info from state system configuration commit 1 status | grep complete
-                status complete
+A:pod1# file cat /etc/opt/srlinux/devices/app_ephemeral.mgmt_server.ready_for_config
+loaded initial configuration
 --{ running }--[  ]--
 A:pod1# enter candidate private
 --{ candidate private private-admin }--[  ]--
-A:pod1# load factory auto-commit  
+A:pod1# /tools system configuration checkpoint initial revert
 Error: something bad happened
 --{ + candidate private private-admin }--[  ]--
 A:pod1#

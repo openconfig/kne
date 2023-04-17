@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
 
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
@@ -25,7 +27,10 @@ import (
 
 const (
 	scrapliPlatformName = "nokia_srl"
-	configResetCmd      = "load factory auto-commit"
+	// srl-controller v0.6.0+ creates a named checkpoint "initial" on node startup
+	// configuration reset is therefore done by reverting to this checkpoint
+	configResetCmd = "/tools system configuration checkpoint initial revert"
+	pushCfgFile    = "/home/admin/kne-push-config"
 )
 
 var (
@@ -134,14 +139,16 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	log.Infof("%s - pushing config", n.Name())
 
-	cfg, err := io.ReadAll(r)
-	cfgs := string(cfg)
-
-	log.V(1).Infof("config to push:\n%s", cfgs)
-
+	cfgBytes, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
+
+	// replace quotes in the config with escaped quotes, so that we can echo this config
+	// via `echo` CLI commands.
+	cfg := strings.ReplaceAll(string(cfgBytes), `"`, `\"`)
+
+	log.V(1).Infof("config to push:\n%s", cfg)
 
 	err = n.SpawnCLIConn()
 	if err != nil {
@@ -150,16 +157,42 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	defer n.cliConn.Close()
 
-	resp, err := n.cliConn.SendConfig(cfgs, scrapliopopts.WithStopOnFailed())
+	echoCmd := fmt.Sprintf("echo \"%s\" > %s", cfg, pushCfgFile)
+
+	resp, err := n.cliConn.SendConfig(echoCmd,
+		scrapliopopts.WithStopOnFailed(),
+		scrapliopopts.WithEager(),
+	)
 	if err != nil {
 		return err
 	}
 
-	if resp.Failed == nil {
-		log.Infof("%s - finshed config push", n.Impl.Proto.Name)
+	if resp.Failed != nil {
+		log.Infof("%s - failed saving config to file", n.Impl.Proto.Name)
+
+		return resp.Failed
 	}
 
-	return resp.Failed
+	// load the config sourced from the pushed file
+	mresp, err := n.cliConn.SendConfigs(
+		[]string{"baseline update",
+			"discard /",
+			"source /home/admin/kne-push-config",
+			"commit save"},
+		scrapliopopts.WithStopOnFailed())
+	if err != nil {
+		return err
+	}
+
+	if mresp.Failed != nil {
+		log.Infof("%s - failed config push", n.Impl.Proto.Name)
+
+		return resp.Failed
+	}
+
+	log.Infof("%s - finished pushing config", n.Name())
+
+	return nil
 }
 
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
@@ -238,12 +271,14 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{ObjectMeta: metav1.ObjectMeta{Name: n.Name()}})
+	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: n.GetNamespace(), Name: n.Name(),
+		},
+	})
 	if err != nil {
 		return err
 	}
-
-	log.Infof("Deleted custom resource: %s", n.Name())
 	if err := n.DeleteService(ctx); err != nil {
 		return err
 	}
@@ -286,14 +321,21 @@ func defaults(pb *topopb.Node) *topopb.Node {
 	if pb.Config.Image == "" {
 		pb.Config.Image = "ghcr.io/nokia/srlinux:latest"
 	}
+	// SR Linux default name for config file is either config.json or config.cli.
+	// This depends on the extension of the provided startup-config file.
 	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "config.json"
+		ext := filepath.Ext(pb.Config.GetFile())
+		if ext != ".json" {
+			ext = ".cli"
+		}
+
+		pb.Config.ConfigFile = "config" + ext
 	}
 	return pb
 }
 
-// Implement the resetter for SRL
-// Using load factory auto-commit to reset default configs
+// ResetCfg resets the config of the node by reverting to a named checkpoint "initial"
+// that is created by srl-controller for each node.
 func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Infof("%s resetting config", n.Name())
 
