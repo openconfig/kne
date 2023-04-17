@@ -20,7 +20,6 @@ func TestGetPodStatus(t *testing.T) {
 		{ceos1pod, ixia1pod},
 		{ceos2pod, ixia2pod},
 		{ceos3pod, ixia3pod},
-		{ceos4pod},
 		{ceos5pod},
 		{ceos6pod},
 		{ceos7pod},
@@ -31,7 +30,6 @@ func TestGetPodStatus(t *testing.T) {
 		{ceos1status, ixia1status},
 		{ceos2status, ixia2status},
 		{ceos3status, ixia3status},
-		{ceos4status},
 		{ceos5status},
 		{ceos6status},
 		{ceos7status},
@@ -115,13 +113,18 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 }
 
 func TestWatchPodStatus(t *testing.T) {
+	if _, _, err := WatchPodStatus(nil, nil, ""); err == nil { //nolint:all
+		t.Errorf("WatchPodStatus does not return an error on a nil context.")
+	}
+	if _, _, err := WatchPodStatus(context.TODO(), nil, ""); err == nil {
+		t.Errorf("WatchPodStatus does not return an error on a nil client.")
+	}
 	client := kfake.NewSimpleClientset()
 
 	var wanted = []*PodStatus{
 		&ceos1status,
 		&ceos2status,
 		&ceos3status,
-		&ceos4status,
 		&ceos5status,
 		&ceos6status,
 		&ceos6Istatus,
@@ -132,7 +135,6 @@ func TestWatchPodStatus(t *testing.T) {
 		ceos1pod,
 		ceos2pod,
 		ceos3pod,
-		ceos4pod,
 		ceos5pod,
 		ceos6pod,
 		ceos6pod,
@@ -166,13 +168,13 @@ func TestWatchPodStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stop()
-	for _, want := range wanted {
+	for i, want := range wanted {
 		got, ok := <-ch
 		if !ok {
 			t.Fatalf("channel closed early")
 		}
 		if !got.Equal(want) {
-			t.Fatalf("\ngot : %v\nwant: %v", got, want)
+			t.Fatalf("#%d\ngot : %v\nwant: %v", i, got, want)
 		}
 	}
 }
@@ -196,18 +198,21 @@ func TestWatchPodStatusError(t *testing.T) {
 
 func TestString(t *testing.T) {
 	for _, tt := range []struct {
+		name   string
 		pod    *PodStatus
 		status string
 	}{
-		{&ceos1status, ceos1string}, // No containers
-		{&ceos2status, ceos2string}, // containers not ready
-		{&ceos3status, ceos3string}, // containers ready
-		{&ceos6status, ceos6string}, // init containers
+		{"ceos1", &ceos1status, ceos1string}, // No containers
+		{"ceos2", &ceos2status, ceos2string}, // containers not ready
+		{"ceos3", &ceos3status, ceos3string}, // containers ready
+		{"ceos6", &ceos6status, ceos6string}, // init containers
 	} {
-		status := tt.pod.String()
-		if status != tt.status {
-			t.Errorf("Got/Want:\n%s\n%s", status, tt.status)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			status := tt.pod.String()
+			if status != tt.status {
+				t.Errorf("Got/Want:\n%s\n%s", status, tt.status)
+			}
+		})
 	}
 }
 
@@ -222,5 +227,31 @@ func TestEqual(t *testing.T) {
 		if pod.Equal(different) {
 			t.Errorf("#%d: Equal returned true on different pods", i)
 		}
+	}
+	pod1 := &PodStatus{
+		Containers: []ContainerStatus{
+			{Name: "container1"},
+		},
+	}
+	pod2 := &PodStatus{
+		Containers: []ContainerStatus{
+			{Name: "container2"},
+		},
+	}
+	pod1i := &PodStatus{
+		InitContainers: []ContainerStatus{
+			{Name: "container1"},
+		},
+	}
+	pod2i := &PodStatus{
+		InitContainers: []ContainerStatus{
+			{Name: "container2"},
+		},
+	}
+	if pod1.Equal(pod2) {
+		t.Errorf("Equal returned true with different containers")
+	}
+	if pod1i.Equal(pod2i) {
+		t.Errorf("Equal returned true with different init containers")
 	}
 }

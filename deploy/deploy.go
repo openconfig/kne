@@ -22,6 +22,7 @@ import (
 	kexec "github.com/openconfig/kne/exec"
 	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
+	"github.com/openconfig/kne/pods"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
@@ -111,6 +112,10 @@ type Deployment struct {
 	Ingress     Ingress      `kne:"ingress"`
 	CNI         CNI          `kne:"cni"`
 	Controllers []Controller `kne:"controllers"`
+
+	// If Progress is true then deployment status updates will be sent to
+	// standard output.
+	Progress bool
 }
 
 func (d *Deployment) String() string {
@@ -134,7 +139,7 @@ type kubeVersion struct {
 	ServerVersion    *kversion.Info `json:"serverVersion,omitempty" yaml:"serverVersion,omitempty"`
 }
 
-func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
+func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if err := d.checkDependencies(); err != nil {
 		return err
 	}
@@ -184,6 +189,19 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
 	log.V(1).Info("Found k8s versions:\n", output)
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	if w, err := pods.NewWatcher(ctx, kClient, cancel); err != nil {
+		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
+		w.SetProgress(d.Progress)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
+	}
 
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
