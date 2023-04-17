@@ -1,4 +1,4 @@
-package deploy
+package pods
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/openconfig/kne/pods"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	log "k8s.io/klog/v2"
@@ -23,7 +22,7 @@ type Watcher struct {
 	cancel    func()
 	podStates map[types.UID]string
 	cStates   map[string]string
-	ch        chan *pods.PodStatus
+	ch        chan *PodStatus
 	stdout    io.Writer
 	warningf  func(string, ...any)
 
@@ -38,7 +37,7 @@ type Watcher struct {
 // failed.  The Watcher will exit if the context provided is canceled, an error
 // is encountered, or Cleanup is called.
 func NewWatcher(ctx context.Context, client kubernetes.Interface, cancel func()) (*Watcher, error) {
-	ch, stop, err := pods.WatchPodStatus(ctx, client, "")
+	ch, stop, err := WatchPodStatus(ctx, client, "")
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +46,7 @@ func NewWatcher(ctx context.Context, client kubernetes.Interface, cancel func())
 	return w, nil
 }
 
-func newWatcher(ctx context.Context, cancel func(), ch chan *pods.PodStatus, stop func()) *Watcher {
+func newWatcher(ctx context.Context, cancel func(), ch chan *PodStatus, stop func()) *Watcher {
 	w := &Watcher{
 		ctx:       ctx,
 		ch:        ch,
@@ -122,7 +121,7 @@ func (w *Watcher) display(format string, v ...any) {
 	}
 }
 
-func (w *Watcher) updatePod(s *pods.PodStatus) bool {
+func (w *Watcher) updatePod(s *PodStatus) bool {
 	newNamespace := s.Namespace != w.currentNamespace
 	var newState string
 
@@ -130,18 +129,18 @@ func (w *Watcher) updatePod(s *pods.PodStatus) bool {
 		newState = "READY"
 	} else {
 		switch s.Phase {
-		case pods.PodPending:
+		case PodPending:
 			newState = "pending"
-		case pods.PodRunning:
+		case PodRunning:
 			newState = "running"
-		case pods.PodSucceeded:
+		case PodSucceeded:
 			newState = "success"
-		case pods.PodFailed:
+		case PodFailed:
 			newState = "failed"
 		}
 	}
 
-	showPodState := func(s *pods.PodStatus, oldState, newState string) {
+	showPodState := func(s *PodStatus, oldState, newState string) {
 		if w.currentPod == s.UID && oldState == newState {
 			return
 		}
@@ -157,7 +156,7 @@ func (w *Watcher) updatePod(s *pods.PodStatus) bool {
 			w.display("    POD: %s is now %s", s.Name, newState)
 		}
 	}
-	showContainer := func(s *pods.PodStatus, c *pods.ContainerStatus, state string) {
+	showContainer := func(s *PodStatus, c *ContainerStatus, state string) {
 		id := s.Namespace + ":" + s.Name + ":" + c.Name
 		if oldState := w.cStates[id]; oldState != state {
 			showPodState(s, "", "")

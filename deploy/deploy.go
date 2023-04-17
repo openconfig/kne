@@ -22,6 +22,7 @@ import (
 	kexec "github.com/openconfig/kne/exec"
 	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
+	"github.com/openconfig/kne/pods"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
@@ -192,7 +193,9 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
-	if w, _ := NewWatcher(ctx, kClient, cancel); w != nil {
+	if w, err := pods.NewWatcher(ctx, kClient, cancel); err != nil {
+		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
 		w.SetProgress(d.Progress)
 		defer func() {
 			cancel()

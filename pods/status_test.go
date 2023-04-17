@@ -1,4 +1,4 @@
-package deploy
+package pods
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/h-fam/errdiff"
-	"github.com/openconfig/kne/pods"
 	"k8s.io/apimachinery/pkg/types"
 	kfake "k8s.io/client-go/kubernetes/fake"
 )
@@ -60,7 +59,7 @@ func TestUpdatePod(t *testing.T) {
 
 	for _, tt := range []struct {
 		name     string
-		pod      *pods.PodStatus
+		pod      *PodStatus
 		want     string
 		errch    string
 		stopped  bool
@@ -68,7 +67,7 @@ func TestUpdatePod(t *testing.T) {
 	}{
 		{
 			name: "pending1",
-			pod:  &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodPending},
+			pod:  &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodPending},
 			want: `
 01:23:45 NS: ns1
 01:23:45     POD: pod1 is now pending
@@ -76,28 +75,28 @@ func TestUpdatePod(t *testing.T) {
 		},
 		{
 			name: "running1",
-			pod:  &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodRunning},
+			pod:  &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodRunning},
 			want: `
 01:23:45     POD: pod1 is now running
 `[1:],
 		},
 		{
 			name: "success1",
-			pod:  &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodSucceeded},
+			pod:  &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodSucceeded},
 			want: `
 01:23:45     POD: pod1 is now success
 `[1:],
 		},
 		{
 			name: "ready1",
-			pod:  &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Ready: true, Phase: pods.PodRunning},
+			pod:  &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Ready: true, Phase: PodRunning},
 			want: `
 01:23:45     POD: pod1 is now READY
 `[1:],
 		},
 		{
 			name: "failed1",
-			pod:  &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodFailed},
+			pod:  &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodFailed},
 			want: `
 01:23:45     POD: pod1 is now failed
 `[1:],
@@ -106,15 +105,15 @@ func TestUpdatePod(t *testing.T) {
 		},
 		{
 			name: "pending1a",
-			pod:  &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodPending},
+			pod:  &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodPending},
 			want: `
 01:23:45     POD: pod1 is now pending
 `[1:],
 		},
 		{
 			name: "pod2",
-			pod: &pods.PodStatus{Name: "pod2", UID: uid2, Namespace: "ns2", Phase: pods.PodPending,
-				Containers: []pods.ContainerStatus{{Name: "cont1", Reason: "pending"}},
+			pod: &PodStatus{Name: "pod2", UID: uid2, Namespace: "ns2", Phase: PodPending,
+				Containers: []ContainerStatus{{Name: "cont1", Reason: "pending"}},
 			},
 			want: `
 01:23:45 NS: ns2
@@ -124,8 +123,8 @@ func TestUpdatePod(t *testing.T) {
 		},
 		{
 			name: "pod2a",
-			pod: &pods.PodStatus{Name: "pod2", UID: uid2, Namespace: "ns2", Phase: pods.PodPending,
-				Containers: []pods.ContainerStatus{{Name: "cont1", Reason: "ImagePullBackOff"}},
+			pod: &PodStatus{Name: "pod2", UID: uid2, Namespace: "ns2", Phase: PodPending,
+				Containers: []ContainerStatus{{Name: "cont1", Reason: "ImagePullBackOff"}},
 			},
 			want: `
 01:23:45          CONTAINER: cont1 is now ImagePullBackOff
@@ -133,15 +132,15 @@ func TestUpdatePod(t *testing.T) {
 		},
 		{
 			name: "pod3",
-			pod:  &pods.PodStatus{Name: "pod3", UID: uid3, Namespace: "ns2", Phase: pods.PodPending},
+			pod:  &PodStatus{Name: "pod3", UID: uid3, Namespace: "ns2", Phase: PodPending},
 			want: `
 01:23:45     POD: pod3 is now pending
 `[1:],
 		},
 		{
 			name: "pod1a",
-			pod: &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodPending,
-				Containers: []pods.ContainerStatus{{Name: "cont1", Ready: true}},
+			pod: &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodPending,
+				Containers: []ContainerStatus{{Name: "cont1", Ready: true}},
 			},
 			want: `
 01:23:45 NS: ns1
@@ -151,8 +150,8 @@ func TestUpdatePod(t *testing.T) {
 		},
 		{
 			name: "pod1b",
-			pod: &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodPending,
-				Containers: []pods.ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "totally"}},
+			pod: &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodPending,
+				Containers: []ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "totally"}},
 			},
 			want: `
 01:23:45          CONTAINER: cont1 is now FAILED
@@ -162,8 +161,8 @@ func TestUpdatePod(t *testing.T) {
 		},
 		{
 			name: "pod1c",
-			pod: &pods.PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: pods.PodPending,
-				Containers: []pods.ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "something code = NotFound here", Image: "the_image"}},
+			pod: &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodPending,
+				Containers: []ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "something code = NotFound here", Image: "the_image"}},
 			},
 			want: `
 `[1:],
@@ -284,11 +283,11 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestWatcher(t *testing.T) {
-	failedPod := &pods.PodStatus{Name: "pod_name", UID: "uid", Namespace: "ns", Phase: pods.PodFailed}
-	readyPod := &pods.PodStatus{Name: "pod_name", UID: "uid", Namespace: "ns", Ready: true}
+	failedPod := &PodStatus{Name: "pod_name", UID: "uid", Namespace: "ns", Phase: PodFailed}
+	readyPod := &PodStatus{Name: "pod_name", UID: "uid", Namespace: "ns", Ready: true}
 	for _, tt := range []struct {
 		name     string
-		s        *pods.PodStatus
+		s        *PodStatus
 		output   string
 		closed   bool
 		canceled bool
@@ -324,7 +323,7 @@ func TestWatcher(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
 			stopped := false
 			stop := func() { stopped = true }
-			ch := make(chan *pods.PodStatus, 2)
+			ch := make(chan *PodStatus, 2)
 			var buf strings.Builder
 			w := newWatcher(ctx, cancel, ch, stop)
 			w.progress = true
