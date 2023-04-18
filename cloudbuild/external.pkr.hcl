@@ -102,7 +102,7 @@ build {
       "echo Installing multinode cluster dependencies...",
       "git clone https://github.com/flannel-io/flannel.git",
       "curl --create-dirs -o third_party/licenses/flannel/LICENSE https://raw.githubusercontent.com/flannel-io/flannel/master/LICENSE",
-      "git clone https://github.com/Mirantis/cri-dockerd.git",
+      "git clone https://github.com/Mirantis/cri-dockerd.git --branch v0.3.1",
       "cd cri-dockerd",
       "PATH=$PATH:/usr/local/go/bin",
       "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",
