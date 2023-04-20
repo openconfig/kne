@@ -84,6 +84,8 @@ const (
 	StatusRunning Status = "RUNNING"
 	StatusFailed  Status = "FAILED"
 	StatusUnknown Status = "UNKNOWN"
+
+	configVolumeName = "startup-config-volume"
 )
 
 type NewNodeFn func(n *Impl) (Node, error)
@@ -209,7 +211,7 @@ func (n *Impl) Create(ctx context.Context) error {
 	return nil
 }
 
-func (n *Impl) createConfigVolume(ctx context.Context) (corev1.Volume, error) {
+func (n *Impl) createConfigVolume(ctx context.Context) (*corev1.Volume, error) {
 	pb := n.Proto
 	var data []byte
         switch v := pb.Config.GetConfigData().(type) {
@@ -217,7 +219,7 @@ func (n *Impl) createConfigVolume(ctx context.Context) (corev1.Volume, error) {
                 var err error
                 data, err = os.ReadFile(filepath.Join(n.BasePath, v.File))
                 if err != nil {
-                        return err
+                        return nil, err
                 }
         case *tpb.Config_Data:
                 data = v.Data
@@ -239,7 +241,7 @@ func (n *Impl) createConfigVolume(ctx context.Context) (corev1.Volume, error) {
                 }
                 sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
                 if err != nil {
-			return err
+			return nil, err
 		}
                 log.V(1).Infof("Created config ConfigMap:\n%v\n", sCM)
                 vs = corev1.VolumeSource{
@@ -252,27 +254,26 @@ func (n *Impl) createConfigVolume(ctx context.Context) (corev1.Volume, error) {
 	default: // size greater than 3MB, use hostPath
 		f, err := os.CreateTemp("", fmt.Sprintf("kne-%s-config-*.cfg")) // make sure this is read only
 		if err != nil {
-			return err
+			return nil, err
 		}
 		path := f.Name()
 		if _, err := f.Write(data); err != nil {
 			os.Remove(path)
-			return err
+			return nil, err
 		}
-		if _, err := f.Close(); err != nil {
+		if err := f.Close(); err != nil {
 			os.Remove(path)
-			return err
+			return nil, err
 		}
 		log.V(1).Infof("Created config file %s", path)
 		vs = corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: path,
-				Type: corev1.HostPathFile,
-			}
+			},
 		}
 	}
-	return corev1.Volume{
-		Name: "startup-config-volume",
+	return &corev1.Volume{
+		Name: configVolumeName,
 		VolumeSource: vs,
 	}, nil
 }
@@ -341,10 +342,10 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		pod.Spec.Volumes = append(pod.Spec.Volumes, vol)
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
 		for i, c := range pod.Spec.Containers {
 			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      "startup-config-volume",
+				Name:      configVolumeName,
 				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
 				SubPath:   pb.Config.ConfigFile,
 				ReadOnly:  true,
@@ -417,10 +418,6 @@ func (n *Impl) CreateService(ctx context.Context) error {
 
 // Delete remove the node from the cluster.
 func (n *Impl) Delete(ctx context.Context) error {
-	// Delete config maps for node
-	if err := n.DeleteConfig(ctx); err != nil {
-		log.Warningf("Error deleting config-map %q: %v", n.Name(), err)
-	}
 	if err := n.DeleteService(ctx); err != nil {
 		log.Warningf("Error deleting service %q: %v", n.Name(), err)
 	}
@@ -429,11 +426,6 @@ func (n *Impl) Delete(ctx context.Context) error {
 		log.Warningf("Error deleting resource %q: %v", n.Name(), err)
 	}
 	return nil
-}
-
-// DeleteConfig removes the node configmap from the cluster.
-func (n *Impl) DeleteConfig(ctx context.Context) error {
-	return n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, fmt.Sprintf("%s-config", n.Name()), metav1.DeleteOptions{})
 }
 
 // DeleteService removes the service definition for the Node.
@@ -449,6 +441,25 @@ func (n *Impl) DeleteService(ctx context.Context) error {
 // DeleteResource removes the resource definition for the Node.
 func (n *Impl) DeleteResource(ctx context.Context) error {
 	log.Infof("Deleting Resource for Pod:%s", n.Name())
+	pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	for _, vol := range pod.Spec.Volumes {
+		if vol.Name != configVolumeName {
+			continue
+		}
+		switch vs := vol.VolumeSource; {
+		case vs.HostPath != nil:
+			path := vs.HostPath.Path
+			os.Remove(path) // probably log error here
+			log.V(1).Infof("Deleted config file %s", path)
+		case vs.ConfigMap != nil:
+			name := vs.ConfigMap.LocalObjectReference.Name
+			n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, name, metav1.DeleteOptions{}) // same
+			log.V(1).Infof("Deleted config map %s", name)
+		}
+	}
 	return n.KubeClient.CoreV1().Pods(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 }
 
