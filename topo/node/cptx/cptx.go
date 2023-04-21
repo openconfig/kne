@@ -305,11 +305,6 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating cPTX node resource %s", n.Name())
 
-	if err := n.CreateConfig(ctx); err != nil {
-		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
-	}
-	log.Infof("Created cPTX node %s configmap", n.Name())
-
 	pb := n.Proto
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -391,19 +386,14 @@ func (n *Node) Create(ctx context.Context) error {
 		},
 	}
 	if pb.Config.ConfigData != nil {
-		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-			Name: "startup-config-volume",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf("%s-config", pb.Name),
-					},
-				},
-			},
-		})
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			return err
+		}
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
 		for i, c := range pod.Spec.Containers {
 			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      "startup-config-volume",
+				Name:      node.ConfigVolumeName,
 				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
 				SubPath:   pb.Config.ConfigFile,
 				ReadOnly:  true,
