@@ -425,6 +425,10 @@ func (k *KindSpec) checkDependencies() error {
 }
 
 func (k *KindSpec) create() error {
+	// Create a KNE dir under /tmp intended to hold files to be mounted into the kind cluster.
+	if err := os.MkdirAll("/tmp/kne", os.ModePerm); err != nil {
+		return err
+	}
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
 		if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {

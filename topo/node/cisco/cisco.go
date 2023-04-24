@@ -144,13 +144,16 @@ func (n *Node) Create(ctx context.Context) error {
 			return err
 		}
 		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      node.ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
 		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      node.ConfigVolumeName,
-				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
-				SubPath:   pb.Config.ConfigFile,
-				ReadOnly:  true,
-			})
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
 		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})

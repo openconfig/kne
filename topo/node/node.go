@@ -262,12 +262,19 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 			},
 		}
 	default: // size greater than 3MB, use hostPath
-		f, err := os.CreateTemp("", fmt.Sprintf("kne-%s-config-*.cfg")) // make sure this is read only
+		if err := os.MkdirAll("/tmp/kne", 0666); err != nil {
+			return nil, err
+		}
+		f, err := os.CreateTemp("/tmp/kne", fmt.Sprintf("kne-%s-config-*.cfg", n.Proto.Name))
 		if err != nil {
 			return nil, err
 		}
 		path := f.Name()
 		if _, err := f.Write(data); err != nil {
+			os.Remove(path)
+			return nil, err
+		}
+		if err := f.Chmod(0444); err != nil {
 			os.Remove(path)
 			return nil, err
 		}
@@ -353,13 +360,16 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 			return err
 		}
 		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
 		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      ConfigVolumeName,
-				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
-				SubPath:   pb.Config.ConfigFile,
-				ReadOnly:  true,
-			})
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
 		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
