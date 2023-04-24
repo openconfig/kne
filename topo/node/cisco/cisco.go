@@ -14,8 +14,10 @@
 package cisco
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -24,6 +26,7 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
@@ -33,6 +36,8 @@ import (
 const (
 	ModelXRD = "xrd"
 )
+
+var podIsUpRegex = regexp.MustCompile(`Router up`)
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
@@ -342,10 +347,6 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	pb = constraints(pb)
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
-			443: {
-				Name:   "ssl",
-				Inside: 443,
-			},
 			22: {
 				Name:   "ssh",
 				Inside: 22,
@@ -384,6 +385,59 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 	}
 	return pb, nil
+}
+
+// Status returns the current node state.
+// For 8000e nodes it checks the logs and return running if log contains "Router up"
+func (n *Node) Status(ctx context.Context) (node.Status, error) {
+	p, err := n.Pods(ctx)
+	if err != nil {
+		return node.StatusUnknown, err
+	}
+	if len(p) != 1 {
+		return node.StatusUnknown, fmt.Errorf("expected exactly one pod for node %s", n.Name())
+	}
+	switch p[0].Status.Phase {
+	case corev1.PodPending:
+		return node.StatusPending, nil
+	case corev1.PodUnknown:
+		return node.StatusUnknown, nil
+	case corev1.PodFailed:
+		return node.StatusFailed, nil
+	case corev1.PodSucceeded, corev1.PodRunning:
+		pb := n.Proto
+		if pb.GetModel() != ModelXRD {
+			req := n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &corev1.PodLogOptions{})
+			if !isNode8000eUp(ctx, req) {
+				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+				return node.StatusPending, nil
+			}
+		}
+		for _, cond := range p[0].Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status != corev1.ConditionTrue {
+				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+				return node.StatusPending, nil
+			}
+		}
+		log.Infof("Cisco %s node %s status is %v ", n.Proto.Model, n.Name(), node.StatusRunning)
+		return node.StatusRunning, nil
+	default:
+		return node.StatusUnknown, nil
+	}
+}
+
+func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return false
+	}
+	defer podLogs.Close()
+	buf := new(bytes.Buffer)
+	len, err := io.Copy(buf, podLogs)
+	if err != nil || len == 0 {
+		return false
+	}
+	return podIsUpRegex.Match(buf.Bytes())
 }
 
 func init() {
