@@ -2,9 +2,9 @@ package node
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
-	"os"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -265,12 +265,12 @@ func TestService(t *testing.T) {
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				9339: {
-					Name:    "gnmi",
-					Inside:  9339,
+					Name:   "gnmi",
+					Inside: 9339,
 				},
 				9337: {
-					Name:    "gnoi",
-					Inside:  9339,
+					Name:   "gnoi",
+					Inside: 9339,
 				},
 			},
 		},
