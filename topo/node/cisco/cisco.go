@@ -64,10 +64,6 @@ type Node struct {
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
-	if err := n.CreateConfig(ctx); err != nil {
-		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
-	}
-	log.Infof("Created Cisco %s node %s configmap", n.Proto.Model, n.Name())
 	pb := n.Proto
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -148,23 +144,21 @@ func (n *Node) Create(ctx context.Context) error {
 		},
 	}
 	if pb.Config.ConfigData != nil {
-		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-			Name: "startup-config-volume",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf("%s-config", pb.Name),
-					},
-				},
-			},
-		})
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			return err
+		}
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      node.ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
 		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      "startup-config-volume",
-				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
-				SubPath:   pb.Config.ConfigFile,
-				ReadOnly:  true,
-			})
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
 		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})

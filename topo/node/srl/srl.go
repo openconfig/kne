@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
-	topopb "github.com/openconfig/kne/proto/topo"
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scrapliopopts "github.com/scrapli/scrapligo/driver/opoptions"
@@ -199,7 +200,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
 
-	if err := n.CreateConfig(ctx); err != nil {
+	if _, err := n.CreateConfig(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
 	}
 	log.Infof("Created SR Linux node %s configmap", n.Name())
@@ -270,6 +271,37 @@ func (n *Node) Create(ctx context.Context) error {
 	return err
 }
 
+func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
+	pb := n.Proto
+	var data []byte
+	switch v := pb.Config.GetConfigData().(type) {
+	case *tpb.Config_File:
+		var err error
+		data, err = os.ReadFile(filepath.Join(n.BasePath, v.File))
+		if err != nil {
+			return nil, err
+		}
+	case *tpb.Config_Data:
+		data = v.Data
+	}
+	if data != nil {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("%s-config", pb.Name),
+			},
+			Data: map[string]string{
+				pb.Config.ConfigFile: string(data),
+			},
+		}
+		sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
+		if err != nil {
+			return nil, err
+		}
+		log.V(1).Infof("Server Config Map:\n%v\n", sCM)
+	}
+	return nil, nil
+}
+
 func (n *Node) Delete(ctx context.Context) error {
 	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
 		ObjectMeta: metav1.ObjectMeta{
@@ -289,12 +321,12 @@ func (n *Node) Delete(ctx context.Context) error {
 	return nil
 }
 
-func defaults(pb *topopb.Node) *topopb.Node {
+func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config == nil {
-		pb.Config = &topopb.Config{}
+		pb.Config = &tpb.Config{}
 	}
 	if pb.Services == nil {
-		pb.Services = map[uint32]*topopb.Service{
+		pb.Services = map[uint32]*tpb.Service{
 			443: {
 				Name:   "ssl",
 				Inside: 443,
@@ -313,10 +345,10 @@ func defaults(pb *topopb.Node) *topopb.Node {
 		pb.Labels = map[string]string{}
 	}
 	if pb.Labels["vendor"] == "" {
-		pb.Labels["vendor"] = topopb.Vendor_NOKIA.String()
+		pb.Labels["vendor"] = tpb.Vendor_NOKIA.String()
 	}
 	if pb.Config == nil {
-		pb.Config = &topopb.Config{}
+		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.Image == "" {
 		pb.Config.Image = "ghcr.io/nokia/srlinux:latest"
@@ -397,5 +429,5 @@ func (n *Node) isConfigDataPresent() bool {
 }
 
 func init() {
-	node.Vendor(topopb.Vendor_NOKIA, New)
+	node.Vendor(tpb.Vendor_NOKIA, New)
 }

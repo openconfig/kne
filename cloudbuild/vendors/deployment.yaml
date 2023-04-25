@@ -10,9 +10,9 @@ cluster:
     image: kindest/node:v1.26.0
     googleArtifactRegistries:
       - us-west1-docker.pkg.dev
-    config: ../../kind/kind-no-cni.yaml
+    config: ../../manifests/kind/config.yaml
     additionalManifests:
-      - ../../manifests/kind/kind-bridge.yaml
+      - ../../manifests/kind/bridge.yaml
 ingress:
   kind: MetalLB
   spec:

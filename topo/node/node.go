@@ -84,6 +84,8 @@ const (
 	StatusRunning Status = "RUNNING"
 	StatusFailed  Status = "FAILED"
 	StatusUnknown Status = "UNKNOWN"
+
+	ConfigVolumeName = "startup-config-volume"
 )
 
 type NewNodeFn func(n *Impl) (Node, error)
@@ -91,6 +93,7 @@ type NewNodeFn func(n *Impl) (Node, error)
 var (
 	mu          sync.Mutex
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
+	tempCfgDir  = "/tmp/kne"
 )
 
 // Vendor registers the vendor type with the topology manager.
@@ -200,9 +203,6 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 // Create will create the node in the k8s cluster with all services and config
 // maps.
 func (n *Impl) Create(ctx context.Context) error {
-	if err := n.CreateConfig(ctx); err != nil {
-		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
-	}
 	if err := n.CreatePod(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create pod %w", n.Name(), err)
 	}
@@ -212,36 +212,87 @@ func (n *Impl) Create(ctx context.Context) error {
 	return nil
 }
 
-// CreateConfig creates a boot config for the node based on the underlying proto.
-func (n *Impl) CreateConfig(ctx context.Context) error {
-	pb := n.Proto
-	var data []byte
-	switch v := pb.Config.GetConfigData().(type) {
+func (n *Impl) readConfig() ([]byte, error) {
+	switch v := n.Proto.Config.GetConfigData().(type) {
 	case *tpb.Config_File:
-		var err error
-		data, err = os.ReadFile(filepath.Join(n.BasePath, v.File))
-		if err != nil {
-			return err
-		}
+		return os.ReadFile(filepath.Join(n.BasePath, v.File))
 	case *tpb.Config_Data:
-		data = v.Data
+		return v.Data, nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("config type not supported: %T", v)
 	}
-	if data != nil {
+}
+
+// CreateConfig creates a boot config for the node based on the underlying proto.
+// A volume containing the boot config is returned. If the config size is <3MB
+// then a ConfigMap is created as the volume source. Else a temporary file
+// is written with the boot config to serve as a HostPath volume source.
+func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
+	data, err := n.readConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	var vs corev1.VolumeSource
+	switch size := len(data); {
+	case size == 0: // no config data in proto, return a nil volume
+		return nil, nil
+	case size < 1048576*3: // size less than 3MB, use configMap
+		name := fmt.Sprintf("%s-config", n.Proto.Name)
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-config", pb.Name),
+				Name: name,
 			},
 			Data: map[string]string{
-				pb.Config.ConfigFile: string(data),
+				n.Proto.Config.ConfigFile: string(data),
 			},
 		}
 		sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
-		log.V(1).Infof("Server Config Map:\n%v\n", sCM)
+		log.V(1).Infof("Created config ConfigMap:\n%v\n", sCM)
+		vs = corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: name,
+				},
+			},
+		}
+	default: // size greater than 3MB, use hostPath
+		if err := os.MkdirAll(tempCfgDir, 0666); err != nil {
+			return nil, err
+		}
+		f, err := os.CreateTemp(tempCfgDir, fmt.Sprintf("kne-%s-config-*.cfg", n.Proto.Name))
+		if err != nil {
+			return nil, err
+		}
+		path := f.Name()
+		if _, err := f.Write(data); err != nil {
+			os.Remove(path)
+			return nil, err
+		}
+		if err := f.Chmod(0444); err != nil {
+			os.Remove(path)
+			return nil, err
+		}
+		if err := f.Close(); err != nil {
+			os.Remove(path)
+			return nil, err
+		}
+		log.V(1).Infof("Created config file %s", path)
+		vs = corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: path,
+			},
+		}
 	}
-	return nil
+	return &corev1.Volume{
+		Name:         ConfigVolumeName,
+		VolumeSource: vs,
+	}, nil
 }
 
 // CreatePod creates a Pod for the Node based on the underlying proto.
@@ -304,23 +355,21 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 		},
 	}
 	if pb.Config.ConfigData != nil {
-		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-			Name: "startup-config-volume",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf("%s-config", pb.Name),
-					},
-				},
-			},
-		})
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			return err
+		}
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
 		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      "startup-config-volume",
-				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
-				SubPath:   pb.Config.ConfigFile,
-				ReadOnly:  true,
-			})
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
 		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
@@ -389,10 +438,6 @@ func (n *Impl) CreateService(ctx context.Context) error {
 
 // Delete remove the node from the cluster.
 func (n *Impl) Delete(ctx context.Context) error {
-	// Delete config maps for node
-	if err := n.DeleteConfig(ctx); err != nil {
-		log.Warningf("Error deleting config-map %q: %v", n.Name(), err)
-	}
 	if err := n.DeleteService(ctx); err != nil {
 		log.Warningf("Error deleting service %q: %v", n.Name(), err)
 	}
@@ -403,9 +448,33 @@ func (n *Impl) Delete(ctx context.Context) error {
 	return nil
 }
 
-// DeleteConfig removes the node configmap from the cluster.
+// DeleteConfig removes the node configmap from the cluster if it exists. If
+// a config file hostPath was used for the boot config volume, clean the file up instead.
 func (n *Impl) DeleteConfig(ctx context.Context) error {
-	return n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, fmt.Sprintf("%s-config", n.Name()), metav1.DeleteOptions{})
+	pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	for _, vol := range pod.Spec.Volumes {
+		if vol.Name != ConfigVolumeName {
+			continue
+		}
+		switch vs := vol.VolumeSource; {
+		case vs.HostPath != nil:
+			path := vs.HostPath.Path
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+			log.V(1).Infof("Deleted config file %s", path)
+		case vs.ConfigMap != nil:
+			name := vs.ConfigMap.LocalObjectReference.Name
+			if err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+				return err
+			}
+			log.V(1).Infof("Deleted config map %s", name)
+		}
+	}
+	return nil
 }
 
 // DeleteService removes the service definition for the Node.
@@ -421,6 +490,9 @@ func (n *Impl) DeleteService(ctx context.Context) error {
 // DeleteResource removes the resource definition for the Node.
 func (n *Impl) DeleteResource(ctx context.Context) error {
 	log.Infof("Deleting Resource for Pod:%s", n.Name())
+	if err := n.DeleteConfig(ctx); err != nil {
+		return err
+	}
 	return n.KubeClient.CoreV1().Pods(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 }
 
