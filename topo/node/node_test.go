@@ -2,7 +2,9 @@ package node
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
+	"os"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -60,6 +62,154 @@ func TestReset(t *testing.T) {
 	}
 }
 
+func TestCreateConfig(t *testing.T) {
+	ctx := context.Background()
+
+	origTempCfgDir := tempCfgDir
+	defer func() {
+		tempCfgDir = origTempCfgDir
+	}()
+	tempCfgDir = t.TempDir()
+
+	tests := []struct {
+		desc    string
+		node    *topopb.Node
+		wantErr string
+		want    *corev1.Volume
+		wantCM  *corev1.ConfigMap
+	}{{
+		desc: "small config from file",
+		node: &topopb.Node{
+			Name:   "dev1",
+			Vendor: topopb.Vendor(1001),
+			Config: &topopb.Config{
+				ConfigFile: "test.cfg",
+				ConfigData: &topopb.Config_File{
+					File: "testdata/small.cfg",
+				},
+			},
+		},
+		want: &corev1.Volume{
+			Name: ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "dev1-config",
+					},
+				},
+			},
+		},
+		wantCM: &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "dev1-config",
+				Namespace: "test",
+			},
+			Data: map[string]string{
+				"test.cfg": "test config\n",
+			},
+		},
+	}, {
+		desc: "small config from data",
+		node: &topopb.Node{
+			Name:   "dev1",
+			Vendor: topopb.Vendor(1001),
+			Config: &topopb.Config{
+				ConfigFile: "test.cfg",
+				ConfigData: &topopb.Config_Data{
+					Data: []byte("test config\n"),
+				},
+			},
+		},
+		want: &corev1.Volume{
+			Name: ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "dev1-config",
+					},
+				},
+			},
+		},
+		wantCM: &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "dev1-config",
+				Namespace: "test",
+			},
+			Data: map[string]string{
+				"test.cfg": "test config\n",
+			},
+		},
+	}, {
+		desc: "large config from file",
+		node: &topopb.Node{
+			Name:   "dev1",
+			Vendor: topopb.Vendor(1001),
+			Config: &topopb.Config{
+				ConfigFile: "test.cfg",
+				ConfigData: &topopb.Config_File{
+					File: "testdata/large.cfg",
+				},
+			},
+		},
+		want: &corev1.Volume{
+			Name: ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: filepath.Join(tempCfgDir, "kne-dev1-config-*.cfg"),
+				},
+			},
+		},
+	}, {
+		desc: "config file dne",
+		node: &topopb.Node{
+			Name:   "dev1",
+			Vendor: topopb.Vendor(1001),
+			Config: &topopb.Config{
+				ConfigFile: "test.cfg",
+				ConfigData: &topopb.Config_File{
+					File: "testdata/dne.cfg",
+				},
+			},
+		},
+		wantErr: "open testdata/dne.cfg: no such file",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			n := &Impl{
+				Namespace:  "test",
+				KubeClient: kfake.NewSimpleClientset(),
+				RestConfig: &rest.Config{},
+				Proto:      tt.node,
+				BasePath:   "",
+				Kubecfg:    "",
+			}
+			got, err := n.CreateConfig(ctx)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("CreateConfig() failed: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(corev1.HostPathVolumeSource{}, "Path")); s != "" {
+				t.Errorf("CreateConfig() unexpected diff: %s", s)
+			}
+			switch vs := got.VolumeSource; {
+			case vs.HostPath != nil:
+				if _, err := os.Stat(vs.HostPath.Path); err != nil {
+					t.Errorf("CreateConfig() did not create the expected file: %v", err)
+				}
+			case vs.ConfigMap != nil:
+				gotCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Get(ctx, vs.ConfigMap.LocalObjectReference.Name, metav1.GetOptions{})
+				if err != nil {
+					t.Errorf("CreateConfig() did not create the expected configmap: %v", err)
+				}
+				if s := cmp.Diff(tt.wantCM, gotCM); s != "" {
+					t.Errorf("CreateConfig() created configmap unexpected diff: %s", s)
+				}
+			}
+		})
+	}
+}
 func TestService(t *testing.T) {
 	tests := []struct {
 		desc           string
@@ -117,12 +267,10 @@ func TestService(t *testing.T) {
 				9339: {
 					Name:    "gnmi",
 					Inside:  9339,
-					Outside: 9339,
 				},
 				9337: {
 					Name:    "gnoi",
 					Inside:  9339,
-					Outside: 9337,
 				},
 			},
 		},

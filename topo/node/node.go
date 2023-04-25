@@ -93,6 +93,7 @@ type NewNodeFn func(n *Impl) (Node, error)
 var (
 	mu          sync.Mutex
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
+	tempCfgDir  = "/tmp/kne"
 )
 
 // Vendor registers the vendor type with the topology manager.
@@ -248,7 +249,6 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 				n.Proto.Config.ConfigFile: string(data),
 			},
 		}
-		// hopefully this will update an existing cfg map if it already exists
 		sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
@@ -262,10 +262,10 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 			},
 		}
 	default: // size greater than 3MB, use hostPath
-		if err := os.MkdirAll("/tmp/kne", 0666); err != nil {
+		if err := os.MkdirAll(tempCfgDir, 0666); err != nil {
 			return nil, err
 		}
-		f, err := os.CreateTemp("/tmp/kne", fmt.Sprintf("kne-%s-config-*.cfg", n.Proto.Name))
+		f, err := os.CreateTemp(tempCfgDir, fmt.Sprintf("kne-%s-config-*.cfg", n.Proto.Name))
 		if err != nil {
 			return nil, err
 		}
