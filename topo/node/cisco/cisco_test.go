@@ -15,6 +15,7 @@ package cisco
 
 import (
 	"context"
+	"regexp"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -22,6 +23,9 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/client-go/kubernetes/fake"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	tpb "github.com/openconfig/kne/proto/topo"
 )
@@ -98,10 +102,6 @@ func TestNew(t *testing.T) {
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -168,10 +168,6 @@ func TestNew(t *testing.T) {
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -242,10 +238,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -335,10 +327,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -435,10 +423,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -505,10 +489,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -605,10 +585,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -652,6 +628,103 @@ func TestNew(t *testing.T) {
 			err = n.Create(context.Background())
 			if s := errdiff.Check(err, tt.cErr); s != "" {
 				t.Fatalf("Unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func TestNodeStatus(t *testing.T) {
+	ki := fake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "8000e",
+				Namespace: "test",
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "xrd",
+				Namespace: "test",
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		},
+	)
+
+	node8000e := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "8000e",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{},
+			Model:  "8201-32FH",
+		},
+	}
+
+	nodeXRD := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "xrd",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{},
+			Model:  ModelXRD,
+		},
+	}
+
+	tests := []struct {
+		desc      string
+		status    node.Status
+		ni        *node.Impl
+		podLogErr bool
+	}{
+		{
+			desc:   "Status test for 8000e Node",
+			status: node.StatusRunning,
+			ni:     node8000e,
+		},
+		{
+			desc:      "Negative Status test for 8000e Node",
+			status:    node.StatusPending,
+			ni:        node8000e,
+			podLogErr: true,
+		},
+		{
+			desc:   "Status test for XRD Node",
+			status: node.StatusRunning,
+			ni:     nodeXRD,
+		},
+		{
+			desc:      "Status test for XRD Node, pod logs do not matter",
+			status:    node.StatusRunning,
+			ni:        nodeXRD,
+			podLogErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			if !tt.podLogErr {
+				origPodIsUpRegex := podIsUpRegex
+				defer func() {
+					podIsUpRegex = origPodIsUpRegex
+				}()
+				podIsUpRegex = regexp.MustCompile("fake log") // this is the expected log from a fake pod
+			}
+			nImpl, _ := New(tt.ni)
+			n, _ := nImpl.(*Node)
+			status, err := n.Status(ctx)
+			if err != nil {
+				t.Errorf("Error is not expected for Node Status")
+			}
+			if status != tt.status {
+				t.Errorf("node.Status() = %v, want %v", status, tt.status)
 			}
 		})
 	}
