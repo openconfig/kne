@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	setPIDMaxScript = filepath.Join(homedir.HomeDir(), ".kne", "set_pid_max.sh")
+	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 )
 
 // logCommand runs the specified command but records standard output
