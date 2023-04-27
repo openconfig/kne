@@ -31,7 +31,7 @@ var (
 	// For committing a very large config
 	scrapliOperationTimeout = 300 * time.Second
 	// Wait for PKI cert infra
-	certGenTimeout = 300 * time.Second
+	certGenTimeout = 10 * time.Minute
 )
 
 const (
