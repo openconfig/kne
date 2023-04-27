@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
@@ -40,6 +41,10 @@ import (
 const (
 	dockerConfigEnvVar        = "DOCKER_CONFIG"
 	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
+)
+
+var (
+	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 )
 
 // logCommand runs the specified command but records standard output
@@ -470,6 +475,15 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 
 	if err := k.create(); err != nil {
 		return err
+	}
+
+	// If the script is found, then run it. Else silently ignore it.
+	// The set_pid_max script modifies the kernel.pid_max value to
+	// be acceptable for the Cisco 8000e container.
+	if _, err := os.Stat(setPIDMaxScript); err == nil {
+		if err := logCommand(setPIDMaxScript); err != nil {
+			return err
+		}
 	}
 
 	for _, s := range k.AdditionalManifests {
