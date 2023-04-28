@@ -147,6 +147,7 @@ build {
       "gcloud source repos clone kne-internal --project=gep-kne",
       "cd kne-internal",
       "/usr/local/go/bin/go get -d ./...",
+      "sudo chmod u+s set_pid_max.sh",
       "cd proxy/server",
       "/usr/local/go/bin/go build",
     ]
