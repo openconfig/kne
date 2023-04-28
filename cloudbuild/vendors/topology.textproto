@@ -8,7 +8,7 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga"
     config_path: "/mnt/flash"
     config_file: "startup-config"
-    file: "configs/ceos.cfg"
+    file: "ceos.cfg"
     cert: {
       self_signed: {
         cert_name: "gnmiCert.pem"
@@ -48,7 +48,7 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga"
     config_path: "/home/evo/configdisk"
     config_file: "juniper.conf"
-    file: "configs/cptx.cfg"
+    file: "cptx.cfg"
     cert: {
       self_signed: {
         cert_name: "grpc-server-cert"
@@ -135,7 +135,7 @@ nodes: {
   model: "ixr6e"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
-    file: "configs/srl.cfg"
+    file: "srl.cfg"
     cert: {
       self_signed: {
         cert_name: "kne-profile"
@@ -223,7 +223,7 @@ nodes: {
   os: "ios-xr"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga"
-    file: "configs/cisco.cfg"
+    file: "cisco.cfg"
   }
   services: {
         key: 22
@@ -297,7 +297,7 @@ nodes: {
   os: "ios-xr"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga"
-    file: "configs/cisco.cfg"
+    file: "cisco.cfg"
   }
   services: {
         key: 22
