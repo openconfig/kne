@@ -17,6 +17,27 @@ nodes: {
       }
     }
   }
+   services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 6030
+        value: {
+            name: "gnmi"
+            inside: 6030
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
+        }
+    }
 }
 nodes: {
   name: "cptx"
@@ -30,105 +51,81 @@ nodes: {
     file: "cptx.cfg"
     cert: {
       self_signed: {
-        cert_name: "grpc-server-cert",
-        key_name: "N/A",
-        key_size: 4096,
+        cert_name: "grpc-server-cert"
+        key_name: "N/A"
+        key_size: 4096
       }
     }
   }
-   services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
+  services: {
+    key: 22
+    value: {
+      name: "ssh"
+      inside: 22
     }
-    services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            inside: 32767
-        }
+  }
+  services: {
+    key: 9337
+    value: {
+      name: "gnoi"
+      inside: 32767
     }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            inside: 32767
-        }
+  }
+  services: {
+    key: 9339
+    value: {
+      name: "gnmi"
+      inside: 32767
     }
-    services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 32767
-        }
+  }
+  services: {
+    key: 9340
+    value: {
+      name: "gribi"
+      inside: 32767
     }
-    services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 32767
-        }
+  }
+  services: {
+    key: 9559
+    value: {
+      name: "p4rt"
+      inside: 32767
     }
+  }
   interfaces: {
-    key: "eth4"
+    key: "eth1"
     value: {
       name: "et-0/0/0"
     }
   }
   interfaces: {
-    key: "eth5"
+    key: "eth2"
     value: {
       name: "et-0/0/1"
     }
   }
   interfaces: {
-    key: "eth6"
+    key: "eth3"
     value: {
       name: "et-0/0/2"
     }
   }
   interfaces: {
-    key: "eth7"
+    key: "eth4"
     value: {
       name: "et-0/0/3"
     }
   }
   interfaces: {
-    key: "eth8"
+    key: "eth5"
     value: {
       name: "et-0/0/4"
     }
   }
   interfaces: {
-    key: "eth9"
+    key: "eth6"
     value: {
       name: "et-0/0/5"
-    }
-  }
-  interfaces: {
-    key: "eth10"
-    value: {
-      name: "et-0/0/6"
-    }
-  }
-  interfaces: {
-    key: "eth11"
-    value: {
-      name: "et-0/0/7"
-    }
-  }
-  interfaces: {
-    key: "eth12"
-    value: {
-      name: "et-0/0/8"
-    }
-  }
-  interfaces: {
-    key: "eth13"
-    value: {
-      name: "et-0/0/9"
     }
   }
 }
@@ -138,43 +135,86 @@ nodes: {
   model: "ixr6e"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga"
-    file: "srlinux.cfg"
+    file: "srl.cfg"
+    cert: {
+      self_signed: {
+        cert_name: "kne-profile"
+        key_name: "N/A"
+        key_size: 4096
+      }
+    }
   }
-  services:{
+  services: {
     key: 22
     value: {
       name: "ssh"
       inside: 22
     }
   }
-  services:{
+  services: {
     key: 9337
     value: {
       name: "gnoi"
       inside: 57400
     }
   }
-  services:{
+  services: {
     key: 9339
     value: {
       name: "gnmi"
       inside: 57400
     }
   }
-  services:{
+  services: {
     key: 9340
     value: {
       name: "gribi"
       inside: 57401
     }
   }
-  services:{
+  services: {
     key: 9559
     value: {
       name: "p4rt"
       inside: 9559
     }
   }
+  interfaces: {
+        key: "eth1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "ethernet-1/2"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "ethernet-1/3"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "ethernet-1/4"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "ethernet-1/5"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "ethernet-1/6"
+        }
+    }
 }
 nodes: {
   name: "xrd"
@@ -183,43 +223,150 @@ nodes: {
   os: "ios-xr"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga"
-    file: "xrd.cfg"
+    file: "cisco.cfg"
   }
-  services:{
-    key: 22
-    value: {
-      name: "ssh"
-      inside: 22
+  services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
     }
-  }
-  services:{
-    key: 9339
-    value: {
-      name: "gnmi"
-      inside: 57400
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 57400
+        }
     }
-  }
-  services:{
-    key: 9340
-    value: {
-        name: "gribi"
-        inside: 57400
-      }
-  }
-  services:{
-    key: 9337
-    value: {
-      name: "gnoi"
-      inside: 57400
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57400
+        }
     }
-  }
-  services:{
-    key: 9559
-    value: {
-      name: "p4rt"
-      inside: 57400
+    services: {
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+        }
     }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "GigabitEthernet0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "GigabitEthernet0/0/0/1"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "GigabitEthernet0/0/0/2"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "GigabitEthernet0/0/0/3"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "GigabitEthernet0/0/0/4"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "GigabitEthernet0/0/0/5"
+        }
+    }
+}
+nodes: {
+  name: "8000e"
+  vendor: CISCO
+  model: "8201"
+  os: "ios-xr"
+  config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga"
+    file: "cisco.cfg"
   }
+  services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 57400
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57400
+        }
+    }
+    services: {
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "FourHundredGigE0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "FourHundredGigE0/0/0/1"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "FourHundredGigE0/0/0/2"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "FourHundredGigE0/0/0/3"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "FourHundredGigE0/0/0/4"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "FourHundredGigE0/0/0/5"
+        }
+    }
+}
+nodes: {
+    name: "lemming"
+    vendor: OPENCONFIG
 }
 nodes: {
   name: "otg"
@@ -247,142 +394,135 @@ nodes: {
     }
   }
 }
-# ceos - xrd
-links: {
-  a_node: "ceos"
-  a_int: "eth1"
-  z_node: "xrd"
-  z_int: "eth1"
-}
-links: {
-  a_node: "ceos"
-  a_int: "eth2"
-  z_node: "xrd"
-  z_int: "eth2"
-}
-links: {
-  a_node: "ceos"
-  a_int: "eth3"
-  z_node: "xrd"
-  z_int: "eth3"
-}
-# ceos - cptx
-links: {
-  a_node: "ceos"
-  a_int: "eth4"
-  z_node: "cptx"
-  z_int: "eth4"
-}
-links: {
-  a_node: "ceos"
-  a_int: "eth5"
-  z_node: "cptx"
-  z_int: "eth5"
-}
-links: {
-  a_node: "ceos"
-  a_int: "eth6"
-  z_node: "cptx"
-  z_int: "eth6"
-}
-# xrd - cptx
-links: {
-  a_node: "xrd"
-  a_int: "eth4"
-  z_node: "cptx"
-  z_int: "eth7"
-}
-links: {
-  a_node: "xrd"
-  a_int: "eth5"
-  z_node: "cptx"
-  z_int: "eth8"
-}
-links: {
-  a_node: "xrd"
-  a_int: "eth6"
-  z_node: "cptx"
-  z_int: "eth9"
-}
-# otg - everything
+# Links from otg
 links: {
   a_node: "otg"
   a_int: "eth1"
   z_node: "ceos"
-  z_int: "eth10"
+  z_int: "eth1"
 }
 links: {
   a_node: "otg"
   a_int: "eth2"
   z_node: "cptx"
-  z_int: "eth10"
+  z_int: "eth1"
 }
 links: {
   a_node: "otg"
   a_int: "eth3"
   z_node: "srl"
-  z_int: "eth10"
+  z_int: "eth1"
 }
 links: {
   a_node: "otg"
   a_int: "eth4"
   z_node: "xrd"
-  z_int: "eth10"
-}
-# srl - ceos
-links: {
-  a_node: "srl"
-  a_int: "eth1"
-  z_node: "ceos"
-  z_int: "eth7"
+  z_int: "eth1"
 }
 links: {
-  a_node: "srl"
+  a_node: "otg"
+  a_int: "eth5"
+  z_node: "8000e"
+  z_int: "eth1"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth6"
+  z_node: "lemming"
+  z_int: "eth1"
+}
+# Links from ceos
+links: {
+  a_node: "ceos"
   a_int: "eth2"
-  z_node: "ceos"
-  z_int: "eth8"
+  z_node: "cptx"
+  z_int: "eth2"
 }
 links: {
-  a_node: "srl"
+  a_node: "ceos"
   a_int: "eth3"
-  z_node: "ceos"
-  z_int: "eth9"
+  z_node: "srl"
+  z_int: "eth2"
 }
-# srl - xrd
+links: {
+  a_node: "ceos"
+  a_int: "eth4"
+  z_node: "xrd"
+  z_int: "eth2"
+}
+links: {
+  a_node: "ceos"
+  a_int: "eth5"
+  z_node: "8000e"
+  z_int: "eth2"
+}
+links: {
+  a_node: "ceos"
+  a_int: "eth6"
+  z_node: "lemming"
+  z_int: "eth2"
+}
+# Links from cptx
+links: {
+  a_node: "cptx"
+  a_int: "eth3"
+  z_node: "srl"
+  z_int: "eth3"
+}
+links: {
+  a_node: "cptx"
+  a_int: "eth4"
+  z_node: "xrd"
+  z_int: "eth3"
+}
+links: {
+  a_node: "cptx"
+  a_int: "eth5"
+  z_node: "8000e"
+  z_int: "eth3"
+}
+links: {
+  a_node: "cptx"
+  a_int: "eth6"
+  z_node: "lemming"
+  z_int: "eth3"
+}
+# Links from srl
 links: {
   a_node: "srl"
   a_int: "eth4"
   z_node: "xrd"
-  z_int: "eth7"
+  z_int: "eth4"
 }
 links: {
   a_node: "srl"
   a_int: "eth5"
-  z_node: "xrd"
-  z_int: "eth8"
+  z_node: "8000e"
+  z_int: "eth4"
 }
 links: {
   a_node: "srl"
   a_int: "eth6"
-  z_node: "xrd"
-  z_int: "eth9"
+  z_node: "lemming"
+  z_int: "eth4"
 }
-# srl - cptx
+# Links from xrd
 links: {
-  a_node: "srl"
-  a_int: "eth7"
-  z_node: "cptx"
-  z_int: "eth11"
-}
-links: {
-  a_node: "srl"
-  a_int: "eth8"
-  z_node: "cptx"
-  z_int: "eth12"
+  a_node: "xrd"
+  a_int: "eth5"
+  z_node: "8000e"
+  z_int: "eth5"
 }
 links: {
-  a_node: "srl"
-  a_int: "eth9"
-  z_node: "cptx"
-  z_int: "eth13"
+  a_node: "xrd"
+  a_int: "eth6"
+  z_node: "lemming"
+  z_int: "eth5"
+}
+# Links from 8000e
+links: {
+  a_node: "8000e"
+  a_int: "eth6"
+  z_node: "lemming"
+  z_int: "eth6"
 }
