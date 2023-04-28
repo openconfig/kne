@@ -116,7 +116,7 @@ func TestLemming(t *testing.T) {
 func TestOTG(t *testing.T) {
 	ate := ondatra.ATE(t, "otg")
 	cfg := ate.OTG().NewConfig(t)
-	portNames := []string{"port1", "port2", "port3", "port4", "port5", "port6"}
+	portNames := []string{"port1", "port2", "port3", "port4"}
 	for _, name := range portNames {
 		cfg.Ports().Add().SetName(name)
 	}
