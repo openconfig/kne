@@ -13,6 +13,12 @@ duts {
   ports {
     id: "port4"
   }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
+  }
 }
 duts {
   id: "cptx"
@@ -28,6 +34,12 @@ duts {
   }
   ports {
     id: "port4"
+  }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
   }
 }
 duts {
@@ -45,10 +57,17 @@ duts {
   ports {
     id: "port4"
   }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
+  }
 }
 duts {
   id: "xrd"
   vendor: CISCO
+  hardware_model: "xrd"
   ports {
     id: "port1"
   }
@@ -60,6 +79,57 @@ duts {
   }
   ports {
     id: "port4"
+  }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
+  }
+}
+duts {
+  id: "e8000"
+  vendor: CISCO
+  hardware_model: "8201"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
+  }
+}
+duts {
+  id: "lemming"
+  vendor: OPENCONFIG
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
   }
 }
 ates {
@@ -77,22 +147,36 @@ ates {
   ports {
     id: "port4"
   }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
+  }
 }
 links {
-  a: "ceos:port1"
-  b: "otg:port1"
+  a: "otg:port1"
+  b: "ceos:port1"
 }
 links {
-  a: "cptx:port1"
-  b: "otg:port2"
+  a: "otg:port2"
+  b: "cptx:port1"
 }
 links {
-  a: "srl:port1"
-  b: "otg:port3"
+  a: "otg:port3"
+  b: "srl:port1"
 }
 links {
-  a: "xrd:port1"
-  b: "otg:port4"
+  a: "otg:port4"
+  b: "xrd:port1"
+}
+links {
+  a: "otg:port5"
+  b: "e8000:port1"
+}
+links {
+  a: "otg:port6"
+  b: "lemming:port1"
 }
 links {
   a: "ceos:port2"
@@ -107,6 +191,14 @@ links {
   b: "xrd:port2"
 }
 links {
+  a: "ceos:port5"
+  b: "e8000:port2"
+}
+links {
+  a: "ceos:port6"
+  b: "lemming:port2"
+}
+links {
   a: "cptx:port3"
   b: "srl:port3"
 }
@@ -115,6 +207,35 @@ links {
   b: "xrd:port3"
 }
 links {
+  a: "cptx:port5"
+  b: "e8000:port3"
+}
+links {
+  a: "cptx:port6"
+  b: "lemming:port3"
+}
+links {
   a: "srl:port4"
   b: "xrd:port4"
 }
+links {
+  a: "srl:port5"
+  b: "e8000:port4"
+}
+links {
+  a: "srl:port6"
+  b: "lemming:port4"
+}
+links {
+  a: "xrd:port5"
+  b: "e8000:port5"
+}
+links {
+  a: "xrd:port6"
+  b: "lemming:port5"
+}
+links {
+  a: "e8000:port6"
+  b: "lemming:port6"
+}
+

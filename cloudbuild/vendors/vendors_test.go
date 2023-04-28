@@ -21,12 +21,10 @@ func TestMain(m *testing.M) {
 
 func testGNMI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	c := dut.RawAPIs().GNMI().New(t)
-	resp, err := c.Capabilities(context.Background(), &gnmipb.CapabilityRequest{})
-	if err != nil {
-		t.Fatalf("gNMI failure: Capabilities request failed: %v", err)
+	v := gnmi.Lookup(t, dut, gnmi.OC().System().State())
+	if v.IsPresent() {
+		t.Logf("Got gNMI system state: %v", v.String())
 	}
-	t.Logf("Got gNMI Capabilities response: %v", resp)
 }
 
 func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
@@ -71,6 +69,9 @@ func testP4RT(t *testing.T, dut *ondatra.DUTDevice) {
 func TestCEOS(t *testing.T) {
 	dut := ondatra.DUT(t, "ceos")
 	testGNMI(t, dut)
+	testGRIBI(t, dut)
+	// testGNOI(t, dut)
+	// testP4RT(t, dut)
 }
 
 func TestCTPX(t *testing.T) {
@@ -94,20 +95,37 @@ func TestXRD(t *testing.T) {
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
 	testGNOI(t, dut)
+	// testP4RT(t, dut)
+}
+
+func Test8000e(t *testing.T) {
+	dut := ondatra.DUT(t, "e8000")
+	testGNMI(t, dut)
+	testGRIBI(t, dut)
+	testGNOI(t, dut)
+	// testP4RT(t, dut)
+}
+
+func TestLemming(t *testing.T) {
+	dut := ondatra.DUT(t, "lemming")
+	testGNMI(t, dut)
+	testGRIBI(t, dut)
+	testGNOI(t, dut)
+	// testP4RT(t, dut)
 }
 
 func TestOTG(t *testing.T) {
 	ate := ondatra.ATE(t, "otg")
 	cfg := ate.OTG().NewConfig(t)
-	cfg.Ports().Add().SetName("port1")
-	cfg.Ports().Add().SetName("port2")
-	cfg.Ports().Add().SetName("port3")
-	cfg.Ports().Add().SetName("port4")
+	portNames := []string{"port1", "port2", "port3", "port4", "port5", "port6"}
+	for _, name := range portNames {
+		cfg.Ports().Add().SetName(name)
+	}
 	ate.OTG().PushConfig(t, cfg)
 
-	portNames := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Name().State())
-	sort.Strings(portNames)
-	if want := []string{"port1", "port2", "port3", "port4"}; !cmp.Equal(portNames, want) {
-		t.Errorf("Telemetry got port names %v, want %v", portNames, want)
+	gotPortNames := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Name().State())
+	sort.Strings(gotPortNames)
+	if !cmp.Equal(gotPortNames, portNames) {
+		t.Errorf("Telemetry got port names %v, want %v", gotPortNames, portNames)
 	}
 }
