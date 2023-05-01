@@ -1,0 +1,14 @@
+RP/0/RP0/CPU0:ios#
+RP/0/RP0/CPU0:ios#terminal width 512
+Fri Feb 24 14:48:02.190 UTC
+RP/0/RP0/CPU0:ios#terminal length 0
+Fri Feb 24 14:50:31.851 UTC
+RP/0/RP0/CPU0:ios#
+RP/0/RP0/CPU0:ios#copy running-config disk0:/startup-config
+Fri Feb 24 14:39:48.270 UTC
+
+Parsing.
+133 bytes parsed in 1 sec (132)bytes/sec
+No configuration changes to commit.
+RP/0/RP0/CPU0:ios#
+RP/0/RP0/CPU0:ios#
