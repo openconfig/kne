@@ -17,6 +17,7 @@ import (
 	"context"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
@@ -28,6 +29,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	tpb "github.com/openconfig/kne/proto/topo"
+	"k8s.io/apimachinery/pkg/watch"
+	//ktest "k8s.io/client-go/testing"	
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 )
 
 func defaultNode(pb *tpb.Node) *tpb.Node {
@@ -725,6 +731,99 @@ func TestNodeStatus(t *testing.T) {
 			}
 			if status != tt.status {
 				t.Errorf("node.Status() = %v, want %v", status, tt.status)
+			}
+		})
+	}
+}
+
+type fakeWatch struct {
+	e []watch.Event
+}
+
+func (f *fakeWatch) Stop() {}
+
+func (f *fakeWatch) ResultChan() <-chan watch.Event {
+	eCh := make(chan watch.Event)
+	go func() {
+		for len(f.e) != 0 {
+			e := f.e[0]
+			f.e = f.e[1:]
+			eCh <- e
+		}
+	}()
+	return eCh
+}
+
+func TestResetCfg(t *testing.T) {
+	ki := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod1",
+		},
+	})
+
+	ni := &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "pod1",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{},
+		},
+	}
+
+	tests := []struct {
+		desc     string
+		wantErr  bool
+		ni       *node.Impl
+		testFile string
+	}{
+		{
+			// successfully configure certificate
+			desc:     "success",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "reset_config_success",
+		},
+		{
+			// device returns "% Invalid input" -- we expect to fail
+			desc:     "failure",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "reset_config_failure",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+
+			if err != nil {
+				t.Fatalf("failed creating kne arista node")
+			}
+
+			n, _ := nImpl.(*Node)
+
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
+			}
+
+			ctx := context.Background()
+
+			err = n.ResetCfg(ctx)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Expecting an error, but no error is raised \n")
+				}
+			}
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("Not expecting an error, but received an error: %v \n", err)
+				}
 			}
 		})
 	}
