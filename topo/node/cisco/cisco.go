@@ -48,7 +48,6 @@ const (
 
 var podIsUpRegex = regexp.MustCompile(`Router up`)
 
-
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
