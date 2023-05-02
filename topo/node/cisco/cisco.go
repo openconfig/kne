@@ -16,7 +16,6 @@ package cisco
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -48,9 +47,6 @@ const (
 )
 
 var (
-	// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
-	ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
-
 	podIsUpRegex = regexp.MustCompile(`Router up`)
 )
 
