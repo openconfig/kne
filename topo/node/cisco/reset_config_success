@@ -4,11 +4,15 @@ Fri Feb 24 14:48:02.190 UTC
 RP/0/RP0/CPU0:ios#terminal length 0
 Fri Feb 24 14:50:31.851 UTC
 RP/0/RP0/CPU0:ios#
-RP/0/RP0/CPU0:ios#copy running-config disk0:/startup-config
-Fri Feb 24 14:39:48.270 UTC
+RP/0/RP0/CPU0:ios#copy disk0:/startup-config running-config replace
+Tue May  2 18:11:46.345 UTC
 
 Parsing.
-133 bytes parsed in 1 sec (132)bytes/sec
-No configuration changes to commit.
-RP/0/RP0/CPU0:ios#
+2286 bytes parsed in 1 sec (2283)bytes/sec
+Committing.
+Prepared commit in 0 sec
+.
+90 items committed in 2 sec (44)items/sec
+Updating.
+Updated Commit database in 1 sec 
 RP/0/RP0/CPU0:ios#

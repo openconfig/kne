@@ -3,13 +3,11 @@ RP/0/RP0/CPU0:ios#terminal width 512
 Fri Feb 24 14:59:24.620 UTC
 RP/0/RP0/CPU0:ios#terminal length 0 
 Fri Feb 24 14:59:29.364 UTC
-RP/0/RP0/CPU0:ios#copy harddisk:basefp.cfg running replace
-Fri Feb 24 15:00:05.882 UTC
+RP/0/RP0/CPU0:ios#copy disk0:/startup-config running-config replace
+Tue May  2 18:22:40.143 UTC
 
-ERROR(libcopyfile) (53269)(fopen_wrapper@283): fopen(/harddisk:/basefp.cfg, r) (openfile_with_file@1395) failed: No such file or directory
+ERROR(libcopyfile) (39329)(fopen_wrapper@283): fopen(/disk0:/startup-config, r) (openfile_with_file@1395) failed: No such file or directory
 
-(null): failed to open input file: /harddisk:/basefp.cfg: No such file or directory
-% Invalid input detected at '^' marker.
-RP/0/RP0/CPU0:Feb 24 15:00:06.156 UTC: config[65557]: %MGBL-LIBCOPYFILE-3-ERR_GENERAL : general: ERROR(libcopyfile) (53269)(fopen_wrapper@283): fopen(/harddisk:/basefp.cfg, r) (openfile_with_file@1395) failed: No such file or directory 
+(null): failed to open input file: /disk0:/startup-config: No such file or directory
 RP/0/RP0/CPU0:ios#
 RP/0/RP0/CPU0:ios#
