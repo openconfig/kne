@@ -46,9 +46,8 @@ const (
 	scrapliOperationTimeout = 300 * time.Second
 )
 
-var (
-	podIsUpRegex = regexp.MustCompile(`Router up`)
-)
+var podIsUpRegex = regexp.MustCompile(`Router up`)
+
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
