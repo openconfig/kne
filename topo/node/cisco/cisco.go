@@ -75,6 +75,11 @@ type Node struct {
 	testOpts []scrapliutil.Option
 }
 
+// Add validations for interfaces the node provides
+var (
+	_ node.Resetter = (*Node)(nil)
+)
+
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
