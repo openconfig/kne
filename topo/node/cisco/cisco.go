@@ -43,7 +43,7 @@ const (
 
 	scrapliPlatformName     = "cisco_iosxr"
 	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
-	scrapliOperationTimeout = 60 * time.Second
+	scrapliOperationTimeout = 300 * time.Second
 )
 
 var podIsUpRegex = regexp.MustCompile(`Router up`)
