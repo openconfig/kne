@@ -29,7 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	tpb "github.com/openconfig/kne/proto/topo"
-	//ktest "k8s.io/client-go/testing"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
