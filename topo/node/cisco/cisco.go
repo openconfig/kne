@@ -22,19 +22,28 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"time"
 
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scrapliutil "github.com/scrapli/scrapligo/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
-
-	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 const (
 	ModelXRD = "xrd"
+
+	scrapliPlatformName     = "cisco_iosxr"
+	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
+	scrapliOperationTimeout = 300 * time.Second
 )
 
 var podIsUpRegex = regexp.MustCompile(`Router up`)
@@ -59,7 +68,17 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 
 type Node struct {
 	*node.Impl
+
+	cliConn *scraplinetwork.Driver
+
+	// scrapli options used in testing
+	testOpts []scrapliutil.Option
 }
+
+// Add validations for interfaces the node provides
+var (
+	_ node.Resetter = (*Node)(nil)
+)
 
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
@@ -432,6 +451,64 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 		return false
 	}
 	return podIsUpRegex.Match(buf.Bytes())
+}
+
+// SpawnCLIConn spawns a CLI connection towards a IOSXR using `kubectl exec` terminal and ensures CLI is ready
+// to accept inputs.
+// scrapligo options can be provided to this function for a caller to modify scrapligo platform.
+// For example, mock transport can be set via options
+func (n *Node) SpawnCLIConn() error {
+	opts := []scrapliutil.Option{
+		scrapliopts.WithAuthBypass(),
+		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
+	}
+	// add options defined in test package
+	opts = append(opts, n.testOpts...)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
+	if n.Proto.Model != ModelXRD {
+		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
+	}
+	var err error
+	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
+	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+
+	if n.Proto.Model != ModelXRD {
+		n.cliConn.OnClose = endTelnet
+	}
+
+	return err
+}
+
+func endTelnet(d *scraplinetwork.Driver) error {
+	// sending ctrl + ] (^]) to end telnet session gracefully. Otherwise, the next connection can be blocked.
+	endTelnet := string(byte(29)) + " quit\n"
+	log.Infof("Closing the connection by sending ctrl+] quit \n")
+	d.SendCommand(endTelnet)
+	return nil
+}
+
+func (n *Node) ResetCfg(ctx context.Context) error {
+	if n.Proto.Model == ModelXRD {
+		return status.Errorf(codes.Unimplemented, "reset config is not implemented for cisco xrd node")
+	}
+
+	log.Infof("%s resetting config", n.Name())
+	err := n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendCommand(reset8000eCMD)
+	if err != nil {
+		return err
+	}
+	if resp.Failed == nil {
+		log.Infof("%s - finished resetting config", n.Name())
+	}
+	return resp.Failed
 }
 
 func init() {

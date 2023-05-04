@@ -1,0 +1,13 @@
+RP/0/RP0/CPU0:ios#
+RP/0/RP0/CPU0:ios#terminal width 512
+Fri Feb 24 14:59:24.620 UTC
+RP/0/RP0/CPU0:ios#terminal length 0 
+Fri Feb 24 14:59:29.364 UTC
+RP/0/RP0/CPU0:ios#copy disk0:/startup-config running-config replace
+Tue May  2 18:22:40.143 UTC
+
+ERROR(libcopyfile) (39329)(fopen_wrapper@283): fopen(/disk0:/startup-config, r) (openfile_with_file@1395) failed: No such file or directory
+
+(null): failed to open input file: /disk0:/startup-config: No such file or directory
+RP/0/RP0/CPU0:ios#
+RP/0/RP0/CPU0:ios#
