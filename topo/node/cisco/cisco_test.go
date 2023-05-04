@@ -15,6 +15,7 @@ package cisco
 
 import (
 	"context"
+	"os"
 	"regexp"
 	"testing"
 	"time"
@@ -788,6 +789,76 @@ func TestResetCfg(t *testing.T) {
 			}
 			ctx := context.Background()
 			err = n.ResetCfg(ctx)
+			if tt.wantErr && err == nil {
+				t.Fatal("Expecting an error, but no error is raised \n")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Fatalf("Not expecting an error, but received an error: %v \n", err)
+			}
+		})
+	}
+}
+
+func TestPushCfg(t *testing.T) {
+	tests := []struct {
+		desc     string
+		wantErr  bool
+		ni       *node.Impl
+		testFile string
+		testConf string
+	}{
+		{
+			desc:     "successful push config for xrd",
+			wantErr:  false,
+			ni:       nodeXRD,
+			testFile: "testdata/push_config_success",
+			testConf: "testdata/valid_config",
+		},
+		{
+			desc:     "failed push config for xrd",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/push_config_failure",
+			testConf: "testdata/invalid_config",
+		},
+		{
+			desc:     "successful push config for 8000e",
+			wantErr:  false,
+			ni:       node8000e,
+			testFile: "testdata/push_config_success",
+			testConf: "testdata/valid_config",
+		},
+		{
+			desc:     "failed push config for 8000e",
+			wantErr:  true,
+			ni:       node8000e,
+			testFile: "testdata/push_config_failure",
+			testConf: "testdata/invalid_config",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+			if err != nil {
+				t.Fatalf("failed creating cisco node")
+			}
+			n, _ := nImpl.(*Node)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
+			}
+			fp, err := os.Open(tt.testConf)
+			if err != nil {
+				t.Fatalf("unable to open file, error: %+v\n", err)
+			}
+			defer fp.Close()
+			err = n.ConfigPush(context.Background(), fp)
 			if tt.wantErr && err == nil {
 				t.Fatal("Expecting an error, but no error is raised \n")
 			}

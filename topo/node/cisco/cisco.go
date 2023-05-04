@@ -511,6 +511,33 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	return resp.Failed
 }
 
+func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+	log.Infof("%s - pushing config", n.Name())
+
+	cfg, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	cfgs := string(cfg)
+	log.V(1).Info(cfgs)
+
+	err = n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendConfig(cfgs)
+	if err != nil {
+		return err
+	}
+	if resp.Failed == nil {
+		log.Infof("%s - finished config push", n.Impl.Proto.Name)
+	}
+
+	return resp.Failed
+}
+
 func init() {
 	node.Vendor(tpb.Vendor_CISCO, New)
 }
