@@ -43,7 +43,7 @@ const (
 
 	scrapliPlatformName     = "cisco_iosxr"
 	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
-	scrapliOperationTimeout = 300 * time.Second
+	scrapliOperationTimeout = 60 * time.Second
 )
 
 var podIsUpRegex = regexp.MustCompile(`Router up`)
@@ -473,7 +473,16 @@ func (n *Node) SpawnCLIConn() error {
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+	n.cliConn.OnClose = endTelnet
 	return err
+}
+
+func endTelnet(d *scraplinetwork.Driver) error {
+	// sending ctrl + ] (^]) to end telnet session gracefully. Otherwise, the next connection can be blocked.
+	endTelnet := string(byte(29)) + " quit\n"
+	log.Infof("Closing the connection by sending ctrl+] quit \n")
+	d.SendCommand(endTelnet)
+	return nil
 }
 
 func (n *Node) ResetCfg(ctx context.Context) error {

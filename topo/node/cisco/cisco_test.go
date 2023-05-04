@@ -754,21 +754,21 @@ func TestResetCfg(t *testing.T) {
 			desc:     "failed reset for 8000e (not initialized)",
 			wantErr:  true,
 			ni:       node8000e,
-			testFile: "reset_config_failure",
+			testFile: "testdata/reset_config_failure",
 		},
 		{
 			// device returns error when the startup config is invalid.
 			desc:     "failed reset for 8000e (invalid)",
 			wantErr:  true,
 			ni:       node8000e,
-			testFile: "reset_config_failure_invalid",
+			testFile: "testdata/reset_config_failure_invalid",
 		},
 		{
 			// device returns success after applying the startup config
 			desc:     "successful reset ",
 			wantErr:  false,
 			ni:       node8000e,
-			testFile: "reset_config_success",
+			testFile: "testdata/reset_config_success",
 		},
 	}
 
