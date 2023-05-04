@@ -473,7 +473,11 @@ func (n *Node) SpawnCLIConn() error {
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
-	n.cliConn.OnClose = endTelnet
+	
+	if n.Proto.Model!=ModelXRD {
+		n.cliConn.OnClose = endTelnet
+	}
+	
 	return err
 }
 
