@@ -35,7 +35,6 @@ nodes: {
         config_path: "/home/evo/configdisk"
         config_file: "juniper.conf"
         file: "juniper.config"
-	image: "cptx:D33.12"
         cert: {
             self_signed: {
                 cert_name: "grpc-server-cert",
