@@ -524,10 +524,10 @@ func processConfig(cfg string) string {
 			continue
 		}
 		lastLine = line
-		processedCfg = processedCfg + line + "\n"
+		processedCfg += line + "\n"
 	}
 	if strings.ToLower(strings.Trim(lastLine, " ")) != "commit" {
-		processedCfg = processedCfg + "commit\n"
+		processedCfg += "commit\n"
 	}
 	return processedCfg
 }
