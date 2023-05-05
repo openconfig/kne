@@ -520,13 +520,13 @@ func processConfig(cfg string) string {
 	lines := strings.Split(cfg, "\n")
 	lastLine := ""
 	for _, line := range lines {
-		if strings.Contains(strings.ToLower(line), "end") {
+		if strings.ToLower(strings.Trim(line, " ")) == "end" {
 			continue
 		}
 		lastLine = line
 		processedCfg = processedCfg + line + "\n"
 	}
-	if !strings.Contains(strings.ToLower(lastLine), "commit") {
+	if strings.ToLower(strings.Trim(lastLine, " ")) != "commit" {
 		processedCfg = processedCfg + "commit\n"
 	}
 	return processedCfg
