@@ -32,7 +32,7 @@ var (
 	// For committing a very large config
 	scrapliOperationTimeout = 300 * time.Second
 	// Wait for PKI cert infra
-	certGenTimeout = 300 * time.Second
+	certGenTimeout = 10 * time.Minute
 )
 
 const (
@@ -457,23 +457,21 @@ func (n *Node) Create(ctx context.Context) error {
 		},
 	}
 	if pb.Config.ConfigData != nil {
-		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-			Name: "startup-config-volume",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf("%s-config", pb.Name),
-					},
-				},
-			},
-		})
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			return err
+		}
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      node.ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
 		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      "startup-config-volume",
-				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
-				SubPath:   pb.Config.ConfigFile,
-				ReadOnly:  true,
-			})
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
 		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})

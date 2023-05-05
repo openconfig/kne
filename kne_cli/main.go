@@ -74,6 +74,7 @@ func flushLogs() {
 	// supports expanding * to full component names.
 	fd, err := os.Open(logdir)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Opening logdir: %v\n", err)
 		return
 	}
 	defer fd.Close()

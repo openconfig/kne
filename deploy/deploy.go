@@ -22,6 +22,7 @@ import (
 	kexec "github.com/openconfig/kne/exec"
 	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
+	"github.com/openconfig/kne/pods"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
@@ -39,6 +41,10 @@ import (
 const (
 	dockerConfigEnvVar        = "DOCKER_CONFIG"
 	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
+)
+
+var (
+	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 )
 
 // logCommand runs the specified command but records standard output
@@ -111,6 +117,10 @@ type Deployment struct {
 	Ingress     Ingress      `kne:"ingress"`
 	CNI         CNI          `kne:"cni"`
 	Controllers []Controller `kne:"controllers"`
+
+	// If Progress is true then deployment status updates will be sent to
+	// standard output.
+	Progress bool
 }
 
 func (d *Deployment) String() string {
@@ -134,7 +144,7 @@ type kubeVersion struct {
 	ServerVersion    *kversion.Info `json:"serverVersion,omitempty" yaml:"serverVersion,omitempty"`
 }
 
-func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
+func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if err := d.checkDependencies(); err != nil {
 		return err
 	}
@@ -184,6 +194,19 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) error {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
 	log.V(1).Info("Found k8s versions:\n", output)
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	if w, err := pods.NewWatcher(ctx, kClient, cancel); err != nil {
+		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
+		w.SetProgress(d.Progress)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
+	}
 
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
@@ -407,6 +430,10 @@ func (k *KindSpec) checkDependencies() error {
 }
 
 func (k *KindSpec) create() error {
+	// Create a KNE dir under /tmp intended to hold files to be mounted into the kind cluster.
+	if err := os.MkdirAll("/tmp/kne", os.ModePerm); err != nil {
+		return err
+	}
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
 		if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
@@ -448,6 +475,15 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 
 	if err := k.create(); err != nil {
 		return err
+	}
+
+	// If the script is found, then run it. Else silently ignore it.
+	// The set_pid_max script modifies the kernel.pid_max value to
+	// be acceptable for the Cisco 8000e container.
+	if _, err := os.Stat(setPIDMaxScript); err == nil {
+		if err := logCommand(setPIDMaxScript); err != nil {
+			return err
+		}
 	}
 
 	for _, s := range k.AdditionalManifests {

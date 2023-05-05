@@ -1,0 +1,19 @@
+RP/0/RP0/CPU0:ios#
+RP/0/RP0/CPU0:ios#terminal width 512
+Fri Feb 24 14:59:24.620 UTC
+RP/0/RP0/CPU0:ios#terminal length 0 
+Fri Feb 24 14:59:29.364 UTC
+RP/0/RP0/CPU0:ios#copy disk0:/startup-config running-config replace 
+Tue May  2 21:17:20.666 UTC
+
+Parsing.
+2288 bytes parsed in 1 sec (2286)bytes/sec
+
+% Syntax/Authorization errors in one or more commands. Please use 'show configuration failed' to view the errors.
+Committing.
+Prepared commit in 0 sec
+.
+89 items committed in 2 sec (44)items/sec
+Updating.
+% Failed to commit one or more configuration items. Please issue 'show configuration failed [inheritance]' from this session to view the errors
+RP/0/RP0/CPU0:ios#

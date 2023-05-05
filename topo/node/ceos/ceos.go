@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -89,13 +91,44 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 }
 
 func (n *Node) Create(ctx context.Context) error {
-	if err := n.CreateConfig(ctx); err != nil {
+	if _, err := n.CreateConfig(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
 	}
 	if err := n.CreateCRD(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create custom resource definition %w", n.Name(), err)
 	}
 	return nil
+}
+
+func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
+	pb := n.Proto
+	var data []byte
+	switch v := pb.Config.GetConfigData().(type) {
+	case *tpb.Config_File:
+		var err error
+		data, err = os.ReadFile(filepath.Join(n.BasePath, v.File))
+		if err != nil {
+			return nil, err
+		}
+	case *tpb.Config_Data:
+		data = v.Data
+	}
+	if data != nil {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("%s-config", pb.Name),
+			},
+			Data: map[string]string{
+				pb.Config.ConfigFile: string(data),
+			},
+		}
+		sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
+		if err != nil {
+			return nil, err
+		}
+		log.V(1).Infof("Server Config Map:\n%v\n", sCM)
+	}
+	return nil, nil
 }
 
 func (n *Node) CreateCRD(ctx context.Context) error {

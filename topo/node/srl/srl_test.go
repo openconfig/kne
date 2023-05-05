@@ -106,6 +106,42 @@ func TestNew(t *testing.T) {
 		want: &topopb.Node{
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
+				ConfigFile: "config.cli",
+			},
+			Labels: map[string]string{
+				"vendor": "NOKIA",
+				"foo":    "test_label",
+			},
+			Services: map[uint32]*topopb.Service{
+				443: {
+					Name:   "ssl",
+					Inside: 443,
+				},
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				57400: {
+					Name:   "gnmi",
+					Inside: 57400,
+				},
+			},
+		},
+	}, {
+		desc: "json config file",
+		nImpl: &node.Impl{
+			Proto: &topopb.Node{
+				Labels: map[string]string{
+					"foo": "test_label",
+				},
+				Config: &topopb.Config{
+					ConfigFile: "config.json",
+				},
+			},
+		},
+		want: &topopb.Node{
+			Config: &topopb.Config{
+				Image:      "ghcr.io/nokia/srlinux:latest",
 				ConfigFile: "config.json",
 			},
 			Labels: map[string]string{
@@ -127,7 +163,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
-	}}
+	},
+	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			n, err := New(tt.nImpl)

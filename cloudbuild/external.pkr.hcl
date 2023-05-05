@@ -71,7 +71,9 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y", # install openvswitch for cisco containers
       "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco containers
+      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf", # configure pid_max for cisco containers
       "sudo sysctl -p",
     ]
   }
@@ -100,7 +102,7 @@ build {
       "echo Installing multinode cluster dependencies...",
       "git clone https://github.com/flannel-io/flannel.git",
       "curl --create-dirs -o third_party/licenses/flannel/LICENSE https://raw.githubusercontent.com/flannel-io/flannel/master/LICENSE",
-      "git clone https://github.com/Mirantis/cri-dockerd.git",
+      "git clone https://github.com/Mirantis/cri-dockerd.git --branch v0.3.1",
       "cd cri-dockerd",
       "PATH=$PATH:/usr/local/go/bin",
       "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",

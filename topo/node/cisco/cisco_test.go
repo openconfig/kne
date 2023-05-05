@@ -15,15 +15,26 @@ package cisco
 
 import (
 	"context"
+	"os"
+	"regexp"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/client-go/kubernetes/fake"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	tpb "github.com/openconfig/kne/proto/topo"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scraplitransport "github.com/scrapli/scrapligo/transport"
+	scrapliutil "github.com/scrapli/scrapligo/util"
 )
 
 func defaultNode(pb *tpb.Node) *tpb.Node {
@@ -98,10 +109,6 @@ func TestNew(t *testing.T) {
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -168,10 +175,6 @@ func TestNew(t *testing.T) {
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -242,10 +245,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -335,10 +334,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -435,10 +430,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -505,10 +496,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -605,10 +592,6 @@ func TestNew(t *testing.T) {
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
 				22: {
 					Name:   "ssh",
 					Inside: 22,
@@ -654,5 +637,239 @@ func TestNew(t *testing.T) {
 				t.Fatalf("Unexpected error: %s", s)
 			}
 		})
+	}
+}
+
+var (
+	ki = fake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "8000e",
+				Namespace: "test",
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "xrd",
+				Namespace: "test",
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		},
+	)
+	node8000e = &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "8000e",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{},
+			Model:  "8201-32FH",
+		},
+	}
+
+	nodeXRD = &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "xrd",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{},
+			Model:  ModelXRD,
+		},
+	}
+)
+
+func TestNodeStatus(t *testing.T) {
+	tests := []struct {
+		desc      string
+		status    node.Status
+		ni        *node.Impl
+		podLogErr bool
+	}{
+		{
+			desc:   "Status test for 8000e Node",
+			status: node.StatusRunning,
+			ni:     node8000e,
+		},
+		{
+			desc:      "Negative Status test for 8000e Node",
+			status:    node.StatusPending,
+			ni:        node8000e,
+			podLogErr: true,
+		},
+		{
+			desc:   "Status test for XRD Node",
+			status: node.StatusRunning,
+			ni:     nodeXRD,
+		},
+		{
+			desc:      "Status test for XRD Node, pod logs do not matter",
+			status:    node.StatusRunning,
+			ni:        nodeXRD,
+			podLogErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			if !tt.podLogErr {
+				origPodIsUpRegex := podIsUpRegex
+				defer func() {
+					podIsUpRegex = origPodIsUpRegex
+				}()
+				podIsUpRegex = regexp.MustCompile("fake log") // this is the expected log from a fake pod
+			}
+			nImpl, _ := New(tt.ni)
+			n, _ := nImpl.(*Node)
+			status, err := n.Status(ctx)
+			if err != nil {
+				t.Errorf("Error is not expected for Node Status")
+			}
+			if status != tt.status {
+				t.Errorf("node.Status() = %v, want %v", status, tt.status)
+			}
+		})
+	}
+}
+
+func TestResetCfg(t *testing.T) {
+	tests := []struct {
+		desc     string
+		wantErr  bool
+		ni       *node.Impl
+		testFile string
+	}{
+		{
+			// kne returns unimplemented error for xrd
+			desc:    "unimplemented reset for xrd",
+			wantErr: true,
+			ni:      nodeXRD,
+		},
+		{
+			// device returns error when the startup config is not initialized.
+			desc:     "failed reset for 8000e (not initialized)",
+			wantErr:  true,
+			ni:       node8000e,
+			testFile: "testdata/reset_config_failure",
+		},
+		{
+			// device returns error when the startup config is invalid.
+			desc:     "failed reset for 8000e (invalid)",
+			wantErr:  true,
+			ni:       node8000e,
+			testFile: "testdata/reset_config_failure_invalid",
+		},
+		{
+			// device returns success after applying the startup config
+			desc:     "successful reset ",
+			wantErr:  false,
+			ni:       node8000e,
+			testFile: "testdata/reset_config_success",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+			if err != nil {
+				t.Fatalf("failed creating cisco node")
+			}
+			n, _ := nImpl.(*Node)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
+			}
+			ctx := context.Background()
+			err = n.ResetCfg(ctx)
+			if tt.wantErr && err == nil {
+				t.Fatal("Expecting an error, but no error is raised \n")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Fatalf("Not expecting an error, but received an error: %v \n", err)
+			}
+		})
+	}
+}
+
+func TestPushCfg(t *testing.T) {
+	tests := []struct {
+		desc     string
+		wantErr  bool
+		ni       *node.Impl
+		testFile string
+		testConf string
+	}{
+		{
+			desc:     "unimplemented push config for xrd",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/push_config_success",
+			testConf: "testdata/valid_config",
+		},
+		{
+			desc:     "successful push config for 8000e",
+			wantErr:  false,
+			ni:       node8000e,
+			testFile: "testdata/push_config_success",
+			testConf: "testdata/valid_config",
+		},
+		{
+			desc:     "failed push config for 8000e",
+			wantErr:  true,
+			ni:       node8000e,
+			testFile: "testdata/push_config_failure",
+			testConf: "testdata/invalid_config",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+			if err != nil {
+				t.Fatalf("failed creating cisco node")
+			}
+			n, _ := nImpl.(*Node)
+			n.testOpts = []scrapliutil.Option{
+				scrapliopts.WithTransportType(scraplitransport.FileTransport),
+				scrapliopts.WithFileTransportFile(tt.testFile),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithReadDelay(0),
+				scrapliopts.WithDefaultLogger(),
+			}
+			fp, err := os.Open(tt.testConf)
+			if err != nil {
+				t.Fatalf("unable to open file, error: %+v\n", err)
+			}
+			defer fp.Close()
+			err = n.ConfigPush(context.Background(), fp)
+			if tt.wantErr && err == nil {
+				t.Fatal("Expecting an error, but no error is raised \n")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Fatalf("Not expecting an error, but received an error: %v \n", err)
+			}
+		})
+	}
+}
+
+func TestGenerateSelfSigned(t *testing.T) {
+	n := &Node{}
+	err := n.GenerateSelfSigned(context.Background())
+	want := codes.Unimplemented
+	if s, ok := status.FromError(err); !ok || s.Code() != want {
+		t.Fatalf("GenerateSelfSigned() unexpected error get %v, want %v", s, want)
 	}
 }

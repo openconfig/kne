@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1
-	github.com/docker/docker v20.10.12+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0
@@ -19,12 +19,12 @@ require (
 	github.com/openconfig/ondatra v0.1.9
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.1.6
+	github.com/scrapli/scrapligo v1.1.7
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/srl-labs/srl-controller v0.5.0
-	github.com/srl-labs/srlinux-scrapli v0.5.0
+	github.com/srl-labs/srl-controller v0.6.0
+	github.com/srl-labs/srlinux-scrapli v0.6.0
 	go.universe.tf/metallb v0.13.5
 	golang.org/x/oauth2 v0.6.0
 	google.golang.org/grpc v1.53.0
@@ -47,7 +47,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/containerd/containerd v1.5.18 // indirect
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
@@ -110,7 +109,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.14.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.6.0 // indirect

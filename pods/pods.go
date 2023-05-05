@@ -4,6 +4,7 @@ package pods
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -20,6 +21,7 @@ type PodStatus struct {
 	UID            types.UID
 	Namespace      string
 	Phase          corev1.PodPhase // current phase
+	Ready          bool            // true if all containers are ready
 	Containers     []ContainerStatus
 	InitContainers []ContainerStatus
 	Pod            corev1.Pod // copy of the raw pod
@@ -36,6 +38,9 @@ func (p *PodStatus) String() string {
 	add("UID", string(p.UID))
 	add("Namespace", p.Namespace)
 	add("Phase", string(p.Phase))
+	if p.Ready {
+		fmt.Fprintf(&buf, ", Ready: true")
+	}
 	if len(p.Containers) > 0 {
 		fmt.Fprintf(&buf, ", Containers: {%s", p.Containers[0].String())
 		for _, c := range p.Containers[1:] {
@@ -101,13 +106,13 @@ func (c *ContainerStatus) String() string {
 	var buf strings.Builder
 	add := func(k, v string) {
 		if v != "" {
-			fmt.Fprintf(&buf, "%s: %q", k, v)
+			fmt.Fprintf(&buf, ", %s: %q", k, v)
 		}
 	}
 	fmt.Fprintf(&buf, "{Name: %q", c.Name)
 	add("Image", c.Image)
 	if c.Ready {
-		add("Ready", "true")
+		fmt.Fprintf(&buf, ", Ready: true")
 	}
 	add("Reason", c.Reason)
 	add("Message", c.Message)
@@ -141,6 +146,12 @@ func GetPodStatus(ctx context.Context, client kubernetes.Interface, namespace st
 // supplied namespace are written.
 func WatchPodStatus(ctx context.Context, client kubernetes.Interface, namespace string) (chan *PodStatus, func(), error) {
 	// Make sure we can even get the pods
+	if ctx == nil {
+		return nil, nil, errors.New("WatchPodStatus: nil context ")
+	}
+	if client == nil {
+		return nil, nil, errors.New("WatchPodStatus: nil client ")
+	}
 	w, err := client.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, nil, err
@@ -153,14 +164,17 @@ func WatchPodStatus(ctx context.Context, client kubernetes.Interface, namespace 
 		// seen is used to drop duplicate updates
 		seen := map[types.UID]*PodStatus{}
 		for event := range kch {
-			s := PodToStatus(event.Object.(*corev1.Pod))
-			if os, ok := seen[s.UID]; ok {
-				if s.Equal(os) {
-					continue
+			switch e := event.Object.(type) {
+			case *corev1.Pod:
+				s := PodToStatus(e)
+				if os, ok := seen[s.UID]; ok {
+					if s.Equal(os) {
+						continue
+					}
 				}
+				seen[s.UID] = s
+				ch <- s
 			}
-			seen[s.UID] = s
-			ch <- s
 		}
 	}()
 	return ch, w.Stop, nil
@@ -173,14 +187,17 @@ func PodToStatus(pod *corev1.Pod) *PodStatus {
 		Namespace: pod.ObjectMeta.Namespace,
 		UID:       pod.ObjectMeta.UID,
 		Phase:     pod.Status.Phase,
+		// Ready will be set to false below if one of the containers is not ready
+		Ready: len(pod.Status.ContainerStatuses)+len(pod.Status.InitContainerStatuses) > 0,
 	}
 	pod.DeepCopyInto(&s.Pod)
 	pod = &s.Pod // Forget about the original copy
 
 	for i, cs := range pod.Status.ContainerStatuses {
+		_ = i
 		c := ContainerStatus{
 			Name:  cs.Name,
-			Ready: cs.Ready,
+			Ready: cs.Ready || (cs.State.Running != nil),
 			Image: cs.Image,
 			Raw:   &pod.Status.ContainerStatuses[i],
 		}
@@ -188,26 +205,30 @@ func PodToStatus(pod *corev1.Pod) *PodStatus {
 			c.Reason = w.Reason
 			c.Message = w.Message
 		}
+		s.Ready = s.Ready && c.Ready
 		s.Containers = append(s.Containers, c)
 	}
 	sort.Slice(s.Containers, func(i, j int) bool {
 		return s.Containers[i].Name < s.Containers[j].Name
 	})
 	for i, cs := range pod.Status.InitContainerStatuses {
+		_ = i
 		c := ContainerStatus{
 			Name:  cs.Name,
-			Ready: cs.Ready,
+			Ready: cs.Ready || (cs.State.Running != nil),
 			Image: cs.Image,
 			Raw:   &pod.Status.InitContainerStatuses[i],
 		}
+
 		if w := cs.State.Waiting; w != nil {
 			c.Reason = w.Reason
 			c.Message = w.Message
 		}
+		s.Ready = s.Ready && c.Ready
 		s.InitContainers = append(s.InitContainers, c)
 	}
 	sort.Slice(s.InitContainers, func(i, j int) bool {
-		return s.InitContainers[i].Name < s.Containers[j].Name
+		return s.InitContainers[i].Name < s.InitContainers[j].Name
 	})
 	return &s
 }

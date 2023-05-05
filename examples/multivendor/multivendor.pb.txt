@@ -134,7 +134,7 @@ nodes: {
   name: "srl"
   vendor: NOKIA
   config: {
-    file: "srl.cfg.json"
+    file: "srlinux.cfg"
   }
   services:{
     key: 22

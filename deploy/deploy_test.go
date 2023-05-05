@@ -41,6 +41,12 @@ func init() {
 func TestKindSpec(t *testing.T) {
 	ctx := context.Background()
 
+	origSetPIDMaxScript := setPIDMaxScript
+	defer func() {
+		setPIDMaxScript = origSetPIDMaxScript
+	}()
+	setPIDMaxScript = "echo Executing fake set_pid_max script..."
+
 	tests := []struct {
 		desc           string
 		k              *KindSpec

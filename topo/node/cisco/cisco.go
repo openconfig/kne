@@ -14,25 +14,40 @@
 package cisco
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
-
-	"github.com/openconfig/kne/topo/node"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	log "k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"strings"
+	"time"
 
 	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
+	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
+	scrapliopts "github.com/scrapli/scrapligo/driver/options"
+	scrapliutil "github.com/scrapli/scrapligo/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+	log "k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 )
 
 const (
 	ModelXRD = "xrd"
+
+	scrapliPlatformName     = "cisco_iosxr"
+	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
+	scrapliOperationTimeout = 300 * time.Second
 )
+
+var podIsUpRegex = regexp.MustCompile(`Router up`)
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
@@ -54,15 +69,21 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 
 type Node struct {
 	*node.Impl
+
+	cliConn *scraplinetwork.Driver
+
+	// scrapli options used in testing
+	testOpts []scrapliutil.Option
 }
+
+// Add validations for interfaces the node provides
+var (
+	_ node.Resetter = (*Node)(nil)
+)
 
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
-	if err := n.CreateConfig(ctx); err != nil {
-		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
-	}
-	log.Infof("Created Cisco %s node %s configmap", n.Proto.Model, n.Name())
 	pb := n.Proto
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -143,23 +164,21 @@ func (n *Node) Create(ctx context.Context) error {
 		},
 	}
 	if pb.Config.ConfigData != nil {
-		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-			Name: "startup-config-volume",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf("%s-config", pb.Name),
-					},
-				},
-			},
-		})
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			return err
+		}
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      node.ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
 		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-				Name:      "startup-config-volume",
-				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
-				SubPath:   pb.Config.ConfigFile,
-				ReadOnly:  true,
-			})
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
 		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
@@ -342,10 +361,6 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	pb = constraints(pb)
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
-			443: {
-				Name:   "ssl",
-				Inside: 443,
-			},
 			22: {
 				Name:   "ssh",
 				Inside: 22,
@@ -384,6 +399,176 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 	}
 	return pb, nil
+}
+
+// Status returns the current node state.
+// For 8000e nodes it checks the logs and return running if log contains "Router up"
+func (n *Node) Status(ctx context.Context) (node.Status, error) {
+	p, err := n.Pods(ctx)
+	if err != nil {
+		return node.StatusUnknown, err
+	}
+	if len(p) != 1 {
+		return node.StatusUnknown, fmt.Errorf("expected exactly one pod for node %s", n.Name())
+	}
+	switch p[0].Status.Phase {
+	case corev1.PodPending:
+		return node.StatusPending, nil
+	case corev1.PodUnknown:
+		return node.StatusUnknown, nil
+	case corev1.PodFailed:
+		return node.StatusFailed, nil
+	case corev1.PodSucceeded, corev1.PodRunning:
+		pb := n.Proto
+		if pb.GetModel() != ModelXRD {
+			req := n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &corev1.PodLogOptions{})
+			if !isNode8000eUp(ctx, req) {
+				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+				return node.StatusPending, nil
+			}
+		}
+		for _, cond := range p[0].Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status != corev1.ConditionTrue {
+				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+				return node.StatusPending, nil
+			}
+		}
+		log.Infof("Cisco %s node %s status is %v ", n.Proto.Model, n.Name(), node.StatusRunning)
+		return node.StatusRunning, nil
+	default:
+		return node.StatusUnknown, nil
+	}
+}
+
+func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return false
+	}
+	defer podLogs.Close()
+	buf := new(bytes.Buffer)
+	len, err := io.Copy(buf, podLogs)
+	if err != nil || len == 0 {
+		return false
+	}
+	return podIsUpRegex.Match(buf.Bytes())
+}
+
+// SpawnCLIConn spawns a CLI connection towards a IOSXR using `kubectl exec` terminal and ensures CLI is ready
+// to accept inputs.
+// scrapligo options can be provided to this function for a caller to modify scrapligo platform.
+// For example, mock transport can be set via options
+func (n *Node) SpawnCLIConn() error {
+	opts := []scrapliutil.Option{
+		scrapliopts.WithAuthBypass(),
+		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
+	}
+	// add options defined in test package
+	opts = append(opts, n.testOpts...)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
+	if n.Proto.Model != ModelXRD {
+		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
+	}
+	var err error
+	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
+	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+
+	if n.Proto.Model != ModelXRD {
+		n.cliConn.OnClose = endTelnet
+	}
+
+	return err
+}
+
+func endTelnet(d *scraplinetwork.Driver) error {
+	// sending ctrl + ] (^]) to end telnet session gracefully. Otherwise, the next connection can be blocked.
+	endTelnet := string(byte(29)) + " quit\n"
+	log.Infof("Closing the connection by sending ctrl+] quit \n")
+	d.SendCommand(endTelnet)
+	return nil
+}
+
+func (n *Node) ResetCfg(ctx context.Context) error {
+	if n.Proto.Model == ModelXRD {
+		return status.Errorf(codes.Unimplemented, "reset config is not implemented for cisco xrd node")
+	}
+
+	log.Infof("%s resetting config", n.Name())
+	err := n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendCommand(reset8000eCMD)
+	if err != nil {
+		return err
+	}
+	if resp.Failed == nil {
+		log.Infof("%s - finished resetting config", n.Name())
+	}
+	return resp.Failed
+}
+
+// processConfig removes end command from config
+// since running it can lead to interactive prompt which is not handled.
+// Also it add commits to the end of config if it is missing
+func processConfig(cfg string) string {
+	processedCfg := ""
+	lines := strings.Split(cfg, "\n")
+	lastLine := ""
+	for _, line := range lines {
+		if strings.ToLower(strings.Trim(line, " ")) == "end" {
+			continue
+		}
+		lastLine = line
+		processedCfg += line + "\n"
+	}
+	if strings.ToLower(strings.Trim(lastLine, " ")) != "commit" {
+		processedCfg += "commit\n"
+	}
+	return processedCfg
+}
+
+func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+	if n.Proto.Model == ModelXRD {
+		return status.Errorf(codes.Unimplemented, "config push is not implemented for cisco xrd node")
+	}
+
+	log.Infof("%s - pushing config", n.Name())
+
+	cfg, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	cfgs := string(cfg)
+	cfgs = processConfig(cfgs)
+	log.V(1).Info(cfgs)
+
+	err = n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendConfig(cfgs)
+	if err != nil {
+		return err
+	}
+	if resp.Failed == nil {
+		log.Infof("%s - finished config push", n.Impl.Proto.Name)
+	}
+
+	return resp.Failed
+}
+
+func (n *Node) GenerateSelfSigned(context.Context) error {
+	// IOS XR automatically generates a self-signed certificate when gRPC is first enabled.
+	// If the startup configuration contains a gRPC configuration, or if the user configures
+	// gRPC after bootup, the self-signed cert will automatically be created and used.
+	return status.Errorf(codes.Unimplemented, "certificate generation is not supported")
 }
 
 func init() {

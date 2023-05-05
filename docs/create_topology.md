@@ -23,7 +23,8 @@ Usage:
   kne deploy <deployment yaml> [flags]
 
 Flags:
-  -h, --help   help for deploy
+  -h, --help       help for deploy
+      --progress   Display progress of container bringup
 
 Global Flags:
       --kubecfg string     kubeconfig file (default "/path/to/home/{{USERNAME}}/.kube/config")
