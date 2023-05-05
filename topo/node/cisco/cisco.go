@@ -565,6 +565,9 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 }
 
 func (n *Node) GenerateSelfSigned(context.Context) error {
+	// IOS XR automatically generates a self-signed certificate when gRPC is first enabled. 
+	// If the startup configuration contains a gRPC configuration, or if the user configures 
+	// gRPC after bootup, the self-signed cert will automatically be created and used.
 	return status.Errorf(codes.Unimplemented, "certificate generation is not supported")
 }
 
