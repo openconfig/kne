@@ -23,6 +23,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -860,5 +862,14 @@ func TestPushCfg(t *testing.T) {
 				t.Fatalf("Not expecting an error, but received an error: %v \n", err)
 			}
 		})
+	}
+}
+
+func TestGenerateSelfSigned(t *testing.T) {
+	n := &Node{}
+	err := n.GenerateSelfSigned(context.Background())
+	want := codes.Unimplemented
+	if s, ok := status.FromError(err); !ok || s.Code() != want {
+		t.Fatalf("GenerateSelfSigned() unexpected error get %v, want %v", s, want)
 	}
 }

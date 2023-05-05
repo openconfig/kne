@@ -564,6 +564,10 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	return resp.Failed
 }
 
+func (n *Node) GenerateSelfSigned(context.Context) error {
+	return status.Errorf(codes.Unimplemented, "certificate generation is not supported")
+}
+
 func init() {
 	node.Vendor(tpb.Vendor_CISCO, New)
 }
