@@ -533,6 +533,10 @@ func processConfig(cfg string) string {
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+	if n.Proto.Model == ModelXRD {
+		return status.Errorf(codes.Unimplemented, "reset config is not implemented for cisco xrd node")
+	}
+
 	log.Infof("%s - pushing config", n.Name())
 
 	cfg, err := io.ReadAll(r)
