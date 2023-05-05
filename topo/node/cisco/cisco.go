@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -509,6 +510,65 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		log.Infof("%s - finished resetting config", n.Name())
 	}
 	return resp.Failed
+}
+
+// processConfig removes end command from config
+// since running it can lead to interactive prompt which is not handled.
+// Also it add commits to the end of config if it is missing
+func processConfig(cfg string) string {
+	processedCfg := ""
+	lines := strings.Split(cfg, "\n")
+	lastLine := ""
+	for _, line := range lines {
+		if strings.ToLower(strings.Trim(line, " ")) == "end" {
+			continue
+		}
+		lastLine = line
+		processedCfg += line + "\n"
+	}
+	if strings.ToLower(strings.Trim(lastLine, " ")) != "commit" {
+		processedCfg += "commit\n"
+	}
+	return processedCfg
+}
+
+func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
+	if n.Proto.Model == ModelXRD {
+		return status.Errorf(codes.Unimplemented, "config push is not implemented for cisco xrd node")
+	}
+
+	log.Infof("%s - pushing config", n.Name())
+
+	cfg, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	cfgs := string(cfg)
+	cfgs = processConfig(cfgs)
+	log.V(1).Info(cfgs)
+
+	err = n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendConfig(cfgs)
+	if err != nil {
+		return err
+	}
+	if resp.Failed == nil {
+		log.Infof("%s - finished config push", n.Impl.Proto.Name)
+	}
+
+	return resp.Failed
+}
+
+func (n *Node) GenerateSelfSigned(context.Context) error {
+	// IOS XR automatically generates a self-signed certificate when gRPC is first enabled.
+	// If the startup configuration contains a gRPC configuration, or if the user configures
+	// gRPC after bootup, the self-signed cert will automatically be created and used.
+	return status.Errorf(codes.Unimplemented, "certificate generation is not supported")
 }
 
 func init() {
