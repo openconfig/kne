@@ -397,8 +397,8 @@ github.com/Microsoft/go-winio v0.5.2 h1:a9IhgEQBCUEk6QCdml9CiJGhAws+YwffDHEMp1VM
 github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v8QkMxJ6pZY=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1 h1:lOGhvrrxc/bzUMJI4kYmZh/N1a87Vnsk/TENZt5kCoc=
-github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1/go.mod h1:/mvSt2fEmlVEU7dppip3UNz/MUt380f50dFsZRGn83o=
+github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.2 h1:KQL1evr4NM4ZQOLRs1bbmD0kYPmLRAMqvRrNSpYAph4=
+github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.2/go.mod h1:/mvSt2fEmlVEU7dppip3UNz/MUt380f50dFsZRGn83o=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=

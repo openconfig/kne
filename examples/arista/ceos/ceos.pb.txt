@@ -23,11 +23,25 @@ nodes: {
             inside: 22
         }
     }
-    services:{
+    services: {
         key: 6030
         value: {
             name: "gnmi"
             inside: 6030
+        }
+    }
+    services: {
+        key: 6031
+        value: {
+            name: "gnoi"
+            inside: 6030
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
         }
     }
 }
@@ -53,6 +67,27 @@ nodes: {
         value: {
             name: "ssh"
             inside: 22
+        }
+    }
+    services: {
+        key: 6030
+        value: {
+            name: "gnmi"
+            inside: 6030
+        }
+    }
+    services: {
+        key: 6031
+        value: {
+            name: "gnoi"
+            inside: 6030
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
         }
     }
 }

@@ -25,9 +25,16 @@ nodes: {
         }
     }
     services: {
-        key: 6030
+        key: 9339
         value: {
             name: "gnmi"
+            inside: 6030
+        }
+    }
+    services: {
+        key: 9337
+        value: {
+            name: "gnoi"
             inside: 6030
         }
     }

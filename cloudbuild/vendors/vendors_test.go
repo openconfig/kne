@@ -69,7 +69,7 @@ func TestCEOS(t *testing.T) {
 	dut := ondatra.DUT(t, "ceos")
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
-	// testGNOI(t, dut)
+	testGNOI(t, dut)
 	// testP4RT(t, dut)
 }
 
