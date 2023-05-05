@@ -809,18 +809,11 @@ func TestPushCfg(t *testing.T) {
 		testConf string
 	}{
 		{
-			desc:     "successful push config for xrd",
-			wantErr:  false,
+			desc:     "unimplemented push config for xrd",
+			wantErr:  true,
 			ni:       nodeXRD,
 			testFile: "testdata/push_config_success",
 			testConf: "testdata/valid_config",
-		},
-		{
-			desc:     "failed push config for xrd",
-			wantErr:  true,
-			ni:       nodeXRD,
-			testFile: "testdata/push_config_failure",
-			testConf: "testdata/invalid_config",
 		},
 		{
 			desc:     "successful push config for 8000e",
