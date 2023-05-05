@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -511,6 +512,26 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	return resp.Failed
 }
 
+// processConfig removes end command from config
+// since running it can lead to interactive prompt which is not handled.
+// Also it add commits to the end of config if it is missing
+func processConfig(cfg string) string {
+	processedCfg := ""
+	lines := strings.Split(cfg, "\n")
+	lastLine := ""
+	for _, line := range lines {
+		if strings.Contains(strings.ToLower(line), "end") {
+			continue
+		}
+		lastLine = line
+		processedCfg = processedCfg + line + "\n"
+	}
+	if !strings.Contains(strings.ToLower(lastLine), "commit") {
+		processedCfg = processedCfg + "commit\n"
+	}
+	return processedCfg
+}
+
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	log.Infof("%s - pushing config", n.Name())
 
@@ -519,6 +540,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 		return err
 	}
 	cfgs := string(cfg)
+	cfgs = processConfig(cfgs)
 	log.V(1).Info(cfgs)
 
 	err = n.SpawnCLIConn()
