@@ -198,6 +198,11 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	cfg, err := io.ReadAll(r)
 	cfgs := string(cfg)
 
+	if len(cfgs) == 0 {
+		log.Infof("%s - empty config! not pushing", n.Name())
+		return nil
+	}
+
 	log.V(1).Info(cfgs)
 
 	if err != nil {
