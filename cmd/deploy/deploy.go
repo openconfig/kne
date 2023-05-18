@@ -68,10 +68,11 @@ type DeploymentConfig struct {
 // will be reported for missing files.
 func newDeployment(cfgPath string, testing bool) (*deploy.Deployment, error) {
 	c, err := load.NewConfig(cfgPath, &DeploymentConfig{})
-	c.IgnoreMissingFiles = testing
 	if err != nil {
 		return nil, err
 	}
+	c.IgnoreMissingFiles = testing
+
 	cfg := deploy.Deployment{
 		Progress: progress,
 	}
