@@ -15,41 +15,6 @@ nodes: {
         # nodes are configured with a partial config snippet in CLI format that adds configuration relevant for this example lab.
         file: "config.cfg"
     }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            inside: 57400
-        }
-    }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            inside: 57400
-        }
-    }
-    services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 57401
-        }
-    }
-    services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 9559
-        }
-    }
     interfaces: {
         key: "e1-1"
         value: {
@@ -65,41 +30,6 @@ nodes: {
     config:{
         # when `image` is not specified under `config`, the "ghcr.io/nokia/srlinux:latest" container image is used by default
         file: "config.cfg"
-    }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            inside: 57400
-        }
-    }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            inside: 57400
-        }
-    }
-    services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 57401
-        }
-    }
-    services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 9559
-        }
     }
     interfaces: {
         key: "e1-1"

@@ -7,45 +7,6 @@ nodes: {
     config: {
         file: "r1.config"
     }
-   services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            outside: 9339
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            outside: 9340
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            outside: 9337
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            outside: 9559
-            inside: 57400
-        }
-    }
     interfaces: {
         key: "eth1"
         value: {
@@ -60,45 +21,6 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "r2.config"
-    }
-  services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            outside: 9339
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            outside: 9340
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            outside: 9337
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            outside: 9559
-            inside: 57400
-        }
     }
     interfaces: {
         key: "eth1"

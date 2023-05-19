@@ -56,9 +56,9 @@ cluster:
       - us-west1-docker.pkg.dev
     containerImages:
       'us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga': 'networkop/init-wait:latest'
-    config: ${HOME}/kne/kind/kind-no-cni.yaml
+    config: ${HOME}/kne/manifests/kind/config.yaml
     additionalManifests:
-      - ${HOME}/kne/manifests/kind/kind-bridge.yaml
+      - ${HOME}/kne/manifests/kind/bridge.yaml
 ingress:
   kind: MetalLB
   spec:
@@ -110,7 +110,6 @@ $cli show kne/examples/openconfig/lemming.pb.txt
 $cli topology service kne/examples/openconfig/lemming.pb.txt
 
 # Delete the topology
-
 $cli delete kne/examples/openconfig/lemming.pb.txt
 
 popd

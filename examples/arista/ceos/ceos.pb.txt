@@ -16,20 +16,6 @@ nodes: {
             }
         }
     }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 6030
-        value: {
-            name: "gnmi"
-            inside: 6030
-        }
-    }
 }
 nodes: {
     name: "r2"
@@ -46,13 +32,6 @@ nodes: {
                 key_name: "gnmiCertKey.pem",
                 key_size: 4096,
             }
-        }
-    }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
         }
     }
 }

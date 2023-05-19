@@ -17,27 +17,6 @@ nodes: {
       }
     }
   }
-   services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services: {
-        key: 6030
-        value: {
-            name: "gnmi"
-            inside: 6030
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 9340
-        }
-    }
 }
 nodes: {
   name: "cptx"
@@ -55,41 +34,6 @@ nodes: {
         key_name: "N/A"
         key_size: 4096
       }
-    }
-  }
-  services: {
-    key: 22
-    value: {
-      name: "ssh"
-      inside: 22
-    }
-  }
-  services: {
-    key: 9337
-    value: {
-      name: "gnoi"
-      inside: 32767
-    }
-  }
-  services: {
-    key: 9339
-    value: {
-      name: "gnmi"
-      inside: 32767
-    }
-  }
-  services: {
-    key: 9340
-    value: {
-      name: "gribi"
-      inside: 32767
-    }
-  }
-  services: {
-    key: 9559
-    value: {
-      name: "p4rt"
-      inside: 32767
     }
   }
   interfaces: {
@@ -144,41 +88,6 @@ nodes: {
       }
     }
   }
-  services: {
-    key: 22
-    value: {
-      name: "ssh"
-      inside: 22
-    }
-  }
-  services: {
-    key: 9337
-    value: {
-      name: "gnoi"
-      inside: 57400
-    }
-  }
-  services: {
-    key: 9339
-    value: {
-      name: "gnmi"
-      inside: 57400
-    }
-  }
-  services: {
-    key: 9340
-    value: {
-      name: "gribi"
-      inside: 57401
-    }
-  }
-  services: {
-    key: 9559
-    value: {
-      name: "p4rt"
-      inside: 9559
-    }
-  }
   interfaces: {
         key: "eth1"
         value: {
@@ -225,34 +134,6 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga"
     file: "cisco.cfg"
   }
-  services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services: {
-        key: 9339
-        value: {
-            name: "gnmi"
-            inside: 57400
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 57400
-        }
-    }
-    services: {
-        key: 9337
-        value: {
-            name: "gnoi"
-            inside: 57400
-        }
-    }
     interfaces: {
         key: "eth1"
         value: {
@@ -299,34 +180,6 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga"
     file: "cisco.cfg"
   }
-  services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services: {
-        key: 9339
-        value: {
-            name: "gnmi"
-            inside: 57400
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 57400
-        }
-    }
-    services: {
-        key: 9337
-        value: {
-            name: "gnoi"
-            inside: 57400
-        }
-    }
     interfaces: {
         key: "eth1"
         value: {
@@ -372,27 +225,6 @@ nodes: {
   name: "otg"
   vendor: KEYSIGHT
   version: "0.0.1-9999"
-  services: {
-    key: 443
-    value: {
-      name: "https"
-      inside: 443
-    }
-  }
-  services: {
-    key: 40051
-    value: {
-      name: "grpc"
-      inside: 40051
-    }
-  }
-  services: {
-    key: 50051
-    value: {
-      name: "gnmi"
-      inside: 50051
-    }
-  }
 }
 # Links from otg
 links: {
