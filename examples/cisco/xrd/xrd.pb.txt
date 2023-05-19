@@ -14,20 +14,6 @@ nodes: {
             }
         }
     }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 57400
-        value: {
-            name: "gnmi"
-            inside: 57400
-        }
-    }
     interfaces: {
         key: "eth1"
         value: {
@@ -48,20 +34,6 @@ nodes: {
                 key_name: "r2.key",
                 key_size: 2048,
             }
-        }
-    }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 57400
-        value: {
-            name: "gnmi"
-            inside: 57400
         }
     }
     interfaces: {

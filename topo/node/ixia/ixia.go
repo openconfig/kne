@@ -323,6 +323,22 @@ func (n *Node) FixInterfaces() {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	if pb.Services == nil {
+		pb.Services = map[uint32]*tpb.Service{
+			8443: {
+				Name:   "https",
+				Inside: 8443,
+			},
+			40051: {
+				Name:   "grpc",
+				Inside: 40051,
+			},
+			50051: {
+				Name:   "gnmi",
+				Inside: 50051,
+			},
+		}
+	}
 	return pb
 }
 

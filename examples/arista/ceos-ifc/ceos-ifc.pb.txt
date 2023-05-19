@@ -3,20 +3,6 @@ nodes: {
     name: "otg"
     vendor: KEYSIGHT
     version: "0.0.1-9999"
-    services: {
-        key: 40051
-        value: {
-            name: "grpc"
-            inside: 40051
-        }
-    }
-    services: {
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-        }
-    }
     interfaces: {
         key: "eth3"
         value: {
