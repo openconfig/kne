@@ -9,14 +9,14 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/testing/protocmp"
 
-	topopb "github.com/openconfig/kne/proto/topo"
+	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 func TestNew(t *testing.T) {
 	tests := []struct {
 		desc    string
-		nImpl   *node.Impl
-		want    *topopb.Node
+		inNode  *node.Impl
+		want    *tpb.Node
 		wantErr string
 	}{{
 		desc:    "nil impl",
@@ -24,14 +24,14 @@ func TestNew(t *testing.T) {
 	}, {
 		desc:    "nil pb",
 		wantErr: "nodeImpl.Proto cannot be nil",
-		nImpl:   &node.Impl{},
+		inNode:  &node.Impl{},
 	}, {
 		desc: "empty pb",
-		nImpl: &node.Impl{
-			Proto: &topopb.Node{},
+		inNode: &node.Impl{
+			Proto: &tpb.Node{},
 		},
-		want: &topopb.Node{
-			Config: &topopb.Config{
+		want: &tpb.Node{
+			Config: &tpb.Config{
 				Command: []string{
 					"/app/magna",
 					"-v=2",
@@ -44,61 +44,130 @@ func TestNew(t *testing.T) {
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
 				Image:        "magna:latest",
 			},
+			Services: map[uint32]*tpb.Service{
+				40051: {
+					Name:    "grpc",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
+			},
 		},
 	}, {
 		desc: "provided service",
-		nImpl: &node.Impl{
-			Proto: &topopb.Node{
-				Config: &topopb.Config{
+		inNode: &node.Impl{
+			Proto: &tpb.Node{
+				Config: &tpb.Config{
 					Command: []string{"do", "run"},
 				},
-				Services: map[uint32]*topopb.Service{
-					40051: {
-						Name:      "grpc",
-						Inside:    40051,
-						Outside:   40051,
+				Services: map[uint32]*tpb.Service{
+					22: {
+						Name:      "ssh",
+						Inside:    22,
+						Outside:   22,
 						InsideIp:  "1.1.1.1",
 						OutsideIp: "10.10.10.10",
 					},
 				},
 			},
 		},
-		want: &topopb.Node{
-			Config: &topopb.Config{
+		want: &tpb.Node{
+			Config: &tpb.Config{
 				Command:      []string{"do", "run"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
 				Image:        "magna:latest",
 			},
-			Services: map[uint32]*topopb.Service{
-				40051: {
-					Name:      "grpc",
-					Inside:    40051,
-					Outside:   40051,
+			Services: map[uint32]*tpb.Service{
+				22: {
+					Name:      "ssh",
+					Inside:    22,
+					Outside:   22,
 					InsideIp:  "1.1.1.1",
 					OutsideIp: "10.10.10.10",
+				},
+				40051: {
+					Name:    "grpc",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
 				},
 			},
 		},
 	}, {
 		desc: "provided config command",
-		nImpl: &node.Impl{
-			Proto: &topopb.Node{
-				Config: &topopb.Config{
+		inNode: &node.Impl{
+			Proto: &tpb.Node{
+				Config: &tpb.Config{
 					Command: []string{"do", "run"},
 				},
 			},
 		},
-		want: &topopb.Node{
-			Config: &topopb.Config{
+		want: &tpb.Node{
+			Config: &tpb.Config{
 				Command:      []string{"do", "run"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
 				Image:        "magna:latest",
+			},
+			Services: map[uint32]*tpb.Service{
+				40051: {
+					Name:    "grpc",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
+			},
+		},
+	}, {
+		desc: "service already defined",
+		inNode: &node.Impl{
+			Proto: &tpb.Node{
+				Config: &tpb.Config{
+					Command: []string{"do", "run"},
+				},
+				Services: map[uint32]*tpb.Service{
+					40051: {
+						Name:    "foobar",
+						Inside:  40051,
+						Outside: 40051,
+					},
+				},
+			},
+		},
+		want: &tpb.Node{
+			Config: &tpb.Config{
+				Command:      []string{"do", "run"},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+				Image:        "magna:latest",
+			},
+			Services: map[uint32]*tpb.Service{
+				40051: {
+					Name:    "foobar",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
 			},
 		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			got, err := New(tt.nImpl)
+			got, err := New(tt.inNode)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: got %v, want %s", err, s)
 			}

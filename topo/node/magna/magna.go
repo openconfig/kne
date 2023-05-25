@@ -45,6 +45,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*tpb.Service{}
+	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
 		pb.Config.Command = []string{
 			"/app/magna",
@@ -64,6 +67,23 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		// Currently, this image can be built from github.com/openconfig/magna.
 		pb.Config.Image = "magna:latest"
 	}
+
+	if _, ok := pb.Services[40051]; !ok {
+		pb.Services[40051] = &tpb.Service{
+			Name:    "grpc",
+			Inside:  40051,
+			Outside: 40051,
+		}
+	}
+
+	if _, ok := pb.Services[50051]; !ok {
+		pb.Services[50051] = &tpb.Service{
+			Name:    "gnmi",
+			Inside:  50051,
+			Outside: 50051,
+		}
+	}
+
 	return pb
 }
 
