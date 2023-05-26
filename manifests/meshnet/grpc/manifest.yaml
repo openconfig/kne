@@ -154,7 +154,7 @@ spec:
               fieldPath: status.hostIP
         - name: INTER_NODE_LINK_TYPE
           value: GRPC
-        image: us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.1
+        image: us-west1-docker.pkg.dev/kne-external/kne/networkop/meshnet:v0.3.2
         imagePullPolicy: IfNotPresent
         name: meshnet
         resources:
