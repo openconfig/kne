@@ -313,11 +313,6 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating cPTX node resource %s model %s", n.Name(), n.Proto.Model)
 
-	if err := n.CreateConfig(ctx); err != nil {
-		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
-	}
-	log.Infof("Created cPTX node %s configmap", n.Name())
-
 	hpd := corev1.HostPathDirectory
 	pb := n.Proto
 	initContainerImage := pb.Config.InitImage
