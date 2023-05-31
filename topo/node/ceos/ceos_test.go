@@ -152,6 +152,10 @@ func TestNew(t *testing.T) {
 						Name:   "gnmi",
 						Inside: 6030,
 					},
+					9340: {
+						Name:   "gribi",
+						Inside: 9340,
+					},
 				},
 			},
 		}, {
@@ -226,6 +230,10 @@ func TestNew(t *testing.T) {
 					6030: {
 						Name:   "gnmi",
 						Inside: 6030,
+					},
+					9340: {
+						Name:   "gribi",
+						Inside: 9340,
 					},
 				},
 			},

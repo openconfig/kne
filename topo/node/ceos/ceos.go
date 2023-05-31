@@ -355,6 +355,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Name:   "gnmi",
 				Inside: 6030,
 			},
+			9340: {
+				Name:   "gribi",
+				Inside: 9340,
+			},
 		}
 	}
 	if pb.Labels == nil {

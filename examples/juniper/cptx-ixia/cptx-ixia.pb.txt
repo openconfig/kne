@@ -3,27 +3,6 @@ nodes: {
     name: "otg"
     vendor: KEYSIGHT
     version: "0.0.1-9999"
-    services: {
-        key: 443
-        value: {
-            name: "ixia-c"
-            inside: 443
-        }
-    }
-    services: {
-        key: 40051
-        value: {
-            name: "grpc"
-            inside: 40051
-        }
-    }
-    services: {
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-        }
-    }
 }
 
 nodes: {
@@ -59,45 +38,6 @@ nodes: {
         key: "eth28"
         value: {
           name: "et-0/0/3:0"
-        }
-    }
-   services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            outside: 9337
-            inside: 32767
-        }
-    }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            outside: 9339
-            inside: 32767
-        }
-    }
-    services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            outside: 9340
-            inside: 32767
-        }
-    }
-    services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            outside: 9559
-            inside: 32767
         }
     }
 }

@@ -113,8 +113,20 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
@@ -179,8 +191,20 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
@@ -249,8 +273,20 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
@@ -338,8 +374,20 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
@@ -434,8 +482,20 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
@@ -500,8 +560,20 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
@@ -596,8 +668,20 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},

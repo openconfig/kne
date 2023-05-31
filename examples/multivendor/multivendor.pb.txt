@@ -34,41 +34,6 @@ nodes: {
       }
     }
   }
-   services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            inside: 32767
-        }
-    }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            inside: 32767
-        }
-    }
-    services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 32767
-        }
-    }
-    services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 32767
-        }
-    }
   interfaces: {
     key: "eth4"
     value: {
@@ -136,41 +101,6 @@ nodes: {
   config: {
     file: "srlinux.cfg"
   }
-  services:{
-    key: 22
-    value: {
-      name: "ssh"
-      inside: 22
-    }
-  }
-  services:{
-    key: 9337
-    value: {
-      name: "gnoi"
-      inside: 57400
-    }
-  }
-  services:{
-    key: 9339
-    value: {
-      name: "gnmi"
-      inside: 57400
-    }
-  }
-  services:{
-    key: 9340
-    value: {
-      name: "gribi"
-      inside: 57401
-    }
-  }
-  services:{
-    key: 9559
-    value: {
-      name: "p4rt"
-      inside: 9559
-    }
-  }
 }
 nodes: {
   name: "xrd"
@@ -180,67 +110,11 @@ nodes: {
   config: {
     file: "xrd.cfg"
   }
-  services:{
-    key: 22
-    value: {
-      name: "ssh"
-      inside: 22
-    }
-  }
-  services:{
-    key: 9339
-    value: {
-      name: "gnmi"
-      inside: 57400
-    }
-  }
-  services:{
-    key: 9340
-    value: {
-        name: "gribi"
-        inside: 57400
-      }
-  }
-  services:{
-    key: 9337
-    value: {
-      name: "gnoi"
-      inside: 57400
-    }
-  }
-  services:{
-    key: 9559
-    value: {
-      name: "p4rt"
-      inside: 57400
-    }
-  }
 }
 nodes: {
   name: "otg"
   vendor: KEYSIGHT
   version: "0.0.1-9999"
-  services: {
-    key: 443
-    value: {
-      name: "https"
-      inside: 443
-    }
-  }
-  services: {
-    key: 40051
-    value: {
-      name: "grpc"
-      inside: 40051
-    }
-  }
-  services: {
-    key: 50051
-    value: {
-      name: "gnmi"
-      inside: 50051
-    }
-  }
 }
 # ceos - xrd
 links: {

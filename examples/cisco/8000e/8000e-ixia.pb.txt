@@ -7,45 +7,6 @@ nodes: {
     config: {
         file: "r1.config"
     }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services:{
-        key: 9339
-        value: {
-            name: "gnmi"
-            outside: 9339
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9340
-        value: {
-            name: "gribi"
-            outside: 9340
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9337
-        value: {
-            name: "gnoi"
-            outside: 9337
-            inside: 57400
-        }
-    }
-   services:{
-        key: 9559
-        value: {
-            name: "p4rt"
-            outside: 9559
-            inside: 57400
-        }
-    }
     interfaces: {
         key: "eth1"
         value: {
@@ -71,34 +32,11 @@ nodes: {
         }
     }
 }
-
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
     version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
-    services: {
-        key: 8443
-        value: {
-            name: "https"
-            inside: 8443
-        }
-    }
-    services: {
-        key: 40051
-        value: {
-            name: "grpc"
-            inside: 40051
-        }
-    }
-    services: {
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-        }
-    }
 }
-
 links: {
     a_node: "8000e"
     a_int: "eth1"

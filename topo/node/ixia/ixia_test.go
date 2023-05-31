@@ -36,6 +36,20 @@ func TestNew(t *testing.T) {
 			Config: &tpb.Config{
 				Image: "foo:bar",
 			},
+			Services: map[uint32]*tpb.Service{
+				8443: {
+					Name:   "https",
+					Inside: 8443,
+				},
+				40051: {
+					Name:   "grpc",
+					Inside: 40051,
+				},
+				50051: {
+					Name:   "gnmi",
+					Inside: 50051,
+				},
+			},
 		},
 	}}
 	for _, tt := range tests {
