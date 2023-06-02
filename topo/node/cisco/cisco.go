@@ -384,9 +384,13 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{
-			"vendor": tpb.Vendor_CISCO.String(),
-		}
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = tpb.Vendor_CISCO.String()
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name)

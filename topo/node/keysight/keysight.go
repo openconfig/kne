@@ -339,6 +339,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			},
 		}
 	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{}
+	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleATE
 	}

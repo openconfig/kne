@@ -309,7 +309,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_OPENCONFIG.String(),
+				"vendor":       tpb.Vendor_OPENCONFIG.String(),
+				"ondatra-role": "DUT",
 			},
 			Constraints: map[string]string{
 				"cpu":    "0.5",
@@ -375,7 +376,9 @@ func TestNew(t *testing.T) {
 				"cpu": "10",
 			},
 			Labels: map[string]string{
-				"custom": "value",
+				"custom":       "value",
+				"ondatra-role": "DUT",
+				"vendor":       tpb.Vendor_OPENCONFIG.String(),
 			},
 			Services: map[uint32]*tpb.Service{
 				8080: {

@@ -130,10 +130,11 @@ func TestNew(t *testing.T) {
 					ConfigFile:   "startup-config",
 				},
 				Labels: map[string]string{
-					"vendor":  "ARISTA",
-					"model":   "",
-					"os":      "",
-					"version": "",
+					"vendor":       "ARISTA",
+					"model":        "",
+					"os":           "",
+					"version":      "",
+					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
 					"cpu":    "0.5",
@@ -209,10 +210,11 @@ func TestNew(t *testing.T) {
 					},
 				},
 				Labels: map[string]string{
-					"vendor":  "ARISTA",
-					"model":   "foo",
-					"os":      "bar",
-					"version": "",
+					"vendor":       "ARISTA",
+					"model":        "foo",
+					"os":           "bar",
+					"version":      "",
+					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
 					"cpu":    "0.5",

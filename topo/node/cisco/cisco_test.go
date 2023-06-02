@@ -131,7 +131,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "xrd:latest",
@@ -209,7 +210,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "xrd:latest",
@@ -291,7 +293,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -392,7 +395,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -500,7 +504,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -578,7 +583,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -686,7 +692,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",

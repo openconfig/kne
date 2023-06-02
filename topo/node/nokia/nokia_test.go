@@ -109,8 +109,9 @@ func TestNew(t *testing.T) {
 				ConfigFile: "config.cli",
 			},
 			Labels: map[string]string{
-				"vendor": "NOKIA",
-				"foo":    "test_label",
+				"vendor":       "NOKIA",
+				"foo":          "test_label",
+				"ondatra-role": "DUT",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
@@ -157,8 +158,9 @@ func TestNew(t *testing.T) {
 				ConfigFile: "config.json",
 			},
 			Labels: map[string]string{
-				"vendor": "NOKIA",
-				"foo":    "test_label",
+				"vendor":       "NOKIA",
+				"foo":          "test_label",
+				"ondatra-role": "DUT",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {

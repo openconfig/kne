@@ -50,6 +50,9 @@ func TestNew(t *testing.T) {
 					Inside: 50051,
 				},
 			},
+			Labels: map[string]string{
+				"ondatra-role": "ATE",
+			},
 		},
 	}}
 	for _, tt := range tests {
