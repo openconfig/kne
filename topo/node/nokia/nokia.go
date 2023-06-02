@@ -1,4 +1,4 @@
-package srl
+package nokia
 
 import (
 	"context"
@@ -358,6 +358,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_NOKIA.String()
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}

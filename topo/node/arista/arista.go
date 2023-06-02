@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package ceos
+package arista
 
 import (
 	"context"
@@ -375,6 +375,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Labels["version"] == "" {
 		pb.Labels["version"] = pb.Version
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}

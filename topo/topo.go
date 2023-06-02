@@ -24,7 +24,10 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
+	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
+	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	cpb "github.com/openconfig/kne/proto/controller"
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -37,18 +40,14 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	log "k8s.io/klog/v2"
 
-	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
-	tpb "github.com/openconfig/kne/proto/topo"
-
-	_ "github.com/openconfig/kne/topo/node/ceos"
+	_ "github.com/openconfig/kne/topo/node/arista"
 	_ "github.com/openconfig/kne/topo/node/cisco"
-	_ "github.com/openconfig/kne/topo/node/cptx"
 	_ "github.com/openconfig/kne/topo/node/gobgp"
 	_ "github.com/openconfig/kne/topo/node/host"
-	_ "github.com/openconfig/kne/topo/node/ixia"
-	_ "github.com/openconfig/kne/topo/node/lemming"
-	_ "github.com/openconfig/kne/topo/node/srl"
+	_ "github.com/openconfig/kne/topo/node/juniper"
+	_ "github.com/openconfig/kne/topo/node/keysight"
+	_ "github.com/openconfig/kne/topo/node/nokia"
+	_ "github.com/openconfig/kne/topo/node/openconfig"
 )
 
 var protojsonUnmarshaller = protojson.UnmarshalOptions{
