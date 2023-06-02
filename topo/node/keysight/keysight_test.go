@@ -1,4 +1,4 @@
-package ixia
+package keysight
 
 import (
 	"testing"

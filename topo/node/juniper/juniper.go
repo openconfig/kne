@@ -1,7 +1,7 @@
 // Juniper cPTX for KNE
 // Copyright (c) Juniper Networks, Inc., 2021. All rights reserved.
 
-package cptx
+package juniper
 
 import (
 	"context"
@@ -466,6 +466,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}

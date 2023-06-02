@@ -1,7 +1,7 @@
 // Juniper cPTX for KNE
 // Copyright (c) Juniper Networks, Inc., 2021. All rights reserved.
 
-package cptx
+package juniper
 
 import (
 	"bufio"

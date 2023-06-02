@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lemming
+package openconfig
 
 import (
 	"context"
@@ -21,20 +21,18 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"github.com/openconfig/lemming/operator/api/clientset"
 	"github.com/openconfig/lemming/operator/api/clientset/fake"
+	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
-
-	tpb "github.com/openconfig/kne/proto/topo"
-	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	k8stesting "k8s.io/client-go/testing"
 )
 
