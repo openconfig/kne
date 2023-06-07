@@ -405,6 +405,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name: "pod1",
+			Model: "cptx",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -447,9 +448,18 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"CPTX": "1",
 				},
-				EntryCommand: "kubectl exec -it pod1 -- cli -c",
+				EntryCommand: "kubectl exec -it pod1 -- cli",
 				ConfigPath:   "/home/evo/configdisk",
 				ConfigFile:   "juniper.conf",
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
 			},
 		},
 	}, {
