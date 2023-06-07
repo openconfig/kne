@@ -132,9 +132,6 @@ duts {
   ports {
     id: "port6"
   }
-  ports {
-    id: "port7"
-  }
 }
 ates {
   id: "otg"
@@ -157,18 +154,6 @@ ates {
   ports {
     id: "port6"
   }
-}
-ates {
-  id: "magna"
-  vendor: OPENCONFIG
-  model: "MAGNA"
-  ports {
-    id: "port1"
-  }
-}
-links {
-  a: "magna:port1"
-  b: "lemming:port7"
 }
 links {
   a: "otg:port1"
