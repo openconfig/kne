@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lemming
+package openconfig
 
 import (
 	"context"
@@ -47,10 +47,11 @@ func TestCreate(t *testing.T) {
 		wantErr     string
 		want        *lemmingv1.Lemming
 	}{{
-		desc: "error creating client set",
+		desc: "lemming: error creating client set",
 		n: &Node{
 			Impl: &node.Impl{
 				Proto: &tpb.Node{
+					Model: modelLemming,
 					Config: &tpb.Config{
 						Command: []string{"/lemming"},
 					},
@@ -60,10 +61,11 @@ func TestCreate(t *testing.T) {
 		clientFnErr: fmt.Errorf("client err"),
 		wantErr:     "client err",
 	}, {
-		desc: "create error",
+		desc: "lemming: create error",
 		n: &Node{
 			Impl: &node.Impl{
 				Proto: &tpb.Node{
+					Model: modelLemming,
 					Config: &tpb.Config{
 						Command: []string{"/lemming"},
 					},
@@ -73,12 +75,13 @@ func TestCreate(t *testing.T) {
 		createErr: fmt.Errorf("create err"),
 		wantErr:   "create err",
 	}, {
-		desc: "success",
+		desc: "lemming: success",
 		n: &Node{
 			Impl: &node.Impl{
 				Namespace: "default",
 				Proto: &tpb.Node{
-					Name: "test",
+					Name:  "test",
+					Model: modelLemming,
 					Config: &tpb.Config{
 						Command: []string{"/lemming"},
 						Cert: &tpb.CertificateCfg{
@@ -147,7 +150,7 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestStatus(t *testing.T) {
+func TestLemmingStatus(t *testing.T) {
 	tests := []struct {
 		desc        string
 		clientFnErr error
@@ -198,7 +201,7 @@ func TestStatus(t *testing.T) {
 				return cs, tt.clientFnErr
 			}
 			n := &Node{&node.Impl{Proto: &tpb.Node{}}}
-			got, err := n.Status(context.Background())
+			got, err := n.lemmingStatus(context.Background())
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("Status() unexpected error: got: %v, want: %s", err, s)
 			}
@@ -238,7 +241,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
+func TestLemmingDelete(t *testing.T) {
 	tests := []struct {
 		desc        string
 		clientFnErr error
@@ -266,9 +269,9 @@ func TestDelete(t *testing.T) {
 				return cs, tt.clientFnErr
 			}
 			n := &Node{&node.Impl{Proto: &tpb.Node{}}}
-			err := n.Delete(context.Background())
+			err := n.lemmingDelete(context.Background())
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
-				t.Fatalf("Delete() unexpected error: got: %v, want: %s", err, s)
+				t.Fatalf("lemmingDelete() unexpected error: got: %v, want: %s", err, s)
 			}
 		})
 	}
@@ -288,14 +291,24 @@ func TestNew(t *testing.T) {
 		wantErr: "nodeImpl.Proto cannot be nil",
 		ni:      &node.Impl{},
 	}, {
-		desc: "test defaults",
+		desc: "no node model specified",
 		ni: &node.Impl{
 			Proto: &tpb.Node{
-				Name: "test_node",
+				Name: "foo",
+			},
+		},
+		wantErr: "a model must be specified",
+	}, {
+		desc: "lemming: test defaults",
+		ni: &node.Impl{
+			Proto: &tpb.Node{
+				Name:  "test_node",
+				Model: modelLemming,
 			},
 		},
 		wantPB: &tpb.Node{
-			Name: "test_node",
+			Name:  "test_node",
+			Model: modelLemming,
 			Config: &tpb.Config{
 				Image:        "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga",
 				InitImage:    node.DefaultInitContainerImage,
@@ -311,7 +324,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_OPENCONFIG.String(),
+				"vendor":       tpb.Vendor_OPENCONFIG.String(),
+				"ondatra-role": "DUT",
 			},
 			Constraints: map[string]string{
 				"cpu":    "0.5",
@@ -337,10 +351,11 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "defaults not overriding",
+		desc: "lemming: defaults not overriding",
 		ni: &node.Impl{
 			Proto: &tpb.Node{
-				Name: "test_node",
+				Name:  "test_node",
+				Model: modelLemming,
 				Config: &tpb.Config{
 					Image:        "lemming:test",
 					InitImage:    "foo:latest",
@@ -364,7 +379,8 @@ func TestNew(t *testing.T) {
 			},
 		},
 		wantPB: &tpb.Node{
-			Name: "test_node",
+			Name:  "test_node",
+			Model: modelLemming,
 			Config: &tpb.Config{
 				Image:        "lemming:test",
 				InitImage:    "foo:latest",
@@ -377,13 +393,215 @@ func TestNew(t *testing.T) {
 				"cpu": "10",
 			},
 			Labels: map[string]string{
-				"custom": "value",
+				"custom":       "value",
+				"ondatra-role": "DUT",
 			},
 			Services: map[uint32]*tpb.Service{
 				8080: {
 					Name:   "gnmi",
 					Inside: 8080,
 				},
+			},
+		},
+	}, {
+		desc: "magna: empty pb",
+		ni: &node.Impl{
+			Proto: &tpb.Node{
+				Model: modelMagna,
+			},
+		},
+		wantPB: &tpb.Node{
+			Model: modelMagna,
+			Config: &tpb.Config{
+				Command: []string{
+					"/app/magna",
+					"-v=2",
+					"-alsologtostderr",
+					"-port=40051",
+					"-telemetry_port=50051",
+					"-certfile=/data/cert.pem",
+					"-keyfile=/data/key.pem",
+				},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+				Image:        "magna:latest",
+			},
+			Labels: map[string]string{
+				"ondatra-role": "ATE",
+				"vendor":       "OPENCONFIG",
+			},
+			Services: map[uint32]*tpb.Service{
+				40051: {
+					Name:    "grpc",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
+			},
+		},
+	}, {
+		desc: "magna: provided service",
+		ni: &node.Impl{
+			Proto: &tpb.Node{
+				Model: modelMagna,
+				Config: &tpb.Config{
+					Command: []string{"do", "run"},
+				},
+				Services: map[uint32]*tpb.Service{
+					22: {
+						Name:      "ssh",
+						Inside:    22,
+						Outside:   22,
+						InsideIp:  "1.1.1.1",
+						OutsideIp: "10.10.10.10",
+					},
+				},
+			},
+		},
+		wantPB: &tpb.Node{
+			Model: modelMagna,
+			Config: &tpb.Config{
+				Command:      []string{"do", "run"},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+				Image:        "magna:latest",
+			},
+			Labels: map[string]string{
+				"ondatra-role": "ATE",
+				"vendor":       "OPENCONFIG",
+			},
+			Services: map[uint32]*tpb.Service{
+				22: {
+					Name:      "ssh",
+					Inside:    22,
+					Outside:   22,
+					InsideIp:  "1.1.1.1",
+					OutsideIp: "10.10.10.10",
+				},
+				40051: {
+					Name:    "grpc",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
+			},
+		},
+	}, {
+		desc: "magna: provided config command",
+		ni: &node.Impl{
+			Proto: &tpb.Node{
+				Model: modelMagna,
+				Config: &tpb.Config{
+					Command: []string{"do", "run"},
+				},
+			},
+		},
+		wantPB: &tpb.Node{
+			Model: modelMagna,
+			Config: &tpb.Config{
+				Command:      []string{"do", "run"},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+				Image:        "magna:latest",
+			},
+			Labels: map[string]string{
+				"ondatra-role": "ATE",
+				"vendor":       "OPENCONFIG",
+			},
+			Services: map[uint32]*tpb.Service{
+				40051: {
+					Name:    "grpc",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
+			},
+		},
+	}, {
+		desc: "magna: service already defined",
+		ni: &node.Impl{
+			Proto: &tpb.Node{
+				Model: modelMagna,
+				Config: &tpb.Config{
+					Command: []string{"do", "run"},
+				},
+				Services: map[uint32]*tpb.Service{
+					40051: {
+						Name:    "foobar",
+						Inside:  40051,
+						Outside: 40051,
+					},
+				},
+			},
+		},
+		wantPB: &tpb.Node{
+			Model: modelMagna,
+			Config: &tpb.Config{
+				Command:      []string{"do", "run"},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+				Image:        "magna:latest",
+			},
+			Labels: map[string]string{
+				"ondatra-role": "ATE",
+				"vendor":       "OPENCONFIG",
+			},
+			Services: map[uint32]*tpb.Service{
+				40051: {
+					Name:    "foobar",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
+			},
+		},
+	}, {
+		desc: "labels already specified",
+		ni: &node.Impl{
+			Proto: &tpb.Node{
+				Model: modelMagna,
+				Config: &tpb.Config{
+					Command: []string{"do", "run"},
+				},
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+		},
+		wantPB: &tpb.Node{
+			Model: modelMagna,
+			Config: &tpb.Config{
+				Command:      []string{"do", "run"},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+				Image:        "magna:latest",
+			},
+			Services: map[uint32]*tpb.Service{
+				40051: {
+					Name:    "grpc",
+					Inside:  40051,
+					Outside: 40051,
+				},
+				50051: {
+					Name:    "gnmi",
+					Inside:  50051,
+					Outside: 50051,
+				},
+			},
+			Labels: map[string]string{
+				"ondatra-role": "ATE",
+				"foo":          "bar",
 			},
 		},
 	}}
