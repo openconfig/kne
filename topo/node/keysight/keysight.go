@@ -1,4 +1,4 @@
-package ixia
+package keysight
 
 import (
 	"context"
@@ -338,6 +338,12 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Inside: 50051,
 			},
 		}
+	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleATE
 	}
 	return pb
 }

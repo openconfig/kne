@@ -22,15 +22,14 @@ import (
 	"fmt"
 	"io"
 
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"github.com/openconfig/lemming/operator/api/clientset"
+	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/client-go/rest"
-
-	tpb "github.com/openconfig/kne/proto/topo"
-	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 )
 
@@ -259,9 +258,13 @@ func lemmingDefaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{
-			"vendor": tpb.Vendor_OPENCONFIG.String(),
-		}
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = tpb.Vendor_OPENCONFIG.String()
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 
 	// Always explicitly specify that lemming is a DUT, this cannot be overridden by the user.

@@ -1,7 +1,7 @@
 // Juniper cPTX for KNE
 // Copyright (c) Juniper Networks, Inc., 2021. All rights reserved.
 
-package cptx
+package juniper
 
 import (
 	"bufio"
@@ -403,9 +403,55 @@ func TestNew(t *testing.T) {
 				Name: "pod1",
 			},
 		},
-		want: defaults(&tpb.Node{
+		want: &tpb.Node{
 			Name: "pod1",
-		}),
+			Constraints: map[string]string{
+				"cpu":    "8",
+				"memory": "8Gi",
+			},
+			Services: map[uint32]*tpb.Service{
+				443: {
+					Name:   "ssl",
+					Inside: 443,
+				},
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 32767,
+				},
+				9339: {
+					Name:   "gnmi",
+					Inside: 32767,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 32767,
+				},
+				9559: {
+					Name:   "p4rt",
+					Inside: 32767,
+				},
+			},
+			Labels: map[string]string{
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
+			},
+			Config: &tpb.Config{
+				Image: "cptx:latest",
+				Command: []string{
+					"/entrypoint.sh",
+				},
+				Env: map[string]string{
+					"CPTX": "1",
+				},
+				EntryCommand: "kubectl exec -it pod1 -- cli -c",
+				ConfigPath:   "/home/evo/configdisk",
+				ConfigFile:   "juniper.conf",
+			},
+		},
 	}, {
 		desc:    "nil pb",
 		ni:      &node.Impl{},
@@ -459,7 +505,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_JUNIPER.String(),
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "cptx:latest",
@@ -516,7 +563,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_JUNIPER.String(),
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "cptx:latest",
