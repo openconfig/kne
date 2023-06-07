@@ -40,13 +40,6 @@ const (
 	// modelLemming is a string used in the topology to specify that a lemming (github.com/openconfig/lemming)
 	// device instance should be created.
 	modelLemming string = "LEMMING"
-	// ondatraRoleLabel is a string used to specify whether an entity should be considered a DUT or an ATE
-	// by ONDATRA. OpenConfig is a vendor who supplies both.
-	ondatraRoleLabel string = "ondatra-role"
-	// ondatraATE is a string specifying that the node is an ATE to ONDATRA.
-	ondatraATE = "ATE"
-	// ondatraDUT is a string specifying that the node is a DUT to ONDATRA.
-	ondatraDUT = "DUT"
 )
 
 // New creates a new instance of a node based on the specified model.
@@ -263,12 +256,9 @@ func lemmingDefaults(pb *tpb.Node) *tpb.Node {
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_OPENCONFIG.String()
 	}
-	if pb.Labels[node.OndatraRoleLabel] == "" {
-		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
-	}
 
 	// Always explicitly specify that lemming is a DUT, this cannot be overridden by the user.
-	pb.Labels[ondatraRoleLabel] = ondatraDUT
+	pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
@@ -344,7 +334,7 @@ func magnaDefaults(pb *tpb.Node) *tpb.Node {
 	}
 
 	// Always explicitly specify that magna nodes are ATEs, this cannot be overridden by the user.
-	pb.Labels[ondatraRoleLabel] = ondatraATE
+	pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleATE
 
 	return pb
 }
