@@ -1,4 +1,4 @@
-package ixia
+package keysight
 
 import (
 	"testing"
@@ -49,6 +49,9 @@ func TestNew(t *testing.T) {
 					Name:   "gnmi",
 					Inside: 50051,
 				},
+			},
+			Labels: map[string]string{
+				"ondatra-role": "ATE",
 			},
 		},
 	}}

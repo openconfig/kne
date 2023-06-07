@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	tpb "github.com/openconfig/kne/proto/topo"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplilogging "github.com/scrapli/scrapligo/logging"
@@ -24,9 +26,6 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
-
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
-	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 type Interface interface {
@@ -86,6 +85,10 @@ const (
 	StatusUnknown Status = "UNKNOWN"
 
 	ConfigVolumeName = "startup-config-volume"
+
+	OndatraRoleLabel = "ondatra-role"
+	OndatraRoleDUT   = "DUT"
+	OndatraRoleATE   = "ATE"
 )
 
 type NewNodeFn func(n *Impl) (Node, error)
