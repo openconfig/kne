@@ -113,7 +113,6 @@ duts {
 duts {
   id: "lemming"
   vendor: OPENCONFIG
-  model: "LEMMING"
   ports {
     id: "port1"
   }

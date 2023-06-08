@@ -220,6 +220,7 @@ nodes: {
 nodes: {
     name: "lemming"
     vendor: OPENCONFIG
+    model: "LEMMING"
 }
 nodes: {
   name: "otg"
