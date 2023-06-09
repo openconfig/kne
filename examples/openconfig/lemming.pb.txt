@@ -2,10 +2,12 @@ name: "lemming-twodut"
 nodes: {
     name: "lemming1"
     vendor: OPENCONFIG
+    model: "LEMMING"
 }
 nodes: {
     name: "lemming2"
     vendor: OPENCONFIG
+    model: "LEMMING"
 }
 links: {
     a_node: "lemming1"
