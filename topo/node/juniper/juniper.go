@@ -512,6 +512,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				"/sbin/cevoCntrEntryPoint",
 			}
 		}
+		if pb.Config.Image == "" {
+			pb.Config.Image = "ncptx:latest"
+		}
 	default:
 		if pb.Constraints == nil {
 			pb.Constraints = map[string]string{
@@ -523,6 +526,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			pb.Config.Command = []string{
 				"/entrypoint.sh",
 			}
+		}
+		if pb.Config.Image == "" {
+			pb.Config.Image = "cptx:latest"
 		}
 	}
 	if pb.Services == nil {
@@ -573,12 +579,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
-	if pb.Config.Image == "" {
-		pb.Config.Image = "cptx:latest"
-	}
 	if pb.Config.Env == nil {
 		pb.Config.Env = map[string]string{
-			"CPTX": "1",
+			"JUNOS_EVOLVED_CONTAINER": "1",
 		}
 	}
 	if pb.Config.EntryCommand == "" {

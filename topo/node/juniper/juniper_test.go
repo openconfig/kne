@@ -446,7 +446,7 @@ func TestNew(t *testing.T) {
 					"/entrypoint.sh",
 				},
 				Env: map[string]string{
-					"CPTX": "1",
+					"JUNOS_EVOLVED_CONTAINER": "1",
 				},
 				EntryCommand: "kubectl exec -it pod1 -- cli",
 				ConfigPath:   "/home/evo/configdisk",
@@ -525,7 +525,7 @@ func TestNew(t *testing.T) {
 					"/entrypoint.sh",
 				},
 				Env: map[string]string{
-					"CPTX": "1",
+					"JUNOS_EVOLVED_CONTAINER": "1",
 				},
 				EntryCommand: "kubectl exec -it pod1 -- cli",
 				ConfigPath:   "/",
@@ -593,7 +593,7 @@ func TestNew(t *testing.T) {
 					"/entrypoint.sh",
 				},
 				Env: map[string]string{
-					"CPTX": "1",
+					"JUNOS_EVOLVED_CONTAINER": "1",
 				},
 				EntryCommand: "kubectl exec -it  -- cli",
 				ConfigPath:   "/home/evo/configdisk",
