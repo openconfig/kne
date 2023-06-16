@@ -1,0 +1,88 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+syntax = "proto3";
+
+package event;
+
+import "topo.proto";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/openconfig/kne/proto/event";
+
+message KNEEvent {
+    string uuid = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    oneof event {
+        DeployClusterStart deploy_cluster_start = 3;
+        DeployClusterEnd deploy_cluster_end = 4;
+        CreateTopologyStart create_topology_start = 5;
+        CreateTopologyEnd create_topology_end = 6;
+    }
+}
+
+message DeployClusterStart {
+    Cluster cluster = 1;
+}
+
+message DeployClusterEnd {
+    string error_msg = 1;
+}
+
+message CreateTopologyStart {
+    Topology topology = 1;
+}
+
+message CreateTopologyEnd {
+    string error_msg = 1;
+}
+
+message Cluster {
+    enum ClusterType {
+        CLUSTER_TYPE_UNSPECIFIED = 0;
+        CLUSTER_TYPE_KIND = 1;
+        CLUSTER_TYPE_EXTERNAL = 2;
+    }
+    ClusterType cluster = 1;
+    enum IngressType {
+        INGRESS_TYPE_UNSPECIFIED = 0;
+        INGRESS_TYPE_METALLB = 1;
+    }
+    IngressType ingress = 2;
+    enum CNIType {
+        CNI_TYPE_UNSPECIFIED = 0;
+        CNI_TYPE_MESHNET = 1;
+    }
+    CNIType cni = 3;
+    enum ControllerType {
+        CONTROLLER_TYPE_UNSPECIFIED = 0;
+        CONTROLLER_TYPE_IXIATG = 1;
+        CONTROLLER_TYPE_SRLINUX = 2;
+        CONTROLLER_TYPE_CEOSLAB = 3;
+        CONTROLLER_TYPE_LEMMING = 4;
+    }
+    repeated ControllerType controllers = 4;
+}
+
+message Topology {
+  repeated Node nodes = 1;
+  int64 link_count = 2;
+}
+
+message Node {
+    topo.Vendor vendor = 1;
+    string model = 2;
+    string version = 3;
+    string os = 4;
+}
