@@ -431,10 +431,6 @@ func TestNew(t *testing.T) {
 					Name:   "gribi",
 					Inside: 32767,
 				},
-				9559: {
-					Name:   "p4rt",
-					Inside: 32767,
-				},
 			},
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
@@ -510,10 +506,6 @@ func TestNew(t *testing.T) {
 					Name:   "gribi",
 					Inside: 32767,
 				},
-				9559: {
-					Name:   "p4rt",
-					Inside: 32767,
-				},
 			},
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
@@ -523,6 +515,81 @@ func TestNew(t *testing.T) {
 				Image: "cptx:latest",
 				Command: []string{
 					"/entrypoint.sh",
+				},
+				Env: map[string]string{
+					"JUNOS_EVOLVED_CONTAINER": "1",
+				},
+				EntryCommand: "kubectl exec -it pod1 -- cli",
+				ConfigPath:   "/",
+				ConfigFile:   "foo",
+				ConfigData: &tpb.Config_Data{
+					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc: "full proto ncptx",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "ncptx",
+				Config: &tpb.Config{
+					ConfigFile: "foo",
+					ConfigPath: "/",
+					ConfigData: &tpb.Config_Data{
+						Data: []byte("config file data"),
+					},
+				},
+			},
+		},
+		want: &tpb.Node{
+			Name:  "pod1",
+			Model: "ncptx",
+			Constraints: map[string]string{
+				"cpu":    "4",
+				"memory": "4Gi",
+			},
+			Services: map[uint32]*tpb.Service{
+				443: {
+					Name:   "ssl",
+					Inside: 443,
+				},
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 32767,
+				},
+				9339: {
+					Name:   "gnmi",
+					Inside: 32767,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 32767,
+				},
+			},
+			Labels: map[string]string{
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
+			},
+			Config: &tpb.Config{
+				Image: "ncptx:latest",
+				Command: []string{
+					"/sbin/cevoCntrEntryPoint",
 				},
 				Env: map[string]string{
 					"JUNOS_EVOLVED_CONTAINER": "1",
@@ -576,10 +643,6 @@ func TestNew(t *testing.T) {
 				},
 				9340: {
 					Name:   "gribi",
-					Inside: 32767,
-				},
-				9559: {
-					Name:   "p4rt",
 					Inside: 32767,
 				},
 			},
