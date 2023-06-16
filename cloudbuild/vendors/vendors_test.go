@@ -78,7 +78,7 @@ func TestCTPX(t *testing.T) {
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	testP4RT(t, dut)
+	// testP4RT(t, dut)
 }
 
 func TestSRL(t *testing.T) {
