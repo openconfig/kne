@@ -76,8 +76,8 @@ message Cluster {
 }
 
 message Topology {
-  repeated Node nodes = 1;
-  int64 link_count = 2;
+    repeated Node nodes = 1;
+    int64 link_count = 2;
 }
 
 message Node {
