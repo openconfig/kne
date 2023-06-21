@@ -21,6 +21,7 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/openconfig/kne/proto/event";
 
+// KNEEvent is a wrapper around a specific event with a unique ID and timestamp.
 message KNEEvent {
   string uuid = 1;
   google.protobuf.Timestamp timestamp = 2;
@@ -32,22 +33,31 @@ message KNEEvent {
   }
 }
 
+// DeployClusterStart is an event indicating a cluster deployment was started.
 message DeployClusterStart {
   Cluster cluster = 1;
 }
 
+// DeployClusterEnd is an event indicating a cluster deployment was ended.
 message DeployClusterEnd {
-  string error_msg = 1;
+  // error is a string containing the error message that caused the cluster
+  // deployment to end unsuccessfully. Empty string if no error.
+  string error = 1;
 }
 
+// CreateTopologyStart is an event indicating a topology creation was started.
 message CreateTopologyStart {
   Topology topology = 1;
 }
 
+// CreateTopologyEnd is an event indicating a topology creation was ended.
 message CreateTopologyEnd {
-  string error_msg = 1;
+  // error is a string containing the error message that caused the topology
+  // creation to end unsuccessfully. Empty string if no error.
+  string error = 1;
 }
 
+// Cluster holds information about a cluster.
 message Cluster {
   enum ClusterType {
     CLUSTER_TYPE_UNSPECIFIED = 0;
@@ -75,14 +85,24 @@ message Cluster {
   repeated ControllerType controllers = 4;
 }
 
+// Topology holds information about a topology.
 message Topology {
+  // nodes in the topology.
   repeated Node nodes = 1;
+  // number of links in the topology. A count is sufficient here as the link
+  // details are not needed in topology metrics, in an effort to include as
+  // little potentially identifying information as possible in the reporting.
   int64 link_count = 2;
 }
 
+// Node holds information about a node in a topology. This is a simplified
+// version of the topo.Node in an effort to include as little potentially
+// identifying information as possible in reporting. The included fields
+// will be used in aggregate to identify trends and determine reliability
+// of certain node configurations.
 message Node {
+  // vendor is an enum of the node vendor.
   topo.Vendor vendor = 1;
+  // model is the name of the model of the node.
   string model = 2;
-  string version = 3;
-  string os = 4;
 }
