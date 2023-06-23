@@ -422,7 +422,7 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("kind version check failed: %w", err)
 		}
 		if gotV.Less(wantV) {
-			return fmt.Errorf("kind version check failed: got %s, want %s", gotV, wantV)
+			return fmt.Errorf("kind version check failed: got %s, want %s. install with `go install sigs.k8s.io/kind@%s`", gotV, wantV, wantV)
 		}
 		log.Infof("kind version valid: got %s want %s", gotV, wantV)
 	}
