@@ -26,14 +26,17 @@ import (
 	"github.com/openconfig/kne/cmd/topology"
 	"github.com/openconfig/kne/topo"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"k8s.io/client-go/util/homedir"
 	log "k8s.io/klog/v2"
 )
 
 var (
+	cfgFile string
 	kubecfg string
 	dryrun  bool
 	timeout time.Duration
+	reporting bool
 
 	rootCmd = &cobra.Command{
 		Use:   "kne",
@@ -42,12 +45,29 @@ var (
 layer 2 topology used by containers to layout networks in a k8s
 environment.`,
 		SilenceUsage: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if *cfgFile != "" {
+				viper.SetConfigFile(*cfgFile)
+				if err := viper.ReadInConfig(); err != nil {
+					return fmt.Errorf("error reading config: %w", err)
+				}
+			}
+			viper.BindPFlags(cmd.Flags())
+			return nil
+		}
 	}
 )
 
 // ExecuteContext executes the root command.
 func ExecuteContext(ctx context.Context) error {
 	return rootCmd.ExecuteContext(ctx)
+}
+
+func defaultCfgFile() string {
+	if home := homedir.HomeDir(); home != "" {
+		return filepath.Join(home, ".kne", "config")
+	}
+	return ""
 }
 
 func defaultKubeCfg() string {
@@ -62,7 +82,9 @@ func defaultKubeCfg() string {
 
 func init() {
 	rootCmd.SetOut(os.Stdout)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config_file", defaultConfigFile(), "Path to KNE config file")
 	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg(), "kubeconfig file")
+	rootCmd.PersistentFlags().BoolVar(&reporting, "reporting", false, "Whether to reporting anonymous usage metrics")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
 	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
 	rootCmd.AddCommand(createCmd)
