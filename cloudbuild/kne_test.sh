@@ -50,7 +50,7 @@ cluster:
   spec:
     name: kne
     recycle: True
-    version: v0.19.0
+    version: v0.17.0
     image: 'kindest/node:v1.26.6'
     googleArtifactRegistries:
       - us-west1-docker.pkg.dev
