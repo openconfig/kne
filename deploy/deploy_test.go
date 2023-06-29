@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
@@ -46,6 +47,12 @@ func TestKindSpec(t *testing.T) {
 		setPIDMaxScript = origSetPIDMaxScript
 	}()
 	setPIDMaxScript = "echo Executing fake set_pid_max script..."
+
+	origPullRetryDelay := pullRetryDelay
+	defer func() {
+		pullRetryDelay = origPullRetryDelay
+	}()
+	pullRetryDelay = time.Millisecond
 
 	tests := []struct {
 		desc           string
@@ -276,7 +283,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		wantErr: "failed to deploy manifest",
 	}, {
-		desc: "create cluster load containers - failed pull",
+		desc: "create cluster load containers - failed all pull attempts",
 		k: &KindSpec{
 			Name: "test",
 			ContainerImages: map[string]string{
@@ -286,8 +293,39 @@ func TestKindSpec(t *testing.T) {
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
 		},
 		wantErr: "failed to pull",
+	}, {
+		desc: "create cluster load containers - failed initial pull",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+			},
+		},
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
+			{Cmd: "docker", Args: []string{"pull", "docker"}},
+			{Cmd: "docker", Args: []string{"tag", "docker", "local"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "local", "--name", "test"}},
+		},
+	}, {
+		desc: "create cluster load containers - failed pull container not found",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"docker": "local",
+			},
+		},
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull", Stdout: "not found"},
+		},
+		wantErr: "not found",
 	}, {
 		desc: "create cluster load containers - failed tag",
 		k: &KindSpec{
@@ -574,6 +612,13 @@ func TestMetalLBSpec(t *testing.T) {
 			Namespace: "metallb-system",
 		},
 	}
+
+	origPoolRetryDelay := poolRetryDelay
+	defer func() {
+		poolRetryDelay = origPoolRetryDelay
+	}()
+	poolRetryDelay = time.Millisecond
+
 	tests := []struct {
 		desc        string
 		m           *MetalLBSpec
