@@ -119,7 +119,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kind...",
-      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.20.0",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.19.0",
       "curl --create-dirs -o third_party/licenses/kind/LICENSE https://raw.githubusercontent.com/kubernetes-sigs/kind/main/LICENSE",
       "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",
