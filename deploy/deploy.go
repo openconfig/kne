@@ -45,6 +45,8 @@ const (
 
 var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
+	pullRetryDelay  = time.Second
+	poolRetryDelay  = 5 * time.Second
 )
 
 // logCommand runs the specified command but records standard output
@@ -422,7 +424,7 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("kind version check failed: %w", err)
 		}
 		if gotV.Less(wantV) {
-			return fmt.Errorf("kind version check failed: got %s, want %s", gotV, wantV)
+			return fmt.Errorf("kind version check failed: got %s, want %s. install with `go install sigs.k8s.io/kind@%s`", gotV, wantV, wantV)
 		}
 		log.Infof("kind version valid: got %s want %s", gotV, wantV)
 	}
@@ -609,8 +611,25 @@ func (k *KindSpec) loadContainerImages() error {
 		} else {
 			log.Infof("Loading %q as %q", s, d)
 		}
-		if err := logCommand("docker", "pull", s); err != nil {
-			return fmt.Errorf("failed to pull %q: %w", s, err)
+		retries := 3
+		var out []byte
+		var err error
+		for ; ; retries-- {
+			out, err = outCommand("docker", "pull", s)
+			// Command succeeded or out of retries then break.
+			if err == nil || retries == 0 {
+				break
+			}
+			// If container is not found or does not exist, the error is considered not retriable.
+			if err != nil && (strings.Contains(string(out), "not found") || strings.Contains(string(out), "does not exist")) {
+				err = fmt.Errorf("container not found: %w", err)
+				break
+			}
+			log.Warningf("Failed to pull %q: %w (will retry %d times)", s, err, retries)
+			time.Sleep(pullRetryDelay)
+		}
+		if err != nil {
+			return err
 		}
 		if d != s {
 			if err := logCommand("docker", "tag", s, d); err != nil {
@@ -816,7 +835,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 				break
 			}
 			log.Warningf("Failed to create address polling (will retry %d times)", retries)
-			time.Sleep(5 * time.Second)
+			time.Sleep(poolRetryDelay)
 		}
 		if err != nil {
 			return err

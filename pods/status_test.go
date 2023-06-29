@@ -151,13 +151,11 @@ func TestUpdatePod(t *testing.T) {
 		{
 			name: "pod1b",
 			pod: &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodPending,
-				Containers: []ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "totally"}},
+				Containers: []ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "bad connection"}},
 			},
 			want: `
-01:23:45          CONTAINER: cont1 is now FAILED
+01:23:45          CONTAINER: cont1 is now ErrImagePull
 `[1:],
-			errch:    "NS:ns1 POD:pod1 CONTAINER:cont1 failed: totally",
-			canceled: true,
 		},
 		{
 			name: "pod1c",
@@ -165,6 +163,7 @@ func TestUpdatePod(t *testing.T) {
 				Containers: []ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "something code = NotFound here", Image: "the_image"}},
 			},
 			want: `
+01:23:45          CONTAINER: cont1 is now FAILED
 `[1:],
 			errch:    "NS:ns1 POD:pod1 CONTAINER:cont1 IMAGE:the_image not found",
 			canceled: true,
