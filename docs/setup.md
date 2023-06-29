@@ -64,12 +64,12 @@ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 ## Install Kind
 
-> NOTE: This will install version `0.20.0` which was known to work with KNE at
+> NOTE: This will install version `0.19.0` which was known to work with KNE at
 > some point in time. You can instead install a newer version if you need new
 > features or are having problems.
 
 ```bash
-go install sigs.k8s.io/kind@v0.20.0
+go install sigs.k8s.io/kind@v0.19.0
 ```
 
 ## Clone openconfig/kne GitHub repo

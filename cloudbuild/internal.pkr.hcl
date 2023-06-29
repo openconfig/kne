@@ -115,7 +115,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kind...",
-      "/usr/local/go/bin/go install sigs.k8s.io/kind@latest",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.19.0",
       "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",
     ]
