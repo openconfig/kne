@@ -23,6 +23,8 @@ import (
 	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
 	"github.com/openconfig/kne/pods"
+	epb "github.com/openconfig/kne/proto/event"
+	"github.com/openconfig/kne/usage"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
@@ -123,6 +125,10 @@ type Deployment struct {
 	// If Progress is true then deployment status updates will be sent to
 	// standard output.
 	Progress bool
+
+	// If ReportUsage is true then anonymous usage metrics will be
+	// published using Cloud PubSub.
+	ReportUsage bool
 }
 
 func (d *Deployment) String() string {
@@ -146,7 +152,45 @@ type kubeVersion struct {
 	ServerVersion    *kversion.Info `json:"serverVersion,omitempty" yaml:"serverVersion,omitempty"`
 }
 
+// Event turns the deployment into a cluster event protobuf.
+func (d *Deployment) Event() *epb.Cluster {
+	c := &epb.Cluster{}
+	switch d.Cluster.(type) {
+	case *ExternalSpec:
+		c.Cluster = epb.Cluster_CLUSTER_TYPE_EXTERNAL
+	case *KindSpec:
+		c.Cluster = epb.Cluster_CLUSTER_TYPE_KIND
+	}
+	switch d.Ingress.(type) {
+	case *MetalLBSpec:
+		c.Ingress = epb.Cluster_INGRESS_TYPE_METALLB
+	}
+	switch d.CNI.(type) {
+	case *MeshnetSpec:
+		c.Cni = epb.Cluster_CNI_TYPE_MESHNET
+	}
+	for _, cntrl := range d.Controllers {
+		switch cntrl.(type) {
+		case *CEOSLabSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_CEOSLAB)
+		case *IxiaTGSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_IXIATG)
+		case *SRLinuxSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_SRLINUX)
+		case *LemmingSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_LEMMING)
+		}
+	}
+	return c
+}
+
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
+	if d.ReportUsage {
+		usageID := usage.ReportDeployClusterStart(ctx, d.Event())
+		defer func() {
+			usage.ReportDeployClusterEnd(ctx, usageID, rerr)
+		}()
+	}
 	if err := d.checkDependencies(); err != nil {
 		return err
 	}
@@ -195,7 +239,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if kClientVersion.Less(kServerVersion) {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
-	log.V(1).Info("Found k8s versions:\n", output)
+	log.V(1).Info("Found k8s versions:\n", string(output))
 
 	ctx, cancel := context.WithCancel(ctx)
 

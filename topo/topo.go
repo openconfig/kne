@@ -29,6 +29,7 @@ import (
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	"github.com/openconfig/kne/usage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -64,6 +65,9 @@ type Manager struct {
 	tClient  topologyclientv1.Interface
 	rCfg     *rest.Config
 	basePath string
+
+	// If reportUsage is set, report anonymous usage metrics.
+	reportUsage bool
 }
 
 type Option func(m *Manager)
@@ -95,6 +99,12 @@ func WithClusterConfig(r *rest.Config) Option {
 func WithBasePath(s string) Option {
 	return func(m *Manager) {
 		m.basePath = s
+	}
+}
+
+func WithUsageReporting(b bool) Option {
+	return func(m *Manager) {
+		m.reportUsage = b
 	}
 }
 
@@ -147,8 +157,14 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 }
 
 // Create creates the topology in the cluster.
-func (m *Manager) Create(ctx context.Context, timeout time.Duration) error {
+func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
+	if m.reportUsage {
+		usageID := usage.ReportCreateTopologyStart(ctx, m.topo)
+		defer func() {
+			usage.ReportCreateTopologyEnd(ctx, usageID, rerr)
+		}()
+	}
 	if err := m.push(ctx); err != nil {
 		return err
 	}

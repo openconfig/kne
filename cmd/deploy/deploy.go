@@ -72,9 +72,8 @@ func newDeployment(cfgPath string, testing bool) (*deploy.Deployment, error) {
 		return nil, err
 	}
 	c.IgnoreMissingFiles = testing
-
 	cfg := deploy.Deployment{
-		Progress: progress,
+		Progress:    progress,
 	}
 	if err := c.Decode(&cfg); err != nil {
 		return nil, err
@@ -105,10 +104,15 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	reportUsage, err := cmd.Flags().GetBool("report_usage")
+	if err != nil {
+		return err
+	}
 	d, err := newDeployment(args[0], false)
 	if err != nil {
 		return err
 	}
+	d.ReportUsage = reportUsage
 	if err := d.Deploy(cmd.Context(), kubecfg); err != nil {
 		return err
 	}

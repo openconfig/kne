@@ -32,11 +32,11 @@ import (
 )
 
 var (
-	cfgFile string
-	kubecfg string
-	dryrun  bool
-	timeout time.Duration
-	reporting bool
+	cfgFile     string
+	kubecfg     string
+	dryrun      bool
+	timeout     time.Duration
+	reportUsage bool
 
 	rootCmd = &cobra.Command{
 		Use:   "kne",
@@ -46,15 +46,20 @@ layer 2 topology used by containers to layout networks in a k8s
 environment.`,
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if *cfgFile != "" {
-				viper.SetConfigFile(*cfgFile)
+			if cfgFile == "" {
+				return nil
+			}
+			if _, err := os.Stat(cfgFile); err == nil {
+				viper.SetConfigFile(cfgFile)
 				if err := viper.ReadInConfig(); err != nil {
 					return fmt.Errorf("error reading config: %w", err)
 				}
 			}
 			viper.BindPFlags(cmd.Flags())
+			viper.BindPFlags(cmd.PersistentFlags())
+			viper.SetDefault("report_usage", false)
 			return nil
-		}
+		},
 	}
 )
 
@@ -65,7 +70,7 @@ func ExecuteContext(ctx context.Context) error {
 
 func defaultCfgFile() string {
 	if home := homedir.HomeDir(); home != "" {
-		return filepath.Join(home, ".kne", "config")
+		return filepath.Join(home, ".kne", "config.yaml")
 	}
 	return ""
 }
@@ -82,9 +87,9 @@ func defaultKubeCfg() string {
 
 func init() {
 	rootCmd.SetOut(os.Stdout)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config_file", defaultConfigFile(), "Path to KNE config file")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config_file", defaultCfgFile(), "Path to KNE config file")
 	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg(), "kubeconfig file")
-	rootCmd.PersistentFlags().BoolVar(&reporting, "reporting", false, "Whether to reporting anonymous usage metrics")
+	rootCmd.PersistentFlags().BoolVar(&reportUsage, "report_usage", false, "Whether to reporting anonymous usage metrics")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
 	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
 	rootCmd.AddCommand(createCmd)
@@ -143,7 +148,7 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp))
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp), topo.WithUsageReporting(reportUsage))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
