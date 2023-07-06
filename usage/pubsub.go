@@ -26,7 +26,7 @@ func publishEvent(ctx context.Context, event *epb.KNEEvent) error {
 		return err
 	}
 	t := client.Topic(topicID)
-	res := t.Publish(ctx, &pubsub.Message{Data: []byte(msg)})
+	res := t.Publish(ctx, &pubsub.Message{Data: msg})
 	id, err := res.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to publish message: %w", err)
