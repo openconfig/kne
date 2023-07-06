@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/encoding/prototext"
-	log "k8s.io/klog/v2"
 	"cloud.google.com/go/pubsub"
 	epb "github.com/openconfig/kne/proto/event"
+	"google.golang.org/protobuf/proto"
+	log "k8s.io/klog/v2"
 )
 
 const (
@@ -21,7 +21,7 @@ func publishEvent(ctx context.Context, event *epb.KNEEvent) error {
 		return fmt.Errorf("failed to create new pubsub client: %w", err)
 	}
 	defer client.Close()
-	msg, err := prototext.Marshal(event)
+	msg, err := proto.Marshal(event)
 	if err != nil {
 		return err
 	}

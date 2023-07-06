@@ -15,11 +15,9 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/kr/pretty"
 	"github.com/openconfig/kne/cmd/deploy"
@@ -31,41 +29,39 @@ import (
 	log "k8s.io/klog/v2"
 )
 
-var (
-	cfgFile     string
-	kubecfg     string
-	dryrun      bool
-	timeout     time.Duration
-	reportUsage bool
-
-	rootCmd = &cobra.Command{
+func New() *cobra.Command {
+	root := &cobra.Command{
 		Use:   "kne",
 		Short: "Kubernetes Network Emulation CLI",
 		Long: `Kubernetes Network Emulation CLI.  Works with meshnet to create
 layer 2 topology used by containers to layout networks in a k8s
 environment.`,
 		SilenceUsage: true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if cfgFile == "" {
-				return nil
-			}
-			if _, err := os.Stat(cfgFile); err == nil {
-				viper.SetConfigFile(cfgFile)
-				if err := viper.ReadInConfig(); err != nil {
-					return fmt.Errorf("error reading config: %w", err)
-				}
-			}
-			viper.BindPFlags(cmd.Flags())
-			viper.BindPFlags(cmd.PersistentFlags())
-			viper.SetDefault("report_usage", false)
-			return nil
-		},
 	}
-)
-
-// ExecuteContext executes the root command.
-func ExecuteContext(ctx context.Context) error {
-	return rootCmd.ExecuteContext(ctx)
+	root.SetOut(os.Stdout)
+	cfgFile := root.PersistentFlags().String("config_file", defaultCfgFile(), "Path to KNE config file")
+	root.PersistentFlags().String("kubecfg", defaultKubeCfg(), "kubeconfig file")
+	root.PersistentFlags().Bool("report_usage", false, "Whether to reporting anonymous usage metrics")
+	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if *cfgFile == "" {
+			return nil
+		}
+		if _, err := os.Stat(*cfgFile); err == nil {
+			viper.SetConfigFile(*cfgFile)
+			if err := viper.ReadInConfig(); err != nil {
+				return fmt.Errorf("error reading config: %w", err)
+			}
+		}
+		viper.BindPFlags(cmd.Flags())
+		viper.SetDefault("report_usage", false)
+		return nil
+	}
+	root.AddCommand(newCreateCmd())
+	root.AddCommand(newDeleteCmd())
+	root.AddCommand(newShowCmd())
+	root.AddCommand(topology.New())
+	root.AddCommand(deploy.New())
+	return root
 }
 
 func defaultCfgFile() string {
@@ -85,43 +81,40 @@ func defaultKubeCfg() string {
 	return ""
 }
 
-func init() {
-	rootCmd.SetOut(os.Stdout)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config_file", defaultCfgFile(), "Path to KNE config file")
-	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg(), "kubeconfig file")
-	rootCmd.PersistentFlags().BoolVar(&reportUsage, "report_usage", false, "Whether to reporting anonymous usage metrics")
-	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
-	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
-	rootCmd.AddCommand(createCmd)
-	rootCmd.AddCommand(deleteCmd)
-	rootCmd.AddCommand(showCmd)
-	rootCmd.AddCommand(topology.New())
-	rootCmd.AddCommand(deploy.New())
-}
-
-var (
-	createCmd = &cobra.Command{
+func newCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:       "create <topology file>",
 		Short:     "Create Topology",
 		PreRunE:   validateTopology,
 		RunE:      createFn,
 		ValidArgs: []string{"topology"},
 	}
-	deleteCmd = &cobra.Command{
+	cmd.Flags().Bool("dryrun", false, "Generate topology but do not push to k8s")
+	cmd.Flags().Duration("timeout", 0, "Timeout for pod status enquiry")
+	return cmd
+}
+
+func newDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:       "delete <topology file>",
 		Short:     "Delete Topology",
 		PreRunE:   validateTopology,
 		RunE:      deleteFn,
 		ValidArgs: []string{"topology"},
 	}
-	showCmd = &cobra.Command{
+	return cmd
+}
+
+func newShowCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:       "show <topology file>",
 		Short:     "Show Topology",
 		PreRunE:   validateTopology,
 		RunE:      showFn,
 		ValidArgs: []string{"topology"},
 	}
-)
+	return cmd
+}
 
 func validateTopology(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
@@ -148,14 +141,14 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp), topo.WithUsageReporting(reportUsage))
+	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")), topo.WithBasePath(bp), topo.WithUsageReporting(viper.GetBool("report_usage")))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	if dryrun {
+	if viper.GetBool("dryrun") {
 		return nil
 	}
-	return tm.Create(cmd.Context(), timeout)
+	return tm.Create(cmd.Context(), viper.GetDuration("timeout"))
 }
 
 func deleteFn(cmd *cobra.Command, args []string) error {
@@ -163,7 +156,7 @@ func deleteFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg))
+	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
@@ -175,7 +168,7 @@ func showFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg))
+	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
