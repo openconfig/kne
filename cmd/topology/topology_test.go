@@ -17,6 +17,8 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
 	kfake "k8s.io/client-go/kubernetes/fake"
@@ -192,7 +194,7 @@ func TestReset(t *testing.T) {
 		args:    []string{"reset", fNoConfig.Name(), "--skip=false"},
 		wantErr: `node "notresettable1" is not a Resetter`,
 	}, {
-		desc: "valid topology no skip",
+		desc: "valid topology with skip",
 		args: []string{"reset", fNoConfig.Name(), "--skip"},
 	}, {
 		desc: "valid topology no skip nothing to push",
@@ -231,6 +233,10 @@ func TestReset(t *testing.T) {
 		opts = origOpts
 	}()
 	rCmd.PersistentFlags().String("kubecfg", "", "")
+	rCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		viper.BindPFlags(cmd.Flags())
+		return nil
+	}
 	buf := bytes.NewBuffer([]byte{})
 	rCmd.SetOut(buf)
 	for _, tt := range tests {

@@ -45,7 +45,8 @@ func main() {
 		}
 	}
 	flags.Import()
-	err := cmd.ExecuteContext(context.Background())
+	root := cmd.New()
+	err := root.ExecuteContext(context.Background())
 	flushLogs()
 	if err != nil {
 		os.Exit(1)
