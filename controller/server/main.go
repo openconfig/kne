@@ -49,8 +49,10 @@ var (
 	defaultCEOSLabOperator = ""
 	defaultLemmingOperator = ""
 	// Flags.
-	port        = flag.Int("port", 50051, "Controller server port")
-	reportUsage = flag.Bool("report_usage", false, "Whether to reporting anonymous usage metrics")
+	port                 = flag.Int("port", 50051, "Controller server port")
+	reportUsage          = flag.Bool("report_usage", false, "Whether to reporting anonymous usage metrics")
+	reportUsageProjectID = flag.String("report_usage_project_id", "", "Project to report anonymous usage metrics to")
+	reportUsageTopicID   = flag.String("report_usage_topic_id", "", "Topic to report anonymous usage metrics to")
 )
 
 func init() {
@@ -270,6 +272,8 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 	}
 	d.Progress = true
 	d.ReportUsage = *reportUsage
+	d.ReportUsageProjectID = *reportUsageProjectID
+	d.ReportUsageTopicID = *reportUsageTopicID
 	return d, nil
 }
 
@@ -372,7 +376,11 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "kubecfg %q does not exist: %v", path, err)
 	}
-	tm, err := topo.New(topoPb, topo.WithKubecfg(kcfg), topo.WithUsageReporting(*reportUsage))
+	opts := []topo.Option{
+		topo.WithKubecfg(kcfg),
+		topo.WithUsageReporting(*reportUsage, *reportUsageProjectID, *reportUsageTopicID),
+	}
+	tm, err := topo.New(topoPb, opts...)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology manager: %v", err)
 	}

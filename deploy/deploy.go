@@ -22,9 +22,9 @@ import (
 	kexec "github.com/openconfig/kne/exec"
 	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
+	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	epb "github.com/openconfig/kne/proto/event"
-	"github.com/openconfig/kne/usage"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
@@ -129,6 +129,16 @@ type Deployment struct {
 	// If ReportUsage is true then anonymous usage metrics will be
 	// published using Cloud PubSub.
 	ReportUsage bool
+	// ReportUsageProjectID is the ID of the GCP project the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default project being used.
+	ReportUsageProjectID string
+	// ReportUsageTopicID is the ID of the GCP PubSub topic the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default topic being used.
+	ReportUsageTopicID string
 }
 
 func (d *Deployment) String() string {
@@ -186,16 +196,20 @@ func (d *Deployment) event() *epb.Cluster {
 
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if d.ReportUsage {
-		r := usage.NewReporter(ctx)
-		defer r.Close()
-		if id, err := r.ReportDeployClusterStart(ctx, d.event()); err != nil {
-			log.Warningf("Unable to report cluster deployment start event: %v", err)
+		r, err := metrics.NewReporter(ctx, d.ReportUsageProjectID, d.ReportUsageTopicID)
+		if err != nil {
+			log.Warningf("Unable to create metrics reporter: %v", err)
 		} else {
-			defer func() {
-				if err := usage.ReportDeployClusterEnd(ctx, id, rerr); err != nil {
-					log.Warningf("Unable to report cluster deployment end event: %v", err)
-				}
-			}()
+			defer r.Close()
+			if id, err := r.ReportDeployClusterStart(ctx, d.event()); err != nil {
+				log.Warningf("Unable to report cluster deployment start event: %v", err)
+			} else {
+				defer func() {
+					if err := r.ReportDeployClusterEnd(ctx, id, rerr); err != nil {
+						log.Warningf("Unable to report cluster deployment end event: %v", err)
+					}
+				}()
+			}
 		}
 	}
 	if err := d.checkDependencies(); err != nil {

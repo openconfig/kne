@@ -42,6 +42,8 @@ environment.`,
 	cfgFile := root.PersistentFlags().String("config_file", defaultCfgFile(), "Path to KNE config file")
 	root.PersistentFlags().String("kubecfg", defaultKubeCfg(), "kubeconfig file")
 	root.PersistentFlags().Bool("report_usage", false, "Whether to reporting anonymous usage metrics")
+	root.PersistentFlags().String("report_usage_project_id", "", "Project to report anonymous usage metrics to")
+	root.PersistentFlags().String("report_usage_topic_id", "", "Topic to report anonymous usage metrics to")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if *cfgFile == "" {
 			return nil
@@ -141,7 +143,16 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")), topo.WithBasePath(bp), topo.WithUsageReporting(viper.GetBool("report_usage")))
+	opts := []topo.Option{
+		topo.WithKubecfg(viper.GetString("kubecfg")),
+		topo.WithBasePath(bp),
+		topo.WithUsageReporting(
+			viper.GetBool("report_usage"),
+			viper.GetString("report_usage_project_id"),
+			viper.GetString("report_usage_topic_id"),
+		),
+	}
+	tm, err := topo.New(topopb, opts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

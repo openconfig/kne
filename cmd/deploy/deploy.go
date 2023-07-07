@@ -103,6 +103,8 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	}
 	d.Progress = viper.GetBool("progress")
 	d.ReportUsage = viper.GetBool("report_usage")
+	d.ReportUsageProjectID = viper.GetString("report_usage_project_id")
+	d.ReportUsageTopicID = viper.GetString("report_usage_topic_id")
 	if err := d.Deploy(cmd.Context(), viper.GetString("kubecfg")); err != nil {
 		return err
 	}

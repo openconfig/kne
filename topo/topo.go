@@ -26,10 +26,11 @@ import (
 	"github.com/kr/pretty"
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/kne/metrics"
 	cpb "github.com/openconfig/kne/proto/controller"
+	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/openconfig/kne/usage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -68,6 +69,16 @@ type Manager struct {
 
 	// If reportUsage is set, report anonymous usage metrics.
 	reportUsage bool
+	// reportUsageProjectID is the ID of the GCP project the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default project being used.
+	reportUsageProjectID string
+	// reportUsageTopicID is the ID of the GCP PubSub topic the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default topic being used.
+	reportUsageTopicID string
 }
 
 type Option func(m *Manager)
@@ -102,9 +113,11 @@ func WithBasePath(s string) Option {
 	}
 }
 
-func WithUsageReporting(b bool) Option {
+func WithUsageReporting(b bool, project, topic string) Option {
 	return func(m *Manager) {
 		m.reportUsage = b
+		m.reportUsageProjectID = project
+		m.reportUsageTopicID = topic
 	}
 }
 
@@ -174,16 +187,20 @@ func (m *Manager) event() *epb.Topology {
 func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
 	if m.reportUsage {
-		r := usage.NewReporter(ctx)
-		defer r.Close()
-		if id, err := r.ReportCreateTopologyStart(ctx, m.event()); err != nil {
-			log.Warningf("Unable to report topology creation start event: %v", err)
+		r, err := metrics.NewReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
+		if err != nil {
+			log.Warningf("Unable to create metrics reporter: %v", err)
 		} else {
-			defer func() { 
-				if err := usage.ReportCreateTopologyEnd(ctx, id, rerr); err != nil {
-					log.Warningf("Unable to report topology creation end event: %v", err)
-				}
-			}()
+			defer r.Close()
+			if id, err := r.ReportCreateTopologyStart(ctx, m.event()); err != nil {
+				log.Warningf("Unable to report topology creation start event: %v", err)
+			} else {
+				defer func() {
+					if err := r.ReportCreateTopologyEnd(ctx, id, rerr); err != nil {
+						log.Warningf("Unable to report topology creation end event: %v", err)
+					}
+				}()
+			}
 		}
 	}
 	if err := m.push(ctx); err != nil {
