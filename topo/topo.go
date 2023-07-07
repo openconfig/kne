@@ -156,14 +156,35 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 	return m, nil
 }
 
+// event creates a topology event protobuf from the topo.
+func (m *Manager) event() *epb.Topology {
+	t := &epb.Topology{
+		LinkCount: int64(len(m.topo.Links)),
+	}
+	for _, node := range m.topo.Nodes {
+		t.Nodes = append(t.Nodes, &epb.Node{
+			Vendor: node.Vendor,
+			Model:  node.Model,
+		})
+	}
+	return t
+}
+
 // Create creates the topology in the cluster.
 func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
 	if m.reportUsage {
-		usageID := usage.ReportCreateTopologyStart(ctx, m.topo)
-		defer func() {
-			usage.ReportCreateTopologyEnd(ctx, usageID, rerr)
-		}()
+		r := usage.NewReporter(ctx)
+		defer r.Close()
+		if id, err := r.ReportCreateTopologyStart(ctx, m.event()); err != nil {
+			log.Warningf("Unable to report topology creation start event: %v", err)
+		} else {
+			defer func() { 
+				if err := usage.ReportCreateTopologyEnd(ctx, id, rerr); err != nil {
+					log.Warningf("Unable to report topology creation end event: %v", err)
+				}
+			}()
+		}
 	}
 	if err := m.push(ctx); err != nil {
 		return err

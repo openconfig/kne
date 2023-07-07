@@ -152,8 +152,8 @@ type kubeVersion struct {
 	ServerVersion    *kversion.Info `json:"serverVersion,omitempty" yaml:"serverVersion,omitempty"`
 }
 
-// Event turns the deployment into a cluster event protobuf.
-func (d *Deployment) Event() *epb.Cluster {
+// event turns the deployment into a cluster event protobuf.
+func (d *Deployment) event() *epb.Cluster {
 	c := &epb.Cluster{}
 	switch d.Cluster.(type) {
 	case *ExternalSpec:
@@ -186,10 +186,17 @@ func (d *Deployment) Event() *epb.Cluster {
 
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if d.ReportUsage {
-		usageID := usage.ReportDeployClusterStart(ctx, d.Event())
-		defer func() {
-			usage.ReportDeployClusterEnd(ctx, usageID, rerr)
-		}()
+		r := usage.NewReporter(ctx)
+		defer r.Close()
+		if id, err := r.ReportDeployClusterStart(ctx, d.event()); err != nil {
+			log.Warningf("Unable to report cluster deployment start event: %v", err)
+		} else {
+			defer func() {
+				if err := usage.ReportDeployClusterEnd(ctx, id, rerr); err != nil {
+					log.Warningf("Unable to report cluster deployment end event: %v", err)
+				}
+			}()
+		}
 	}
 	if err := d.checkDependencies(); err != nil {
 		return err
