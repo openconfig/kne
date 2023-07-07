@@ -197,7 +197,7 @@ type metricsReporter interface {
 }
 
 func (m *Manager) reportCreateEvent(ctx context.Context) func(error) {
-	r, err := metrics.NewReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
+	r, err := newMetricsReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
 	if err != nil {
 		log.Warningf("Unable to create metrics reporter: %v", err)
 		return func(_ error) {}
