@@ -88,18 +88,23 @@ Kubernetes Network Emulation (KNE).
 
 ### Usage Metrics Reporting
 
-We collect anonymous usage reporting metrics to gauge the health and
-performance of various KNE operations (i.e. cluster deployment, topology
-creation) on an **opt-in** basis. There is a global flag `--report_usage`
-that when provided shares anonymous details about certain KNE CLI commands.
-Collected data can be seen in the [event proto definition](proto/event.proto).
-**Usage metrics are not shared by default.** Additionally the PubSub project and
-topic the events are published to are configurable. If you want to track your
-own private metrics about your KNE usage then that is supported by providing a
-Cloud PubSub project/topic of your choosing. Full details about how/when usage
-events are published can be found in the codebase
-[here](kne/metrics/metrics.go). Usage metric reporting is appreciated to help
-us develop a better KNE experience for all of our users.
+The KNE CLI optionally collects anonymous usage metrics. **This is turned OFF
+by default.** We use the metrics to gauge the health and performance of various
+KNE operations (i.e. cluster deployment, topology creation) on an **opt-in**
+basis. There is a global flag `--report_usage` that when provided shares
+anonymous details about certain KNE CLI commands. Collected data can be seen in
+the [event proto definition](proto/event.proto). **Usage metrics are NOT shared
+by default.** Additionally the PubSub project and topic the events are published
+to are configurable. If you want to track your own private metrics about your
+KNE usage then that is supported by providing a Cloud PubSub project/topic of
+your choosing. Full details about how/when usage events are published can be
+found in the codebase [here](kne/metrics/metrics.go). We appreciate usage metric
+reporting as it helps us develop a better KNE experience for all of our users.
+Whether that be detecting an abnormally high number of cluster deployment
+failures due to an upgrade to an underlying dependency introduced by a new
+commit, or detecting a bug from a scenario where the failure rate for topologies
+over *n* links is far greater than *n-1* links. Usage metric reporting is
+helpful tool for the KNE developers.
 
 ## Thanks
 
