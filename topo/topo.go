@@ -196,25 +196,31 @@ type metricsReporter interface {
 	Close() error
 }
 
+func (m *Manager) reportCreateEvent(ctx context.Context) func(error) {
+	r, err := metrics.NewReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
+	if err != nil {
+		log.Warningf("Unable to create metrics reporter: %v", err)
+		return func(_ error) {}
+	}
+	id, err := r.ReportCreateTopologyStart(ctx, m.event())
+	if err != nil {
+		log.Warningf("Unable to report create topology start event: %v", err)
+		return func(_ error) { r.Close() }
+	}
+	return func(rerr error) {
+		defer r.Close()
+		if err := r.ReportCreateTopologyEnd(ctx, id, rerr); err != nil {
+			log.Warningf("Unable to report create topology end event: %v", err)
+		}
+	}
+}
+
 // Create creates the topology in the cluster.
 func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
 	if m.reportUsage {
-		r, err := newMetricsReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
-		if err != nil {
-			log.Warningf("Unable to create metrics reporter: %v", err)
-		} else {
-			defer r.Close()
-			if id, err := r.ReportCreateTopologyStart(ctx, m.event()); err != nil {
-				log.Warningf("Unable to report topology creation start event: %v", err)
-			} else {
-				defer func() {
-					if err := r.ReportCreateTopologyEnd(ctx, id, rerr); err != nil {
-						log.Warningf("Unable to report topology creation end event: %v", err)
-					}
-				}()
-			}
-		}
+		finish := m.reportCreateEvent(ctx)
+		defer func() { finish(rerr) }()
 	}
 	if err := m.push(ctx); err != nil {
 		return err

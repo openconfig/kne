@@ -194,23 +194,29 @@ func (d *Deployment) event() *epb.Cluster {
 	return c
 }
 
+func (d *Deployment) reportDeployEvent(ctx context.Context) func(error) {
+	r, err := metrics.NewReporter(ctx, d.ReportUsageProjectID, d.ReportUsageTopicID)
+	if err != nil {
+		log.Warningf("Unable to create metrics reporter: %v", err)
+		return func(_ error) {}
+	}
+	id, err := r.ReportDeployClusterStart(ctx, d.event())
+	if err != nil {
+		log.Warningf("Unable to report cluster deployment start event: %v", err)
+		return func(_ error) { r.Close() }
+	}
+	return func(rerr error) {
+		defer r.Close()
+		if err := r.ReportDeployClusterEnd(ctx, id, rerr); err != nil {
+			log.Warningf("Unable to report cluster deployment end event: %v", err)
+		}
+	}
+}
+
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if d.ReportUsage {
-		r, err := metrics.NewReporter(ctx, d.ReportUsageProjectID, d.ReportUsageTopicID)
-		if err != nil {
-			log.Warningf("Unable to create metrics reporter: %v", err)
-		} else {
-			defer r.Close()
-			if id, err := r.ReportDeployClusterStart(ctx, d.event()); err != nil {
-				log.Warningf("Unable to report cluster deployment start event: %v", err)
-			} else {
-				defer func() {
-					if err := r.ReportDeployClusterEnd(ctx, id, rerr); err != nil {
-						log.Warningf("Unable to report cluster deployment end event: %v", err)
-					}
-				}()
-			}
-		}
+		finish := d.reportDeployEvent(ctx)
+		defer func() { finish(rerr) }()
 	}
 	if err := d.checkDependencies(); err != nil {
 		return err
