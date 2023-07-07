@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package usage
+package metrics
 
 import (
 	"context"
@@ -28,8 +28,8 @@ import (
 )
 
 // newTestReporter creates a new Reporter for testing with a fake PubSub
-// configuration. The Reporter, the PubSub test server, and a cleanup func
-// are returned.
+// configuration. The Reporter, the PubSub test server, and a cleanup
+// function are returned.
 func newTestReporter(t *testing.T, ctx context.Context) (*Reporter, *pstest.Server, func()) {
 	t.Helper()
 	// Start a fake server running locally.
@@ -41,20 +41,20 @@ func newTestReporter(t *testing.T, ctx context.Context) (*Reporter, *pstest.Serv
 		t.Fatalf("failed to start fake PubSub server: %v", err)
 	}
 	// Use the connection when creating a pubsub client.
-	client, err := pubsub.NewClient(ctx, projectID, option.WithGRPCConn(conn))
+	client, err := pubsub.NewClient(ctx, "test-project", option.WithGRPCConn(conn))
 	if err != nil {
 		conn.Close()
 		srv.Close()
 		t.Fatalf("failed to create fake PubSub client: %v", err)
 	}
-	if _, err := client.CreateTopic(ctx, topicID); err != nil {
+	topic, err := client.CreateTopic(ctx, "test-topic")
+	if err != nil {
 		client.Close()
 		conn.Close()
 		srv.Close()
 		t.Fatalf("failed to create fake PubSub topic: %v", err)
 	}
-	return &Reporter{pubsubClient: client}, srv, func() {
-		client.Close()
+	return &Reporter{client: client, topic: topic}, srv, func() {
 		conn.Close()
 		srv.Close()
 	}
@@ -65,6 +65,7 @@ func TestReportDeployClusterStart(t *testing.T) {
 
 	r, srv, cleanup := newTestReporter(t, ctx)
 	defer cleanup()
+	defer r.Close()
 
 	id, err := r.ReportDeployClusterStart(ctx, &epb.Cluster{Cluster: epb.Cluster_CLUSTER_TYPE_EXTERNAL})
 	if err != nil {
@@ -99,6 +100,7 @@ func TestReportDeployClusterEnd(t *testing.T) {
 
 	r, srv, cleanup := newTestReporter(t, ctx)
 	defer cleanup()
+	defer r.Close()
 
 	id := "fake-uuid"
 	eventErr := fmt.Errorf("failed to deploy cluster")
@@ -134,6 +136,7 @@ func TestReportCreateTopologyStart(t *testing.T) {
 
 	r, srv, cleanup := newTestReporter(t, ctx)
 	defer cleanup()
+	defer r.Close()
 
 	id, err := r.ReportCreateTopologyStart(ctx, &epb.Topology{LinkCount: 3})
 	if err != nil {
@@ -168,6 +171,7 @@ func TestReportCreateTopologyEnd(t *testing.T) {
 
 	r, srv, cleanup := newTestReporter(t, ctx)
 	defer cleanup()
+	defer r.Close()
 
 	id := "fake-uuid"
 	eventErr := fmt.Errorf("failed to create topology")
