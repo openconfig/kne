@@ -84,6 +84,23 @@ number of production topologies.
 See the collection of [docs](docs/README.md) for in depth guides on how use
 Kubernetes Network Emulation (KNE).
 
+## Disclaimers
+
+### Usage Metrics Reporting
+
+We collect anonymous usage reporting metrics to gauge the health and
+performance of various KNE operations (i.e. cluster deployment, topology
+creation) on an **opt-in** basis. There is a global flag `--report_usage`
+that when provided shares anonymous details about certain KNE CLI commands.
+Collected data can be seen in the [event proto definition](proto/event.proto).
+**Usage metrics are not shared by default.** Additionally the PubSub project and
+topic the events are published to are configurable. If you want to track your
+own private metrics about your KNE usage then that is supported by providing a
+Cloud PubSub project/topic of your choosing. Full details about how/when usage
+events are published can be found in the codebase
+[here](kne/metrics/metrics.go). Usage metric reporting is appreciated to help
+us develop a better KNE experience for all of our users.
+
 ## Thanks
 
 This project is mainly based on the k8s-topo from github.com/networkop/k8s-topo
