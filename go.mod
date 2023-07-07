@@ -3,6 +3,7 @@ module github.com/openconfig/kne
 go 1.20
 
 require (
+	cloud.google.com/go/pubsub v1.30.0
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1
 	github.com/docker/docker v20.10.24+incompatible
 	github.com/ghodss/yaml v1.0.0
@@ -18,6 +19,7 @@ require (
 	github.com/openconfig/lemming/operator v0.2.0
 	github.com/openconfig/ondatra v0.1.14
 	github.com/p4lang/p4runtime v1.3.0
+	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.7
 	github.com/scrapli/scrapligocfg v1.0.0
@@ -28,6 +30,7 @@ require (
 	github.com/srl-labs/srlinux-scrapli v0.6.0
 	go.universe.tf/metallb v0.13.5
 	golang.org/x/oauth2 v0.6.0
+	google.golang.org/api v0.114.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -41,8 +44,10 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.110.0 // indirect
 	cloud.google.com/go/compute v1.19.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/iam v0.13.0 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -69,6 +74,8 @@ require (
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
+	github.com/googleapis/gax-go/v2 v2.7.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.14 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -95,7 +102,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
@@ -108,8 +114,10 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
+	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/term v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
