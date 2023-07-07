@@ -183,11 +183,24 @@ func (m *Manager) event() *epb.Topology {
 	return t
 }
 
+var (
+	// Stubs for testing.
+	newMetricsReporter = func(ctx context.Context, project, topic string) (metricsReporter, error) {
+		return metrics.NewReporter(ctx, project, topic)
+	}
+)
+
+type metricsReporter interface {
+	ReportCreateTopologyStart(context.Context, *epb.Topology) (string, error)
+	ReportCreateTopologyEnd(context.Context, string, error) error
+	Close() error
+}
+
 // Create creates the topology in the cluster.
 func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
 	if m.reportUsage {
-		r, err := metrics.NewReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
+		r, err := newMetricsReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
 		if err != nil {
 			log.Warningf("Unable to create metrics reporter: %v", err)
 		} else {
