@@ -30,6 +30,7 @@ require (
 	github.com/srl-labs/srlinux-scrapli v0.6.0
 	go.universe.tf/metallb v0.13.5
 	golang.org/x/oauth2 v0.6.0
+	google.golang.org/api v0.114.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/yaml.v3 v3.0.1
