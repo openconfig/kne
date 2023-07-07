@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -58,6 +59,8 @@ func New() *cobra.Command {
 		Short: "reset configuration of device to vendor default (if device not provide reset all nodes)",
 		RunE:  resetCfgFn,
 	}
+	resetCfgCmd.Flags().Bool("skip", false, "skip nodes if they are not resetable")
+	resetCfgCmd.Flags().Bool("push", false, "additionally push orginal topology configuration")
 	topoCmd := &cobra.Command{
 		Use:   "topology",
 		Short: "Topology commands.",
@@ -66,16 +69,12 @@ func New() *cobra.Command {
 	topoCmd.AddCommand(pushCmd)
 	topoCmd.AddCommand(serviceCmd)
 	topoCmd.AddCommand(watchCmd)
-	resetCfgCmd.Flags().BoolVar(&skipReset, "skip", skipReset, "skip nodes if they are not resetable")
-	resetCfgCmd.Flags().BoolVar(&pushConfig, "push", pushConfig, "additionally push orginal topology configuration")
 	topoCmd.AddCommand(resetCfgCmd)
 	return topoCmd
 }
 
 var (
-	skipReset  bool
-	pushConfig bool
-	opts       []topo.Option
+	opts []topo.Option
 )
 
 func fileRelative(p string) (string, error) {
@@ -94,11 +93,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	s, err := cmd.Flags().GetString("kubecfg")
-	if err != nil {
-		return err
-	}
-	tOpts := append(opts, topo.WithKubecfg(s))
+	tOpts := append(opts, topo.WithKubecfg(viper.GetString("kubecfg")))
 	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
@@ -113,7 +108,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		default:
 			return err
 		case err == nil:
-		case status.Code(err) == codes.Unimplemented && !skipReset:
+		case status.Code(err) == codes.Unimplemented && !viper.GetBool("skip"):
 			return fmt.Errorf("node %q is not a Resetter and --skip not set", name)
 		case status.Code(err) == codes.Unimplemented:
 			log.Infof("Skipping node %q not a Resetter", name)
@@ -121,7 +116,7 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 			continue
 		}
 	}
-	if !pushConfig {
+	if !viper.GetBool("push") {
 		log.Infof("Finished resetting resettable nodes to vendor default configuration")
 		return nil
 	}
@@ -176,11 +171,7 @@ func pushFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	s, err := cmd.Flags().GetString("kubecfg")
-	if err != nil {
-		return err
-	}
-	tOpts := append(opts, topo.WithKubecfg(s))
+	tOpts := append(opts, topo.WithKubecfg(viper.GetString("kubecfg")))
 	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
@@ -206,11 +197,7 @@ func watchFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	s, err := cmd.Flags().GetString("kubecfg")
-	if err != nil {
-		return err
-	}
-	tOpts := append(opts, topo.WithKubecfg(s))
+	tOpts := append(opts, topo.WithKubecfg(viper.GetString("kubecfg")))
 	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
@@ -226,11 +213,7 @@ func certFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	s, err := cmd.Flags().GetString("kubecfg")
-	if err != nil {
-		return err
-	}
-	tOpts := append(opts, topo.WithKubecfg(s))
+	tOpts := append(opts, topo.WithKubecfg(viper.GetString("kubecfg")))
 	tm, err := topo.New(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
@@ -254,11 +237,7 @@ func serviceFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	s, err := cmd.Flags().GetString("kubecfg")
-	if err != nil {
-		return err
-	}
-	tOpts := append(opts, topo.WithKubecfg(s))
+	tOpts := append(opts, topo.WithKubecfg(viper.GetString("kubecfg")))
 	tm, err := newTopologyManager(topopb, tOpts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
