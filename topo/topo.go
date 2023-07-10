@@ -26,6 +26,7 @@ import (
 	"github.com/kr/pretty"
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/kne/pods"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
@@ -57,6 +58,7 @@ var protojsonUnmarshaller = protojson.UnmarshalOptions{
 
 // Manager is a topology manager for a cluster instance.
 type Manager struct {
+	progress bool
 	topo     *tpb.Topology
 	nodes    map[string]node.Node
 	kubecfg  string
@@ -95,6 +97,12 @@ func WithClusterConfig(r *rest.Config) Option {
 func WithBasePath(s string) Option {
 	return func(m *Manager) {
 		m.basePath = s
+	}
+}
+
+func WithProgress(b bool) Option {
+	return func(m *Manager) {
+		m.progress = b
 	}
 }
 
@@ -147,10 +155,21 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 }
 
 // Create creates the topology in the cluster.
-func (m *Manager) Create(ctx context.Context, timeout time.Duration) error {
+func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
 	if err := m.push(ctx); err != nil {
 		return err
+	}
+	ctx, cancel := context.WithCancel(ctx)
+
+	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
+		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
+		w.SetProgress(m.progress)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
 	}
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
 		return err

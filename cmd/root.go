@@ -89,6 +89,7 @@ func newCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("dryrun", false, "Generate topology but do not push to k8s")
 	cmd.Flags().Duration("timeout", 0, "Timeout for pod status enquiry")
+	cmd.Flags().Bool("progress", false, "Display progress of container bringup")
 	return cmd
 }
 
