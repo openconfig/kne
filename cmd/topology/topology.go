@@ -75,6 +75,7 @@ func New() *cobra.Command {
 var (
 	skipReset  bool
 	pushConfig bool
+	progress   bool
 	opts       []topo.Option
 )
 

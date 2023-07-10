@@ -49,7 +49,8 @@ var (
 	defaultCEOSLabOperator = ""
 	defaultLemmingOperator = ""
 	// Flags.
-	port = flag.Int("port", 50051, "Controller server port")
+	port     = flag.Int("port", 50051, "Controller server port")
+	progress = true
 )
 
 func init() {
@@ -369,7 +370,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "kubecfg %q does not exist: %v", path, err)
 	}
-	tm, err := topo.New(topoPb, topo.WithKubecfg(kcfg))
+	tm, err := topo.New(topoPb, topo.WithProgress(progress), topo.WithKubecfg(kcfg))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology manager: %v", err)
 	}

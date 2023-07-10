@@ -31,9 +31,10 @@ import (
 )
 
 var (
-	kubecfg string
-	dryrun  bool
-	timeout time.Duration
+	kubecfg  string
+	dryrun   bool
+	progress bool
+	timeout  time.Duration
 
 	rootCmd = &cobra.Command{
 		Use:   "kne",
@@ -64,6 +65,7 @@ func init() {
 	rootCmd.SetOut(os.Stdout)
 	rootCmd.PersistentFlags().StringVar(&kubecfg, "kubecfg", defaultKubeCfg(), "kubeconfig file")
 	createCmd.Flags().BoolVar(&dryrun, "dryrun", false, "Generate topology but do not push to k8s")
+	createCmd.Flags().BoolVar(&progress, "progress", false, "Display progress of container bringup")
 	createCmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for pod status enquiry")
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(deleteCmd)
@@ -121,7 +123,7 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp))
+	tm, err := topo.New(topopb, topo.WithKubecfg(kubecfg), topo.WithBasePath(bp), topo.WithProgress(progress))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

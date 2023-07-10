@@ -24,6 +24,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
+	"github.com/openconfig/kne/pods"
 	cpb "github.com/openconfig/kne/proto/controller"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
@@ -58,6 +59,7 @@ var protojsonUnmarshaller = protojson.UnmarshalOptions{
 
 // Manager is a topology manager for a cluster instance.
 type Manager struct {
+	progress bool
 	topo     *tpb.Topology
 	nodes    map[string]node.Node
 	kubecfg  string
@@ -96,6 +98,12 @@ func WithClusterConfig(r *rest.Config) Option {
 func WithBasePath(s string) Option {
 	return func(m *Manager) {
 		m.basePath = s
+	}
+}
+
+func WithProgress(b bool) Option {
+	return func(m *Manager) {
+		m.progress = b
 	}
 }
 
@@ -148,10 +156,21 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 }
 
 // Create creates the topology in the cluster.
-func (m *Manager) Create(ctx context.Context, timeout time.Duration) error {
+func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
 	if err := m.push(ctx); err != nil {
 		return err
+	}
+	ctx, cancel := context.WithCancel(ctx)
+
+	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
+		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
+		w.SetProgress(m.progress)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
 	}
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
 		return err
