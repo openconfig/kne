@@ -342,6 +342,30 @@ func TestNew(t *testing.T) {
 			},
 		},
 		wantErr: "failed to load",
+	}, {
+		desc: "link err - loopback",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1001),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r1",
+					ZInt:  "eth2",
+				},
+			},
+		},
+		wantErr: "invalid link",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
