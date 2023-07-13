@@ -131,6 +131,9 @@ build {
       "sudo cp kne /usr/local/bin/",
       "cd ../controller/server",
       "/usr/local/go/bin/go build",
+      "cd $HOME",
+      "mkdir .kne",
+      "echo \"report_usage: true\" > .kne/config.yaml",
     ]
   }
 
