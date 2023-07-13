@@ -27,6 +27,7 @@ import (
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	"github.com/openconfig/kne/metrics"
+	"github.com/openconfig/kne/pods"
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -59,6 +60,7 @@ var protojsonUnmarshaller = protojson.UnmarshalOptions{
 
 // Manager is a topology manager for a cluster instance.
 type Manager struct {
+	progress bool
 	topo     *tpb.Topology
 	nodes    map[string]node.Node
 	kubecfg  string
@@ -113,11 +115,19 @@ func WithBasePath(s string) Option {
 	}
 }
 
+// WithUsageReporting writes anonymous usage metrics.
 func WithUsageReporting(b bool, project, topic string) Option {
 	return func(m *Manager) {
 		m.reportUsage = b
 		m.reportUsageProjectID = project
 		m.reportUsageTopicID = topic
+	}
+}
+
+// WithProgress returns a Manager Option where true causes pod progress to be displayed.
+func WithProgress(b bool) Option {
+	return func(m *Manager) {
+		m.progress = b
 	}
 }
 
@@ -225,6 +235,17 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 	if err := m.push(ctx); err != nil {
 		return err
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
+		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
+		w.SetProgress(m.progress)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
+	}
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
 		return err
 	}
@@ -324,6 +345,9 @@ func (m *Manager) load() error {
 	uid := 0
 	for _, l := range m.topo.Links {
 		log.Infof("Adding Link: %s:%s %s:%s", l.ANode, l.AInt, l.ZNode, l.ZInt)
+		if l.ANode == l.ZNode {
+			return fmt.Errorf("invalid link: hardware loopback %s:%s %s:%s not supported", l.ANode, l.AInt, l.ZNode, l.ZInt)
+		}
 		aNode, ok := nMap[l.ANode]
 		if !ok {
 			return fmt.Errorf("invalid topology: missing node %q", l.ANode)
