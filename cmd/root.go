@@ -41,6 +41,9 @@ environment.`,
 	root.SetOut(os.Stdout)
 	cfgFile := root.PersistentFlags().String("config_file", defaultCfgFile(), "Path to KNE config file")
 	root.PersistentFlags().String("kubecfg", defaultKubeCfg(), "kubeconfig file")
+	root.PersistentFlags().Bool("report_usage", false, "Whether to reporting anonymous usage metrics")
+	root.PersistentFlags().String("report_usage_project_id", "", "Project to report anonymous usage metrics to")
+	root.PersistentFlags().String("report_usage_topic_id", "", "Topic to report anonymous usage metrics to")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if *cfgFile == "" {
 			return nil
@@ -52,6 +55,7 @@ environment.`,
 			}
 		}
 		viper.BindPFlags(cmd.Flags())
+		viper.SetDefault("report_usage", false)
 		return nil
 	}
 	root.AddCommand(newCreateCmd())
@@ -89,6 +93,7 @@ func newCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("dryrun", false, "Generate topology but do not push to k8s")
 	cmd.Flags().Duration("timeout", 0, "Timeout for pod status enquiry")
+	cmd.Flags().Bool("progress", false, "Display progress of container bringup")
 	return cmd
 }
 
@@ -139,7 +144,17 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")), topo.WithBasePath(bp))
+	opts := []topo.Option{
+		topo.WithKubecfg(viper.GetString("kubecfg")),
+		topo.WithBasePath(bp),
+		topo.WithProgress(viper.GetBool("progress")),
+		topo.WithUsageReporting(
+			viper.GetBool("report_usage"),
+			viper.GetString("report_usage_project_id"),
+			viper.GetString("report_usage_topic_id"),
+		),
+	}
+	tm, err := topo.New(topopb, opts...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

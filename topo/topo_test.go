@@ -17,6 +17,7 @@ package topo
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -28,6 +29,7 @@ import (
 	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	cpb "github.com/openconfig/kne/proto/controller"
+	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/proto"
@@ -342,6 +344,30 @@ func TestNew(t *testing.T) {
 			},
 		},
 		wantErr: "failed to load",
+	}, {
+		desc: "link err - loopback",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1001),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r1",
+					ZInt:  "eth2",
+				},
+			},
+		},
+		wantErr: "invalid link",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -363,40 +389,39 @@ func TestNew(t *testing.T) {
 	}
 }
 
+type fakeMetricsReporter struct {
+	reportStartErr, reportEndErr error
+}
+
+func (f *fakeMetricsReporter) Close() error {
+	return nil
+}
+
+func (f *fakeMetricsReporter) ReportCreateTopologyStart(_ context.Context, _ *epb.Topology) (string, error) {
+	return "fake-uuid", f.reportStartErr
+}
+
+func (f *fakeMetricsReporter) ReportCreateTopologyEnd(_ context.Context, _ string, _ error) error {
+	return f.reportEndErr
+}
+
 func TestCreate(t *testing.T) {
 	ctx := context.Background()
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset: %v", err)
+
+	origNewMetricsReporter := newMetricsReporter
+	defer func() {
+		newMetricsReporter = origNewMetricsReporter
+	}()
+	newMetricsReporter = func(_ context.Context, _, _ string) (metricsReporter, error) {
+		return &fakeMetricsReporter{reportStartErr: errors.New("start err"), reportEndErr: errors.New("end err")}, nil
 	}
-	kf := kfake.NewSimpleClientset()
-	kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
-		gAction, ok := action.(ktest.GetAction)
-		if !ok {
-			return false, nil, nil
-		}
-		p := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: gAction.GetName()}}
-		switch p.Name {
-		default:
-			p.Status.Phase = corev1.PodRunning
-			p.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
-		case "bad":
-			p.Status.Phase = corev1.PodFailed
-		case "hanging":
-			p.Status.Phase = corev1.PodPending
-		}
-		return true, p, nil
-	})
-	opts := []Option{
-		WithClusterConfig(&rest.Config{}),
-		WithKubeClient(kf),
-		WithTopoClient(tf),
-	}
+
 	node.Vendor(tpb.Vendor(1002), NewConfigurable)
 	tests := []struct {
 		desc    string
 		topo    *tpb.Topology
 		timeout time.Duration
+		opts    []Option
 		wantErr string
 	}{{
 		desc: "success",
@@ -478,9 +503,77 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		wantErr: `Node "bad": Status FAILED`,
+	}, {
+		desc: "failed to report metrics, create still passes",
+		opts: []Option{WithUsageReporting(true, "", "")},
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			tf, err := tfake.NewSimpleClientset()
+			if err != nil {
+				t.Fatalf("cannot create fake topology clientset: %v", err)
+			}
+			kf := kfake.NewSimpleClientset()
+			kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
+				gAction, ok := action.(ktest.GetAction)
+				if !ok {
+					return false, nil, nil
+				}
+				p := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: gAction.GetName()}}
+				switch p.Name {
+				default:
+					p.Status.Phase = corev1.PodRunning
+					p.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+				case "bad":
+					p.Status.Phase = corev1.PodFailed
+				case "hanging":
+					p.Status.Phase = corev1.PodPending
+				}
+				return true, p, nil
+			})
+
+			opts := []Option{
+				WithClusterConfig(&rest.Config{}),
+				WithKubeClient(kf),
+				WithTopoClient(tf),
+			}
+			opts = append(opts, tt.opts...)
 			m, err := New(tt.topo, opts...)
 			if err != nil {
 				t.Fatalf("New() failed to create new topology manager: %v", err)

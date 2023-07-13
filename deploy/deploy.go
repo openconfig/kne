@@ -22,7 +22,9 @@ import (
 	kexec "github.com/openconfig/kne/exec"
 	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
+	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
+	epb "github.com/openconfig/kne/proto/event"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
@@ -123,6 +125,20 @@ type Deployment struct {
 	// If Progress is true then deployment status updates will be sent to
 	// standard output.
 	Progress bool
+
+	// If ReportUsage is true then anonymous usage metrics will be
+	// published using Cloud PubSub.
+	ReportUsage bool
+	// ReportUsageProjectID is the ID of the GCP project the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default project being used.
+	ReportUsageProjectID string
+	// ReportUsageTopicID is the ID of the GCP PubSub topic the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default topic being used.
+	ReportUsageTopicID string
 }
 
 func (d *Deployment) String() string {
@@ -146,7 +162,62 @@ type kubeVersion struct {
 	ServerVersion    *kversion.Info `json:"serverVersion,omitempty" yaml:"serverVersion,omitempty"`
 }
 
+// event turns the deployment into a cluster event protobuf.
+func (d *Deployment) event() *epb.Cluster {
+	c := &epb.Cluster{}
+	switch d.Cluster.(type) {
+	case *ExternalSpec:
+		c.Cluster = epb.Cluster_CLUSTER_TYPE_EXTERNAL
+	case *KindSpec:
+		c.Cluster = epb.Cluster_CLUSTER_TYPE_KIND
+	}
+	switch d.Ingress.(type) {
+	case *MetalLBSpec:
+		c.Ingress = epb.Cluster_INGRESS_TYPE_METALLB
+	}
+	switch d.CNI.(type) {
+	case *MeshnetSpec:
+		c.Cni = epb.Cluster_CNI_TYPE_MESHNET
+	}
+	for _, cntrl := range d.Controllers {
+		switch cntrl.(type) {
+		case *CEOSLabSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_CEOSLAB)
+		case *IxiaTGSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_IXIATG)
+		case *SRLinuxSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_SRLINUX)
+		case *LemmingSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_LEMMING)
+		}
+	}
+	return c
+}
+
+func (d *Deployment) reportDeployEvent(ctx context.Context) func(error) {
+	r, err := metrics.NewReporter(ctx, d.ReportUsageProjectID, d.ReportUsageTopicID)
+	if err != nil {
+		log.Warningf("Unable to create metrics reporter: %v", err)
+		return func(_ error) {}
+	}
+	id, err := r.ReportDeployClusterStart(ctx, d.event())
+	if err != nil {
+		log.Warningf("Unable to report cluster deployment start event: %v", err)
+		return func(_ error) { r.Close() }
+	}
+	return func(rerr error) {
+		defer r.Close()
+		if err := r.ReportDeployClusterEnd(ctx, id, rerr); err != nil {
+			log.Warningf("Unable to report cluster deployment end event: %v", err)
+		}
+	}
+}
+
 func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
+	if d.ReportUsage {
+		finish := d.reportDeployEvent(ctx)
+		defer func() { finish(rerr) }()
+	}
 	if err := d.checkDependencies(); err != nil {
 		return err
 	}
@@ -195,7 +266,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if kClientVersion.Less(kServerVersion) {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
-	log.V(1).Info("Found k8s versions:\n", output)
+	log.V(1).Info("Found k8s versions:\n", string(output))
 
 	ctx, cancel := context.WithCancel(ctx)
 
