@@ -100,7 +100,7 @@ func WithBasePath(s string) Option {
 	}
 }
 
-// Set optional flag --progress to be used by watcher
+// WithProgress returns a Manager Option where true causes pod progress to be displayed.
 func WithProgress(b bool) Option {
 	return func(m *Manager) {
 		m.progress = b
