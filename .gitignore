@@ -6,3 +6,4 @@
 /go.work.sum
 **/super-linter.log
 kne_cli/kne_cli
+controller/server/server

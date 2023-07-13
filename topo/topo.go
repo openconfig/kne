@@ -26,8 +26,10 @@ import (
 	"github.com/kr/pretty"
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	cpb "github.com/openconfig/kne/proto/controller"
+	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
@@ -66,6 +68,19 @@ type Manager struct {
 	tClient  topologyclientv1.Interface
 	rCfg     *rest.Config
 	basePath string
+
+	// If reportUsage is set, report anonymous usage metrics.
+	reportUsage bool
+	// reportUsageProjectID is the ID of the GCP project the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default project being used.
+	reportUsageProjectID string
+	// reportUsageTopicID is the ID of the GCP PubSub topic the usage
+	// metrics should be written to. This field is not used if
+	// ReportUsage is unset. An empty string will result in the
+	// default topic being used.
+	reportUsageTopicID string
 }
 
 type Option func(m *Manager)
@@ -97,6 +112,15 @@ func WithClusterConfig(r *rest.Config) Option {
 func WithBasePath(s string) Option {
 	return func(m *Manager) {
 		m.basePath = s
+	}
+}
+
+// WithUsageReporting writes anonymous usage metrics.
+func WithUsageReporting(b bool, project, topic string) Option {
+	return func(m *Manager) {
+		m.reportUsage = b
+		m.reportUsageProjectID = project
+		m.reportUsageTopicID = topic
 	}
 }
 
@@ -155,9 +179,59 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 	return m, nil
 }
 
+// event creates a topology event protobuf from the topo.
+func (m *Manager) event() *epb.Topology {
+	t := &epb.Topology{
+		LinkCount: int64(len(m.topo.Links)),
+	}
+	for _, node := range m.topo.Nodes {
+		t.Nodes = append(t.Nodes, &epb.Node{
+			Vendor: node.Vendor,
+			Model:  node.Model,
+		})
+	}
+	return t
+}
+
+var (
+	// Stubs for testing.
+	newMetricsReporter = func(ctx context.Context, project, topic string) (metricsReporter, error) {
+		return metrics.NewReporter(ctx, project, topic)
+	}
+)
+
+type metricsReporter interface {
+	ReportCreateTopologyStart(context.Context, *epb.Topology) (string, error)
+	ReportCreateTopologyEnd(context.Context, string, error) error
+	Close() error
+}
+
+func (m *Manager) reportCreateEvent(ctx context.Context) func(error) {
+	r, err := newMetricsReporter(ctx, m.reportUsageProjectID, m.reportUsageTopicID)
+	if err != nil {
+		log.Warningf("Unable to create metrics reporter: %v", err)
+		return func(_ error) {}
+	}
+	id, err := r.ReportCreateTopologyStart(ctx, m.event())
+	if err != nil {
+		log.Warningf("Unable to report create topology start event: %v", err)
+		return func(_ error) { r.Close() }
+	}
+	return func(rerr error) {
+		defer r.Close()
+		if err := r.ReportCreateTopologyEnd(ctx, id, rerr); err != nil {
+			log.Warningf("Unable to report create topology end event: %v", err)
+		}
+	}
+}
+
 // Create creates the topology in the cluster.
 func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error) {
 	log.V(1).Infof("Topology:\n%v", prototext.Format(m.topo))
+	if m.reportUsage {
+		finish := m.reportCreateEvent(ctx)
+		defer func() { finish(rerr) }()
+	}
 	if err := m.push(ctx); err != nil {
 		return err
 	}
