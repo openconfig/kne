@@ -140,7 +140,8 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")), topo.WithBasePath(bp))
+	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")), topo.WithBasePath(bp),
+		topo.WithProgress(viper.GetBool("progress")))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
