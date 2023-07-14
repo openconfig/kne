@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,8 @@ type Watcher struct {
 	currentNamespace string
 	currentEvent     types.UID
 }
+
+var errorMsgs = [2]string{"Insufficient memory", "Insufficient cpu"}
 
 // NewWatcher returns a Watcher on the provided client or an error.  The cancel
 // function is called when the Watcher determines an event has permanently
@@ -101,7 +104,7 @@ func (w *Watcher) watch() {
 	for {
 		select {
 		case s, ok := <-w.ch:
-			if !ok || !w.updateEvent(s) {
+			if !ok || !w.displayEvent(s) {
 				return
 			}
 		case <-w.ctx.Done():
@@ -116,4 +119,22 @@ func (w *Watcher) display(format string, v ...any) {
 	if w.progress {
 		fmt.Fprintf(w.stdout, timeNow()+format+"\n", v...)
 	}
+}
+
+func (w *Watcher) displayEvent(s *EventStatus) bool {
+	if w.progress {
+		log.Info(timeNow() + s.Event.String() + "\n")
+	}
+
+	message := s.Event.Message
+	for _, m := range errorMsgs {
+		// Error out if namespace is currentnamesapce and message contains predefinedcheck namespace
+		if w.currentNamespace == s.Namespace && strings.Contains(message, m) {
+			w.errCh <- fmt.Errorf("Event failed due to %s . Message: %s", s.Event.Reason, message)
+			w.cancel()
+			return false
+		}
+	}
+
+	return true
 }

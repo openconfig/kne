@@ -21,23 +21,23 @@ type EventStatus struct {
 	Event     corev1.Event // copy of the raw event
 }
 
-func (p *EventStatus) String() string {
+func (e *EventStatus) String() string {
 	var buf strings.Builder
 	add := func(k, v string) {
 		if v != "" {
 			fmt.Fprintf(&buf, ", %s: %q", k, v)
 		}
 	}
-	fmt.Fprintf(&buf, "{Name: %q", p.Name)
-	add("UID", string(p.UID))
-	add("Namespace", p.Namespace)
+	fmt.Fprintf(&buf, "{Name: %q", e.Name)
+	add("UID", string(e.UID))
+	add("Namespace", e.Namespace)
 	return buf.String()
 }
 
-func (p *EventStatus) Equal(q *EventStatus) bool {
-	if p.UID != q.UID ||
-		p.Name != q.Name ||
-		p.Namespace != q.Namespace {
+func (e *EventStatus) Equal(q *EventStatus) bool {
+	if e.UID != q.UID ||
+		e.Name != q.Name ||
+		e.Namespace != q.Namespace {
 		return false
 	}
 	return true

@@ -26,6 +26,7 @@ import (
 	"github.com/kr/pretty"
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	cpb "github.com/openconfig/kne/proto/controller"
@@ -239,6 +240,15 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
+		w.SetProgress(m.progress)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
+	}
+	if w, err := events.NewWatcher(ctx, m.kClient, cancel); err != nil {
+		log.Warningf("Failed to start event watcher: %v", err)
 	} else {
 		w.SetProgress(m.progress)
 		defer func() {
