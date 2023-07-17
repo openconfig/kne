@@ -18,6 +18,8 @@ type EventStatus struct {
 	Name      string // name of event
 	UID       types.UID
 	Namespace string
+	Message   string
+	Type      string
 	Event     corev1.Event // copy of the raw event
 }
 
@@ -110,5 +112,7 @@ func EventToStatus(event *corev1.Event) *EventStatus {
 	}
 	event.DeepCopyInto(&s.Event)
 	event = &s.Event
+	s.Type = event.DeepCopy().Type
+	s.Message = event.DeepCopy().Message
 	return &s
 }

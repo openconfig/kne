@@ -122,11 +122,12 @@ func (w *Watcher) display(format string, v ...any) {
 }
 
 func (w *Watcher) displayEvent(s *EventStatus) bool {
-	if w.progress {
-		log.Info(timeNow() + s.Event.String() + "\n")
-	}
+	w.display("NS: %s", s.Namespace)
+	w.display("Event: %s", s.Name)
+	w.display("EventType: %s", s.Type)
+	w.display("Event message: %s", s.Message)
 
-	message := s.Event.Message
+	message := s.Message
 	for _, m := range errorMsgs {
 		// Error out if namespace is currentnamesapce and message contains predefinedcheck namespace
 		if w.currentNamespace == s.Namespace && strings.Contains(message, m) {
