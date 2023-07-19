@@ -122,6 +122,12 @@ func (w *Watcher) display(format string, v ...any) {
 }
 
 func (w *Watcher) displayEvent(s *EventStatus) bool {
+	newNamespace := s.Namespace != w.currentNamespace
+	if newNamespace {
+		w.currentNamespace = s.Namespace
+		w.display("NS: %s", s.Namespace)
+		newNamespace = false
+	}
 	w.display("NS: %s", s.Namespace)
 	w.display("Event: %s", s.Name)
 	w.display("EventType: %s", s.Type)
