@@ -138,7 +138,7 @@ func TestWatcher(t *testing.T) {
 			closed: true,
 			output: `
 01:23:45 NS: ns
-01:23:45 Event: event_name
+01:23:45 Event name: event_name
 01:23:45 EventType: Normal
 01:23:45 Event message: Created container kube-rbac-proxy
 `[1:],
@@ -149,7 +149,7 @@ func TestWatcher(t *testing.T) {
 			closed: true,
 			output: `
 01:23:45 NS: ns
-01:23:45 Event: event_name
+01:23:45 Event name: event_name
 01:23:45 EventType: Warning
 01:23:45 Event message: 0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
 `[1:],
@@ -160,7 +160,7 @@ func TestWatcher(t *testing.T) {
 			closed: true,
 			output: `
 01:23:45 NS: ns
-01:23:45 Event: event_name
+01:23:45 Event name: event_name
 01:23:45 EventType: Warning
 01:23:45 Event message: 0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
 `[1:],

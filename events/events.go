@@ -81,22 +81,17 @@ func WatchEventStatus(ctx context.Context, client kubernetes.Interface, namespac
 	}
 	kch := w.ResultChan()
 	ch := make(chan *EventStatus, 2)
+	initialTimestamp := metav1.Now()
 
 	go func() {
 		defer close(ch)
-		// seen is used to drop duplicate updates
-		seen := map[types.UID]*EventStatus{}
 		for event := range kch {
 			switch e := event.Object.(type) {
 			case *corev1.Event:
-				s := EventToStatus(e)
-				if os, ok := seen[s.UID]; ok {
-					if s.Equal(os) {
-						continue
-					}
+				if !e.CreationTimestamp.Before(&initialTimestamp) {
+					s := EventToStatus(e)
+					ch <- s
 				}
-				seen[s.UID] = s
-				ch <- s
 			}
 		}
 	}()

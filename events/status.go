@@ -90,9 +90,9 @@ func (w *Watcher) Cleanup(err error) error {
 	select {
 	case werr := <-w.errCh:
 		if err != nil {
-			w.warningf("Deploy() failed: %v", err)
+			w.warningf("Create() failed: %v", err)
 		}
-		w.warningf("Deployment failed: %v", werr)
+		w.warningf("Topology creation failed failed: %v", werr)
 		return werr
 	default:
 	}
@@ -128,7 +128,7 @@ func (w *Watcher) displayEvent(s *EventStatus) bool {
 		newNamespace = false
 	}
 	w.display("NS: %s", s.Namespace)
-	w.display("Event: %s", s.Name)
+	w.display("Event name: %s", s.Name)
 	w.display("EventType: %s", s.Type)
 	w.display("Event message: %s", s.Message)
 

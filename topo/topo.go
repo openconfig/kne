@@ -233,9 +233,6 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		finish := m.reportCreateEvent(ctx)
 		defer func() { finish(rerr) }()
 	}
-	if err := m.push(ctx); err != nil {
-		return err
-	}
 	ctx, cancel := context.WithCancel(ctx)
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
@@ -255,6 +252,9 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 			cancel()
 			rerr = w.Cleanup(rerr)
 		}()
+	}
+	if err := m.push(ctx); err != nil {
+		return err
 	}
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
 		return err

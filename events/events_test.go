@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	kfake "k8s.io/client-go/kubernetes/fake"
@@ -123,6 +125,9 @@ func TestWatchEventStatus(t *testing.T) {
 		normal1event,
 		warning1event,
 		warning2event,
+	}
+	for _, u := range updates {
+		u.CreationTimestamp = metav1.NewTime(time.Now().Add(time.Minute))
 	}
 	client.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
 		f := &fakeWatch{
