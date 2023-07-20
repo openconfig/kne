@@ -125,7 +125,6 @@ func (w *Watcher) displayEvent(s *EventStatus) bool {
 	newNamespace := s.Namespace != w.currentNamespace
 	if newNamespace {
 		w.currentNamespace = s.Namespace
-		w.display("NS: %s", s.Namespace)
 		newNamespace = false
 	}
 	w.display("NS: %s", s.Namespace)
@@ -135,8 +134,8 @@ func (w *Watcher) displayEvent(s *EventStatus) bool {
 
 	message := s.Message
 	for _, m := range errorMsgs {
-		// Error out if namespace is currentnamesapce and message contains predefinedcheck namespace
-		if w.currentNamespace == s.Namespace && strings.Contains(message, m) {
+		// Error out if message contains predefined message
+		if strings.Contains(message, m) {
 			w.errCh <- fmt.Errorf("Event failed due to %s . Message: %s", s.Event.Reason, message)
 			w.cancel()
 			return false

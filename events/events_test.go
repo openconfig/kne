@@ -24,6 +24,8 @@ func TestGetEventStatus(t *testing.T) {
 
 	var eventGetUpdatesStatus = [][]EventStatus{
 		{normal1eventstatus},
+		{warning1eventstatus},
+		{warning2eventstatus},
 	}
 
 	next := -1
@@ -114,6 +116,8 @@ func TestWatchEventStatus(t *testing.T) {
 
 	var wanted = []*EventStatus{
 		&normal1eventstatus,
+		&warning1eventstatus,
+		&warning2eventstatus,
 	}
 	var updates = []*corev1.Event{
 		normal1event,
@@ -181,7 +185,7 @@ func TestString(t *testing.T) {
 		event  *EventStatus
 		status string
 	}{
-		{"event1", &EventStatus{Name: "event1", Namespace: "ns", UID: "event-1"}, `{Name: "event1", UID: "event-1", Namespace: "ns"`}, // No containers
+		{"event1", &EventStatus{Name: "event1", Namespace: "ns", UID: "event-1"}, `{Name: "event1", UID: "event-1", Namespace: "ns"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			status := tt.event.String()
@@ -194,7 +198,7 @@ func TestString(t *testing.T) {
 
 func TestEqual(t *testing.T) {
 	different := &EventStatus{}
-	for i, event := range []*EventStatus{&normal1eventstatus} {
+	for i, event := range []*EventStatus{&normal1eventstatus, &warning1eventstatus, &warning2eventstatus} {
 		lintEvent := event
 		if !event.Equal(lintEvent) {
 			t.Errorf("#%d: Equal returned false on equal events", i)
