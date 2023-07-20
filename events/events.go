@@ -33,6 +33,7 @@ func (e *EventStatus) String() string {
 	fmt.Fprintf(&buf, "{Name: %q", e.Name)
 	add("UID", string(e.UID))
 	add("Namespace", e.Namespace)
+	fmt.Fprint(&buf, "}")
 	return buf.String()
 }
 

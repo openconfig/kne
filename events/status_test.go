@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/h-fam/errdiff"
+	"k8s.io/apimachinery/pkg/types"
 	kfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -75,14 +76,14 @@ func TestCleanup(t *testing.T) {
 			name:   "generated_error",
 			werr:   error2,
 			want:   error2,
-			output: "Deployment failed: Second Error\n",
+			output: "Topology creation failed: Second Error\n",
 		},
 		{
 			name:   "passed_and_generated_error",
 			err:    error1,
 			werr:   error2,
 			want:   error2,
-			output: "Deploy() failed: First Error\nDeployment failed: Second Error\n",
+			output: "Create() failed: First Error\nTopology creation failed: Second Error\n",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -137,32 +138,23 @@ func TestWatcher(t *testing.T) {
 			s:      normalEvent,
 			closed: true,
 			output: `
-01:23:45 NS: ns
-01:23:45 Event name: event_name
-01:23:45 EventType: Normal
-01:23:45 Event message: Created container kube-rbac-proxy
+01:23:45 NS: ns Event name: event_name Type: Normal Message: Created container kube-rbac-proxy
 `[1:],
 		},
 		{
-			name:   "failed",
+			name:   "failed_insufficient_cpu",
 			s:      insufficientCPU,
 			closed: true,
 			output: `
-01:23:45 NS: ns
-01:23:45 Event name: event_name
-01:23:45 EventType: Warning
-01:23:45 Event message: 0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
+01:23:45 NS: ns Event name: event_name Type: Warning Message: 0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
 `[1:],
 		},
 		{
-			name:   "failed",
+			name:   "failed_insufficient_memory",
 			s:      insufficientMem,
 			closed: true,
 			output: `
-01:23:45 NS: ns
-01:23:45 Event name: event_name
-01:23:45 EventType: Warning
-01:23:45 Event message: 0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
+01:23:45 NS: ns Event name: event_name Type: Warning Message: 0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
 `[1:],
 		},
 		{
@@ -230,5 +222,90 @@ func TestNewWatcher(t *testing.T) {
 	}
 	if w.eventStates == nil {
 		t.Errorf("Watcher did not make eventStates")
+	}
+}
+
+func TestIsEventNormal(t *testing.T) {
+	var buf strings.Builder
+
+	canceled := false
+	cancel := func() { canceled = true }
+	stopped := false
+	stop := func() { stopped = true }
+
+	w := newWatcher(context.TODO(), cancel, nil, stop)
+	w.stdout = &buf
+	w.SetProgress(true)
+
+	var seen string
+
+	const (
+		uid1 = types.UID("uid1")
+		uid2 = types.UID("uid2")
+		uid3 = types.UID("uid3")
+	)
+
+	for _, tt := range []struct {
+		name     string
+		event    *EventStatus
+		want     string
+		errch    string
+		stopped  bool
+		canceled bool
+	}{
+		{
+			name:  "normal",
+			event: &EventStatus{Name: "event1", UID: uid1, Namespace: "ns1", Type: EventNormal, Message: "normal event"},
+			want: `
+01:23:45 NS: ns1 Event name: event1 Type: Normal Message: normal event
+`[1:],
+		},
+		{
+			name:  "insufficient_cpu",
+			event: &EventStatus{Name: "event2", UID: uid1, Namespace: "ns1", Type: EventWarning, Message: "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.."},
+			want: `
+01:23:45 NS: ns1 Event name: event2 Type: Warning Message: 0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
+`[1:],
+			errch:    "Event failed due to  . Message: 0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..",
+			canceled: true,
+		},
+		{
+			name:  "insufficient_memory",
+			event: &EventStatus{Name: "event3", UID: uid1, Namespace: "ns1", Type: EventWarning, Message: "0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.."},
+			want: `
+01:23:45 NS: ns1 Event name: event3 Type: Warning Message: 0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..
+`[1:],
+			errch:    "Event failed due to  . Message: 0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod..",
+			canceled: true,
+		},
+	} {
+		w.isEventNormal(tt.event)
+		t.Run(tt.name, func(t *testing.T) {
+			got := buf.String()
+			if !strings.HasPrefix(got, seen) {
+				t.Fatalf("got %q, wanted prefix %q", got, seen)
+			}
+			seen, got = got, got[len(seen):]
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+			var errch string
+			select {
+			case err := <-w.errCh:
+				errch = err.Error()
+			default:
+			}
+			if errch != tt.errch {
+				t.Errorf("got error %s, want error %s", errch, tt.errch)
+			}
+			if stopped != tt.stopped {
+				t.Errorf("got stopped %v, want %v", stopped, tt.stopped)
+			}
+			stopped = false
+			if canceled != tt.canceled {
+				t.Errorf("got canceled %v, want %v", canceled, tt.canceled)
+			}
+			canceled = false
+		})
 	}
 }

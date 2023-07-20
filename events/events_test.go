@@ -190,7 +190,10 @@ func TestString(t *testing.T) {
 		event  *EventStatus
 		status string
 	}{
-		{"event1", &EventStatus{Name: "event1", Namespace: "ns", UID: "event-1"}, `{Name: "event1", UID: "event-1", Namespace: "ns"`},
+		{"event1", &EventStatus{Name: "event1", Namespace: "ns", UID: "event-1"}, `{Name: "event1", UID: "event-1", Namespace: "ns"}`},
+		{"event2", &normal1eventstatus, normal1eventstring},
+		{"event3", &warning1eventstatus, warning1eventstring},
+		{"event4", &warning2eventstatus, warning2eventstring},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			status := tt.event.String()

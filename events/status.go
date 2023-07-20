@@ -28,7 +28,6 @@ type Watcher struct {
 	mu               sync.Mutex
 	progress         bool
 	currentNamespace string
-	currentEvent     types.UID
 }
 
 var errorMsgs = [2]string{"Insufficient memory", "Insufficient cpu"}
@@ -92,7 +91,7 @@ func (w *Watcher) Cleanup(err error) error {
 		if err != nil {
 			w.warningf("Create() failed: %v", err)
 		}
-		w.warningf("Topology creation failed failed: %v", werr)
+		w.warningf("Topology creation failed: %v", werr)
 		return werr
 	default:
 	}
@@ -104,7 +103,7 @@ func (w *Watcher) watch() {
 	for {
 		select {
 		case s, ok := <-w.ch:
-			if !ok || !w.displayEvent(s) {
+			if !ok || !w.isEventNormal(s) {
 				return
 			}
 		case <-w.ctx.Done():
@@ -121,16 +120,8 @@ func (w *Watcher) display(format string, v ...any) {
 	}
 }
 
-func (w *Watcher) displayEvent(s *EventStatus) bool {
-	newNamespace := s.Namespace != w.currentNamespace
-	if newNamespace {
-		w.currentNamespace = s.Namespace
-		newNamespace = false
-	}
-	w.display("NS: %s", s.Namespace)
-	w.display("Event name: %s", s.Name)
-	w.display("EventType: %s", s.Type)
-	w.display("Event message: %s", s.Message)
+func (w *Watcher) isEventNormal(s *EventStatus) bool {
+	w.display("NS: %s Event name: %s Type: %s Message: %s", s.Namespace, s.Name, s.Type, s.Message)
 
 	message := s.Message
 	for _, m := range errorMsgs {
