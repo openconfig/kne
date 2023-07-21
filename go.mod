@@ -13,7 +13,7 @@ require (
 	github.com/h-fam/errdiff v1.0.2
 	github.com/kr/pretty v0.3.0
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
-	github.com/open-traffic-generator/ixia-c-operator v0.3.0
+	github.com/open-traffic-generator/ixia-c-operator v0.3.3
 	github.com/openconfig/gnmi v0.9.1
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/lemming/operator v0.2.0

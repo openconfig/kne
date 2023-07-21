@@ -11,7 +11,7 @@ data:
             {
                 "name": "controller",
                 "path": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller",
-                "tag": "0.0.1-4139"
+                "tag": "0.0.1-4167"
             },
             {
                 "name": "gnmi-server",
@@ -26,12 +26,12 @@ data:
             {
                 "name": "protocol-engine",
                 "path": "ghcr.io/open-traffic-generator/licensed/ixia-c-protocol-engine",
-                "tag": "1.00.0.315"
+                "tag": "1.00.0.316"
             },
             {
                 "name": "ixhw-server",
                 "path": "ghcr.io/open-traffic-generator/ixia-c-ixhw-server",
-                "tag": "0.11.10-2"
+                "tag": "0.11.10-13"
             }
         ]
     }
