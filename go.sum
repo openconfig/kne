@@ -675,8 +675,8 @@ github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf/go.mod h1:
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
 github.com/onsi/ginkgo/v2 v2.6.0 h1:9t9b9vRUbFq3C4qKFCGkVuq/fIHji802N1nrtkh1mNc=
 github.com/onsi/gomega v1.24.1 h1:KORJXNNTzJXzu4ScJWssJfJMnJ+2QJqhoQSRwNlze9E=
-github.com/open-traffic-generator/ixia-c-operator v0.3.0 h1:DFINZYbM9MLNnKvi2+BgQgrwXZvXFG3Y7jRm+Qv/4mQ=
-github.com/open-traffic-generator/ixia-c-operator v0.3.0/go.mod h1:Q+ZXCinXxUKcnrJf5PJC1Q7JxUQc5ZPZA85jwVAqIRQ=
+github.com/open-traffic-generator/ixia-c-operator v0.3.3 h1:Wt6+lsUkX8HpzgV52pypcT9+A1n6WxVMoaRqPbQnFb0=
+github.com/open-traffic-generator/ixia-c-operator v0.3.3/go.mod h1:Q+ZXCinXxUKcnrJf5PJC1Q7JxUQc5ZPZA85jwVAqIRQ=
 github.com/open-traffic-generator/snappi/gosnappi v0.11.14 h1:AuD13HqZldjtPWvDKaXVDRZ+32Aol5QJCepEqTiukqM=
 github.com/open-traffic-generator/snappi/gosnappi v0.11.14/go.mod h1:CRT6BypHa7NOrNlrjw3Crcs9f7eLC4S34ERvyyGIusY=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
