@@ -13,7 +13,7 @@ require (
 	github.com/h-fam/errdiff v1.0.2
 	github.com/kr/pretty v0.3.0
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
-	github.com/open-traffic-generator/ixia-c-operator v0.3.0
+	github.com/open-traffic-generator/ixia-c-operator v0.3.4
 	github.com/openconfig/gnmi v0.9.1
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/lemming/operator v0.2.0
@@ -123,7 +123,6 @@ require (
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
-	google.golang.org/api v0.114.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
