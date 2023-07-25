@@ -9,9 +9,9 @@ import (
 // Variables are named
 //
 //   name#data    Raw json from kubectl
-//   name#event     Data converted into a corev1.Event
-//   name#status  PodStatus version
-//   name#string  PodStatus as a string
+//   name#event   Data converted into a corev1.Event
+//   name#status  EventStatus version
+//   name#string  EventStatus as a string
 
 func json2event(j string) *corev1.Event {
 	var event corev1.Event
