@@ -76,14 +76,14 @@ func TestCleanup(t *testing.T) {
 			name:   "generated_error",
 			werr:   error2,
 			want:   error2,
-			output: "Topology creation failed: Second Error\n",
+			output: "Event Watcher error: Second Error\n",
 		},
 		{
 			name:   "passed_and_generated_error",
 			err:    error1,
 			werr:   error2,
 			want:   error2,
-			output: "Create() failed: First Error\nTopology creation failed: Second Error\n",
+			output: "Event Watcher failed: First Error\nEvent Watcher error: Second Error\n",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
