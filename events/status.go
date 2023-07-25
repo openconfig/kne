@@ -25,9 +25,8 @@ type Watcher struct {
 	stdout      io.Writer
 	warningf    func(string, ...any)
 
-	mu               sync.Mutex
-	progress         bool
-	currentNamespace string
+	mu       sync.Mutex
+	progress bool
 }
 
 var errorMsgs = [2]string{"Insufficient memory", "Insufficient cpu"}
@@ -89,9 +88,9 @@ func (w *Watcher) Cleanup(err error) error {
 	select {
 	case werr := <-w.errCh:
 		if err != nil {
-			w.warningf("Create() failed: %v", err)
+			w.warningf("Event Watcher failed: %v", err)
 		}
-		w.warningf("Topology creation failed: %v", werr)
+		w.warningf("Event Watcher error: %v", werr)
 		return werr
 	default:
 	}

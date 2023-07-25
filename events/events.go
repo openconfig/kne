@@ -1,4 +1,4 @@
-// Package events provides events status for a namespace using kubectl.
+// Package events provides events status for a namespace.
 package events
 
 import (
@@ -108,7 +108,7 @@ func EventToStatus(event *corev1.Event) *EventStatus {
 	}
 	event.DeepCopyInto(&s.Event)
 	event = &s.Event
-	s.Type = event.DeepCopy().Type
-	s.Message = event.DeepCopy().Message
+	s.Type = event.Type
+	s.Message = event.Message
 	return &s
 }
