@@ -19,6 +19,7 @@ import (
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
+	"github.com/openconfig/kne/events"
 	kexec "github.com/openconfig/kne/exec"
 	"github.com/openconfig/kne/load"
 	logshim "github.com/openconfig/kne/logshim"
@@ -273,6 +274,15 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, kClient, cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
+	} else {
+		w.SetProgress(d.Progress)
+		defer func() {
+			cancel()
+			rerr = w.Cleanup(rerr)
+		}()
+	}
+	if w, err := events.NewWatcher(ctx, kClient, cancel); err != nil {
+		log.Warningf("Failed to start event watcher: %v", err)
 	} else {
 		w.SetProgress(d.Progress)
 		defer func() {
