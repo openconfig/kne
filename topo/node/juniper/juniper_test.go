@@ -92,13 +92,19 @@ func TestGenerateSelfSigned(t *testing.T) {
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
+			e: []watch.Event{
+				{
+					// Test that watcher properly handles events with the wrong type.
+					Object: &corev1.ConfigMap{},
+				},
+				{
+					Object: &corev1.Pod{
+						Status: corev1.PodStatus{
+							Phase: corev1.PodRunning,
+						},
 					},
 				},
-			}},
+			},
 		}
 		return true, f, nil
 	}
@@ -123,6 +129,12 @@ func TestGenerateSelfSigned(t *testing.T) {
 			},
 		},
 	}
+
+	origCertGenRetrySleep := certGenRetrySleep
+	defer func() {
+		certGenRetrySleep = origCertGenRetrySleep
+	}()
+	certGenRetrySleep = time.Millisecond
 
 	tests := []struct {
 		desc     string
