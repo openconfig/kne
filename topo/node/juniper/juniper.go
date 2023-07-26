@@ -33,6 +33,8 @@ var (
 	scrapliOperationTimeout = 300 * time.Second
 	// Wait for PKI cert infra
 	certGenTimeout = 10 * time.Minute
+	// Time between polls
+	certGenRetrySleep = 30 * time.Second
 )
 
 const (
@@ -129,14 +131,14 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 				return resp.Failed
 			}
 			if strings.Contains(resp.Result, "error:") {
-				log.Infof("Cert infra isn't ready. Retrying in 30 sec. Response %s", multiresp.JoinedResult())
+				log.Infof("Cert infra isn't ready. Retrying in %v. Response %s", certGenRetrySleep, multiresp.JoinedResult())
 			}
 			if strings.Contains(resp.Result, "successfully") {
 				log.Infof("Cert Infra ready. Configured Certs. Response %s", multiresp.JoinedResult())
 				return nil
 			}
 		}
-		time.Sleep(30 * time.Second)
+		time.Sleep(certGenRetrySleep)
 	}
 
 	return fmt.Errorf("failed sending generate-self-signed commands")
@@ -160,7 +162,10 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return err
 	}
 	for e := range w.ResultChan() {
-		p := e.Object.(*corev1.Pod)
+		p, ok := e.Object.(*corev1.Pod)
+		if !ok {
+			continue
+		}
 		if p.Status.Phase == corev1.PodRunning {
 			break
 		}
