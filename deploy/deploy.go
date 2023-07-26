@@ -281,6 +281,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 			rerr = w.Cleanup(rerr)
 		}()
 	}
+	// Watch for incoming events to fail early in case of events signaling unrecoverable errors.
 	if w, err := events.NewWatcher(ctx, kClient, cancel); err != nil {
 		log.Warningf("Failed to start event watcher: %v", err)
 	} else {
