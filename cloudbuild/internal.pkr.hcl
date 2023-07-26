@@ -132,8 +132,8 @@ build {
       "cd ../controller/server",
       "/usr/local/go/bin/go build",
       "cd $HOME",
-      "mkdir .kne",
-      "echo \"report_usage: true\" > .kne/config.yaml",
+      "mkdir -p .config/kne",
+      "echo \"report_usage: true\" > .config/kne/config.yaml",
     ]
   }
 

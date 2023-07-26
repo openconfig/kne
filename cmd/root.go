@@ -68,7 +68,7 @@ environment.`,
 
 func defaultCfgFile() string {
 	if home := homedir.HomeDir(); home != "" {
-		return filepath.Join(home, ".kne", "config.yaml")
+		return filepath.Join(home, ".config", "kne", "config.yaml")
 	}
 	return ""
 }
