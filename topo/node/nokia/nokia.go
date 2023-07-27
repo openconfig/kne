@@ -378,6 +378,15 @@ func defaults(pb *tpb.Node) *tpb.Node {
 
 		pb.Config.ConfigFile = "config" + ext
 	}
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{}
+	}
+	if pb.Constraints["cpu"] == "" {
+		pb.Constraints["cpu"] = "0.5"
+	}
+	if pb.Constraints["memory"] == "" {
+		pb.Constraints["memory"] = "1Gi"
+	}
 	return pb
 }
 

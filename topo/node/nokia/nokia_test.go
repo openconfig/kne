@@ -139,6 +139,10 @@ func TestNew(t *testing.T) {
 					Inside: 9559,
 				},
 			},
+			Constraints: map[string]string{
+				"cpu":    "0.5",
+				"memory": "1Gi",
+			},
 		},
 	}, {
 		desc: "json config file",
@@ -187,6 +191,10 @@ func TestNew(t *testing.T) {
 					Name:   "p4rt",
 					Inside: 9559,
 				},
+			},
+			Constraints: map[string]string{
+				"cpu":    "0.5",
+				"memory": "1Gi",
 			},
 		},
 	},

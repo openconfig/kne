@@ -335,12 +335,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			Name: "default_ceos_node",
 		}
 	}
-	if pb.Constraints == nil {
-		pb.Constraints = map[string]string{
-			"cpu":    "0.5",
-			"memory": "1Gi",
-		}
-	}
+	pb = constraints(pb)
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			443: {
@@ -390,6 +385,19 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.ConfigFile == "" {
 		pb.Config.ConfigFile = "startup-config"
+	}
+	return pb
+}
+
+func constraints(pb *tpb.Node) *tpb.Node {
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{}
+	}
+	if pb.Constraints["cpu"] == "" {
+		pb.Constraints["cpu"] = "0.5"
+	}
+	if pb.Constraints["memory"] == "" {
+		pb.Constraints["memory"] = "1Gi"
 	}
 	return pb
 }

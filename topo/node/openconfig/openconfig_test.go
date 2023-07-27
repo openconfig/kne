@@ -388,7 +388,8 @@ func TestNew(t *testing.T) {
 				Cert:         &tpb.CertificateCfg{},
 			},
 			Constraints: map[string]string{
-				"cpu": "10",
+				"cpu":    "10",
+				"memory": "1Gi",
 			},
 			Labels: map[string]string{
 				"custom":       "value",
