@@ -507,10 +507,13 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	switch pb.Model {
 	case ModelNCPTX:
 		if pb.Constraints == nil {
-			pb.Constraints = map[string]string{
-				"cpu":    "4",
-				"memory": "4Gi",
-			}
+			pb.Constraints = map[string]string{}
+		}
+		if pb.Constraints["cpu"] == "" {
+			pb.Constraints["cpu"] = "4"
+		}
+		if pb.Constraints["memory"] == "" {
+			pb.Constraints["memory"] = "4Gi"
 		}
 		if len(pb.Config.GetCommand()) == 0 {
 			pb.Config.Command = []string{
@@ -522,10 +525,13 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	default:
 		if pb.Constraints == nil {
-			pb.Constraints = map[string]string{
-				"cpu":    "8",
-				"memory": "8Gi",
-			}
+			pb.Constraints = map[string]string{}
+		}
+		if pb.Constraints["cpu"] == "" {
+			pb.Constraints["cpu"] = "8"
+		}
+		if pb.Constraints["memory"] == "" {
+			pb.Constraints["memory"] = "8Gi"
 		}
 		if len(pb.Config.GetCommand()) == 0 {
 			pb.Config.Command = []string{
