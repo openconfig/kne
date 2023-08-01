@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -69,6 +70,28 @@ func logCommand(cmd string, args ...string) error {
 	c.SetStdout(outLog)
 	c.SetStderr(errLog)
 	return c.Run()
+}
+
+// outLogCommand runs the specified command but records standard output
+// with log.Info and standard error with log.Warning. Standard output
+// and standard error are also returned.
+func outLogCommand(cmd string, args ...string) ([]byte, error) {
+	c := kexec.Command(cmd, args...)
+	outLog := logshim.New(func(v ...interface{}) {
+		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	errLog := logshim.New(func(v ...interface{}) {
+		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	defer func() {
+		outLog.Close()
+		errLog.Close()
+	}()
+	var out bytes.Buffer
+	c.SetStdout(io.MultiWriter(outLog, &out))
+	c.SetStderr(io.MultiWriter(errLog, &out))
+	err := c.Run()
+	return out.Bytes(), err
 }
 
 // outCommand runs the specified command and returns any standard output
@@ -545,9 +568,16 @@ func (k *KindSpec) create() error {
 		args = append(args, "--config", k.KindConfigFile)
 	}
 	log.Infof("Creating kind cluster with: %v", args)
-	// TODO
-	if err := logCommand("kind", args...); err != nil {
-		return err
+	if out, err := outLogCommand("kind", args...); err != nil {
+		msg := []string{}
+		// Filter output to only show lines relevant to the error message. For kind these are lines
+		// prefixed with "ERROR" or "Command Output".
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.HasPrefix(line, "ERROR") || strings.HasPrefix(line, "Command Output") {
+				msg = append(msg, line)
+			}
+		}
+		return fmt.Errorf("%w: %v", err, strings.Join(msg, ", "))
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
 	return nil
@@ -1151,6 +1181,7 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 	if s.Operator == "" && s.ManifestDir != "" {
 		log.Errorf("Deploying SRLinux controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", s.ManifestDir)
 		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
+
 	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
 	if err := logCommand("kubectl", "apply", "-f", s.Operator); err != nil {
