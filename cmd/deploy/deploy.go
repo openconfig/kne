@@ -31,7 +31,6 @@ func New() *cobra.Command {
 		Short: "Deploy cluster.",
 		RunE:  deployFn,
 	}
-	deployCmd.Flags().Bool("progress", false, "Display progress of container bringup")
 	return deployCmd
 }
 
