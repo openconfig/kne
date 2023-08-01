@@ -44,6 +44,7 @@ environment.`,
 	root.PersistentFlags().Bool("report_usage", false, "Whether to reporting anonymous usage metrics")
 	root.PersistentFlags().String("report_usage_project_id", "", "Project to report anonymous usage metrics to")
 	root.PersistentFlags().String("report_usage_topic_id", "", "Topic to report anonymous usage metrics to")
+	root.PersistentFlags().Bool("progress", false, "Display progress of container bringup")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if *cfgFile == "" {
 			return nil
@@ -93,7 +94,6 @@ func newCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("dryrun", false, "Generate topology but do not push to k8s")
 	cmd.Flags().Duration("timeout", 0, "Timeout for pod status enquiry")
-	cmd.Flags().Bool("progress", false, "Display progress of container bringup")
 	return cmd
 }
 
