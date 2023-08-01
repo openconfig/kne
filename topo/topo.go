@@ -26,6 +26,7 @@ import (
 	"github.com/kr/pretty"
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
@@ -272,17 +273,17 @@ func (m *Manager) Delete(ctx context.Context) error {
 
 	// Delete topology nodes
 	for _, n := range m.nodes {
-		// Delete Service for node
 		if err := n.Delete(ctx); err != nil {
 			log.Warningf("Error deleting node %q: %v", n.Name(), err)
 		}
 	}
 
 	if err := m.deleteMeshnetTopologies(ctx); err != nil {
-		return fmt.Errorf("failed to delete meshnet topologies for topology %q: %w", m.topo.GetName(), err)
+		// Log a warning instead of failing as deleting the namespace should delete all meshnet resources.
+		log.Warningf("Failed to delete meshnet topologies for topology %q: %w", m.topo.GetName(), err)
 	}
 
-	// Delete namespace
+	// Delete the namespace
 	prop := metav1.DeletePropagationForeground
 	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
 		return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
@@ -522,18 +523,16 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 // deleteMeshnetTopologies deletes meshnet resources for all available nodes.
 func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 	nodes, err := m.topologyResources(ctx)
-	if err == nil {
-		for _, n := range nodes {
-			if err := m.tClient.Topology(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
-				log.Warningf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
-			}
-		}
-	} else {
-		// no need to return warning as deleting meshnet namespace shall delete the resources too
-		log.Warningf("Error getting meshnet nodes: %v", err)
+	if err != nil {
+		fmt.Errorf("failed to get meshnet nodes: %w", err)
 	}
-
-	return nil
+	var errs errlist.List
+	for _, n := range nodes {
+		if err := m.tClient.Topology(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
+			errs.Add(fmt.Errorf("failed to delete meshnet node %q: %w", n.ObjectMeta.Name, err))
+		}
+	}
+	return errs.Err()
 }
 
 // checkNodeStatus reports node status, ignores for unimplemented nodes.

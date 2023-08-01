@@ -1181,7 +1181,6 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 	if s.Operator == "" && s.ManifestDir != "" {
 		log.Errorf("Deploying SRLinux controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", s.ManifestDir)
 		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
-
 	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
 	if err := logCommand("kubectl", "apply", "-f", s.Operator); err != nil {
