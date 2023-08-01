@@ -502,7 +502,7 @@ func TestCreate(t *testing.T) {
 				},
 			},
 		},
-		wantErr: `Node "bad": Status FAILED`,
+		wantErr: `Node "bad" (vendor: "1002", model: ""): Status FAILED`,
 	}, {
 		desc: "failed to report metrics, create still passes",
 		opts: []Option{WithUsageReporting(true, "", "")},

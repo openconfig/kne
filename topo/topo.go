@@ -254,10 +254,10 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		}()
 	}
 	if err := m.push(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to create topology %q: %w", m.topo.GetName(), err)
 	}
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
-		return err
+		return fmt.Errorf("failed to check status of nodes in topology %q: %w", m.topo.GetName(), err)
 	}
 	log.Infof("Topology %q created", m.topo.GetName())
 	return nil
@@ -279,12 +279,15 @@ func (m *Manager) Delete(ctx context.Context) error {
 	}
 
 	if err := m.deleteMeshnetTopologies(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to delete meshnet topologies for topology %q: %w", m.topo.GetName(), err)
 	}
 
 	// Delete namespace
 	prop := metav1.DeletePropagationForeground
-	return m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop})
+	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
+		return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
+	}
+	return nil
 }
 
 // Show returns the topology information including services and node health.
@@ -470,27 +473,27 @@ func (m *Manager) push(ctx context.Context) error {
 		}
 		sNs, err := m.kClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create namespace %q: %w", ns, err)
 		}
 		log.Infof("Server Namespace: %+v", sNs)
 	}
 
 	if err := m.createMeshnetTopologies(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to create meshnet topologies: %w", err)
 	}
 
 	log.Infof("Creating Node Pods")
-	for k, n := range m.nodes {
+	for _, n := range m.nodes {
 		if err := n.Create(ctx); err != nil {
-			return err
+			return fmt.Errorf("failed to create node %s: %w", n, err)
 		}
-		log.Infof("Node %q resource created", k)
+		log.Infof("Node %s resource created", n)
 	}
 	for _, n := range m.nodes {
 		err := m.GenerateSelfSigned(ctx, n.Name())
 		switch {
 		default:
-			return fmt.Errorf("failed to generate cert for node %s: %w", n.Name(), err)
+			return fmt.Errorf("failed to generate cert for node %s: %w", n, err)
 		case err == nil, status.Code(err) == codes.Unimplemented:
 		}
 	}
@@ -549,10 +552,10 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 
 			phase, err := n.Status(ctx)
 			if err != nil || phase == node.StatusFailed {
-				return fmt.Errorf("Node %q: Status %s Reason %v", name, phase, err)
+				return fmt.Errorf("Node %s: Status %s Reason %v", n, phase, err)
 			}
 			if phase == node.StatusRunning {
-				log.Infof("Node %q: Status %s", name, phase)
+				log.Infof("Node %s: Status %s", n, phase)
 				processed[name] = true
 			} else {
 				foundAll = false

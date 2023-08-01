@@ -32,6 +32,7 @@ type Interface interface {
 	Name() string
 	GetNamespace() string
 	GetProto() *tpb.Node
+	String() string
 }
 
 type Implementation interface {
@@ -138,6 +139,10 @@ func (n *Impl) GetProto() *tpb.Node {
 
 func (n *Impl) GetNamespace() string {
 	return n.Namespace
+}
+
+func (n *Impl) String() string {
+	return fmt.Sprintf("%q (vendor: %q, model: %q)", n.Proto.Name, n.Proto.Vendor, n.Proto.Model)
 }
 
 func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
