@@ -37,6 +37,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"k8s.io/apimachinery/pkg/watch"
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,6 +71,7 @@ type Manager struct {
 	tClient  topologyclientv1.Interface
 	rCfg     *rest.Config
 	basePath string
+	skipDeleteWait bool
 
 	// If reportUsage is set, report anonymous usage metrics.
 	reportUsage bool
@@ -130,6 +132,13 @@ func WithUsageReporting(b bool, project, topic string) Option {
 func WithProgress(b bool) Option {
 	return func(m *Manager) {
 		m.progress = b
+	}
+}
+
+// WithSkipDeleteWait will not wait for resources to be cleaned up before Delete returns.
+func WithSkipDeleteWait(b bool) Option {
+	return func(m *Manager) {
+		m.skipDeleteWait = b
 	}
 }
 
@@ -271,7 +280,7 @@ func (m *Manager) Delete(ctx context.Context) error {
 		return fmt.Errorf("topology %q does not exist in cluster", m.topo.Name)
 	}
 
-	// Delete topology nodes
+	// Delete topology nodes.
 	for _, n := range m.nodes {
 		if err := n.Delete(ctx); err != nil {
 			log.Warningf("Error deleting node %q: %v", n.Name(), err)
@@ -280,15 +289,72 @@ func (m *Manager) Delete(ctx context.Context) error {
 
 	if err := m.deleteMeshnetTopologies(ctx); err != nil {
 		// Log a warning instead of failing as deleting the namespace should delete all meshnet resources.
-		log.Warningf("Failed to delete meshnet topologies for topology %q: %w", m.topo.GetName(), err)
+		log.Warningf("Failed to delete meshnet topologies for topology %q: %v", m.topo.GetName(), err)
 	}
 
-	// Delete the namespace
+	if m.skipDeleteWait {
+		// Delete the namespace.
+		prop := metav1.DeletePropagationForeground
+		if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
+			return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
+		}
+		return nil
+	}
+
+	// Watch for namespace deletion.
+	c := make(chan error)
+	defer close(c)
+	go func() {
+		tCtx, cancel := context.WithTimeout(ctx, 30 * time.Second)
+		defer cancel()
+		waitNSDeleted(tCtx, m.kClient, m.topo.Name, c)
+	}()
+
+	// Delete the namespace.
 	prop := metav1.DeletePropagationForeground
 	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
 		return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
 	}
+	// Wait for namespace deletion.
+	if err := <-c; err != nil {
+		log.Warningf("Failed to wait for namespace %q deletion: %v", m.topo.Name, err)
+	}
 	return nil
+}
+
+// waitNSDeleted waits for a namespace to be deleted. Write a non-nil error to the errCh
+// if waiting is unsuccessful. Else write a nil error to errCh and then return.
+func waitNSDeleted(ctx context.Context, kClient kubernetes.Interface, ns string, errCh chan error) {
+	w, err := kClient.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
+ 	if err != nil {
+    		errCh <- err
+		return
+  	}
+	log.Infof("Waiting for namespace %q to be deleted", ns)
+  	for {
+    		select {
+    		case <-ctx.Done():
+			errCh <- fmt.Errorf("context canceled before namespace deleted")
+			return
+    		case e, ok := <-w.ResultChan():
+      			if !ok {
+        			errCh <- fmt.Errorf("no more watch events")
+				return
+      			}
+			n, ok := e.Object.(*corev1.Namespace)
+			if !ok {
+				continue
+			}
+			if n.Name != ns {
+				continue
+			}
+      			if e.Type == watch.Deleted {
+				log.Infof("Namespace %q deleted", ns)
+				errCh <- nil
+        			return
+      			}
+    		}
+  	}
 }
 
 // Show returns the topology information including services and node health.
