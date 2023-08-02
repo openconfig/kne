@@ -605,7 +605,7 @@ func TestDelete(t *testing.T) {
 	node.Vendor(tpb.Vendor(1003), NewConfigurable)
 
 	failWatchEvents := []watch.Event{
-		watch.Event{
+		{
 			Type: watch.Deleted,
 			Object: &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -613,7 +613,7 @@ func TestDelete(t *testing.T) {
 				},
 			},
 		},
-		watch.Event{
+		{
 			Type: watch.Added,
 			Object: &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{

@@ -308,6 +308,7 @@ func (m *Manager) Delete(ctx context.Context) error {
 	}
 	if !m.skipDeleteWait {
 		// Wait for namespace deletion.
+		log.Infof("Waiting for namespace %q to be deleted", m.topo.Name)
 		defer close(c)
 		if err := <-c; err != nil {
 			return fmt.Errorf("failed to wait for namespace %q deletion: %w", m.topo.Name, err)
@@ -324,7 +325,6 @@ func waitNSDeleted(ctx context.Context, kClient kubernetes.Interface, ns string,
 		errCh <- err
 		return
 	}
-	log.Infof("Waiting for namespace %q to be deleted", ns)
 	for {
 		select {
 		case <-ctx.Done():
