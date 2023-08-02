@@ -293,8 +293,18 @@ func (m *Manager) Delete(ctx context.Context) error {
 		log.Warningf("Failed to delete meshnet topologies for topology %q: %v", m.topo.GetName(), err)
 	}
 
+	if m.skipDeleteWait {
+		// Delete the namespace.
+		prop := metav1.DeletePropagationForeground
+		if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
+			return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
+		}
+		return nil
+	}
+
 	// Watch for namespace deletion.
 	c := make(chan error)
+	defer close(c)
 	go func() {
 		tCtx, cancel := context.WithTimeout(ctx, deleteWatchTimeout)
 		defer cancel()
@@ -306,13 +316,11 @@ func (m *Manager) Delete(ctx context.Context) error {
 	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
 		return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
 	}
-	if !m.skipDeleteWait {
-		// Wait for namespace deletion.
-		log.Infof("Waiting for namespace %q to be deleted", m.topo.Name)
-		defer close(c)
-		if err := <-c; err != nil {
-			return fmt.Errorf("failed to wait for namespace %q deletion: %w", m.topo.Name, err)
-		}
+
+	// Wait for namespace deletion.
+	log.Infof("Waiting for namespace %q to be deleted", m.topo.Name)
+	if err := <-c; err != nil {
+		return fmt.Errorf("failed to wait for namespace %q deletion: %w", m.topo.Name, err)
 	}
 	return nil
 }
