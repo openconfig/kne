@@ -37,10 +37,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
-	"k8s.io/apimachinery/pkg/watch"
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -63,14 +63,14 @@ var protojsonUnmarshaller = protojson.UnmarshalOptions{
 
 // Manager is a topology manager for a cluster instance.
 type Manager struct {
-	progress bool
-	topo     *tpb.Topology
-	nodes    map[string]node.Node
-	kubecfg  string
-	kClient  kubernetes.Interface
-	tClient  topologyclientv1.Interface
-	rCfg     *rest.Config
-	basePath string
+	progress       bool
+	topo           *tpb.Topology
+	nodes          map[string]node.Node
+	kubecfg        string
+	kClient        kubernetes.Interface
+	tClient        topologyclientv1.Interface
+	rCfg           *rest.Config
+	basePath       string
 	skipDeleteWait bool
 
 	// If reportUsage is set, report anonymous usage metrics.
@@ -209,6 +209,7 @@ var (
 	newMetricsReporter = func(ctx context.Context, project, topic string) (metricsReporter, error) {
 		return metrics.NewReporter(ctx, project, topic)
 	}
+	deleteWatchTimeout = 30 * time.Second
 )
 
 type metricsReporter interface {
@@ -292,20 +293,10 @@ func (m *Manager) Delete(ctx context.Context) error {
 		log.Warningf("Failed to delete meshnet topologies for topology %q: %v", m.topo.GetName(), err)
 	}
 
-	if m.skipDeleteWait {
-		// Delete the namespace.
-		prop := metav1.DeletePropagationForeground
-		if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
-			return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
-		}
-		return nil
-	}
-
 	// Watch for namespace deletion.
 	c := make(chan error)
-	defer close(c)
 	go func() {
-		tCtx, cancel := context.WithTimeout(ctx, 30 * time.Second)
+		tCtx, cancel := context.WithTimeout(ctx, deleteWatchTimeout)
 		defer cancel()
 		waitNSDeleted(tCtx, m.kClient, m.topo.Name, c)
 	}()
@@ -315,9 +306,12 @@ func (m *Manager) Delete(ctx context.Context) error {
 	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
 		return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
 	}
-	// Wait for namespace deletion.
-	if err := <-c; err != nil {
-		log.Warningf("Failed to wait for namespace %q deletion: %v", m.topo.Name, err)
+	if !m.skipDeleteWait {
+		// Wait for namespace deletion.
+		defer close(c)
+		if err := <-c; err != nil {
+			return fmt.Errorf("failed to wait for namespace %q deletion: %w", m.topo.Name, err)
+		}
 	}
 	return nil
 }
@@ -326,21 +320,21 @@ func (m *Manager) Delete(ctx context.Context) error {
 // if waiting is unsuccessful. Else write a nil error to errCh and then return.
 func waitNSDeleted(ctx context.Context, kClient kubernetes.Interface, ns string, errCh chan error) {
 	w, err := kClient.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
- 	if err != nil {
-    		errCh <- err
+	if err != nil {
+		errCh <- err
 		return
-  	}
+	}
 	log.Infof("Waiting for namespace %q to be deleted", ns)
-  	for {
-    		select {
-    		case <-ctx.Done():
+	for {
+		select {
+		case <-ctx.Done():
 			errCh <- fmt.Errorf("context canceled before namespace deleted")
 			return
-    		case e, ok := <-w.ResultChan():
-      			if !ok {
-        			errCh <- fmt.Errorf("no more watch events")
+		case e, ok := <-w.ResultChan():
+			if !ok {
+				errCh <- fmt.Errorf("no more watch events")
 				return
-      			}
+			}
 			n, ok := e.Object.(*corev1.Namespace)
 			if !ok {
 				continue
@@ -348,13 +342,13 @@ func waitNSDeleted(ctx context.Context, kClient kubernetes.Interface, ns string,
 			if n.Name != ns {
 				continue
 			}
-      			if e.Type == watch.Deleted {
+			if e.Type == watch.Deleted {
 				log.Infof("Namespace %q deleted", ns)
 				errCh <- nil
-        			return
-      			}
-    		}
-  	}
+				return
+			}
+		}
+	}
 }
 
 // Show returns the topology information including services and node health.
