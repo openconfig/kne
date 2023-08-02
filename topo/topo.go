@@ -590,7 +590,7 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 	nodes, err := m.topologyResources(ctx)
 	if err != nil {
-		fmt.Errorf("failed to get meshnet nodes: %w", err)
+		return fmt.Errorf("failed to get meshnet nodes: %w", err)
 	}
 	var errs errlist.List
 	for _, n := range nodes {
