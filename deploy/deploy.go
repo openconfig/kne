@@ -251,7 +251,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	}
 	log.Infof("Cluster deployed")
 	if err := d.Cluster.Healthy(); err != nil {
-		return fmt.Errorf("failed to check cluster is healthy: %w", err)
+		return fmt.Errorf("failed to check if cluster is healthy: %w", err)
 	}
 	log.Infof("Cluster healthy")
 	// Once cluster is up, set kClient
@@ -326,7 +326,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.Ingress.Healthy(tCtx); err != nil {
-		return fmt.Errorf("failed to check ingress is healthy: %w", err)
+		return fmt.Errorf("failed to check if ingress is healthy: %w", err)
 	}
 	log.Infof("Ingress healthy")
 	log.Infof("Deploying CNI...")
@@ -337,7 +337,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
-		return fmt.Errorf("failed to check CNI is healthy: %w", err)
+		return fmt.Errorf("failed to check if CNI is healthy: %w", err)
 	}
 	log.Infof("CNI healthy")
 	for _, c := range d.Controllers {
@@ -349,7 +349,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 		defer cancel()
 		if err := c.Healthy(tCtx); err != nil {
-			return fmt.Errorf("failed to check controller is healthy: %w", err)
+			return fmt.Errorf("failed to check if controller is healthy: %w", err)
 		}
 	}
 	log.Infof("Controllers deployed and healthy")
