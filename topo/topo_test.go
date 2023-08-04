@@ -38,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/watch"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
@@ -502,7 +503,7 @@ func TestCreate(t *testing.T) {
 				},
 			},
 		},
-		wantErr: `Node "bad": Status FAILED`,
+		wantErr: `Node "bad" (vendor: "1002", model: ""): Status FAILED`,
 	}, {
 		desc: "failed to report metrics, create still passes",
 		opts: []Option{WithUsageReporting(true, "", "")},
@@ -586,14 +587,65 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+type fakeWatch struct {
+	ch   chan watch.Event
+	done chan struct{}
+}
+
+func (f *fakeWatch) Stop() {
+	close(f.done)
+}
+
+func (f *fakeWatch) ResultChan() <-chan watch.Event {
+	return f.ch
+}
+
 func TestDelete(t *testing.T) {
 	ctx := context.Background()
 	node.Vendor(tpb.Vendor(1003), NewConfigurable)
+
+	failWatchEvents := []watch.Event{
+		{
+			Type: watch.Deleted,
+			Object: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "dne",
+				},
+			},
+		},
+		{
+			Type: watch.Added,
+			Object: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+	}
+	passWatchEvents := append(failWatchEvents,
+		watch.Event{
+			Type: watch.Deleted,
+			Object: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+	)
+
+	origDeleteWatchTimeout := deleteWatchTimeout
+	defer func() {
+		deleteWatchTimeout = origDeleteWatchTimeout
+	}()
+	deleteWatchTimeout = time.Millisecond
+
 	tests := []struct {
-		desc       string
-		topo       *tpb.Topology
-		k8sObjects []runtime.Object
-		wantErr    string
+		desc        string
+		topo        *tpb.Topology
+		k8sObjects  []runtime.Object
+		skipWait    bool
+		watchEvents []watch.Event
+		wantErr     string
 	}{{
 		desc: "delete a non-existent topo",
 		topo: &tpb.Topology{
@@ -630,7 +682,8 @@ func TestDelete(t *testing.T) {
 				},
 			},
 		},
-		wantErr: "does not exist in cluster",
+		skipWait: true,
+		wantErr:  "does not exist in cluster",
 	}, {
 		desc: "delete an existing topo",
 		topo: &tpb.Topology{
@@ -680,6 +733,159 @@ func TestDelete(t *testing.T) {
 				},
 			},
 		},
+		skipWait: true,
+	}, {
+		desc: "delete with watch",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+			},
+		},
+		watchEvents: passWatchEvents,
+	}, {
+		desc: "delete with watch - bad events",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+			},
+		},
+		watchEvents: failWatchEvents,
+		wantErr:     "context canceled before namespace deleted",
+	}, {
+		desc: "delete without watch - bad events",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+			},
+		},
+		skipWait:    true,
+		watchEvents: failWatchEvents,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -687,10 +893,28 @@ func TestDelete(t *testing.T) {
 			if err != nil {
 				t.Fatalf("cannot create fake topology clientset: %v", err)
 			}
+			kf := kfake.NewSimpleClientset(tt.k8sObjects...)
+			kf.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
+				f := &fakeWatch{
+					ch:   make(chan watch.Event, 1),
+					done: make(chan struct{}),
+				}
+				go func() {
+					for _, e := range tt.watchEvents {
+						select {
+						case f.ch <- e:
+						case <-f.done:
+							return
+						}
+					}
+				}()
+				return true, f, nil
+			})
 			opts := []Option{
 				WithClusterConfig(&rest.Config{}),
-				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
+				WithKubeClient(kf),
 				WithTopoClient(tf),
+				WithSkipDeleteWait(tt.skipWait),
 			}
 			m, err := New(tt.topo, opts...)
 			if err != nil {

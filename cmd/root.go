@@ -105,6 +105,7 @@ func newDeleteCmd() *cobra.Command {
 		RunE:      deleteFn,
 		ValidArgs: []string{"topology"},
 	}
+	cmd.Flags().Bool("skip_wait", false, "Skips waiting for resource deletion")
 	return cmd
 }
 
@@ -169,7 +170,7 @@ func deleteFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}
-	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")))
+	tm, err := topo.New(topopb, topo.WithKubecfg(viper.GetString("kubecfg")), topo.WithSkipDeleteWait(viper.GetBool("skip_wait")))
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
 	}

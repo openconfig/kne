@@ -26,6 +26,7 @@ import (
 	"github.com/kr/pretty"
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
@@ -39,6 +40,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -61,14 +63,15 @@ var protojsonUnmarshaller = protojson.UnmarshalOptions{
 
 // Manager is a topology manager for a cluster instance.
 type Manager struct {
-	progress bool
-	topo     *tpb.Topology
-	nodes    map[string]node.Node
-	kubecfg  string
-	kClient  kubernetes.Interface
-	tClient  topologyclientv1.Interface
-	rCfg     *rest.Config
-	basePath string
+	progress       bool
+	topo           *tpb.Topology
+	nodes          map[string]node.Node
+	kubecfg        string
+	kClient        kubernetes.Interface
+	tClient        topologyclientv1.Interface
+	rCfg           *rest.Config
+	basePath       string
+	skipDeleteWait bool
 
 	// If reportUsage is set, report anonymous usage metrics.
 	reportUsage bool
@@ -129,6 +132,13 @@ func WithUsageReporting(b bool, project, topic string) Option {
 func WithProgress(b bool) Option {
 	return func(m *Manager) {
 		m.progress = b
+	}
+}
+
+// WithSkipDeleteWait will not wait for resources to be cleaned up before Delete returns.
+func WithSkipDeleteWait(b bool) Option {
+	return func(m *Manager) {
+		m.skipDeleteWait = b
 	}
 }
 
@@ -199,6 +209,7 @@ var (
 	newMetricsReporter = func(ctx context.Context, project, topic string) (metricsReporter, error) {
 		return metrics.NewReporter(ctx, project, topic)
 	}
+	deleteWatchTimeout = 30 * time.Second
 )
 
 type metricsReporter interface {
@@ -254,10 +265,10 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		}()
 	}
 	if err := m.push(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to create topology %q: %w", m.topo.GetName(), err)
 	}
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
-		return err
+		return fmt.Errorf("failed to check status of nodes in topology %q: %w", m.topo.GetName(), err)
 	}
 	log.Infof("Topology %q created", m.topo.GetName())
 	return nil
@@ -270,21 +281,82 @@ func (m *Manager) Delete(ctx context.Context) error {
 		return fmt.Errorf("topology %q does not exist in cluster", m.topo.Name)
 	}
 
-	// Delete topology nodes
+	// Delete topology nodes.
 	for _, n := range m.nodes {
-		// Delete Service for node
 		if err := n.Delete(ctx); err != nil {
 			log.Warningf("Error deleting node %q: %v", n.Name(), err)
 		}
 	}
 
 	if err := m.deleteMeshnetTopologies(ctx); err != nil {
-		return err
+		// Log a warning instead of failing as deleting the namespace should delete all meshnet resources.
+		log.Warningf("Failed to delete meshnet topologies for topology %q: %v", m.topo.GetName(), err)
 	}
 
-	// Delete namespace
+	if m.skipDeleteWait {
+		// Delete the namespace.
+		prop := metav1.DeletePropagationForeground
+		if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
+			return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
+		}
+		return nil
+	}
+
+	// Watch for namespace deletion.
+	c := make(chan error)
+	defer close(c)
+	go func() {
+		tCtx, cancel := context.WithTimeout(ctx, deleteWatchTimeout)
+		defer cancel()
+		waitNSDeleted(tCtx, m.kClient, m.topo.Name, c)
+	}()
+
+	// Delete the namespace.
 	prop := metav1.DeletePropagationForeground
-	return m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop})
+	if err := m.kClient.CoreV1().Namespaces().Delete(ctx, m.topo.Name, metav1.DeleteOptions{PropagationPolicy: &prop}); err != nil {
+		return fmt.Errorf("failed to delete namespace %q: %w", m.topo.Name, err)
+	}
+
+	// Wait for namespace deletion.
+	log.Infof("Waiting for namespace %q to be deleted", m.topo.Name)
+	if err := <-c; err != nil {
+		return fmt.Errorf("failed to wait for namespace %q deletion: %w", m.topo.Name, err)
+	}
+	return nil
+}
+
+// waitNSDeleted waits for a namespace to be deleted. Write a non-nil error to the errCh
+// if waiting is unsuccessful. Else write a nil error to errCh and then return.
+func waitNSDeleted(ctx context.Context, kClient kubernetes.Interface, ns string, errCh chan error) {
+	w, err := kClient.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		errCh <- err
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			errCh <- fmt.Errorf("context canceled before namespace deleted")
+			return
+		case e, ok := <-w.ResultChan():
+			if !ok {
+				errCh <- fmt.Errorf("no more watch events")
+				return
+			}
+			n, ok := e.Object.(*corev1.Namespace)
+			if !ok {
+				continue
+			}
+			if n.Name != ns {
+				continue
+			}
+			if e.Type == watch.Deleted {
+				log.Infof("Namespace %q deleted", ns)
+				errCh <- nil
+				return
+			}
+		}
+	}
 }
 
 // Show returns the topology information including services and node health.
@@ -470,27 +542,27 @@ func (m *Manager) push(ctx context.Context) error {
 		}
 		sNs, err := m.kClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create namespace %q: %w", ns, err)
 		}
 		log.Infof("Server Namespace: %+v", sNs)
 	}
 
 	if err := m.createMeshnetTopologies(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to create meshnet topologies: %w", err)
 	}
 
 	log.Infof("Creating Node Pods")
-	for k, n := range m.nodes {
+	for _, n := range m.nodes {
 		if err := n.Create(ctx); err != nil {
-			return err
+			return fmt.Errorf("failed to create node %s: %w", n, err)
 		}
-		log.Infof("Node %q resource created", k)
+		log.Infof("Node %s resource created", n)
 	}
 	for _, n := range m.nodes {
 		err := m.GenerateSelfSigned(ctx, n.Name())
 		switch {
 		default:
-			return fmt.Errorf("failed to generate cert for node %s: %w", n.Name(), err)
+			return fmt.Errorf("failed to generate cert for node %s: %w", n, err)
 		case err == nil, status.Code(err) == codes.Unimplemented:
 		}
 	}
@@ -519,18 +591,16 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 // deleteMeshnetTopologies deletes meshnet resources for all available nodes.
 func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 	nodes, err := m.topologyResources(ctx)
-	if err == nil {
-		for _, n := range nodes {
-			if err := m.tClient.Topology(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
-				log.Warningf("Error meshnet node %q: %v", n.ObjectMeta.Name, err)
-			}
-		}
-	} else {
-		// no need to return warning as deleting meshnet namespace shall delete the resources too
-		log.Warningf("Error getting meshnet nodes: %v", err)
+	if err != nil {
+		return fmt.Errorf("failed to get meshnet nodes: %w", err)
 	}
-
-	return nil
+	var errs errlist.List
+	for _, n := range nodes {
+		if err := m.tClient.Topology(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
+			errs.Add(fmt.Errorf("failed to delete meshnet node %q: %w", n.ObjectMeta.Name, err))
+		}
+	}
+	return errs.Err()
 }
 
 // checkNodeStatus reports node status, ignores for unimplemented nodes.
@@ -549,10 +619,10 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 
 			phase, err := n.Status(ctx)
 			if err != nil || phase == node.StatusFailed {
-				return fmt.Errorf("Node %q: Status %s Reason %v", name, phase, err)
+				return fmt.Errorf("Node %s: Status %s Reason %v", n, phase, err)
 			}
 			if phase == node.StatusRunning {
-				log.Infof("Node %q: Status %s", name, phase)
+				log.Infof("Node %s: Status %s", n, phase)
 				processed[name] = true
 			} else {
 				foundAll = false

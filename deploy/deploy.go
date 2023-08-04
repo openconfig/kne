@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -69,6 +70,28 @@ func logCommand(cmd string, args ...string) error {
 	c.SetStdout(outLog)
 	c.SetStderr(errLog)
 	return c.Run()
+}
+
+// outLogCommand runs the specified command but records standard output
+// with log.Info and standard error with log.Warning. Standard output
+// and standard error are also returned.
+func outLogCommand(cmd string, args ...string) ([]byte, error) {
+	c := kexec.Command(cmd, args...)
+	outLog := logshim.New(func(v ...interface{}) {
+		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	errLog := logshim.New(func(v ...interface{}) {
+		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	defer func() {
+		outLog.Close()
+		errLog.Close()
+	}()
+	var out bytes.Buffer
+	c.SetStdout(io.MultiWriter(outLog, &out))
+	c.SetStderr(io.MultiWriter(errLog, &out))
+	err := c.Run()
+	return out.Bytes(), err
 }
 
 // outCommand runs the specified command and returns any standard output
@@ -220,25 +243,25 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		defer func() { finish(rerr) }()
 	}
 	if err := d.checkDependencies(); err != nil {
-		return err
+		return fmt.Errorf("failed to check for dependencies: %w", err)
 	}
 	log.Infof("Deploying cluster...")
 	if err := d.Cluster.Deploy(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy cluster: %w", err)
 	}
 	log.Infof("Cluster deployed")
 	if err := d.Cluster.Healthy(); err != nil {
-		return err
+		return fmt.Errorf("failed to check if cluster is healthy: %w", err)
 	}
 	log.Infof("Cluster healthy")
 	// Once cluster is up, set kClient
 	rCfg, err := clientcmd.BuildConfigFromFlags("", kubecfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create k8s config: %w", err)
 	}
 	kClient, err := kubernetes.NewForConfig(rCfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
 	log.Infof("Checking kubectl versions.")
@@ -252,11 +275,11 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	}
 	kClientVersion, err := getVersion(kubeYAML.ClientVersion.GitVersion)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse k8s client version: %w", err)
 	}
 	kServerVersion, err := getVersion(kubeYAML.ServerVersion.GitVersion)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse k8s server version: %w", err)
 	}
 	origMajor := kClientVersion.Major
 	kClientVersion.Major -= 2
@@ -298,35 +321,35 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 
 	log.Infof("Deploying ingress...")
 	if err := d.Ingress.Deploy(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy ingress: %w", err)
 	}
 	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.Ingress.Healthy(tCtx); err != nil {
-		return err
+		return fmt.Errorf("failed to check if ingress is healthy: %w", err)
 	}
 	log.Infof("Ingress healthy")
 	log.Infof("Deploying CNI...")
 	if err := d.CNI.Deploy(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy CNI: %w", err)
 	}
 	d.CNI.SetKClient(kClient)
 	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
-		return err
+		return fmt.Errorf("failed to check if CNI is healthy: %w", err)
 	}
 	log.Infof("CNI healthy")
 	for _, c := range d.Controllers {
 		log.Infof("Deploying controller...")
 		if err := c.Deploy(ctx); err != nil {
-			return err
+			return fmt.Errorf("failed to deploy controller: %w", err)
 		}
 		c.SetKClient(kClient)
 		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 		defer cancel()
 		if err := c.Healthy(tCtx); err != nil {
-			return err
+			return fmt.Errorf("failed to check if controller is healthy: %w", err)
 		}
 	}
 	log.Infof("Controllers deployed and healthy")
@@ -336,7 +359,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 func (d *Deployment) Delete() error {
 	log.Infof("Deleting cluster...")
 	if err := d.Cluster.Delete(); err != nil {
-		return err
+		return fmt.Errorf("failed to delete cluster: %w", err)
 	}
 	log.Infof("Cluster deleted")
 	return nil
@@ -344,26 +367,26 @@ func (d *Deployment) Delete() error {
 
 func (d *Deployment) Healthy(ctx context.Context) error {
 	if err := d.Cluster.Healthy(); err != nil {
-		return err
+		return fmt.Errorf("failed to check cluster is healthy: %w", err)
 	}
 	log.Infof("Cluster healthy")
 	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.Ingress.Healthy(tCtx); err != nil {
-		return err
+		return fmt.Errorf("failed to check ingress is healthy: %w", err)
 	}
 	log.Infof("Ingress healthy")
 	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
-		return err
+		return fmt.Errorf("failed to check CNI is healthy: %w", err)
 	}
 	log.Infof("CNI healthy")
 	for _, c := range d.Controllers {
 		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 		defer cancel()
 		if err := c.Healthy(tCtx); err != nil {
-			return err
+			return fmt.Errorf("failed to check controller is healthy: %w", err)
 		}
 	}
 	log.Infof("Controllers healthy")
@@ -488,7 +511,7 @@ func (k *KindSpec) checkDependencies() error {
 	if k.Version != "" {
 		wantV, err := getVersion(k.Version)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse desired kind version: %w", err)
 		}
 
 		stdout, err := outCommand("kind", "version")
@@ -545,8 +568,16 @@ func (k *KindSpec) create() error {
 		args = append(args, "--config", k.KindConfigFile)
 	}
 	log.Infof("Creating kind cluster with: %v", args)
-	if err := logCommand("kind", args...); err != nil {
-		return fmt.Errorf("failed to create cluster: %w", err)
+	if out, err := outLogCommand("kind", args...); err != nil {
+		msg := []string{}
+		// Filter output to only show lines relevant to the error message. For kind these are lines
+		// prefixed with "ERROR" or "Command Output".
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.HasPrefix(line, "ERROR") || strings.HasPrefix(line, "Command Output") {
+				msg = append(msg, line)
+			}
+		}
+		return fmt.Errorf("%w: %v", err, strings.Join(msg, ", "))
 	}
 	log.Infof("Deployed kind cluster: %s", k.Name)
 	return nil
@@ -554,11 +585,11 @@ func (k *KindSpec) create() error {
 
 func (k *KindSpec) Deploy(ctx context.Context) error {
 	if err := k.checkDependencies(); err != nil {
-		return err
+		return fmt.Errorf("failed to check for dependencies: %w", err)
 	}
 
 	if err := k.create(); err != nil {
-		return err
+		return fmt.Errorf("failed to create kind cluster: %w", err)
 	}
 
 	// If the script is found, then run it. Else silently ignore it.
@@ -566,7 +597,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	// be acceptable for the Cisco 8000e container.
 	if _, err := os.Stat(setPIDMaxScript); err == nil {
 		if err := logCommand(setPIDMaxScript); err != nil {
-			return err
+			return fmt.Errorf("failed to exec set_pid_max script: %w", err)
 		}
 	}
 
@@ -600,7 +631,7 @@ func (k *KindSpec) Delete() error {
 		args = append(args, "--name", k.Name)
 	}
 	if err := logCommand("kind", args...); err != nil {
-		return fmt.Errorf("failed to delete cluster using cli: %w", err)
+		return fmt.Errorf("failed to delete cluster: %w", err)
 	}
 	return nil
 }
@@ -820,13 +851,13 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if m.dClient == nil {
 		m.dClient, err = dclient.NewClientWithOpts(dclient.FromEnv)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create docker client: %w", err)
 		}
 	}
 	if m.mClient == nil {
 		m.mClient, err = metallbclientv1.NewForConfig(m.rCfg)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create metallb client: %w", err)
 		}
 	}
 
@@ -851,7 +882,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Deploying MetalLB from: %s", m.Manifest)
 	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy metallb: %w", err)
 	}
 	if _, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{}); err != nil {
 		log.Infof("Creating metallb secret")
@@ -868,13 +899,13 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			},
 		}
 		if _, err := m.kClient.CoreV1().Secrets("metallb-system").Create(ctx, s, metav1.CreateOptions{}); err != nil {
-			return err
+			return fmt.Errorf("failed to create metallb secret: %w", err)
 		}
 	}
 
 	// Wait for metallb to be healthy
 	if err := m.Healthy(ctx); err != nil {
-		return err
+		return fmt.Errorf("metallb not healthy: %w", err)
 	}
 
 	if _, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{}); err != nil {
@@ -882,7 +913,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		// Get Network information from docker.
 		nr, err := m.dClient.NetworkList(ctx, dtypes.NetworkListOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get docker network list: %w", err)
 		}
 		var network dtypes.NetworkResource
 		for _, v := range nr {
@@ -899,7 +930,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		for _, ipRange := range network.IPAM.Config {
 			_, ipNet, err := net.ParseCIDR(ipRange.Subnet)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to parse cidr: %w", err)
 			}
 			if ipNet.IP.To4() != nil {
 				n = ipNet
@@ -932,7 +963,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 			},
 		}
 		if _, err = m.mClient.L2Advertisement("metallb-system").Create(ctx, l2Advert, metav1.CreateOptions{}); err != nil {
-			return err
+			return fmt.Errorf("failed to create metallb L2 advertisement: %w", err)
 		}
 	}
 	return nil
@@ -981,7 +1012,7 @@ func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Deploying Meshnet from: %s", m.Manifest)
 	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy meshnet: %w", err)
 	}
 	log.Infof("Meshnet Deployed")
 	return nil
@@ -998,10 +1029,10 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context canceled before healthy")
+			return fmt.Errorf("context canceled before meshnet healthy")
 		case e, ok := <-w.ResultChan():
 			if !ok {
-				return fmt.Errorf("watch channel closed before healthy")
+				return fmt.Errorf("watch channel closed before meshnet healthy")
 			}
 			d, ok := e.Object.(*appsv1.DaemonSet)
 			if !ok {
@@ -1055,7 +1086,7 @@ func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Deploying CEOSLab controller from: %s", c.Operator)
 	if err := logCommand("kubectl", "apply", "-f", c.Operator); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy ceoslab operator: %w", err)
 	}
 	log.Infof("CEOSLab controller deployed")
 	return nil
@@ -1104,7 +1135,7 @@ func (l *LemmingSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Deploying Lemming controller from: %s", l.Operator)
 	if err := logCommand("kubectl", "apply", "-f", l.Operator); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy lemming operator: %w", err)
 	}
 	log.Infof("Lemming controller deployed")
 	return nil
@@ -1153,7 +1184,7 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
 	if err := logCommand("kubectl", "apply", "-f", s.Operator); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy srlinux operator: %w", err)
 	}
 	log.Infof("SRLinux controller deployed")
 	return nil
@@ -1204,7 +1235,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Deploying IxiaTG controller from: %s", i.Operator)
 	if err := logCommand("kubectl", "apply", "-f", i.Operator); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy ixiatg operator: %w", err)
 	}
 
 	if i.ConfigMap == "" && i.ManifestDir != "" {
@@ -1238,7 +1269,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 	}
 	log.Infof("Deploying IxiaTG config map from: %s", i.ConfigMap)
 	if err := logCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
-		return err
+		return fmt.Errorf("failed to deploy ixiatg config map: %w", err)
 	}
 	log.Infof("IxiaTG controller deployed")
 	return nil
@@ -1252,16 +1283,16 @@ func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string)
 	log.Infof("Waiting on deployment %q to be healthy", name)
 	w, err := c.AppsV1().Deployments(name).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create watcher for deployment %q", name)
 	}
 	ch := w.ResultChan()
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context canceled before healthy")
+			return fmt.Errorf("context canceled before %q healthy", name)
 		case e, ok := <-ch:
 			if !ok {
-				return fmt.Errorf("watch channel closed before healthy")
+				return fmt.Errorf("watch channel closed before %q healthy", name)
 			}
 			d, ok := e.Object.(*appsv1.Deployment)
 			if !ok {
