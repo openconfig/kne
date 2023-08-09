@@ -12,3 +12,4 @@ jobs:
     uses: openconfig/common-ci/.github/workflows/go.yml@dc5a6143149a74d43a61400ab0c8ba06014a9a4d
     with:
       coverage-excludes-regex: /cloudbuild
+      tests-excludes-regex: /cloudbuild
