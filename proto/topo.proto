@@ -81,14 +81,14 @@ message Node {
   // If interfaces is empty the interfaces defined in the links portion of the
   // topology will be populated into the node.
   map<string, Interface> interfaces = 12;
-  // Any host vm constraints required by the vendor.
+  // Any host constraints required by the node. These may not be required by a 
+  // vendor, but it can be used to provide requirements for the node.
   repeated HostConstraint host_constraints = 13;
 }
 
-// HostConstraint includes all the necessary system constraints required 
-// which could be a sysctl setting/cgroup
+// HostConstraint is a constraint on the host where the topology is running.
 message HostConstraint{
-  oneof constraints{
+  oneof constraint{
     // Includes the required sysctl settings that need to be configured
     Sysctl sysctl_constraint = 1;
   }
