@@ -9,12 +9,13 @@ on:
 
 jobs:
   go:
-    uses: openconfig/common-ci/.github/workflows/go.yml@e83596f1c217a055744a49a584223cecee7c0891
+    uses: openconfig/common-ci/.github/workflows/go.yml@8f9edbc8f21b959a33a8a102352afde0f0061e69
     with:
       coverage-excludes-regex: /cloudbuild
       tests-excludes-regex: /cloudbuild
+      race-tests-excludes-regex: /cloudbuild
       skip-race-tests: true
       go-versions: "['1.20']"
 
   linter:
-    uses: openconfig/common-ci/.github/workflows/linter.yml@e83596f1c217a055744a49a584223cecee7c0891
+    uses: openconfig/common-ci/.github/workflows/linter.yml@8f9edbc8f21b959a33a8a102352afde0f0061e69
