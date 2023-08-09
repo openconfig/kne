@@ -9,7 +9,7 @@ on:
 
 jobs:
   common:
-    uses: openconfig/common-ci/.github/workflows/go.yml@a017c135496f794d6325bc28ab585b4bf5fd8061
+    uses: openconfig/common-ci/.github/workflows/go.yml@bfa705578aad31b0b71e089069f626e8ddcbc5f1
     with:
       coverage-excludes-regex: /cloudbuild
       tests-excludes-regex: /cloudbuild
