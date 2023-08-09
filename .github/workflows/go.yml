@@ -9,7 +9,9 @@ on:
 
 jobs:
   common:
-    uses: openconfig/common-ci/.github/workflows/go.yml@dc5a6143149a74d43a61400ab0c8ba06014a9a4d
+    uses: openconfig/common-ci/.github/workflows/go.yml@a017c135496f794d6325bc28ab585b4bf5fd8061
     with:
       coverage-excludes-regex: /cloudbuild
       tests-excludes-regex: /cloudbuild
+      race-tests-excludes-regex: /cloudbuild
+      single-go-version: 1.20.x
