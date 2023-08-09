@@ -284,8 +284,9 @@ type Node struct {
 	// Interfaces is a map of container interfaces used by the node.
 	// If interfaces is empty the interfaces defined in the links portion of the
 	// topology will be populated into the node.
-	Interfaces      map[string]*Interface `protobuf:"bytes,12,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	HostConstraints []*HostConstraint     `protobuf:"bytes,13,rep,name=host_constraints,json=hostConstraints,proto3" json:"host_constraints,omitempty"` //Any host vm constraints required by the vendor.
+	Interfaces map[string]*Interface `protobuf:"bytes,12,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// Any host vm constraints required by the vendor.
+	HostConstraints []*HostConstraint `protobuf:"bytes,13,rep,name=host_constraints,json=hostConstraints,proto3" json:"host_constraints,omitempty"`
 }
 
 func (x *Node) Reset() {
@@ -405,7 +406,8 @@ func (x *Node) GetHostConstraints() []*HostConstraint {
 	return nil
 }
 
-// HostConstraint includes all the necessary system constraints required which could be a sysctl setting/cgroup
+// HostConstraint includes all the necessary system constraints required
+// which could be a sysctl setting/cgroup
 type HostConstraint struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -482,7 +484,8 @@ type Sysctl struct {
 
 	// Actual Name of the sysctl setting
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Type of the sysctl setting which could be a range of integers, array, string, etc.
+	// Type of the sysctl setting which could be an array,
+	// string, a range of integers etc.
 	//
 	// Types that are assignable to ConstraintType:
 	//

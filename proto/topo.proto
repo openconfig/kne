@@ -81,10 +81,12 @@ message Node {
   // If interfaces is empty the interfaces defined in the links portion of the
   // topology will be populated into the node.
   map<string, Interface> interfaces = 12;
-  repeated HostConstraint host_constraints = 13; //Any host vm constraints required by the vendor.
+  // Any host vm constraints required by the vendor.
+  repeated HostConstraint host_constraints = 13;
 }
 
-// HostConstraint includes all the necessary system constraints required which could be a sysctl setting/cgroup
+// HostConstraint includes all the necessary system constraints required 
+// which could be a sysctl setting/cgroup
 message HostConstraint{
   oneof constraints{
     // Includes the required sysctl settings that need to be configured
@@ -96,7 +98,8 @@ message HostConstraint{
 message Sysctl{
   // Actual Name of the sysctl setting
   string name = 1;
-  // Type of the sysctl setting which could be a range of integers, array, string, etc.
+  // Type of the sysctl setting which could be an array,
+  // string, a range of integers etc.
   oneof ConstraintType{
     BoundedInteger bounded_integer = 2;
   }
