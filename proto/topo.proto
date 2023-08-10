@@ -90,13 +90,13 @@ message Node {
 message HostConstraint{
   oneof constraint{
     // Includes the required sysctl settings that need to be configured
-    Sysctl sysctl_constraint = 1;
+    KernelParam sysctl_constraint = 1;
   }
 }
 
-// Sysctl settings for the host
-message Sysctl{
-  // Actual Name of the sysctl setting
+// Kernel parameter for Sysctl settings for the host
+message KernelParam{
+  // Actual name of the kernel parameter for sysctl setting
   string name = 1;
   // Type of the sysctl setting which could be an array,
   // string, a range of integers etc.
