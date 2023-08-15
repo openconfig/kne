@@ -86,7 +86,7 @@ message Node {
   repeated HostConstraint host_constraints = 13;
 }
 
-// HostConstraint is a constraint on the host where the topology is running.
+// HostConstraint is a constraint on the host where the node is running.
 message HostConstraint{
   oneof constraint{
     // Includes the required sysctl settings that need to be configured
@@ -96,10 +96,8 @@ message HostConstraint{
 
 // Kernel parameter for Sysctl settings for the host
 message KernelParam{
-  // Actual name of the kernel parameter for sysctl setting
+  // MIB style name of the kernel state to constrain.
   string name = 1;
-  // Type of the sysctl setting which could be an array,
-  // string, a range of integers etc.
   oneof ConstraintType{
     BoundedInteger bounded_integer = 2;
   }

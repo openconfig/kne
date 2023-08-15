@@ -407,7 +407,7 @@ func (x *Node) GetHostConstraints() []*HostConstraint {
 	return nil
 }
 
-// HostConstraint is a constraint on the host where the topology is running.
+// HostConstraint is a constraint on the host where the node is running.
 type HostConstraint struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -482,11 +482,8 @@ type KernelParam struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Actual name of the kernel parameter for sysctl setting
+	// MIB style name of the kernel state to constrain.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Type of the sysctl setting which could be an array,
-	// string, a range of integers etc.
-	//
 	// Types that are assignable to ConstraintType:
 	//
 	//	*KernelParam_BoundedInteger
