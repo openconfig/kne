@@ -90,7 +90,7 @@ message Node {
 message HostConstraint{
   oneof constraint{
     // Includes the required sysctl settings that need to be configured
-    KernelParam sysctl_constraint = 1;
+    KernelParam kernel_constraint = 1;
   }
 }
 
