@@ -81,6 +81,32 @@ message Node {
   // If interfaces is empty the interfaces defined in the links portion of the
   // topology will be populated into the node.
   map<string, Interface> interfaces = 12;
+  // Any host constraints required by the node. These may not be required by a 
+  // vendor, but it can be used to provide requirements for the node.
+  repeated HostConstraint host_constraints = 13;
+}
+
+// HostConstraint is a constraint on the host where the node is running.
+message HostConstraint{
+  oneof constraint{
+    // Includes the required sysctl settings that need to be configured
+    KernelParam kernel_constraint = 1;
+  }
+}
+
+// Kernel parameter for Sysctl settings for the host
+message KernelParam{
+  // MIB style name of the kernel state to constrain.
+  string name = 1;
+  oneof ConstraintType{
+    BoundedInteger bounded_integer = 2;
+  }
+}
+
+// BoundedInteger to capture the range of max or min for a particular setting
+message BoundedInteger{
+  int64 max_value = 1;
+  int64 min_value = 2;
 }
 
 // Interface keys must be the same as the links a,z int.
