@@ -701,11 +701,11 @@ github.com/openconfig/gribi v1.0.0/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJN
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY05KS5X11jxVbw=
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
-github.com/openconfig/ondatra v0.2.6 h1:7OlEN/zNll1AVhsoR78aSjOwQCMJzTgA0MM3Es3udIU=
-github.com/openconfig/ondatra v0.2.6/go.mod h1:60Nm7qAOxBqqXaUQWxGGEt9e9c5pImKn7fQSEB9rGwc=
+github.com/openconfig/ondatra v0.2.7 h1:abEI0qO4Q/BrXV/qi2unXn8dpkZFp9DF8rw6kZod5/E=
+github.com/openconfig/ondatra v0.2.7/go.mod h1:Vfwg/PvsupSJOxTxpQvF078MyHxJGvff3jIr4H0vgzs=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
-github.com/openconfig/ygnmi v0.8.6 h1:g8BXRKnd2H6nwQ5hQjOWzPBkYPl7DCDrfg3qzKH0dAU=
-github.com/openconfig/ygnmi v0.8.6/go.mod h1:7up6qc9l9G4+Cfo37gzO0D7+2g4yqyW+xzh4vYsYTEE=
+github.com/openconfig/ygnmi v0.8.7 h1:8K87+VztXhHqsU6/OYRnY/l/bGqFk+qU61mhhdxMCYo=
+github.com/openconfig/ygnmi v0.8.7/go.mod h1:7up6qc9l9G4+Cfo37gzO0D7+2g4yqyW+xzh4vYsYTEE=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
 github.com/openconfig/ygot v0.10.4/go.mod h1:oCQNdXnv7dWc8scTDgoFkauv1wwplJn5HspHcjlxSAQ=
 github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99tnD5x49c=

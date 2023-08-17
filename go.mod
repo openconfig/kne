@@ -17,7 +17,7 @@ require (
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/lemming/operator v0.2.0
-	github.com/openconfig/ondatra v0.2.6
+	github.com/openconfig/ondatra v0.2.7
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -98,7 +98,7 @@ require (
 	github.com/openconfig/gnsi v1.2.1 // indirect
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
 	github.com/openconfig/goyang v1.4.0 // indirect
-	github.com/openconfig/ygnmi v0.8.6 // indirect
+	github.com/openconfig/ygnmi v0.8.7 // indirect
 	github.com/openconfig/ygot v0.29.9 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
