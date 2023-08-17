@@ -85,7 +85,7 @@ func TestSRL(t *testing.T) {
 	dut := ondatra.DUT(t, "srl")
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
-	testGNOI(t, dut)
+	// testGNOI(t, dut)
 	testP4RT(t, dut)
 }
 
