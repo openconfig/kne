@@ -470,13 +470,13 @@ type isHostConstraint_Constraint interface {
 }
 
 type HostConstraint_KernelConstraint struct {
-	// Includes the required sysctl settings that need to be configured
+	// Includes the required kernel parameters that need to be configured.
 	KernelConstraint *KernelParam `protobuf:"bytes,1,opt,name=kernel_constraint,json=kernelConstraint,proto3,oneof"`
 }
 
 func (*HostConstraint_KernelConstraint) isHostConstraint_Constraint() {}
 
-// Kernel parameter for Sysctl settings for the host
+// KernelParam is a parameter on the host kernel.
 type KernelParam struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -553,7 +553,7 @@ type KernelParam_BoundedInteger struct {
 
 func (*KernelParam_BoundedInteger) isKernelParam_ConstraintType() {}
 
-// BoundedInteger to capture the range of max or min for a particular setting
+// BoundedInteger to capture the range of max or min for a particular constraint.
 type BoundedInteger struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
