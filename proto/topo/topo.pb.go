@@ -553,7 +553,8 @@ type KernelParam_BoundedInteger struct {
 
 func (*KernelParam_BoundedInteger) isKernelParam_ConstraintType() {}
 
-// BoundedInteger to capture the range of max or min for a particular constraint.
+// BoundedInteger to capture the range of max or min for a particular
+// constraint.
 type BoundedInteger struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

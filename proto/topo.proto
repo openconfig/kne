@@ -103,7 +103,8 @@ message KernelParam {
   }
 }
 
-// BoundedInteger to capture the range of max or min for a particular constraint.
+// BoundedInteger to capture the range of max or min for a particular
+// constraint.
 message BoundedInteger {
   int64 max_value = 1;
   int64 min_value = 2;
