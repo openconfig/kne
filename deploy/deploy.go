@@ -849,7 +849,7 @@ func makePool(n *net.IPNet, count int) *metallbv1.IPAddressPool {
 func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	var err error
 	if m.dClient == nil {
-		m.dClient, err = dclient.NewClientWithOpts(dclient.FromEnv)
+		m.dClient, err = dclient.NewClientWithOpts(dclient.FromEnv, dclient.WithAPIVersionNegotiation())
 		if err != nil {
 			return fmt.Errorf("failed to create docker client: %w", err)
 		}
