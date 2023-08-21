@@ -115,7 +115,6 @@ func (n *Node) GRPCConfig() []string {
 
 // Waits and retries until CLI config mode is up and config is applied
 func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
-
 	log.Infof("Waiting for config to be pushed (timeout: %v) node %s", configModeTimeout, n.Name())
 	start := time.Now()
 	for time.Since(start) < configModeTimeout {
