@@ -156,6 +156,20 @@ func TestGenerateSelfSigned(t *testing.T) {
 			ni:       ni,
 			testFile: "testdata/generate_certificate_failure",
 		},
+		{
+			// device returns config mode error but we eventually recover
+			desc:     "success config mode",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "testdata/generate_certificate_config_mode_success",
+		},
+		{
+			// device returns "Error: something bad happened" -- we expect to fail
+			desc:     "failure config commit",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "testdata/generate_certificate_config_mode_failure",
+		},
 	}
 
 	for _, tt := range tests {
