@@ -35,6 +35,10 @@ var (
 	certGenTimeout = 10 * time.Minute
 	// Time between polls
 	certGenRetrySleep = 30 * time.Second
+	// Wait for config mode
+	configModeTimeout = 10 * time.Minute
+	// Time between polls - config mode
+	configModeRetrySleep = 30 * time.Second
 )
 
 const (
@@ -109,6 +113,38 @@ func (n *Node) GRPCConfig() []string {
 	}
 }
 
+// Waits and retries until CLI config mode is up and config is applied
+func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
+	log.Infof("Waiting for config to be pushed (timeout: %v) node %s", configModeTimeout, n.Name())
+	start := time.Now()
+	for time.Since(start) < configModeTimeout {
+		multiresp, err := n.cliConn.SendConfigs(configs)
+		if err != nil {
+			if strings.Contains(err.Error(), "errPrivilegeError") {
+				log.Infof("Config mode not ready. Retrying in %v. Node %s, Resp %v", configModeRetrySleep, n.Name(), err)
+			} else {
+				return fmt.Errorf("failed pushing configs: %v", err)
+			}
+		} else {
+			for _, resp := range multiresp.Responses {
+				if resp.Failed != nil {
+					return resp.Failed
+				}
+				if strings.Contains(resp.Result, "commit complete") {
+					log.Infof("Config mode ready. Config commit done. Node %s", n.Name())
+					return nil
+				}
+				if strings.Contains(resp.Result, "error:") {
+					log.Infof("Config mode not ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
+				}
+			}
+		}
+		time.Sleep(configModeRetrySleep)
+	}
+
+	return fmt.Errorf("failed sending configs")
+}
+
 // Waits and retries until Cert infra is up and certs are applied
 func (n *Node) waitCertInfraReadyAndPushCert() error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
@@ -119,7 +155,7 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 			selfSigned.GetCertName()),
 	}
 
-	log.Infof("Waiting for certificates to be pushed (timeout: %v)", certGenTimeout)
+	log.Infof("Waiting for certificates to be pushed (timeout: %v) node %s", certGenTimeout, n.Name())
 	start := time.Now()
 	for time.Since(start) < certGenTimeout {
 		multiresp, err := n.cliConn.SendCommands(commands)
@@ -130,12 +166,12 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 			if resp.Failed != nil {
 				return resp.Failed
 			}
-			if strings.Contains(resp.Result, "error:") {
-				log.Infof("Cert infra isn't ready. Retrying in %v. Response %s", certGenRetrySleep, multiresp.JoinedResult())
-			}
 			if strings.Contains(resp.Result, "successfully") {
-				log.Infof("Cert Infra ready. Configured Certs. Response %s", multiresp.JoinedResult())
+				log.Infof("Cert Infra ready. Configured Certs. Node %s, Response %s", n.Name(), multiresp.JoinedResult())
 				return nil
+			}
+			if strings.Contains(resp.Result, "error:") {
+				log.Infof("Cert infra isn't ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
 			}
 		}
 		time.Sleep(certGenRetrySleep)
@@ -186,13 +222,8 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	}
 
 	// Send gRPC config
-	resp, err := n.cliConn.SendConfigs(n.GRPCConfig())
-	if err != nil {
-		return err
-	}
-
-	if resp.Failed != nil {
-		return resp.Failed
+	if err := n.waitConfigInfraReadyAndPushConfigs(n.GRPCConfig()); err != nil {
+		return fmt.Errorf("failed sending grpc config commands - self-signed-cert: %v", err)
 	}
 
 	log.Infof("%s - finished cert generation", n.Name())
@@ -379,11 +410,6 @@ func (n *Node) Create(ctx context.Context) error {
 						MountPath: "/tmp",
 					},
 					{
-						Name:      fmt.Sprintf("%s-sys-class-mount", pb.Name),
-						ReadOnly:  false,
-						MountPath: "/sys/class",
-					},
-					{
 						Name:      fmt.Sprintf("%s-dev-shm-mount", pb.Name),
 						ReadOnly:  false,
 						MountPath: "/dev/shm",
@@ -409,15 +435,6 @@ func (n *Node) Create(ctx context.Context) error {
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{
 							Medium: "Memory",
-						},
-					},
-				},
-				{
-					Name: fmt.Sprintf("%s-sys-class-mount", pb.Name),
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: "/sys/class",
-							Type: &hpd,
 						},
 					},
 				},

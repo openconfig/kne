@@ -136,6 +136,12 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}()
 	certGenRetrySleep = time.Millisecond
 
+	origConfigModeRetrySleep := configModeRetrySleep
+	defer func() {
+		configModeRetrySleep = origConfigModeRetrySleep
+	}()
+	configModeRetrySleep = time.Millisecond
+
 	tests := []struct {
 		desc     string
 		wantErr  bool
@@ -155,6 +161,20 @@ func TestGenerateSelfSigned(t *testing.T) {
 			wantErr:  true,
 			ni:       ni,
 			testFile: "testdata/generate_certificate_failure",
+		},
+		{
+			// device returns config mode error but we eventually recover
+			desc:     "success config mode",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "testdata/generate_certificate_config_mode_success",
+		},
+		{
+			// device returns "Error: something bad happened" -- we expect to fail
+			desc:     "failure config commit",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "testdata/generate_certificate_config_mode_failure",
 		},
 	}
 
