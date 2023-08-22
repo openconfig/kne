@@ -136,6 +136,12 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}()
 	certGenRetrySleep = time.Millisecond
 
+	origConfigModeRetrySleep := configModeRetrySleep
+	defer func() {
+		configModeRetrySleep = origConfigModeRetrySleep
+	}()
+	configModeRetrySleep = time.Millisecond
+
 	tests := []struct {
 		desc     string
 		wantErr  bool
