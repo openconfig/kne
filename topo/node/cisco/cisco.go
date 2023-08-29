@@ -418,7 +418,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
 					KernelConstraint: &tpb.KernelParam{Name: "kernel.pid_max",
 						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
-							MaxValue: 1048575, MinValue: 0}}}}})
+							MaxValue: 4194304, MinValue: 0}}}}})
 		}
 	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":

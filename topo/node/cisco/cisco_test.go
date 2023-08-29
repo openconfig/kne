@@ -161,7 +161,7 @@ func TestNew(t *testing.T) {
 					Constraint: &tpb.HostConstraint_KernelConstraint{
 						KernelConstraint: &tpb.KernelParam{
 							Name:           "kernel.pid_max",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 4194304}},
 						},
 					},
 				},
@@ -258,7 +258,7 @@ func TestNew(t *testing.T) {
 					Constraint: &tpb.HostConstraint_KernelConstraint{
 						KernelConstraint: &tpb.KernelParam{
 							Name:           "kernel.pid_max",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 4194304}},
 						},
 					},
 				},
