@@ -85,8 +85,8 @@ func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
 	pb := n.Proto
-	if err := n.ValidateConstraints(); err != nil {
-		return fmt.Errorf("host constraints validation failed for node %s with error %w", n.Name(), err)
+	if errList := n.ValidateConstraints(); errList != nil && len(errList) > 0 {
+		return fmt.Errorf("host constraints validation failed for node %s with error %s", n.Name(), node.CombineErrors(errList))
 	}
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -412,11 +412,13 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 			pb.HostConstraints = append(pb.HostConstraints,
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
 					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
-						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 64000}}}}})
+						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
+							MaxValue: 64000, MinValue: 0}}}}})
 			pb.HostConstraints = append(pb.HostConstraints,
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
 					KernelConstraint: &tpb.KernelParam{Name: "kernel.pid_max",
-						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}}}}})
+						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
+							MaxValue: 1048575, MinValue: 0}}}}})
 		}
 	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
@@ -428,35 +430,6 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 	}
 	return pb, nil
-}
-
-func (n *Node) ValidateConstraints() error {
-	currentConstraints := n.GetProto().HostConstraints
-	kernelConstraints := make(map[string]*tpb.KernelParam)
-	node := n.GetProto()
-	if node.Vendor == tpb.Vendor_CISCO && node.Model == ModelXRD {
-		kernelConstraints["fs.inotify.max_user_instances"] = &tpb.KernelParam{ConstraintType: &tpb.KernelParam_BoundedInteger{
-			BoundedInteger: &tpb.BoundedInteger{MaxValue: 64000}}}
-		kernelConstraints["kernel.pid_max"] = &tpb.KernelParam{ConstraintType: &tpb.KernelParam_BoundedInteger{
-			BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}}}
-	}
-
-	for _, c := range currentConstraints {
-		current := c.GetKernelConstraint()
-		input := kernelConstraints[current.GetName()]
-		if err := validateBoundedInteger(current.GetBoundedInteger(), input.GetBoundedInteger()); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateBoundedInteger(currentConstraints *tpb.BoundedInteger, inputConstraint *tpb.BoundedInteger) error {
-	if inputConstraint.MinValue < currentConstraints.MinValue || inputConstraint.MaxValue > currentConstraints.MaxValue {
-		return fmt.Errorf("Invalid bounded integer constraint")
-	}
-	return nil
 }
 
 // Status returns the current node state.

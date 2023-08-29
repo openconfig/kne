@@ -148,6 +148,24 @@ func TestNew(t *testing.T) {
 					Data: []byte("config file data"),
 				},
 			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "fs.inotify.max_user_instances",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 64000}},
+						},
+					},
+				},
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
+				},
+			},
 		},
 	}, {
 		desc: "node cisco xrd test",
@@ -225,6 +243,24 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "fs.inotify.max_user_instances",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 64000}},
+						},
+					},
+				},
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},

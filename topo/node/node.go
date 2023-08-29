@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -211,6 +213,9 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 // Create will create the node in the k8s cluster with all services and config
 // maps.
 func (n *Impl) Create(ctx context.Context) error {
+	if errList := n.ValidateConstraints(); errList != nil && len(errList) > 0 {
+		return fmt.Errorf("node %s failed to validate node with errors: %s", n.Name(), CombineErrors(errList))
+	}
 	if err := n.CreatePod(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create pod %w", n.Name(), err)
 	}
@@ -218,6 +223,66 @@ func (n *Impl) Create(ctx context.Context) error {
 		return fmt.Errorf("node %s failed to create service %w", n.Name(), err)
 	}
 	return nil
+}
+
+func CombineErrors(errors []error) string {
+	var combinedErrorString string
+	for _, err := range errors {
+		if combinedErrorString != "" {
+			combinedErrorString += "\n"
+		}
+		combinedErrorString += err.Error()
+	}
+	return combinedErrorString
+}
+
+func (n *Impl) ValidateConstraints() []error {
+	hostConstraints := n.GetProto().GetHostConstraints()
+	if hostConstraints == nil {
+		return nil
+	}
+	var errorList []error
+	for _, hc := range hostConstraints {
+		switch v := hc.GetConstraint().(type) {
+		case *tpb.HostConstraint_KernelConstraint:
+			constraintData, err := os.ReadFile(filepath.Join(n.BasePath, convertSysctlNameToProcSysPath(v.KernelConstraint.Name)))
+			if err != nil {
+				errorList = append(errorList, err)
+				continue
+			}
+			kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
+			if err != nil {
+				errorList = append(errorList, fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
+					string(constraintData), err))
+				continue
+			}
+			switch k := v.KernelConstraint.GetConstraintType().(type) {
+			case *tpb.KernelParam_BoundedInteger:
+				if err := validateBoundedInteger(k.BoundedInteger, kcValue); err != nil {
+					errorList = append(errorList, fmt.Errorf("failed to validate kernel constraint error: %w", err))
+				}
+			}
+		}
+	}
+
+	return errorList
+}
+
+func validateBoundedInteger(protoConstraint *tpb.BoundedInteger, kernelConstraintInt int) error {
+	if !(protoConstraint.MinValue <= int64(kernelConstraintInt) && int64(kernelConstraintInt) <= protoConstraint.MaxValue) {
+		return fmt.Errorf("invalid bounded integer constraint. min: %d max %d constraint data %d",
+			protoConstraint.MinValue, protoConstraint.MaxValue, kernelConstraintInt)
+	}
+	return nil
+}
+
+func convertSysctlNameToProcSysPath(sysctlName string) string {
+	sysctlNameParts := strings.Split(sysctlName, ".")
+	procSysPath := "/proc/sys/"
+	for _, part := range sysctlNameParts {
+		procSysPath += part + "/"
+	}
+	return procSysPath
 }
 
 func (n *Impl) readConfig() ([]byte, error) {
