@@ -153,7 +153,7 @@ func TestNew(t *testing.T) {
 					Constraint: &tpb.HostConstraint_KernelConstraint{
 						KernelConstraint: &tpb.KernelParam{
 							Name:           "fs.inotify.max_user_instances",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 64000}},
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 64000}},
 						},
 					},
 				},
@@ -161,7 +161,7 @@ func TestNew(t *testing.T) {
 					Constraint: &tpb.HostConstraint_KernelConstraint{
 						KernelConstraint: &tpb.KernelParam{
 							Name:           "kernel.pid_max",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 1048575}},
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
 						},
 					},
 				},
@@ -250,7 +250,7 @@ func TestNew(t *testing.T) {
 					Constraint: &tpb.HostConstraint_KernelConstraint{
 						KernelConstraint: &tpb.KernelParam{
 							Name:           "fs.inotify.max_user_instances",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 64000}},
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 64000}},
 						},
 					},
 				},
@@ -258,7 +258,7 @@ func TestNew(t *testing.T) {
 					Constraint: &tpb.HostConstraint_KernelConstraint{
 						KernelConstraint: &tpb.KernelParam{
 							Name:           "kernel.pid_max",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{&tpb.BoundedInteger{MaxValue: 1048575}},
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
 						},
 					},
 				},
