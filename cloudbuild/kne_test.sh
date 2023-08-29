@@ -31,12 +31,12 @@ popd
 
 # Deploy a kind cluster
 pushd "$HOME"
-$cli deploy kne/deploy/kne/kind-bridge.yaml
+$cli deploy kne/deploy/kne/kind-bridge.yaml --report_usage=false
 
 kubectl get pods -A
 
 # Redeploy the same cluster
-$cli deploy kne/deploy/kne/kind-bridge.yaml
+$cli deploy kne/deploy/kne/kind-bridge.yaml --report_usage=false
 
 kubectl get pods -A
 
@@ -70,7 +70,7 @@ cni:
     manifest: ${HOME}/kne/manifests/meshnet/grpc/manifest.yaml
 EOF
 
-$cli deploy /tmp/dep-cfg.yaml
+$cli deploy /tmp/dep-cfg.yaml --report_usage=false
 
 kubectl get pods -A
 
@@ -93,12 +93,12 @@ kubectl apply -f "$HOME"/flannel/Documentation/kube-flannel.yml
 docker network create multinode
 
 # Deploy an external cluster
-$cli deploy kne/deploy/kne/external-multinode.yaml
+$cli deploy kne/deploy/kne/external-multinode.yaml --report_usage=false
 
 kubectl get pods -A
 
 # Create a simple lemming topology
-$cli create kne/examples/openconfig/lemming.pb.txt
+$cli create kne/examples/openconfig/lemming.pb.txt --report_usage=false
 
 kubectl get pods -A
 
