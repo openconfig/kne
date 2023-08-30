@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,12 +13,14 @@ import (
 	"time"
 
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/gnmi/errlist"
 	tpb "github.com/openconfig/kne/proto/topo"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scrapliplatform "github.com/scrapli/scrapligo/platform"
 	scrapliutil "github.com/scrapli/scrapligo/util"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -213,8 +216,8 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 // Create will create the node in the k8s cluster with all services and config
 // maps.
 func (n *Impl) Create(ctx context.Context) error {
-	if errList := n.ValidateConstraints(); errList != nil && len(errList) > 0 {
-		return fmt.Errorf("node %s failed to validate node with errors: %s", n.Name(), CombineErrors(errList))
+	if err := n.ValidateConstraints(); err != nil {
+		return fmt.Errorf("node %s failed to validate node with errors: %s", n.Name(), err)
 	}
 	if err := n.CreatePod(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create pod %w", n.Name(), err)
@@ -225,57 +228,61 @@ func (n *Impl) Create(ctx context.Context) error {
 	return nil
 }
 
-func CombineErrors(errors []error) string {
-	var combinedErrorString string
-	for _, err := range errors {
-		if combinedErrorString != "" {
-			combinedErrorString += "\n"
-		}
-		combinedErrorString += err.Error()
-	}
-	return combinedErrorString
-}
-
-func (n *Impl) ValidateConstraints() []error {
+// ValidateConstraints will check the host constraints and returns a list of errors for cases which do not meet
+// the constraints
+func (n *Impl) ValidateConstraints() error {
 	hostConstraints := n.GetProto().GetHostConstraints()
 	if hostConstraints == nil {
 		return nil
 	}
-	var errorList []error
+	var errorList errlist.List
 	for _, hc := range hostConstraints {
 		switch v := hc.GetConstraint().(type) {
 		case *tpb.HostConstraint_KernelConstraint:
+			log.Infof("Validating %s constraint for node %s", v.KernelConstraint.GetName(), n.String())
 			constraintData, err := os.ReadFile(filepath.Join(n.BasePath, convertSysctlNameToProcSysPath(v.KernelConstraint.Name)))
 			if err != nil {
-				errorList = append(errorList, err)
+				errorList.Add(err)
 				continue
 			}
 			kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
 			if err != nil {
-				errorList = append(errorList, fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
+				errorList.Add(fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
 					string(constraintData), err))
 				continue
 			}
 			switch k := v.KernelConstraint.GetConstraintType().(type) {
 			case *tpb.KernelParam_BoundedInteger:
 				if err := validateBoundedInteger(k.BoundedInteger, kcValue); err != nil {
-					errorList = append(errorList, fmt.Errorf("failed to validate kernel constraint error: %w", err))
+					errorList.Add(fmt.Errorf("failed to validate kernel constraint error: %w", err))
 				}
 			}
+		default:
+			return nil
 		}
 	}
 
-	return errorList
+	return errorList.Err()
 }
 
-func validateBoundedInteger(protoConstraint *tpb.BoundedInteger, kernelConstraintInt int) error {
-	if !(protoConstraint.MinValue <= int64(kernelConstraintInt) && int64(kernelConstraintInt) <= protoConstraint.MaxValue) {
+// validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,
+// the lower bound should already default to zero if not specified, validates that lower <= upper in the constraint otherwise error
+func validateBoundedInteger(nodeConstraint *tpb.BoundedInteger, hostCons int) error {
+	if nodeConstraint.MinValue > nodeConstraint.MaxValue {
+		return fmt.Errorf("invalid bounds. Max value %d is less than min value %d", nodeConstraint.MaxValue, nodeConstraint.MinValue)
+	}
+	if !nodeConstraint.ProtoReflect().Has(nodeConstraint.ProtoReflect().Descriptor().Fields().ByName(protoreflect.Name("max_value"))) {
+		nodeConstraint.MaxValue = math.MaxInt64
+	}
+	if !(nodeConstraint.MinValue <= int64(hostCons) && int64(hostCons) <= nodeConstraint.MaxValue) {
 		return fmt.Errorf("invalid bounded integer constraint. min: %d max %d constraint data %d",
-			protoConstraint.MinValue, protoConstraint.MaxValue, kernelConstraintInt)
+			nodeConstraint.MinValue, nodeConstraint.MaxValue, hostCons)
 	}
 	return nil
 }
 
+// convertSysctlNameToProcSysPath - Constraints need to be read from a specific path in the system which is
+// prepended with "proc/sys". The full path needs to be calculated
 func convertSysctlNameToProcSysPath(sysctlName string) string {
 	sysctlNameParts := strings.Split(sysctlName, ".")
 	procSysPath := "/proc/sys/"

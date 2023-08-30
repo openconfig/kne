@@ -85,8 +85,8 @@ func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
 	pb := n.Proto
-	if errList := n.ValidateConstraints(); errList != nil && len(errList) > 0 {
-		return fmt.Errorf("host constraints validation failed for node %s with error %s", n.Name(), node.CombineErrors(errList))
+	if err := n.ValidateConstraints(); err != nil {
+		return fmt.Errorf("host constraints validation failed for node %s with error %s", n.Name(), err)
 	}
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -411,14 +411,9 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.HostConstraints == nil {
 			pb.HostConstraints = append(pb.HostConstraints,
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
-					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
-						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
-							MaxValue: 64000, MinValue: 0}}}}})
-			pb.HostConstraints = append(pb.HostConstraints,
-				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
 					KernelConstraint: &tpb.KernelParam{Name: "kernel.pid_max",
 						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
-							MaxValue: 4194304, MinValue: 0}}}}})
+							MaxValue: 1048575}}}}})
 		}
 	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
@@ -427,6 +422,13 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 		if pb.Config.Image == "" {
 			pb.Config.Image = "8000e:latest"
+		}
+		if pb.HostConstraints == nil {
+			pb.HostConstraints = append(pb.HostConstraints,
+				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
+					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
+						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
+							MaxValue: 64000}}}}})
 		}
 	}
 	return pb, nil
