@@ -357,3 +357,104 @@ func TestService(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConstraints(t *testing.T) {
+	tests := []struct {
+		desc             string
+		node             *topopb.Node
+		wantErr          string
+		constraintValues map[string]int
+	}{
+		{
+			desc: "Invalid case - contraint value is greater than upper bound",
+			node: &topopb.Node{
+				Name: "node1",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MaxValue: 1000}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 1500},
+			wantErr:          "failed to validate kernel constraint error: invalid bounded integer constraint. min: 0 max 1000 constraint data 1500",
+		},
+		{
+			desc: "Invalid case - constraint value is lesser than lower bound",
+			node: &topopb.Node{
+				Name: "node1",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MinValue: 10, MaxValue: 100}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 5},
+			wantErr:          "failed to validate kernel constraint error: invalid bounded integer constraint. min: 10 max 100 constraint data 5",
+		},
+		{
+			desc: "Invalid case - constraint bounds is invalid uooer bound is less tha lower bound",
+			node: &topopb.Node{
+				Name: "node1",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MinValue: 10}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 2000},
+			wantErr:          "failed to validate kernel constraint error: invalid bounds. Max value 0 is less than min value 10",
+		},
+		{
+			desc: "Valid constraint",
+			node: &topopb.Node{
+				Name: "",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MinValue: 1, MaxValue: 1000}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 500},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			n := &Impl{
+				Proto: tt.node,
+			}
+
+			origkernelConstraintValue := kernelConstraintValue
+			defer func() {
+				kernelConstraintValue = origkernelConstraintValue
+			}()
+			kernelConstraintValue = func(basePath, constraint string) (int, error) {
+				return tt.constraintValues[constraint], nil
+			}
+			err := n.ValidateConstraints()
+			if d := errdiff.Substring(err, tt.wantErr); d != "" {
+				t.Fatalf("ValidateConstraints() failed: %s", d)
+			}
+		})
+	}
+}
