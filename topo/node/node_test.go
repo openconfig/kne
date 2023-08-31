@@ -422,7 +422,7 @@ func TestValidateConstraints(t *testing.T) {
 		{
 			desc: "Valid constraint",
 			node: &topopb.Node{
-				Name: "",
+				Name: "node1",
 				HostConstraints: []*topopb.HostConstraint{
 					{
 						Constraint: &topopb.HostConstraint_KernelConstraint{
@@ -448,7 +448,7 @@ func TestValidateConstraints(t *testing.T) {
 			defer func() {
 				kernelConstraintValue = origkernelConstraintValue
 			}()
-			kernelConstraintValue = func(basePath, constraint string) (int, error) {
+			kernelConstraintValue = func(constraint string) (int, error) {
 				return tt.constraintValues[constraint], nil
 			}
 			err := n.ValidateConstraints()

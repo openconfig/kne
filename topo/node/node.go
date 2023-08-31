@@ -105,6 +105,24 @@ var (
 	tempCfgDir  = "/tmp/kne"
 )
 
+var (
+	// Stubs for testing
+	kernelConstraintValue = kernelConstraintValueImpl
+)
+
+func kernelConstraintValueImpl(constraint string) (int, error) {
+	constraintData, err := os.ReadFile(convertSysctlNameToProcSysPath(constraint))
+	if err != nil {
+		return 0, err
+	}
+	kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
+			string(constraintData), err)
+	}
+	return kcValue, nil
+}
+
 // Vendor registers the vendor type with the topology manager.
 func Vendor(v tpb.Vendor, fn NewNodeFn) {
 	mu.Lock()
@@ -240,7 +258,7 @@ func (n *Impl) ValidateConstraints() error {
 		switch v := hc.GetConstraint().(type) {
 		case *tpb.HostConstraint_KernelConstraint:
 			log.Infof("Validating %s constraint for node %s", v.KernelConstraint.GetName(), n.String())
-			kcValue, err := kernelConstraintValue(n.BasePath, v.KernelConstraint.Name)
+			kcValue, err := kernelConstraintValue(v.KernelConstraint.Name)
 			if err != nil {
 				errorList.Add(err)
 				continue
@@ -258,21 +276,6 @@ func (n *Impl) ValidateConstraints() error {
 
 	return errorList.Err()
 }
-
-var (
-	kernelConstraintValue = func(basePath string, constraint string) (int, error) {
-		constraintData, err := os.ReadFile(filepath.Join(basePath, convertSysctlNameToProcSysPath(constraint)))
-		if err != nil {
-			return 0, err
-		}
-		kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
-		if err != nil {
-			return 0, fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
-				string(constraintData), err)
-		}
-		return kcValue, nil
-	}
-)
 
 // validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,
 // the lower bound should already default to zero if not specified, validates that lower <= upper in the constraint otherwise error
