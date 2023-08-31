@@ -240,20 +240,14 @@ func (n *Impl) ValidateConstraints() error {
 		switch v := hc.GetConstraint().(type) {
 		case *tpb.HostConstraint_KernelConstraint:
 			log.Infof("Validating %s constraint for node %s", v.KernelConstraint.GetName(), n.String())
-			constraintData, err := os.ReadFile(filepath.Join(n.BasePath, convertSysctlNameToProcSysPath(v.KernelConstraint.Name)))
+			kcValue, err := kernelConstraintValue(n.BasePath, v.KernelConstraint.Name)
 			if err != nil {
 				errorList.Add(err)
 				continue
 			}
-			kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
-			if err != nil {
-				errorList.Add(fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
-					string(constraintData), err))
-				continue
-			}
 			switch k := v.KernelConstraint.GetConstraintType().(type) {
 			case *tpb.KernelParam_BoundedInteger:
-				if err := validateBoundedInteger(k.BoundedInteger, kcValue); err != nil {
+				if err := validateBoundedInteger(k.BoundedInteger, *kcValue); err != nil {
 					errorList.Add(fmt.Errorf("failed to validate kernel constraint error: %w", err))
 				}
 			}
@@ -263,6 +257,19 @@ func (n *Impl) ValidateConstraints() error {
 	}
 
 	return errorList.Err()
+}
+
+func kernelConstraintValue(basePath string, constraint string) (*int, error) {
+	constraintData, err := os.ReadFile(filepath.Join(basePath, convertSysctlNameToProcSysPath(constraint)))
+	if err != nil {
+		return nil, err
+	}
+	kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
+			string(constraintData), err)
+	}
+	return &kcValue, nil
 }
 
 // validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,

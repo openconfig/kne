@@ -81,12 +81,15 @@ var (
 	_ node.Resetter = (*Node)(nil)
 )
 
+// For enabling option to skip validation in unit tests
+var skipValidation = false
+
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
 	pb := n.Proto
-	if err := n.ValidateConstraints(); err != nil {
-		return fmt.Errorf("host constraints validation failed for node %s with error %s", n.Name(), err)
+	if err := validateHostConstraints(n, skipValidation); err != nil {
+		return err
 	}
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -194,6 +197,18 @@ func (n *Node) Create(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Created Cisco %s node resource %s services", n.Proto.Model, n.Name())
+	return nil
+}
+
+// validateHostConstraints - Validates host contraints through the default node's implementation. It skips the validation optionally
+// based on skipValidation flag which is useful for unit tests
+func validateHostConstraints(n *Node, skipValidation bool) error {
+	if skipValidation {
+		return nil
+	}
+	if err := n.ValidateConstraints(); err != nil {
+		return fmt.Errorf("host constraints validation failed for node %s with error %s", n.Name(), err)
+	}
 	return nil
 }
 
@@ -411,9 +426,9 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.HostConstraints == nil {
 			pb.HostConstraints = append(pb.HostConstraints,
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
-					KernelConstraint: &tpb.KernelParam{Name: "kernel.pid_max",
+					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
 						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
-							MaxValue: 1048575}}}}})
+							MaxValue: 64000}}}}})
 		}
 	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
@@ -426,9 +441,9 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.HostConstraints == nil {
 			pb.HostConstraints = append(pb.HostConstraints,
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
-					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
+					KernelConstraint: &tpb.KernelParam{Name: "kernel.pid_max",
 						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
-							MaxValue: 64000}}}}})
+							MaxValue: 1048575}}}}})
 		}
 	}
 	return pb, nil

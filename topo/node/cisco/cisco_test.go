@@ -37,6 +37,9 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 )
 
+func init() {
+	skipValidation = true
+}
 func defaultNode(pb *tpb.Node) *tpb.Node {
 	node, _ := defaults(pb)
 	return node
@@ -157,14 +160,6 @@ func TestNew(t *testing.T) {
 						},
 					},
 				},
-				{
-					Constraint: &tpb.HostConstraint_KernelConstraint{
-						KernelConstraint: &tpb.KernelParam{
-							Name:           "kernel.pid_max",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
-						},
-					},
-				},
 			},
 		},
 	}, {
@@ -254,14 +249,6 @@ func TestNew(t *testing.T) {
 						},
 					},
 				},
-				{
-					Constraint: &tpb.HostConstraint_KernelConstraint{
-						KernelConstraint: &tpb.KernelParam{
-							Name:           "kernel.pid_max",
-							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
-						},
-					},
-				},
 			},
 		},
 	}, {
@@ -344,6 +331,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
@@ -446,6 +443,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
@@ -557,6 +564,16 @@ func TestNew(t *testing.T) {
 					Data: []byte("config file data"),
 				},
 			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
+				},
+			},
 		},
 	}, {
 		desc: "8101-32H",
@@ -634,6 +651,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
@@ -743,6 +770,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
