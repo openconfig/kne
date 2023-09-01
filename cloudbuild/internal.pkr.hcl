@@ -152,6 +152,8 @@ build {
       "/usr/local/go/bin/go get -d ./...",
       "cd proxy/server",
       "/usr/local/go/bin/go build",
+      "cd ../../kneproxy",
+      "/usr/local/go/bin/go build",
     ]
   }
 
