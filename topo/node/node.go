@@ -278,11 +278,11 @@ func (n *Impl) ValidateConstraints() error {
 // validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,
 // the lower bound should already default to zero if not specified, validates that lower <= upper in the constraint otherwise error
 func validateBoundedInteger(nodeConstraint *tpb.BoundedInteger, hostCons int) error {
-	if nodeConstraint.MinValue > nodeConstraint.MaxValue {
-		return fmt.Errorf("invalid bounds. Max value %d is less than min value %d", nodeConstraint.MaxValue, nodeConstraint.MinValue)
-	}
 	if nodeConstraint.MaxValue == 0 {
 		nodeConstraint.MaxValue = math.MaxInt64
+	}
+	if nodeConstraint.MinValue > nodeConstraint.MaxValue {
+		return fmt.Errorf("invalid bounds. Max value %d is less than min value %d", nodeConstraint.MaxValue, nodeConstraint.MinValue)
 	}
 	if !(nodeConstraint.MinValue <= int64(hostCons) && int64(hostCons) <= nodeConstraint.MaxValue) {
 		return fmt.Errorf("invalid bounded integer constraint. min: %d max %d constraint data %d",
@@ -296,8 +296,11 @@ func validateBoundedInteger(nodeConstraint *tpb.BoundedInteger, hostCons int) er
 func convertSysctlNameToProcSysPath(sysctlName string) string {
 	sysctlNameParts := strings.Split(sysctlName, ".")
 	procSysPath := "/proc/sys/"
-	for _, part := range sysctlNameParts {
-		procSysPath += part + "/"
+	for i, part := range sysctlNameParts {
+		procSysPath += part
+		if i < len(sysctlNameParts)-1 {
+			procSysPath += "/"
+		}
 	}
 	return procSysPath
 }

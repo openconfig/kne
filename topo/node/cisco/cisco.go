@@ -428,7 +428,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
 					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
 						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
-							MaxValue: 64000}}}}})
+							MinValue: 64000}}}}})
 		}
 	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
