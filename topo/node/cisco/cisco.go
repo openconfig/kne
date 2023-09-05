@@ -423,7 +423,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.Config.Image == "" {
 			pb.Config.Image = "xrd:latest"
 		}
-		if len(pb.HostConstraints) == 0 {
+		if pb.HostConstraints == nil {
 			pb.HostConstraints = append(pb.HostConstraints,
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
 					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
@@ -438,7 +438,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.Config.Image == "" {
 			pb.Config.Image = "8000e:latest"
 		}
-		if len(pb.HostConstraints) == 0 {
+		if pb.HostConstraints == nil {
 			pb.HostConstraints = append(pb.HostConstraints,
 				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
 					KernelConstraint: &tpb.KernelParam{Name: "kernel.pid_max",

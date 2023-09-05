@@ -20,7 +20,6 @@ import (
 	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scrapliplatform "github.com/scrapli/scrapligo/platform"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,8 +116,7 @@ func kernelConstraintValueImpl(constraint string) (int, error) {
 	}
 	kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert kernel constraint data: %s error: %w",
-			string(constraintData), err)
+		return 0, fmt.Errorf("failed to convert kernel constraint data: %s error: %w", string(constraintData), err)
 	}
 	return kcValue, nil
 }
@@ -283,7 +281,7 @@ func validateBoundedInteger(nodeConstraint *tpb.BoundedInteger, hostCons int) er
 	if nodeConstraint.MinValue > nodeConstraint.MaxValue {
 		return fmt.Errorf("invalid bounds. Max value %d is less than min value %d", nodeConstraint.MaxValue, nodeConstraint.MinValue)
 	}
-	if !nodeConstraint.ProtoReflect().Has(nodeConstraint.ProtoReflect().Descriptor().Fields().ByName(protoreflect.Name("max_value"))) {
+	if nodeConstraint.MaxValue == 0 {
 		nodeConstraint.MaxValue = math.MaxInt64
 	}
 	if !(nodeConstraint.MinValue <= int64(hostCons) && int64(hostCons) <= nodeConstraint.MaxValue) {
