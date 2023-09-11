@@ -17,16 +17,16 @@ variable "zone" {
 
 source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
-  source_image = "ubuntu-2004-focal-v20210927"
-  disk_size    = 50
-  image_name   = "kne-${var.build_id}"
-  image_family = "kne-untested"
+  source_image = "stable-slim"
+  disk_size    = 200
+  image_name   = "kne-debian-${var.build_id}"
+  image_family = "kne-debian-untested"
   image_labels = {
     "kne_gh_commit_sha" : "${var.short_sha}",
     "kne_gh_branch_name" : "${var.branch_name}",
     "cloud_build_id" : "${var.build_id}",
   }
-  image_description     = "Ubuntu based linux VM image with KNE and all internal dependencies installed."
+  image_description     = "Debian based linux VM image with KNE and all internal dependencies installed."
   ssh_username          = "user"
   machine_type          = "e2-medium"
   zone                  = "${var.zone}"
