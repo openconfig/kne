@@ -17,8 +17,8 @@ variable "zone" {
 
 source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
-  source_image = "debian-11-bullseye-v20210817"
-  disk_size    = 200
+  source_image_family = "debian-11"
+  disk_size    = 50
   image_name   = "kne-debian-${var.build_id}"
   image_family = "kne-debian-untested"
   image_labels = {
@@ -40,13 +40,13 @@ build {
   name    = "kne-builder"
   sources = ["sources.googlecompute.kne-image"]
 
-  provisioner "shell" {
-    inline = [
-      "echo Waiting for initial updates...",
-      "/usr/bin/cloud-init status --wait",
-      "sleep 60",
-    ]
-  }
+  #provisioner "shell" {
+  #  inline = [
+  #    "echo Waiting for initial updates...",
+  #    "/usr/bin/cloud-init status --wait",
+  #    "sleep 60",
+  #  ]
+  #}
 
   provisioner "shell" {
     inline = [
@@ -72,8 +72,8 @@ build {
       "sudo usermod -aG docker $USER",
       "sudo docker version",
       "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y", # install openvswitch for cisco containers
-      "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco containers
-      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf", # configure pid_max for cisco containers
+      "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
+      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf", # configure pid_max for cisco 8000e containers
       "sudo sysctl -p",
       "echo Pulling containers...",
       "gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure sudoless docker
