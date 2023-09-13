@@ -686,8 +686,8 @@ github.com/openconfig/gnmi v0.10.0 h1:kQEZ/9ek3Vp2Y5IVuV2L/ba8/77TgjdXg505QXvYmg
 github.com/openconfig/gnmi v0.10.0/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=
 github.com/openconfig/gnoi v0.0.0-20230221223856-1727ed932554 h1:qV9anDoBeILsK/rUe7sc0DePwo7dkA45lzDQhfeTniA=
 github.com/openconfig/gnoi v0.0.0-20230221223856-1727ed932554/go.mod h1:ZMRwQ7maVNSOjie3Jn67fW5WY7UDrFSiYSlV/GxthQs=
-github.com/openconfig/gnsi v1.2.1 h1:JIC6+uVg39jLx3K39g/n6+J7b+c8FKU8TgwFAxmON+A=
-github.com/openconfig/gnsi v1.2.1/go.mod h1:QikTHkm468uc2rq/kVhETfyZ6FPeM+zitubrHBbB0HE=
+github.com/openconfig/gnsi v1.2.3 h1:Y/fBMQOn5xqdo9xuT7AK2YHSRejx/ws4sDOMBCHQG6w=
+github.com/openconfig/gnsi v1.2.3/go.mod h1:QikTHkm468uc2rq/kVhETfyZ6FPeM+zitubrHBbB0HE=
 github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b h1:NSYuxdlOWLldNpid1dThR6Dci96juXioUguMho6aliI=
 github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b/go.mod h1:uhC/ybmPapgeyAL2b9ZrUQ+DZE+DB+J+/7377PX+lek=
 github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
@@ -701,8 +701,8 @@ github.com/openconfig/gribi v1.0.0/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJN
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY05KS5X11jxVbw=
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
-github.com/openconfig/ondatra v0.2.7 h1:abEI0qO4Q/BrXV/qi2unXn8dpkZFp9DF8rw6kZod5/E=
-github.com/openconfig/ondatra v0.2.7/go.mod h1:Vfwg/PvsupSJOxTxpQvF078MyHxJGvff3jIr4H0vgzs=
+github.com/openconfig/ondatra v0.2.8 h1:Ivh5p4kFnXgZVIqGmfgICwH19CJSgafWE8LD9qy0lrE=
+github.com/openconfig/ondatra v0.2.8/go.mod h1:Wgp0ZqfuCr4ooUHNqMvO1gCV4jVzg2/JTZJkc6E1W8g=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/ygnmi v0.8.7 h1:8K87+VztXhHqsU6/OYRnY/l/bGqFk+qU61mhhdxMCYo=
 github.com/openconfig/ygnmi v0.8.7/go.mod h1:7up6qc9l9G4+Cfo37gzO0D7+2g4yqyW+xzh4vYsYTEE=
