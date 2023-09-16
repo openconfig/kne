@@ -17,7 +17,7 @@ steps:
       - USERNAME=user
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=kne-presubmit-vendors-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-16 --boot-disk-size 200GB --enable-nested-virtualization
+      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-32 --boot-disk-size 200GB --enable-nested-virtualization
       - ZONE=us-central1-a
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=source /tmp/workspace/cloudbuild/vendors_test.sh 2>&1
