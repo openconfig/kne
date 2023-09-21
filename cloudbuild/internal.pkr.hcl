@@ -11,16 +11,16 @@ variable "build_id" {
 }
 
 variable "zone" {
-  type = string
+  type    = string
   default = "us-central1-b"
 }
 
 source "googlecompute" "kne-image" {
-  project_id   = "gep-kne"
-  source_image = "ubuntu-2004-focal-v20210927"
-  disk_size    = 50
-  image_name   = "kne-${var.build_id}"
-  image_family = "kne-untested"
+  project_id          = "gep-kne"
+  source_image_family = "ubuntu-2004-lts"
+  disk_size           = 50
+  image_name          = "kne-${var.build_id}"
+  image_family        = "kne-untested"
   image_labels = {
     "kne_gh_commit_sha" : "${var.short_sha}",
     "kne_gh_branch_name" : "${var.branch_name}",
@@ -71,12 +71,12 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y", # install openvswitch for cisco containers
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y",   # install openvswitch for cisco containers
       "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco containers
-      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf", # configure pid_max for cisco containers
+      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco containers
       "sudo sysctl -p",
       "echo Pulling containers...",
-      "gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure sudoless docker
+      "gcloud auth configure-docker us-west1-docker.pkg.dev -q",      # configure sudoless docker
       "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure docker with sudo
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga",
