@@ -17,10 +17,10 @@ variable "zone" {
 
 source "googlecompute" "kne-image" {
   project_id          = "gep-kne"
-  source_image_family = "ubuntu-2004-lts"
+  source_image_family = "ubuntu-2204-lts"
   disk_size           = 50
-  image_name          = "kne-${var.build_id}"
-  image_family        = "kne-untested"
+  image_name          = "kne-ubuntu22-${var.build_id}"
+  image_family        = "kne-ubuntu22-untested"
   image_labels = {
     "kne_gh_commit_sha" : "${var.short_sha}",
     "kne_gh_branch_name" : "${var.branch_name}",
