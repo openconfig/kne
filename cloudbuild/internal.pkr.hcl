@@ -1,3 +1,12 @@
+packer {
+  required_plugins {
+    googlecompute = {
+      version = ">= 1.1.1"
+      source = "github.com/hashicorp/googlecompute"
+    }
+  }
+}
+
 variable "short_sha" {
   type = string
 }
@@ -17,10 +26,10 @@ variable "zone" {
 
 source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
-  source_image_family = "debian-11"
+  source_image_family = "debian-12"
   disk_size    = 50
-  image_name   = "kne-debian-${var.build_id}"
-  image_family = "kne-debian-untested"
+  image_name   = "kne-debian12-${var.build_id}"
+  image_family = "kne-debian12-untested"
   image_labels = {
     "kne_gh_commit_sha" : "${var.short_sha}",
     "kne_gh_branch_name" : "${var.branch_name}",
@@ -89,7 +98,6 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kubectl...",
-      "sudo mkdir /etc/apt/keyrings -m 755",
       "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg",
       "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
