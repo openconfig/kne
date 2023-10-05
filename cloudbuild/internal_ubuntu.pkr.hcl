@@ -80,12 +80,12 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y", # install openvswitch for cisco containers
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y",   # install openvswitch for cisco containers
       "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
-      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf", # configure pid_max for cisco 8000e containers
+      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
       "sudo sysctl -p",
       "echo Pulling containers...",
-      "gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure sudoless docker
+      "gcloud auth configure-docker us-west1-docker.pkg.dev -q",      # configure sudoless docker
       "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure docker with sudo
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga",
