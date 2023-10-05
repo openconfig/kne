@@ -26,16 +26,16 @@ variable "zone" {
 
 source "googlecompute" "kne-image" {
   project_id   = "gep-kne"
-  source_image_family = "debian-12"
+  source_image_family = "ubuntu-2004-lts"
   disk_size    = 50
-  image_name   = "kne-${var.build_id}"
-  image_family = "kne-untested"
+  image_name   = "kne-ubuntu-${var.build_id}"
+  image_family = "kne-ubuntu-untested"
   image_labels = {
     "kne_gh_commit_sha" : "${var.short_sha}",
     "kne_gh_branch_name" : "${var.branch_name}",
     "cloud_build_id" : "${var.build_id}",
   }
-  image_description     = "Debian based linux VM image with KNE and all internal dependencies installed."
+  image_description     = "Ubuntu based linux VM image with KNE and all internal dependencies installed."
   ssh_username          = "user"
   machine_type          = "e2-medium"
   zone                  = "${var.zone}"
@@ -48,6 +48,14 @@ source "googlecompute" "kne-image" {
 build {
   name    = "kne-builder"
   sources = ["sources.googlecompute.kne-image"]
+
+  provisioner "shell" {
+    inline = [
+      "echo Waiting for initial updates...",
+      "/usr/bin/cloud-init status --wait",
+      "sleep 60",
+    ]
+  }
 
   provisioner "shell" {
     inline = [
@@ -90,6 +98,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kubectl...",
+      "sudo mkdir /etc/apt/keyrings -m 755",
       "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg",
       "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
