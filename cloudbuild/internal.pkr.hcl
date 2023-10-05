@@ -2,7 +2,7 @@ packer {
   required_plugins {
     googlecompute = {
       version = ">= 1.1.1"
-      source = "github.com/hashicorp/googlecompute"
+      source  = "github.com/hashicorp/googlecompute"
     }
   }
 }
@@ -25,11 +25,11 @@ variable "zone" {
 }
 
 source "googlecompute" "kne-image" {
-  project_id   = "gep-kne"
+  project_id          = "gep-kne"
   source_image_family = "debian-12"
-  disk_size    = 50
-  image_name   = "kne-${var.build_id}"
-  image_family = "kne-untested"
+  disk_size           = 50
+  image_name          = "kne-${var.build_id}"
+  image_family        = "kne-untested"
   image_labels = {
     "kne_gh_commit_sha" : "${var.short_sha}",
     "kne_gh_branch_name" : "${var.branch_name}",
