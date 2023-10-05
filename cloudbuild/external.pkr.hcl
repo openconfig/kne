@@ -26,7 +26,7 @@ variable "zone" {
 
 source "googlecompute" "kne-image" {
   project_id          = "gep-kne"
-  source_image_family = "ubuntu-2004-lts"
+  source_image_family = "debian-12"
   disk_size           = 50
   image_name          = "kne-external-${var.build_id}"
   image_family        = "kne-external-untested"
@@ -35,7 +35,7 @@ source "googlecompute" "kne-image" {
     "kne_gh_branch_name" : "${var.branch_name}",
     "cloud_build_id" : "${var.build_id}",
   }
-  image_description     = "Ubuntu based linux VM image with KNE and all external dependencies installed."
+  image_description     = "Debian based linux VM image with KNE and all external dependencies installed."
   ssh_username          = "user"
   machine_type          = "e2-medium"
   zone                  = "${var.zone}"
@@ -48,14 +48,6 @@ source "googlecompute" "kne-image" {
 build {
   name    = "kne-builder"
   sources = ["sources.googlecompute.kne-image"]
-
-  provisioner "shell" {
-    inline = [
-      "echo Waiting for initial updates...",
-      "/usr/bin/cloud-init status --wait",
-      "sleep 60",
-    ]
-  }
 
   provisioner "shell" {
     inline = [
@@ -74,15 +66,15 @@ build {
       "echo Installing docker...",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
       "sudo apt-get -o DPkg::Lock::Timeout=60 install apt-transport-https ca-certificates curl gnupg lsb-release -y",
-      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+      "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
       "sudo apt-get -o DPkg::Lock::Timeout=60 install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
       "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y",   # install openvswitch for cisco containers
-      "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco containers
-      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco containers
+      "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
+      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
       "sudo sysctl -p",
     ]
   }
@@ -90,7 +82,6 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kubectl...",
-      "sudo mkdir /etc/apt/keyrings -m 755",
       "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg",
       "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
