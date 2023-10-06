@@ -19,10 +19,14 @@ duts {
   ports {
     id: "port6"
   }
+  ports {
+    id: "port7"
+  }
 }
 duts {
   id: "cptx"
   vendor: JUNIPER
+  hardware_model: "cptx"
   ports {
     id: "port1"
   }
@@ -40,6 +44,35 @@ duts {
   }
   ports {
     id: "port6"
+  }
+  ports {
+    id: "port7"
+  }
+}
+duts {
+  id: "ncptx"
+  vendor: JUNIPER
+  hardware_model: "ncptx"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+  ports {
+    id: "port5"
+  }
+  ports {
+    id: "port6"
+  }
+  ports {
+    id: "port7"
   }
 }
 duts {
@@ -62,6 +95,9 @@ duts {
   }
   ports {
     id: "port6"
+  }
+  ports {
+    id: "port7"
   }
 }
 duts {
@@ -86,6 +122,9 @@ duts {
   ports {
     id: "port6"
   }
+  ports {
+    id: "port7"
+  }
 }
 duts {
   id: "e8000"
@@ -109,6 +148,9 @@ duts {
   ports {
     id: "port6"
   }
+  ports {
+    id: "port7"
+  }
 }
 duts {
   id: "lemming"
@@ -130,6 +172,9 @@ duts {
   }
   ports {
     id: "port6"
+  }
+  ports {
+    id: "port7"
   }
 }
 ates {
@@ -153,6 +198,9 @@ ates {
   ports {
     id: "port6"
   }
+  ports {
+    id: "port7"
+  }
 }
 links {
   a: "otg:port1"
@@ -164,18 +212,22 @@ links {
 }
 links {
   a: "otg:port3"
-  b: "srl:port1"
+  b: "ncptx:port1"
 }
 links {
   a: "otg:port4"
-  b: "xrd:port1"
+  b: "srl:port1"
 }
 links {
   a: "otg:port5"
-  b: "e8000:port1"
+  b: "xrd:port1"
 }
 links {
   a: "otg:port6"
+  b: "e8000:port1"
+}
+links {
+  a: "otg:port7"
   b: "lemming:port1"
 }
 links {
@@ -184,58 +236,82 @@ links {
 }
 links {
   a: "ceos:port3"
-  b: "srl:port2"
+  b: "ncptx:port2"
 }
 links {
   a: "ceos:port4"
-  b: "xrd:port2"
+  b: "srl:port2"
 }
 links {
   a: "ceos:port5"
-  b: "e8000:port2"
+  b: "xrd:port2"
 }
 links {
   a: "ceos:port6"
+  b: "e8000:port2"
+}
+links {
+  a: "ceos:port7"
   b: "lemming:port2"
 }
 links {
   a: "cptx:port3"
-  b: "srl:port3"
+  b: "ncptx:port3"
 }
 links {
   a: "cptx:port4"
-  b: "xrd:port3"
+  b: "srl:port3"
 }
 links {
   a: "cptx:port5"
-  b: "e8000:port3"
+  b: "xrd:port3"
 }
 links {
   a: "cptx:port6"
+  b: "e8000:port3"
+}
+links {
+  a: "cptx:port7"
   b: "lemming:port3"
 }
 links {
-  a: "srl:port4"
+  a: "ncptx:port4"
+  b: "srl:port4"
+}
+links {
+  a: "ncptx:port5"
   b: "xrd:port4"
 }
 links {
-  a: "srl:port5"
+  a: "ncptx:port6"
   b: "e8000:port4"
 }
 links {
-  a: "srl:port6"
+  a: "ncptx:port7"
   b: "lemming:port4"
 }
 links {
-  a: "xrd:port5"
+  a: "srl:port5"
+  b: "xrd:port5"
+}
+links {
+  a: "srl:port6"
   b: "e8000:port5"
 }
 links {
-  a: "xrd:port6"
+  a: "srl:port7"
   b: "lemming:port5"
 }
 links {
-  a: "e8000:port6"
+  a: "xrd:port6"
+  b: "e8000:port6"
+}
+links {
+  a: "xrd:port7"
   b: "lemming:port6"
+}
+links {
+  a: "e8000:port7"
+  b: "lemming:port7"
 }
 

@@ -27,7 +27,7 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga"
     config_path: "/home/evo/configdisk"
     config_file: "juniper.conf"
-    file: "cptx.cfg"
+    file: "juniper.cfg"
     cert: {
       self_signed: {
         cert_name: "grpc-server-cert"
@@ -37,39 +37,106 @@ nodes: {
     }
   }
   interfaces: {
-    key: "eth1"
-    value: {
-      name: "et-0/0/0"
-    }
-  }
-  interfaces: {
-    key: "eth2"
-    value: {
-      name: "et-0/0/1"
-    }
-  }
-  interfaces: {
-    key: "eth3"
-    value: {
-      name: "et-0/0/2"
-    }
-  }
-  interfaces: {
     key: "eth4"
     value: {
-      name: "et-0/0/3"
+      name: "et-0/0/0:0"
+    }
+  }
+  interfaces: {
+    key: "eth12"
+    value: {
+      name: "et-0/0/1:0"
+    }
+  }
+  interfaces: {
+    key: "eth20"
+    value: {
+      name: "et-0/0/2:0"
+    }
+  }
+  interfaces: {
+    key: "eth28"
+    value: {
+      name: "et-0/0/3:0"
+    }
+  }
+  interfaces: {
+    key: "eth36"
+    value: {
+      name: "et-0/0/4:0"
+    }
+  }
+  interfaces: {
+    key: "eth40"
+    value: {
+      name: "et-0/0/6:0"
+    }
+  }
+  interfaces: {
+    key: "eth44"
+    value: {
+      name: "et-0/0/8:0"
+    }
+  }
+}
+nodes: {
+  name: "ncptx"
+  vendor: JUNIPER
+  model: "ncptx"
+  os: "evo"
+  config: {
+    image: "us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga"
+    config_path: "/home/evo/configdisk"
+    config_file: "juniper.conf"
+    file: "juniper.cfg"
+    cert: {
+      self_signed: {
+        cert_name: "grpc-server-cert"
+        key_name: "N/A"
+        key_size: 4096
+      }
     }
   }
   interfaces: {
     key: "eth5"
     value: {
-      name: "et-0/0/4"
+      name: "et-0/0/0:0"
     }
   }
   interfaces: {
-    key: "eth6"
+    key: "eth13"
     value: {
-      name: "et-0/0/5"
+      name: "et-0/0/1:0"
+    }
+  }
+  interfaces: {
+    key: "eth21"
+    value: {
+      name: "et-0/0/2:0"
+    }
+  }
+  interfaces: {
+    key: "eth29"
+    value: {
+      name: "et-0/0/3:0"
+    }
+  }
+  interfaces: {
+    key: "eth37"
+    value: {
+      name: "et-0/0/4:0"
+    }
+  }
+  interfaces: {
+    key: "eth41"
+    value: {
+      name: "et-0/0/6:0"
+    }
+  }
+  interfaces: {
+    key: "eth45"
+    value: {
+      name: "et-0/0/8:0"
     }
   }
 }
@@ -89,41 +156,47 @@ nodes: {
     }
   }
   interfaces: {
-        key: "eth1"
-        value: {
-            name: "ethernet-1/1"
-        }
+    key: "e1-1"
+    value: {
+      name: "ethernet-1/1"
     }
-    interfaces: {
-        key: "eth2"
-        value: {
-            name: "ethernet-1/2"
-        }
+  }
+  interfaces: {
+    key: "e1-2"
+    value: {
+      name: "ethernet-1/2"
     }
-    interfaces: {
-        key: "eth3"
-        value: {
-            name: "ethernet-1/3"
-        }
+  }
+  interfaces: {
+    key: "e1-3"
+    value: {
+      name: "ethernet-1/3"
     }
-    interfaces: {
-        key: "eth4"
-        value: {
-            name: "ethernet-1/4"
-        }
+  }
+  interfaces: {
+    key: "e1-4"
+    value: {
+      name: "ethernet-1/4"
     }
-    interfaces: {
-        key: "eth5"
-        value: {
-            name: "ethernet-1/5"
-        }
+  }
+  interfaces: {
+    key: "e1-5"
+    value: {
+      name: "ethernet-1/5"
     }
-    interfaces: {
-        key: "eth6"
-        value: {
-            name: "ethernet-1/6"
-        }
+  }
+  interfaces: {
+    key: "e1-6"
+    value: {
+      name: "ethernet-1/6"
     }
+  }
+  interfaces: {
+    key: "e1-7"
+    value: {
+      name: "ethernet-1/7"
+    }
+  }
 }
 nodes: {
   name: "xrd"
@@ -134,42 +207,48 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga"
     file: "cisco.cfg"
   }
-    interfaces: {
-        key: "eth1"
-        value: {
-            name: "GigabitEthernet0/0/0/0"
-        }
+  interfaces: {
+    key: "eth1"
+    value: {
+      name: "GigabitEthernet0/0/0/0"
     }
-    interfaces: {
-        key: "eth2"
-        value: {
-            name: "GigabitEthernet0/0/0/1"
-        }
+  }
+  interfaces: {
+    key: "eth2"
+    value: {
+      name: "GigabitEthernet0/0/0/1"
     }
-    interfaces: {
-        key: "eth3"
-        value: {
-            name: "GigabitEthernet0/0/0/2"
-        }
+  }
+  interfaces: {
+    key: "eth3"
+    value: {
+      name: "GigabitEthernet0/0/0/2"
     }
-    interfaces: {
-        key: "eth4"
-        value: {
-            name: "GigabitEthernet0/0/0/3"
-        }
+  }
+  interfaces: {
+    key: "eth4"
+    value: {
+      name: "GigabitEthernet0/0/0/3"
     }
-    interfaces: {
-        key: "eth5"
-        value: {
-            name: "GigabitEthernet0/0/0/4"
-        }
+  }
+  interfaces: {
+    key: "eth5"
+    value: {
+      name: "GigabitEthernet0/0/0/4"
     }
-    interfaces: {
-        key: "eth6"
-        value: {
-            name: "GigabitEthernet0/0/0/5"
-        }
+  }
+  interfaces: {
+    key: "eth6"
+    value: {
+      name: "GigabitEthernet0/0/0/5"
     }
+  }
+  interfaces: {
+    key: "eth7"
+    value: {
+      name: "GigabitEthernet0/0/0/6"
+    }
+  }
 }
 nodes: {
   name: "8000e"
@@ -180,47 +259,53 @@ nodes: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga"
     file: "cisco.cfg"
   }
-    interfaces: {
-        key: "eth1"
-        value: {
-            name: "FourHundredGigE0/0/0/0"
-        }
+  interfaces: {
+    key: "eth1"
+    value: {
+      name: "FourHundredGigE0/0/0/0"
     }
-    interfaces: {
-        key: "eth2"
-        value: {
-            name: "FourHundredGigE0/0/0/1"
-        }
+  }
+  interfaces: {
+    key: "eth2"
+    value: {
+      name: "FourHundredGigE0/0/0/1"
     }
-    interfaces: {
-        key: "eth3"
-        value: {
-            name: "FourHundredGigE0/0/0/2"
-        }
+  }
+  interfaces: {
+    key: "eth3"
+    value: {
+      name: "FourHundredGigE0/0/0/2"
     }
-    interfaces: {
-        key: "eth4"
-        value: {
-            name: "FourHundredGigE0/0/0/3"
-        }
+  }
+  interfaces: {
+    key: "eth4"
+    value: {
+      name: "FourHundredGigE0/0/0/3"
     }
-    interfaces: {
-        key: "eth5"
-        value: {
-            name: "FourHundredGigE0/0/0/4"
-        }
+  }
+  interfaces: {
+    key: "eth5"
+    value: {
+      name: "FourHundredGigE0/0/0/4"
     }
-    interfaces: {
-        key: "eth6"
-        value: {
-            name: "FourHundredGigE0/0/0/5"
-        }
+  }
+  interfaces: {
+    key: "eth6"
+    value: {
+      name: "FourHundredGigE0/0/0/5"
     }
+  }
+  interfaces: {
+    key: "eth7"
+    value: {
+      name: "FourHundredGigE0/0/0/6"
+    }
+  }
 }
 nodes: {
-    name: "lemming"
-    vendor: OPENCONFIG
-    model: "LEMMING"
+  name: "lemming"
+  vendor: OPENCONFIG
+  model: "LEMMING"
 }
 nodes: {
   name: "otg"
@@ -238,29 +323,35 @@ links: {
   a_node: "otg"
   a_int: "eth2"
   z_node: "cptx"
-  z_int: "eth1"
+  z_int: "eth4"
 }
 links: {
   a_node: "otg"
   a_int: "eth3"
-  z_node: "srl"
-  z_int: "eth1"
+  z_node: "ncptx"
+  z_int: "eth5"
 }
 links: {
   a_node: "otg"
   a_int: "eth4"
+  z_node: "srl"
+  z_int: "e1-1"
+}
+links: {
+  a_node: "otg"
+  a_int: "eth5"
   z_node: "xrd"
   z_int: "eth1"
 }
 links: {
   a_node: "otg"
-  a_int: "eth5"
+  a_int: "eth6"
   z_node: "8000e"
   z_int: "eth1"
 }
 links: {
   a_node: "otg"
-  a_int: "eth6"
+  a_int: "eth7"
   z_node: "lemming"
   z_int: "eth1"
 }
@@ -269,93 +360,131 @@ links: {
   a_node: "ceos"
   a_int: "eth2"
   z_node: "cptx"
-  z_int: "eth2"
+  z_int: "eth12"
 }
 links: {
   a_node: "ceos"
   a_int: "eth3"
-  z_node: "srl"
-  z_int: "eth2"
+  z_node: "ncptx"
+  z_int: "eth13"
 }
 links: {
   a_node: "ceos"
   a_int: "eth4"
+  z_node: "srl"
+  z_int: "e1-2"
+}
+links: {
+  a_node: "ceos"
+  a_int: "eth5"
   z_node: "xrd"
   z_int: "eth2"
 }
 links: {
   a_node: "ceos"
-  a_int: "eth5"
+  a_int: "eth6"
   z_node: "8000e"
   z_int: "eth2"
 }
 links: {
   a_node: "ceos"
-  a_int: "eth6"
+  a_int: "eth7"
   z_node: "lemming"
   z_int: "eth2"
 }
 # Links from cptx
 links: {
   a_node: "cptx"
-  a_int: "eth3"
-  z_node: "srl"
-  z_int: "eth3"
+  a_int: "eth20"
+  z_node: "ncptx"
+  z_int: "eth21"
 }
 links: {
   a_node: "cptx"
-  a_int: "eth4"
+  a_int: "eth28"
+  z_node: "srl"
+  z_int: "e1-3"
+}
+links: {
+  a_node: "cptx"
+  a_int: "eth36"
   z_node: "xrd"
   z_int: "eth3"
 }
 links: {
   a_node: "cptx"
-  a_int: "eth5"
+  a_int: "eth40"
   z_node: "8000e"
   z_int: "eth3"
 }
 links: {
   a_node: "cptx"
-  a_int: "eth6"
+  a_int: "eth44"
   z_node: "lemming"
   z_int: "eth3"
+}
+# Links from ncptx
+links: {
+  a_node: "ncptx"
+  a_int: "eth29"
+  z_node: "srl"
+  z_int: "e1-4"
+}
+links: {
+  a_node: "ncptx"
+  a_int: "eth37"
+  z_node: "xrd"
+  z_int: "eth4"
+}
+links: {
+  a_node: "ncptx"
+  a_int: "eth41"
+  z_node: "8000e"
+  z_int: "eth4"
+}
+links: {
+  a_node: "ncptx"
+  a_int: "eth45"
+  z_node: "lemming"
+  z_int: "eth4"
 }
 # Links from srl
 links: {
   a_node: "srl"
-  a_int: "eth4"
+  a_int: "e1-5"
   z_node: "xrd"
-  z_int: "eth4"
+  z_int: "eth5"
 }
 links: {
   a_node: "srl"
-  a_int: "eth5"
+  a_int: "e1-6"
   z_node: "8000e"
-  z_int: "eth4"
+  z_int: "eth5"
 }
 links: {
   a_node: "srl"
-  a_int: "eth6"
+  a_int: "e1-7"
   z_node: "lemming"
-  z_int: "eth4"
+  z_int: "eth5"
 }
 # Links from xrd
 links: {
   a_node: "xrd"
-  a_int: "eth5"
+  a_int: "eth6"
   z_node: "8000e"
-  z_int: "eth5"
+  z_int: "eth6"
 }
 links: {
   a_node: "xrd"
-  a_int: "eth6"
+  a_int: "eth7"
   z_node: "lemming"
-  z_int: "eth5"
+  z_int: "eth6"
 }
 # Links from 8000e
 links: {
   a_node: "8000e"
-  a_int: "eth6"
+  a_int: "eth7"
   z_node: "lemming"
-  z_int: "eth6"
+  z_int: "eth7"
 }
+
