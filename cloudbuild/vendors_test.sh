@@ -40,6 +40,7 @@ pushd "$HOME/kne/cloudbuild"
 go test -v vendors/vendors_test.go \
   -testbed testbed.textproto \
   -topology topology.textproto \
+  -skip_reset \
   -vendor_creds ARISTA/admin/admin \
   -vendor_creds JUNIPER/root/Google123 \
   -vendor_creds CISCO/cisco/cisco123 \
