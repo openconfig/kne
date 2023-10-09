@@ -219,10 +219,9 @@ func TestService(t *testing.T) {
 		wantServiceErr string
 		want           []*corev1.Service
 	}{{
-		desc:           "no services",
-		node:           &topopb.Node{Name: "dev1", Vendor: topopb.Vendor(1001)},
-		kClient:        kfake.NewSimpleClientset(),
-		wantServiceErr: `"service-dev1" not found`,
+		desc:    "no services",
+		node:    &topopb.Node{Name: "dev1", Vendor: topopb.Vendor(1001)},
+		kClient: kfake.NewSimpleClientset(),
 	}, {
 		desc: "services valid",
 		node: &topopb.Node{
@@ -336,9 +335,6 @@ func TestService(t *testing.T) {
 			err := n.CreateService(context.Background())
 			if s := errdiff.Check(err, tt.wantCreateErr); s != "" {
 				t.Fatalf("CreateService() failed: %s", s)
-			}
-			if tt.wantServiceErr != "" {
-				return
 			}
 
 			got, err := n.Services(context.Background())

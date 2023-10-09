@@ -368,7 +368,7 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 	}
 	for _, n := range m.topo.Nodes {
 		if len(n.Services) == 0 {
-			n.Services = map[uint32]*tpb.Service{}
+			continue
 		}
 		services, ok := r.Services[n.Name]
 		if !ok {
