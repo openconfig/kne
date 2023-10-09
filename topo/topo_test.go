@@ -955,6 +955,10 @@ func TestShow(t *testing.T) {
 					},
 				},
 			},
+			{
+				Name:   "r3",
+				Vendor: tpb.Vendor(1004),
+			},
 		},
 	}
 
@@ -1006,6 +1010,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{
@@ -1093,6 +1107,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{
@@ -1209,6 +1233,16 @@ func TestShow(t *testing.T) {
 					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
 				},
 			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
 		},
 		wantErr: "could not get services",
 	}, {
@@ -1229,6 +1263,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{
@@ -1313,6 +1357,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{

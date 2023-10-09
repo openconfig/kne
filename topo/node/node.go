@@ -660,6 +660,9 @@ func (n *Impl) Pods(ctx context.Context) ([]*corev1.Pod, error) {
 
 // Service returns the service definition for the node.
 func (n *Impl) Services(ctx context.Context) ([]*corev1.Service, error) {
+	if len(n.Proto.Services) == 0 {
+		return nil, nil
+	}
 	s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
