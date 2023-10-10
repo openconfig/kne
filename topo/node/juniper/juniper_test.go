@@ -463,6 +463,10 @@ func TestNew(t *testing.T) {
 					Name:   "gribi",
 					Inside: 32767,
 				},
+				9559: {
+					Name:   "p4rt",
+					Inside: 32767,
+				},
 			},
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
@@ -536,6 +540,10 @@ func TestNew(t *testing.T) {
 				},
 				9340: {
 					Name:   "gribi",
+					Inside: 32767,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 32767,
 				},
 			},
@@ -613,6 +621,10 @@ func TestNew(t *testing.T) {
 					Name:   "gribi",
 					Inside: 32767,
 				},
+				9559: {
+					Name:   "p4rt",
+					Inside: 32767,
+				},
 			},
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
@@ -675,6 +687,10 @@ func TestNew(t *testing.T) {
 				},
 				9340: {
 					Name:   "gribi",
+					Inside: 32767,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 32767,
 				},
 			},
