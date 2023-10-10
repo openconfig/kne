@@ -581,6 +581,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Name:   "gribi",
 				Inside: 32767,
 			},
+			9559: {
+				Name:   "p4rt",
+				Inside: 32767,
+			},
 		}
 	}
 	if pb.Config.Cert == nil {
