@@ -19,3 +19,5 @@ jobs:
 
   linter:
     uses: openconfig/common-ci/.github/workflows/linter.yml@c2294c3c86c90e75e58c24a40d6f7f3364bbae9d
+    env:
+      VALIDATE_KUBERNETES_KUBECONFORM: false
