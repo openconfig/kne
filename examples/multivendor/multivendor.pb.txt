@@ -16,27 +16,6 @@ nodes: {
       }
     }
   }
-  services: {
-    key: 9339
-    value: {
-      name: "gnmi"
-      inside: 6030
-    }
-  }
-  services: {
-    key: 9337
-    value: {
-      name: "gnoi"
-      inside: 6030
-    }
-  }
-  services: {
-    key: 9340
-    value: {
-      name: "gribi"
-      inside: 9340
-    }
-  }
 }
 nodes: {
   name: "cptx"
