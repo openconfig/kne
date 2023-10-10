@@ -114,6 +114,7 @@ func TestNewDeployment(t *testing.T) {
 			CNI: &deploy.MeshnetSpec{
 				Manifest: testFile.Name(),
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - with ixiatg controller",
@@ -182,6 +183,7 @@ func TestNewDeployment(t *testing.T) {
 					ConfigMap: testFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - with srlinux controller",
@@ -244,6 +246,7 @@ func TestNewDeployment(t *testing.T) {
 					Operator: testFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - with ceoslab controller",
@@ -306,6 +309,7 @@ func TestNewDeployment(t *testing.T) {
 					Operator: testFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - with lemming controller",
@@ -368,6 +372,7 @@ func TestNewDeployment(t *testing.T) {
 					Operator: testFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - with multiple controllers empty filepath",
@@ -466,6 +471,7 @@ func TestNewDeployment(t *testing.T) {
 					Operator: defTestFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - with multiple controllers",
@@ -578,6 +584,7 @@ func TestNewDeployment(t *testing.T) {
 					Operator: testFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - with multiple controllers data",
@@ -690,6 +697,7 @@ func TestNewDeployment(t *testing.T) {
 					OperatorData: testData,
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - without ixiatg config map",
@@ -753,6 +761,7 @@ func TestNewDeployment(t *testing.T) {
 					ConfigMap: defTestFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - default ixiatg config map dne",
@@ -842,6 +851,7 @@ func TestNewDeployment(t *testing.T) {
 					Operator: defTestFile.Name(),
 				},
 			},
+			Progress: true,
 		},
 	}, {
 		desc: "request spec - default manifest paths dne",

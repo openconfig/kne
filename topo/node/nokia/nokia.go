@@ -1,4 +1,4 @@
-package srl
+package nokia
 
 import (
 	"context"
@@ -335,9 +335,21 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Name:   "ssh",
 				Inside: 22,
 			},
-			57400: {
+			9337: {
+				Name:   "gnoi",
+				Inside: 57400,
+			},
+			9339: {
 				Name:   "gnmi",
 				Inside: 57400,
+			},
+			9340: {
+				Name:   "gribi",
+				Inside: 57401,
+			},
+			9559: {
+				Name:   "p4rt",
+				Inside: 9559,
 			},
 		}
 	}
@@ -346,6 +358,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_NOKIA.String()
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
@@ -362,6 +377,15 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 
 		pb.Config.ConfigFile = "config" + ext
+	}
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{}
+	}
+	if pb.Constraints["cpu"] == "" {
+		pb.Constraints["cpu"] = "0.5"
+	}
+	if pb.Constraints["memory"] == "" {
+		pb.Constraints["memory"] = "1Gi"
 	}
 	return pb
 }

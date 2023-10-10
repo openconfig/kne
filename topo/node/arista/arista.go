@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package ceos
+package arista
 
 import (
 	"context"
@@ -335,12 +335,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			Name: "default_ceos_node",
 		}
 	}
-	if pb.Constraints == nil {
-		pb.Constraints = map[string]string{
-			"cpu":    "0.5",
-			"memory": "1Gi",
-		}
-	}
+	pb = constraints(pb)
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			443: {
@@ -354,6 +349,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			6030: {
 				Name:   "gnmi",
 				Inside: 6030,
+			},
+			9340: {
+				Name:   "gribi",
+				Inside: 9340,
 			},
 		}
 	}
@@ -372,6 +371,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Labels["version"] == "" {
 		pb.Labels["version"] = pb.Version
 	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
+	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
@@ -383,6 +385,19 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.ConfigFile == "" {
 		pb.Config.ConfigFile = "startup-config"
+	}
+	return pb
+}
+
+func constraints(pb *tpb.Node) *tpb.Node {
+	if pb.Constraints == nil {
+		pb.Constraints = map[string]string{}
+	}
+	if pb.Constraints["cpu"] == "" {
+		pb.Constraints["cpu"] = "0.5"
+	}
+	if pb.Constraints["memory"] == "" {
+		pb.Constraints["memory"] = "1Gi"
 	}
 	return pb
 }

@@ -31,8 +31,8 @@ popd
 
 # Deploy a cluster + topo
 pushd "$HOME"
-$cli deploy kne/cloudbuild/vendors/deployment.yaml
-$cli create kne/cloudbuild/vendors/topology.textproto
+$cli deploy kne/cloudbuild/vendors/deployment.yaml --report_usage=false
+$cli create kne/cloudbuild/vendors/topology.textproto --report_usage=false
 popd
 
 # Run an ondatra test

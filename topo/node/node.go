@@ -4,11 +4,17 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/gnmi/errlist"
+	tpb "github.com/openconfig/kne/proto/topo"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplilogging "github.com/scrapli/scrapligo/logging"
@@ -24,15 +30,13 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
-
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
-	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 type Interface interface {
 	Name() string
 	GetNamespace() string
 	GetProto() *tpb.Node
+	String() string
 }
 
 type Implementation interface {
@@ -86,6 +90,10 @@ const (
 	StatusUnknown Status = "UNKNOWN"
 
 	ConfigVolumeName = "startup-config-volume"
+
+	OndatraRoleLabel = "ondatra-role"
+	OndatraRoleDUT   = "DUT"
+	OndatraRoleATE   = "ATE"
 )
 
 type NewNodeFn func(n *Impl) (Node, error)
@@ -95,6 +103,23 @@ var (
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
 	tempCfgDir  = "/tmp/kne"
 )
+
+var (
+	// Stubs for testing
+	kernelConstraintValue = kernelConstraintValueImpl
+)
+
+func kernelConstraintValueImpl(constraint string) (int, error) {
+	constraintData, err := os.ReadFile(convertSysctlNameToProcSysPath(constraint))
+	if err != nil {
+		return 0, err
+	}
+	kcValue, err := strconv.Atoi(strings.TrimSpace(string(constraintData)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert kernel constraint data: %s error: %w", string(constraintData), err)
+	}
+	return kcValue, nil
+}
 
 // Vendor registers the vendor type with the topology manager.
 func Vendor(v tpb.Vendor, fn NewNodeFn) {
@@ -135,6 +160,10 @@ func (n *Impl) GetProto() *tpb.Node {
 
 func (n *Impl) GetNamespace() string {
 	return n.Namespace
+}
+
+func (n *Impl) String() string {
+	return fmt.Sprintf("%q (vendor: %q, model: %q)", n.Proto.Name, n.Proto.Vendor, n.Proto.Model)
 }
 
 func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
@@ -203,6 +232,9 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 // Create will create the node in the k8s cluster with all services and config
 // maps.
 func (n *Impl) Create(ctx context.Context) error {
+	if err := n.ValidateConstraints(); err != nil {
+		return fmt.Errorf("node %s failed to validate node with errors: %s", n.Name(), err)
+	}
 	if err := n.CreatePod(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create pod %w", n.Name(), err)
 	}
@@ -210,6 +242,67 @@ func (n *Impl) Create(ctx context.Context) error {
 		return fmt.Errorf("node %s failed to create service %w", n.Name(), err)
 	}
 	return nil
+}
+
+// ValidateConstraints will check the host constraints and returns a list of errors for cases which do not meet
+// the constraints
+func (n *Impl) ValidateConstraints() error {
+	hostConstraints := n.GetProto().GetHostConstraints()
+	if hostConstraints == nil {
+		return nil
+	}
+	var errorList errlist.List
+	for _, hc := range hostConstraints {
+		switch v := hc.GetConstraint().(type) {
+		case *tpb.HostConstraint_KernelConstraint:
+			log.Infof("Validating %s constraint for node %s", v.KernelConstraint.GetName(), n.String())
+			kcValue, err := kernelConstraintValue(v.KernelConstraint.Name)
+			if err != nil {
+				errorList.Add(err)
+				continue
+			}
+			switch k := v.KernelConstraint.GetConstraintType().(type) {
+			case *tpb.KernelParam_BoundedInteger:
+				if err := validateBoundedInteger(k.BoundedInteger, kcValue); err != nil {
+					errorList.Add(fmt.Errorf("failed to validate kernel constraint error: %w", err))
+				}
+			}
+		default:
+			return nil
+		}
+	}
+
+	return errorList.Err()
+}
+
+// validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,
+// the lower bound should already default to zero if not specified, validates that lower <= upper in the constraint otherwise error
+func validateBoundedInteger(nodeConstraint *tpb.BoundedInteger, hostCons int) error {
+	if nodeConstraint.MaxValue == 0 {
+		nodeConstraint.MaxValue = math.MaxInt64
+	}
+	if nodeConstraint.MinValue > nodeConstraint.MaxValue {
+		return fmt.Errorf("invalid bounds. Max value %d is less than min value %d", nodeConstraint.MaxValue, nodeConstraint.MinValue)
+	}
+	if !(nodeConstraint.MinValue <= int64(hostCons) && int64(hostCons) <= nodeConstraint.MaxValue) {
+		return fmt.Errorf("invalid bounded integer constraint. min: %d max %d constraint data %d",
+			nodeConstraint.MinValue, nodeConstraint.MaxValue, hostCons)
+	}
+	return nil
+}
+
+// convertSysctlNameToProcSysPath - Constraints need to be read from a specific path in the system which is
+// prepended with "proc/sys". The full path needs to be calculated
+func convertSysctlNameToProcSysPath(sysctlName string) string {
+	sysctlNameParts := strings.Split(sysctlName, ".")
+	procSysPath := "/proc/sys/"
+	for i, part := range sysctlNameParts {
+		procSysPath += part
+		if i < len(sysctlNameParts)-1 {
+			procSysPath += "/"
+		}
+	}
+	return procSysPath
 }
 
 func (n *Impl) readConfig() ([]byte, error) {
@@ -567,6 +660,9 @@ func (n *Impl) Pods(ctx context.Context) ([]*corev1.Pod, error) {
 
 // Service returns the service definition for the node.
 func (n *Impl) Services(ctx context.Context) ([]*corev1.Service, error) {
+	if len(n.Proto.Services) == 0 {
+		return nil, nil
+	}
 	s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
 	if err != nil {
 		return nil, err

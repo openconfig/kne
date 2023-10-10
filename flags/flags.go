@@ -21,10 +21,18 @@ import (
 	"flag"
 
 	"github.com/spf13/pflag"
+	"k8s.io/klog/v2"
 )
 
 // Import imports the command line flags from the standard flag package into
 // pflag's command line flags.
-func Import() {
+func Import(defmap map[string]string) {
+	klog.InitFlags(nil)
+	for k, v := range defmap {
+		if f := flag.Lookup(k); f != nil {
+			f.Value.Set(v)
+			f.DefValue = v
+		}
+	}
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 }

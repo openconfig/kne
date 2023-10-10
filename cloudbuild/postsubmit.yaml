@@ -1,6 +1,11 @@
 steps:
+  - id: packer_init_external
+    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer:1.9.1"
+    args: ["init", "cloudbuild/external.pkr.hcl"]
+    waitFor: ["-"] # run the builds concurrently
+
   - id: packer_build_external
-    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer"
+    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer:1.9.1"
     args: ["build", "cloudbuild/external.pkr.hcl"]
     env: [
       "PKR_VAR_build_id=$BUILD_ID",
@@ -8,9 +13,15 @@ steps:
       "PKR_VAR_branch_name=$BRANCH_NAME",
       "PKR_VAR_zone=${_ZONE}",
     ]
+    waitFor: [packer_init_external]
+  
+  - id: packer_init_internal
+    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer:1.9.1"
+    args: ["init", "cloudbuild/internal.pkr.hcl"]
+    waitFor: ["-"] # run the builds concurrently
 
   - id: packer_build_internal
-    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer"
+    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer:1.9.1"
     args: ["build", "cloudbuild/internal.pkr.hcl"]
     env: [
       "PKR_VAR_build_id=$BUILD_ID",
@@ -18,7 +29,23 @@ steps:
       "PKR_VAR_branch_name=$BRANCH_NAME",
       "PKR_VAR_zone=${_ZONE}",
     ]
+    waitFor: [packer_init_internal]
+
+  - id: packer_init_internal_ubuntu
+    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer:1.9.1"
+    args: ["init", "cloudbuild/internal_ubuntu.pkr.hcl"]
     waitFor: ["-"] # run the builds concurrently
+
+  - id: packer_build_internal_ubuntu
+    name: "us-west1-docker.pkg.dev/gep-kne/packer/packer:1.9.1"
+    args: ["build", "cloudbuild/internal_ubuntu.pkr.hcl"]
+    env: [
+      "PKR_VAR_build_id=$BUILD_ID",
+      "PKR_VAR_short_sha=$SHORT_SHA",
+      "PKR_VAR_branch_name=$BRANCH_NAME",
+      "PKR_VAR_zone=${_ZONE}",
+    ]
+    waitFor: [packer_init_internal_ubuntu]
 
 timeout: 3600s
 

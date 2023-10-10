@@ -17,6 +17,7 @@ package topo
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -28,6 +29,7 @@ import (
 	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	cpb "github.com/openconfig/kne/proto/controller"
+	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/proto"
@@ -36,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/watch"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
@@ -342,6 +345,30 @@ func TestNew(t *testing.T) {
 			},
 		},
 		wantErr: "failed to load",
+	}, {
+		desc: "link err - loopback",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1001),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r1",
+					ZInt:  "eth2",
+				},
+			},
+		},
+		wantErr: "invalid link",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -363,40 +390,39 @@ func TestNew(t *testing.T) {
 	}
 }
 
+type fakeMetricsReporter struct {
+	reportStartErr, reportEndErr error
+}
+
+func (f *fakeMetricsReporter) Close() error {
+	return nil
+}
+
+func (f *fakeMetricsReporter) ReportCreateTopologyStart(_ context.Context, _ *epb.Topology) (string, error) {
+	return "fake-uuid", f.reportStartErr
+}
+
+func (f *fakeMetricsReporter) ReportCreateTopologyEnd(_ context.Context, _ string, _ error) error {
+	return f.reportEndErr
+}
+
 func TestCreate(t *testing.T) {
 	ctx := context.Background()
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset: %v", err)
+
+	origNewMetricsReporter := newMetricsReporter
+	defer func() {
+		newMetricsReporter = origNewMetricsReporter
+	}()
+	newMetricsReporter = func(_ context.Context, _, _ string) (metricsReporter, error) {
+		return &fakeMetricsReporter{reportStartErr: errors.New("start err"), reportEndErr: errors.New("end err")}, nil
 	}
-	kf := kfake.NewSimpleClientset()
-	kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
-		gAction, ok := action.(ktest.GetAction)
-		if !ok {
-			return false, nil, nil
-		}
-		p := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: gAction.GetName()}}
-		switch p.Name {
-		default:
-			p.Status.Phase = corev1.PodRunning
-			p.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
-		case "bad":
-			p.Status.Phase = corev1.PodFailed
-		case "hanging":
-			p.Status.Phase = corev1.PodPending
-		}
-		return true, p, nil
-	})
-	opts := []Option{
-		WithClusterConfig(&rest.Config{}),
-		WithKubeClient(kf),
-		WithTopoClient(tf),
-	}
+
 	node.Vendor(tpb.Vendor(1002), NewConfigurable)
 	tests := []struct {
 		desc    string
 		topo    *tpb.Topology
 		timeout time.Duration
+		opts    []Option
 		wantErr string
 	}{{
 		desc: "success",
@@ -477,10 +503,78 @@ func TestCreate(t *testing.T) {
 				},
 			},
 		},
-		wantErr: `Node "bad": Status FAILED`,
+		wantErr: `Node "bad" (vendor: "1002", model: ""): Status FAILED`,
+	}, {
+		desc: "failed to report metrics, create still passes",
+		opts: []Option{WithUsageReporting(true, "", "")},
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			tf, err := tfake.NewSimpleClientset()
+			if err != nil {
+				t.Fatalf("cannot create fake topology clientset: %v", err)
+			}
+			kf := kfake.NewSimpleClientset()
+			kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
+				gAction, ok := action.(ktest.GetAction)
+				if !ok {
+					return false, nil, nil
+				}
+				p := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: gAction.GetName()}}
+				switch p.Name {
+				default:
+					p.Status.Phase = corev1.PodRunning
+					p.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+				case "bad":
+					p.Status.Phase = corev1.PodFailed
+				case "hanging":
+					p.Status.Phase = corev1.PodPending
+				}
+				return true, p, nil
+			})
+
+			opts := []Option{
+				WithClusterConfig(&rest.Config{}),
+				WithKubeClient(kf),
+				WithTopoClient(tf),
+			}
+			opts = append(opts, tt.opts...)
 			m, err := New(tt.topo, opts...)
 			if err != nil {
 				t.Fatalf("New() failed to create new topology manager: %v", err)
@@ -493,14 +587,65 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+type fakeWatch struct {
+	ch   chan watch.Event
+	done chan struct{}
+}
+
+func (f *fakeWatch) Stop() {
+	close(f.done)
+}
+
+func (f *fakeWatch) ResultChan() <-chan watch.Event {
+	return f.ch
+}
+
 func TestDelete(t *testing.T) {
 	ctx := context.Background()
 	node.Vendor(tpb.Vendor(1003), NewConfigurable)
+
+	failWatchEvents := []watch.Event{
+		{
+			Type: watch.Deleted,
+			Object: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "dne",
+				},
+			},
+		},
+		{
+			Type: watch.Added,
+			Object: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+	}
+	passWatchEvents := append(failWatchEvents,
+		watch.Event{
+			Type: watch.Deleted,
+			Object: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+	)
+
+	origDeleteWatchTimeout := deleteWatchTimeout
+	defer func() {
+		deleteWatchTimeout = origDeleteWatchTimeout
+	}()
+	deleteWatchTimeout = time.Millisecond
+
 	tests := []struct {
-		desc       string
-		topo       *tpb.Topology
-		k8sObjects []runtime.Object
-		wantErr    string
+		desc        string
+		topo        *tpb.Topology
+		k8sObjects  []runtime.Object
+		skipWait    bool
+		watchEvents []watch.Event
+		wantErr     string
 	}{{
 		desc: "delete a non-existent topo",
 		topo: &tpb.Topology{
@@ -537,7 +682,8 @@ func TestDelete(t *testing.T) {
 				},
 			},
 		},
-		wantErr: "does not exist in cluster",
+		skipWait: true,
+		wantErr:  "does not exist in cluster",
 	}, {
 		desc: "delete an existing topo",
 		topo: &tpb.Topology{
@@ -587,6 +733,159 @@ func TestDelete(t *testing.T) {
 				},
 			},
 		},
+		skipWait: true,
+	}, {
+		desc: "delete with watch",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+			},
+		},
+		watchEvents: passWatchEvents,
+	}, {
+		desc: "delete with watch - bad events",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+			},
+		},
+		watchEvents: failWatchEvents,
+		wantErr:     "context canceled before namespace deleted",
+	}, {
+		desc: "delete without watch - bad events",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1003),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+						3000: {
+							Name: "gnmi",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r2",
+					ZInt:  "eth1",
+				},
+			},
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+			},
+		},
+		skipWait:    true,
+		watchEvents: failWatchEvents,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -594,10 +893,28 @@ func TestDelete(t *testing.T) {
 			if err != nil {
 				t.Fatalf("cannot create fake topology clientset: %v", err)
 			}
+			kf := kfake.NewSimpleClientset(tt.k8sObjects...)
+			kf.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
+				f := &fakeWatch{
+					ch:   make(chan watch.Event, 1),
+					done: make(chan struct{}),
+				}
+				go func() {
+					for _, e := range tt.watchEvents {
+						select {
+						case f.ch <- e:
+						case <-f.done:
+							return
+						}
+					}
+				}()
+				return true, f, nil
+			})
 			opts := []Option{
 				WithClusterConfig(&rest.Config{}),
-				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
+				WithKubeClient(kf),
 				WithTopoClient(tf),
+				WithSkipDeleteWait(tt.skipWait),
 			}
 			m, err := New(tt.topo, opts...)
 			if err != nil {
@@ -637,6 +954,10 @@ func TestShow(t *testing.T) {
 						Name: "gnmi",
 					},
 				},
+			},
+			{
+				Name:   "r3",
+				Vendor: tpb.Vendor(1004),
 			},
 		},
 	}
@@ -689,6 +1010,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{
@@ -776,6 +1107,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{
@@ -892,6 +1233,16 @@ func TestShow(t *testing.T) {
 					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
 				},
 			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
 		},
 		wantErr: "could not get services",
 	}, {
@@ -912,6 +1263,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{
@@ -996,6 +1357,16 @@ func TestShow(t *testing.T) {
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
 					Namespace: "test",
 				},
 				Status: corev1.PodStatus{

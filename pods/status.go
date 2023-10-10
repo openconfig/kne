@@ -186,18 +186,17 @@ func (w *Watcher) updatePod(s *PodStatus) bool {
 			continue
 		}
 		s.Ready = false // This should never happen
-		switch c.Reason {
-		case "ErrImagePull":
+		switch {
+		case c.Reason == "ErrImagePull" && strings.Contains(c.Message, "code = NotFound"):
 			showContainer(s, &c, "FAILED")
 			w.warningf("%s: %s", fullName, c.Message)
-			if strings.Contains(c.Message, "code = NotFound") {
-				w.errCh <- fmt.Errorf("%s IMAGE:%s not found", fullName, c.Image)
-			} else {
-				w.errCh <- fmt.Errorf("%s failed: %s", fullName, c.Message)
-			}
+			w.errCh <- fmt.Errorf("%s IMAGE:%s not found", fullName, c.Image)
 			w.cancel()
 			return false
-		case "ImagePullBackOff":
+		case c.Reason == "ErrImagePull":
+			showContainer(s, &c, c.Reason)
+			log.Infof("%s in ErrImagePull", fullName)
+		case c.Reason == "ImagePullBackOff":
 			showContainer(s, &c, c.Reason)
 			log.Infof("%s in PullBackoff", fullName)
 		default:

@@ -219,10 +219,9 @@ func TestService(t *testing.T) {
 		wantServiceErr string
 		want           []*corev1.Service
 	}{{
-		desc:           "no services",
-		node:           &topopb.Node{Name: "dev1", Vendor: topopb.Vendor(1001)},
-		kClient:        kfake.NewSimpleClientset(),
-		wantServiceErr: `"service-dev1" not found`,
+		desc:    "no services",
+		node:    &topopb.Node{Name: "dev1", Vendor: topopb.Vendor(1001)},
+		kClient: kfake.NewSimpleClientset(),
 	}, {
 		desc: "services valid",
 		node: &topopb.Node{
@@ -337,9 +336,6 @@ func TestService(t *testing.T) {
 			if s := errdiff.Check(err, tt.wantCreateErr); s != "" {
 				t.Fatalf("CreateService() failed: %s", s)
 			}
-			if tt.wantServiceErr != "" {
-				return
-			}
 
 			got, err := n.Services(context.Background())
 			if s := errdiff.Check(err, tt.wantServiceErr); s != "" {
@@ -353,6 +349,107 @@ func TestService(t *testing.T) {
 					return a.Name < b.Name
 				})); s != "" {
 				t.Fatalf("Services() failed: %s", s)
+			}
+		})
+	}
+}
+
+func TestValidateConstraints(t *testing.T) {
+	tests := []struct {
+		desc             string
+		node             *topopb.Node
+		wantErr          string
+		constraintValues map[string]int
+	}{
+		{
+			desc: "Invalid case - contraint value is greater than upper bound",
+			node: &topopb.Node{
+				Name: "node1",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MaxValue: 1000}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 1500},
+			wantErr:          "failed to validate kernel constraint error: invalid bounded integer constraint. min: 0 max 1000 constraint data 1500",
+		},
+		{
+			desc: "Invalid case - constraint value is lesser than lower bound",
+			node: &topopb.Node{
+				Name: "node1",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MinValue: 10, MaxValue: 100}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 5},
+			wantErr:          "failed to validate kernel constraint error: invalid bounded integer constraint. min: 10 max 100 constraint data 5",
+		},
+		{
+			desc: "Invalid case - constraint bounds is invalid upper bound is less than lower bound",
+			node: &topopb.Node{
+				Name: "node1",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MinValue: 10, MaxValue: 1}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 5},
+			wantErr:          "failed to validate kernel constraint error: invalid bounds. Max value 1 is less than min value 10",
+		},
+		{
+			desc: "Valid constraint",
+			node: &topopb.Node{
+				Name: "node1",
+				HostConstraints: []*topopb.HostConstraint{
+					{
+						Constraint: &topopb.HostConstraint_KernelConstraint{
+							KernelConstraint: &topopb.KernelParam{
+								Name:           "fs.inotify.max_user_instances",
+								ConstraintType: &topopb.KernelParam_BoundedInteger{BoundedInteger: &topopb.BoundedInteger{MinValue: 1, MaxValue: 1000}},
+							},
+						},
+					},
+				},
+			},
+			constraintValues: map[string]int{"fs.inotify.max_user_instances": 500},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			n := &Impl{
+				Proto: tt.node,
+			}
+
+			origkernelConstraintValue := kernelConstraintValue
+			defer func() {
+				kernelConstraintValue = origkernelConstraintValue
+			}()
+			kernelConstraintValue = func(constraint string) (int, error) {
+				return tt.constraintValues[constraint], nil
+			}
+			err := n.ValidateConstraints()
+			if d := errdiff.Substring(err, tt.wantErr); d != "" {
+				t.Fatalf("ValidateConstraints() failed: %s", d)
 			}
 		})
 	}

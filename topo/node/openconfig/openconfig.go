@@ -12,26 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package lemming contains a node implementation for a lemming device.
-package lemming
+// Package openconfig implmements node definitions for nodes from the
+// OpenConfig vendor. It implements both a device (model: lemming) and
+// an ATE (model: magna).
+package openconfig
 
 import (
 	"context"
 	"fmt"
 	"io"
 
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"github.com/openconfig/lemming/operator/api/clientset"
+	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/client-go/rest"
-
-	tpb "github.com/openconfig/kne/proto/topo"
-	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 )
 
+const (
+	// modelMagna is a string used in the topology to specify that a magna (github.com/openconfig/magna)
+	// ATE instance should be created.
+	modelMagna string = "MAGNA"
+	// modelLemming is a string used in the topology to specify that a lemming (github.com/openconfig/lemming)
+	// device instance should be created.
+	modelLemming string = "LEMMING"
+)
+
+// New creates a new instance of a node based on the specified model.
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
@@ -39,7 +50,17 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl.Proto == nil {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
-	cfg := defaults(nodeImpl.Proto)
+
+	var cfg *tpb.Node
+	switch nodeImpl.Proto.Model {
+	case modelLemming:
+		cfg = lemmingDefaults(nodeImpl.Proto)
+	case modelMagna:
+		cfg = magnaDefaults(nodeImpl.Proto)
+	default:
+		return nil, fmt.Errorf("a model must be specified")
+	}
+
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
@@ -63,6 +84,19 @@ var clientFn = func(c *rest.Config) (clientset.Interface, error) {
 }
 
 func (n *Node) Create(ctx context.Context) error {
+	switch n.Impl.Proto.Model {
+	case modelLemming:
+		return n.lemmingCreate(ctx)
+	case modelMagna:
+		// magna uses the standard pod creation as though it were a host.
+		return n.Impl.Create(ctx)
+	default:
+		return fmt.Errorf("cannot create an instance of an unknown model")
+	}
+}
+
+// lemmingCreate implements the Create function for the lemming model devices.
+func (n *Node) lemmingCreate(ctx context.Context) error {
 	nodeSpec := n.GetProto()
 	config := nodeSpec.GetConfig()
 	log.Infof("create lemming %q", nodeSpec.Name)
@@ -119,6 +153,18 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
+	switch n.Impl.Proto.Model {
+	case modelMagna:
+		// magna's status uses the standard underlying node implementation.
+		return n.Impl.Status(ctx)
+	case modelLemming:
+		return n.lemmingStatus(ctx)
+	default:
+		return node.StatusUnknown, fmt.Errorf("invalid model specified.")
+	}
+}
+
+func (n *Node) lemmingStatus(ctx context.Context) (node.Status, error) {
 	cs, err := clientFn(n.RestConfig)
 	if err != nil {
 		return node.StatusUnknown, err
@@ -140,6 +186,18 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
+	switch n.Impl.Proto.Model {
+	case modelMagna:
+		// magna's implementation uses the standard underlying node implementation.
+		return n.Impl.Delete(ctx)
+	case modelLemming:
+		return n.lemmingDelete(ctx)
+	default:
+		return fmt.Errorf("unknown model")
+	}
+}
+
+func (n *Node) lemmingDelete(ctx context.Context) error {
 	cs, err := clientFn(n.RestConfig)
 	if err != nil {
 		return err
@@ -160,7 +218,7 @@ func (n *Node) GenerateSelfSigned(context.Context) error {
 	return status.Errorf(codes.Unimplemented, "certificate generation is not supported")
 }
 
-func defaults(pb *tpb.Node) *tpb.Node {
+func lemmingDefaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
@@ -187,16 +245,24 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Constraints == nil {
-		pb.Constraints = map[string]string{
-			"cpu":    "0.5",
-			"memory": "1Gi",
-		}
+		pb.Constraints = map[string]string{}
+	}
+	if pb.Constraints["cpu"] == "" {
+		pb.Constraints["cpu"] = "0.5"
+	}
+	if pb.Constraints["memory"] == "" {
+		pb.Constraints["memory"] = "1Gi"
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{
-			"vendor": tpb.Vendor_OPENCONFIG.String(),
-		}
+		pb.Labels = map[string]string{}
 	}
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = tpb.Vendor_OPENCONFIG.String()
+	}
+
+	// Always explicitly specify that lemming is a DUT, this cannot be overridden by the user.
+	pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
+
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
@@ -218,6 +284,61 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			},
 		}
 	}
+	return pb
+}
+
+func magnaDefaults(pb *tpb.Node) *tpb.Node {
+	if pb.Config == nil {
+		pb.Config = &tpb.Config{}
+	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*tpb.Service{}
+	}
+	if len(pb.GetConfig().GetCommand()) == 0 {
+		pb.Config.Command = []string{
+			"/app/magna",
+			"-v=2",
+			"-alsologtostderr",
+			"-port=40051",
+			"-telemetry_port=50051",
+			"-certfile=/data/cert.pem",
+			"-keyfile=/data/key.pem",
+		}
+	}
+	if pb.Config.EntryCommand == "" {
+		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
+	}
+	if pb.Config.Image == "" {
+		// TODO(robjs): add public container location once the first iteration is pushed.
+		// Currently, this image can be built from github.com/openconfig/magna.
+		pb.Config.Image = "magna:latest"
+	}
+
+	if _, ok := pb.Services[40051]; !ok {
+		pb.Services[40051] = &tpb.Service{
+			Name:    "grpc",
+			Inside:  40051,
+			Outside: 40051,
+		}
+	}
+
+	if _, ok := pb.Services[50051]; !ok {
+		pb.Services[50051] = &tpb.Service{
+			Name:    "gnmi",
+			Inside:  50051,
+			Outside: 50051,
+		}
+	}
+
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{
+			"vendor": tpb.Vendor_OPENCONFIG.String(),
+		}
+	}
+
+	// Always explicitly specify that magna nodes are ATEs, this cannot be overridden by the user.
+	pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleATE
+
 	return pb
 }
 

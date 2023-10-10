@@ -20,11 +20,10 @@ import (
 	"github.com/openconfig/kne/deploy"
 	"github.com/openconfig/kne/load"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 	log "k8s.io/klog/v2"
 )
-
-var progress bool
 
 func New() *cobra.Command {
 	deployCmd := &cobra.Command{
@@ -32,7 +31,6 @@ func New() *cobra.Command {
 		Short: "Deploy cluster.",
 		RunE:  deployFn,
 	}
-	deployCmd.Flags().BoolVar(&progress, "progress", false, "Display progress of container bringup")
 	return deployCmd
 }
 
@@ -68,13 +66,11 @@ type DeploymentConfig struct {
 // will be reported for missing files.
 func newDeployment(cfgPath string, testing bool) (*deploy.Deployment, error) {
 	c, err := load.NewConfig(cfgPath, &DeploymentConfig{})
-	c.IgnoreMissingFiles = testing
 	if err != nil {
 		return nil, err
 	}
-	cfg := deploy.Deployment{
-		Progress: progress,
-	}
+	c.IgnoreMissingFiles = testing
+	cfg := deploy.Deployment{}
 	if err := c.Decode(&cfg); err != nil {
 		return nil, err
 	}
@@ -100,15 +96,15 @@ func deployFn(cmd *cobra.Command, args []string) error {
 	if _, err := exec.LookPath("kubectl"); err != nil {
 		return fmt.Errorf("install kubectl before running deploy: %v", err)
 	}
-	kubecfg, err := cmd.Flags().GetString("kubecfg")
-	if err != nil {
-		return err
-	}
 	d, err := newDeployment(args[0], false)
 	if err != nil {
 		return err
 	}
-	if err := d.Deploy(cmd.Context(), kubecfg); err != nil {
+	d.Progress = viper.GetBool("progress")
+	d.ReportUsage = viper.GetBool("report_usage")
+	d.ReportUsageProjectID = viper.GetString("report_usage_project_id")
+	d.ReportUsageTopicID = viper.GetString("report_usage_topic_id")
+	if err := d.Deploy(cmd.Context(), viper.GetString("kubecfg")); err != nil {
 		return err
 	}
 	log.Infof("Deployment complete, ready for topology")

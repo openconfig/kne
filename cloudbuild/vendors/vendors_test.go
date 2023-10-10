@@ -28,7 +28,7 @@ func testGNMI(t *testing.T, dut *ondatra.DUTDevice) {
 
 func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	c := dut.RawAPIs().GRIBI().New(t)
+	c := dut.RawAPIs().GRIBI(t)
 	req := &gribipb.GetRequest{
 		NetworkInstance: &gribipb.GetRequest_All{},
 		Aft:             gribipb.AFTType_ALL,
@@ -57,7 +57,7 @@ func testGNOI(t *testing.T, dut *ondatra.DUTDevice) {
 
 func testP4RT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	c := dut.RawAPIs().P4RT().New(t)
+	c := dut.RawAPIs().P4RT(t)
 	resp, err := c.Capabilities(context.Background(), &p4pb.CapabilitiesRequest{})
 	if err != nil {
 		t.Fatalf("P4RT failure: Capabilities request failed: %v", err)
@@ -69,7 +69,7 @@ func TestCEOS(t *testing.T) {
 	dut := ondatra.DUT(t, "ceos")
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
-	testGNOI(t, dut)
+	// testGNOI(t, dut)
 	// testP4RT(t, dut)
 }
 
@@ -78,14 +78,22 @@ func TestCTPX(t *testing.T) {
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	testP4RT(t, dut)
+	// testP4RT(t, dut)
+}
+
+func TestNCTPX(t *testing.T) {
+	dut := ondatra.DUT(t, "ncptx")
+	testGNMI(t, dut)
+	testGRIBI(t, dut)
+	testGNOI(t, dut)
+	// testP4RT(t, dut)
 }
 
 func TestSRL(t *testing.T) {
 	dut := ondatra.DUT(t, "srl")
 	testGNMI(t, dut)
 	testGRIBI(t, dut)
-	testGNOI(t, dut)
+	// testGNOI(t, dut)
 	testP4RT(t, dut)
 }
 

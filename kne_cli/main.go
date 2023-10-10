@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,26 +25,18 @@ import (
 
 	"github.com/openconfig/kne/cmd"
 	"github.com/openconfig/kne/flags"
+	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 )
 
 func main() {
-	// By default, send logs to files and the screen.
-	// TODO(borman): rework what goes to the screen
-	// in a nicer format.
-	klog.InitFlags(nil)
-	for k, v := range map[string]string{
+	// Import flags into pflags that are set in other flag packages.
+	flags.Import(map[string]string{
 		"logtostderr":     "false",
 		"alsologtostderr": "false",
 		"stderrthreshold": "info",
-	} {
-		if f := flag.Lookup(k); f != nil {
-			f.Value.Set(v)
-			f.DefValue = v
-		}
-	}
-	flags.Import()
-	err := cmd.ExecuteContext(context.Background())
+	})
+	err := cmd.New().ExecuteContext(context.Background())
 	flushLogs()
 	if err != nil {
 		os.Exit(1)
@@ -61,7 +52,7 @@ func flushLogs() {
 	// code mimics the decsion that klog makes to determine the logging
 	// directory.
 
-	f := flag.Lookup("log_dir")
+	f := pflag.Lookup("log_dir")
 	var logdir string
 	if f != nil {
 		logdir = f.Value.String()

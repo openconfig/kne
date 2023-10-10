@@ -1,7 +1,7 @@
 // Juniper cPTX for KNE
 // Copyright (c) Juniper Networks, Inc., 2021. All rights reserved.
 
-package cptx
+package juniper
 
 import (
 	"bufio"
@@ -92,13 +92,19 @@ func TestGenerateSelfSigned(t *testing.T) {
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
 		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
+			e: []watch.Event{
+				{
+					// Test that watcher properly handles events with the wrong type.
+					Object: &corev1.ConfigMap{},
+				},
+				{
+					Object: &corev1.Pod{
+						Status: corev1.PodStatus{
+							Phase: corev1.PodRunning,
+						},
 					},
 				},
-			}},
+			},
 		}
 		return true, f, nil
 	}
@@ -124,6 +130,18 @@ func TestGenerateSelfSigned(t *testing.T) {
 		},
 	}
 
+	origCertGenRetrySleep := certGenRetrySleep
+	defer func() {
+		certGenRetrySleep = origCertGenRetrySleep
+	}()
+	certGenRetrySleep = time.Millisecond
+
+	origConfigModeRetrySleep := configModeRetrySleep
+	defer func() {
+		configModeRetrySleep = origConfigModeRetrySleep
+	}()
+	configModeRetrySleep = time.Millisecond
+
 	tests := []struct {
 		desc     string
 		wantErr  bool
@@ -143,6 +161,20 @@ func TestGenerateSelfSigned(t *testing.T) {
 			wantErr:  true,
 			ni:       ni,
 			testFile: "testdata/generate_certificate_failure",
+		},
+		{
+			// device returns config mode error but we eventually recover
+			desc:     "success config mode",
+			wantErr:  false,
+			ni:       ni,
+			testFile: "testdata/generate_certificate_config_mode_success",
+		},
+		{
+			// device returns "Error: something bad happened" -- we expect to fail
+			desc:     "failure config commit",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "testdata/generate_certificate_config_mode_failure",
 		},
 	}
 
@@ -403,9 +435,61 @@ func TestNew(t *testing.T) {
 				Name: "pod1",
 			},
 		},
-		want: defaults(&tpb.Node{
-			Name: "pod1",
-		}),
+		want: &tpb.Node{
+			Name:  "pod1",
+			Model: "cptx",
+			Constraints: map[string]string{
+				"cpu":    "8",
+				"memory": "8Gi",
+			},
+			Services: map[uint32]*tpb.Service{
+				443: {
+					Name:   "ssl",
+					Inside: 443,
+				},
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 32767,
+				},
+				9339: {
+					Name:   "gnmi",
+					Inside: 32767,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 32767,
+				},
+			},
+			Labels: map[string]string{
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
+			},
+			Config: &tpb.Config{
+				Image: "cptx:latest",
+				Command: []string{
+					"/entrypoint.sh",
+				},
+				Env: map[string]string{
+					"JUNOS_EVOLVED_CONTAINER": "1",
+				},
+				EntryCommand: "kubectl exec -it pod1 -- cli",
+				ConfigPath:   "/home/evo/configdisk",
+				ConfigFile:   "juniper.conf",
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
+			},
+		},
 	}, {
 		desc:    "nil pb",
 		ni:      &node.Impl{},
@@ -427,7 +511,8 @@ func TestNew(t *testing.T) {
 			},
 		},
 		want: &tpb.Node{
-			Name: "pod1",
+			Name:  "pod1",
+			Model: "cptx",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -441,13 +526,22 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				32767: {
+				9337: {
+					Name:   "gnoi",
+					Inside: 32767,
+				},
+				9339: {
 					Name:   "gnmi",
+					Inside: 32767,
+				},
+				9340: {
+					Name:   "gribi",
 					Inside: 32767,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_JUNIPER.String(),
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "cptx:latest",
@@ -455,13 +549,97 @@ func TestNew(t *testing.T) {
 					"/entrypoint.sh",
 				},
 				Env: map[string]string{
-					"CPTX": "1",
+					"JUNOS_EVOLVED_CONTAINER": "1",
 				},
-				EntryCommand: "kubectl exec -it pod1 -- cli -c",
+				EntryCommand: "kubectl exec -it pod1 -- cli",
 				ConfigPath:   "/",
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc: "full proto ncptx",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "ncptx",
+				Config: &tpb.Config{
+					ConfigFile: "foo",
+					ConfigPath: "/",
+					ConfigData: &tpb.Config_Data{
+						Data: []byte("config file data"),
+					},
+				},
+			},
+		},
+		want: &tpb.Node{
+			Name:  "pod1",
+			Model: "ncptx",
+			Constraints: map[string]string{
+				"cpu":    "4",
+				"memory": "4Gi",
+			},
+			Services: map[uint32]*tpb.Service{
+				443: {
+					Name:   "ssl",
+					Inside: 443,
+				},
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 32767,
+				},
+				9339: {
+					Name:   "gnmi",
+					Inside: 32767,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 32767,
+				},
+			},
+			Labels: map[string]string{
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
+			},
+			Config: &tpb.Config{
+				Image: "ncptx:latest",
+				Command: []string{
+					"/sbin/cevoCntrEntryPoint",
+				},
+				Env: map[string]string{
+					"JUNOS_EVOLVED_CONTAINER": "1",
+				},
+				EntryCommand: "kubectl exec -it pod1 -- cli",
+				ConfigPath:   "/",
+				ConfigFile:   "foo",
+				ConfigData: &tpb.Config_Data{
+					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 		},
@@ -473,6 +651,7 @@ func TestNew(t *testing.T) {
 			Proto:      &tpb.Node{},
 		},
 		want: &tpb.Node{
+			Model: "cptx",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -486,13 +665,22 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				32767: {
+				9337: {
+					Name:   "gnoi",
+					Inside: 32767,
+				},
+				9339: {
 					Name:   "gnmi",
+					Inside: 32767,
+				},
+				9340: {
+					Name:   "gribi",
 					Inside: 32767,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_JUNIPER.String(),
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "cptx:latest",
@@ -500,11 +688,20 @@ func TestNew(t *testing.T) {
 					"/entrypoint.sh",
 				},
 				Env: map[string]string{
-					"CPTX": "1",
+					"JUNOS_EVOLVED_CONTAINER": "1",
 				},
-				EntryCommand: "kubectl exec -it  -- cli -c",
+				EntryCommand: "kubectl exec -it  -- cli",
 				ConfigPath:   "/home/evo/configdisk",
 				ConfigFile:   "juniper.conf",
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
 			},
 		},
 	}}

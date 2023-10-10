@@ -81,10 +81,16 @@ var (
 	_ node.Resetter = (*Node)(nil)
 )
 
+// For enabling option to skip validation in unit tests
+var skipValidation = false
+
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Cisco %s node resource %s", n.Proto.Model, n.Name())
 
 	pb := n.Proto
+	if err := validateHostConstraints(n, skipValidation); err != nil {
+		return err
+	}
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
 		initContainerImage = node.DefaultInitContainerImage
@@ -191,6 +197,18 @@ func (n *Node) Create(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Created Cisco %s node resource %s services", n.Proto.Model, n.Name())
+	return nil
+}
+
+// validateHostConstraints - Validates host contraints through the default node's implementation. It skips the validation optionally
+// based on skipValidation flag which is useful for unit tests
+func validateHostConstraints(n *Node, skipValidation bool) error {
+	if skipValidation {
+		return nil
+	}
+	if err := n.ValidateConstraints(); err != nil {
+		return fmt.Errorf("host constraints validation failed for node %s with error %s", n.Name(), err)
+	}
 	return nil
 }
 
@@ -365,16 +383,32 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 				Name:   "ssh",
 				Inside: 22,
 			},
-			6030: {
+			9339: {
 				Name:   "gnmi",
+				Inside: 57400,
+			},
+			9340: {
+				Name:   "gribi",
+				Inside: 57400,
+			},
+			9337: {
+				Name:   "gnoi",
+				Inside: 57400,
+			},
+			9559: {
+				Name:   "p4rt",
 				Inside: 57400,
 			},
 		}
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{
-			"vendor": tpb.Vendor_CISCO.String(),
-		}
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = tpb.Vendor_CISCO.String()
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name)
@@ -389,6 +423,13 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		if pb.Config.Image == "" {
 			pb.Config.Image = "xrd:latest"
 		}
+		if pb.HostConstraints == nil {
+			pb.HostConstraints = append(pb.HostConstraints,
+				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
+					KernelConstraint: &tpb.KernelParam{Name: "fs.inotify.max_user_instances",
+						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
+							MinValue: 64000}}}}})
+		}
 	//nolint:goconst
 	case "8201", "8202", "8201-32FH", "8102-64H", "8101-32H":
 		if err := setE8000Env(pb); err != nil {
@@ -396,6 +437,13 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 		if pb.Config.Image == "" {
 			pb.Config.Image = "8000e:latest"
+		}
+		if pb.HostConstraints == nil {
+			pb.HostConstraints = append(pb.HostConstraints,
+				&tpb.HostConstraint{Constraint: &tpb.HostConstraint_KernelConstraint{
+					KernelConstraint: &tpb.KernelParam{Name: "kernel.pid_max",
+						ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{
+							MaxValue: 1048575}}}}})
 		}
 	}
 	return pb, nil

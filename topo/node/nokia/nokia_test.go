@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package srl
+package nokia
 
 import (
 	"context"
@@ -109,8 +109,9 @@ func TestNew(t *testing.T) {
 				ConfigFile: "config.cli",
 			},
 			Labels: map[string]string{
-				"vendor": "NOKIA",
-				"foo":    "test_label",
+				"vendor":       "NOKIA",
+				"foo":          "test_label",
+				"ondatra-role": "DUT",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
@@ -121,10 +122,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				57400: {
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9339: {
 					Name:   "gnmi",
 					Inside: 57400,
 				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57401,
+				},
+				9559: {
+					Name:   "p4rt",
+					Inside: 9559,
+				},
+			},
+			Constraints: map[string]string{
+				"cpu":    "0.5",
+				"memory": "1Gi",
 			},
 		},
 	}, {
@@ -145,8 +162,9 @@ func TestNew(t *testing.T) {
 				ConfigFile: "config.json",
 			},
 			Labels: map[string]string{
-				"vendor": "NOKIA",
-				"foo":    "test_label",
+				"vendor":       "NOKIA",
+				"foo":          "test_label",
+				"ondatra-role": "DUT",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
@@ -157,10 +175,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				57400: {
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9339: {
 					Name:   "gnmi",
 					Inside: 57400,
 				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57401,
+				},
+				9559: {
+					Name:   "p4rt",
+					Inside: 9559,
+				},
+			},
+			Constraints: map[string]string{
+				"cpu":    "0.5",
+				"memory": "1Gi",
 			},
 		},
 	},

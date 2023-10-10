@@ -1,7 +1,7 @@
 // Juniper cPTX for KNE
 // Copyright (c) Juniper Networks, Inc., 2021. All rights reserved.
 
-package cptx
+package juniper
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	scraplicfg "github.com/scrapli/scrapligocfg"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	log "k8s.io/klog/v2"
@@ -32,10 +33,18 @@ var (
 	scrapliOperationTimeout = 300 * time.Second
 	// Wait for PKI cert infra
 	certGenTimeout = 10 * time.Minute
+	// Time between polls
+	certGenRetrySleep = 30 * time.Second
+	// Wait for config mode
+	configModeTimeout = 10 * time.Minute
+	// Time between polls - config mode
+	configModeRetrySleep = 30 * time.Second
 )
 
 const (
 	scrapliPlatformName = "juniper_junos"
+	ModelNCPTX          = "ncptx"
+	ModelCPTX           = "cptx"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -81,7 +90,7 @@ func (n *Node) SpawnCLIConn() error {
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
 
-	opts = n.PatchCLIConnOpen("kubectl", []string{"cli", "-c"}, opts)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"cli"}, opts)
 
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
@@ -104,6 +113,38 @@ func (n *Node) GRPCConfig() []string {
 	}
 }
 
+// Waits and retries until CLI config mode is up and config is applied
+func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
+	log.Infof("Waiting for config to be pushed (timeout: %v) node %s", configModeTimeout, n.Name())
+	start := time.Now()
+	for time.Since(start) < configModeTimeout {
+		multiresp, err := n.cliConn.SendConfigs(configs)
+		if err != nil {
+			if strings.Contains(err.Error(), "errPrivilegeError") {
+				log.Infof("Config mode not ready. Retrying in %v. Node %s, Resp %v", configModeRetrySleep, n.Name(), err)
+			} else {
+				return fmt.Errorf("failed pushing configs: %v", err)
+			}
+		} else {
+			for _, resp := range multiresp.Responses {
+				if resp.Failed != nil {
+					return resp.Failed
+				}
+				if strings.Contains(resp.Result, "commit complete") {
+					log.Infof("Config mode ready. Config commit done. Node %s", n.Name())
+					return nil
+				}
+				if strings.Contains(resp.Result, "error:") {
+					log.Infof("Config mode not ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
+				}
+			}
+		}
+		time.Sleep(configModeRetrySleep)
+	}
+
+	return fmt.Errorf("failed sending configs")
+}
+
 // Waits and retries until Cert infra is up and certs are applied
 func (n *Node) waitCertInfraReadyAndPushCert() error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
@@ -114,7 +155,7 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 			selfSigned.GetCertName()),
 	}
 
-	log.Infof("Waiting for certificates to be pushed (timeout: %v)", certGenTimeout)
+	log.Infof("Waiting for certificates to be pushed (timeout: %v) node %s", certGenTimeout, n.Name())
 	start := time.Now()
 	for time.Since(start) < certGenTimeout {
 		multiresp, err := n.cliConn.SendCommands(commands)
@@ -125,15 +166,15 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 			if resp.Failed != nil {
 				return resp.Failed
 			}
-			if strings.Contains(resp.Result, "error:") {
-				log.Infof("Cert infra isn't ready. Retrying in 30 sec. Response %s", multiresp.JoinedResult())
-			}
 			if strings.Contains(resp.Result, "successfully") {
-				log.Infof("Cert Infra ready. Configured Certs. Response %s", multiresp.JoinedResult())
+				log.Infof("Cert Infra ready. Configured Certs. Node %s, Response %s", n.Name(), multiresp.JoinedResult())
 				return nil
 			}
+			if strings.Contains(resp.Result, "error:") {
+				log.Infof("Cert infra isn't ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
+			}
 		}
-		time.Sleep(30 * time.Second)
+		time.Sleep(certGenRetrySleep)
 	}
 
 	return fmt.Errorf("failed sending generate-self-signed commands")
@@ -157,7 +198,10 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return err
 	}
 	for e := range w.ResultChan() {
-		p := e.Object.(*corev1.Pod)
+		p, ok := e.Object.(*corev1.Pod)
+		if !ok {
+			continue
+		}
 		if p.Status.Phase == corev1.PodRunning {
 			break
 		}
@@ -178,13 +222,8 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	}
 
 	// Send gRPC config
-	resp, err := n.cliConn.SendConfigs(n.GRPCConfig())
-	if err != nil {
-		return err
-	}
-
-	if resp.Failed != nil {
-		return resp.Failed
+	if err := n.waitConfigInfraReadyAndPushConfigs(n.GRPCConfig()); err != nil {
+		return fmt.Errorf("failed sending grpc config commands - self-signed-cert: %v", err)
 	}
 
 	log.Infof("%s - finished cert generation", n.Name())
@@ -197,6 +236,11 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	cfg, err := io.ReadAll(r)
 	cfgs := string(cfg)
+
+	if len(cfgs) == 0 {
+		log.Infof("%s - empty config! not pushing", n.Name())
+		return nil
+	}
 
 	log.V(1).Info(cfgs)
 
@@ -303,8 +347,9 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 }
 
 func (n *Node) Create(ctx context.Context) error {
-	log.Infof("Creating cPTX node resource %s", n.Name())
+	log.Infof("Creating cPTX node resource %s model %s", n.Name(), n.Proto.Model)
 
+	hpd := corev1.HostPathDirectory
 	pb := n.Proto
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -347,23 +392,71 @@ func (n *Node) Create(ctx context.Context) error {
 					Privileged: pointer.Bool(true),
 					RunAsUser:  pointer.Int64(0),
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN"},
+						Add: []corev1.Capability{"SYS_ADMIN", "NET_ADMIN"},
+					},
+					SeccompProfile: &corev1.SeccompProfile{
+						Type: "Unconfined",
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{{
-					Name:      fmt.Sprintf("%s-run-mount", pb.Name),
-					ReadOnly:  false,
-					MountPath: "/run",
-				}},
-			}},
-			Volumes: []corev1.Volume{{
-				Name: fmt.Sprintf("%s-run-mount", pb.Name),
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{
-						Medium: "Memory",
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      fmt.Sprintf("%s-run-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/run",
+					},
+					{
+						Name:      fmt.Sprintf("%s-tmp-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/tmp",
+					},
+					{
+						Name:      fmt.Sprintf("%s-dev-shm-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/dev/shm",
+					},
+					{
+						Name:      fmt.Sprintf("%s-cgroup-mount", pb.Name),
+						ReadOnly:  false,
+						MountPath: "/sys/fs/cgroup",
 					},
 				},
 			}},
+			Volumes: []corev1.Volume{
+				{
+					Name: fmt.Sprintf("%s-run-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium: "Memory",
+						},
+					},
+				},
+				{
+					Name: fmt.Sprintf("%s-tmp-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium: "Memory",
+						},
+					},
+				},
+				{
+					Name: fmt.Sprintf("%s-dev-shm-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium:    "Memory",
+							SizeLimit: resource.NewQuantity(2*1024*1024*1024, resource.BinarySI),
+						},
+					},
+				},
+				{
+					Name: fmt.Sprintf("%s-cgroup-mount", pb.Name),
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/sys/fs/cgroup",
+							Type: &hpd,
+						},
+					},
+				},
+			},
 			TerminationGracePeriodSeconds: pointer.Int64(0),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
@@ -408,7 +501,7 @@ func (n *Node) Create(ctx context.Context) error {
 		return fmt.Errorf("failed to create pod for %q: %w", pb.Name, err)
 	}
 	log.V(1).Infof("Pod created:\n%+v\n", sPod)
-	log.Infof("Created cPTX node resource %s pod", n.Name())
+	log.Infof("Created cPTX node resource %s pod model %s", n.Name(), n.Proto.Model)
 	if err := n.CreateService(ctx); err != nil {
 		return err
 	}
@@ -422,10 +515,48 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			Name: "default_cptx_node",
 		}
 	}
-	if pb.Constraints == nil {
-		pb.Constraints = map[string]string{
-			"cpu":    "8",
-			"memory": "8Gi",
+	if pb.Model == "" {
+		pb.Model = ModelCPTX
+	}
+	if pb.Config == nil {
+		pb.Config = &tpb.Config{}
+	}
+	switch pb.Model {
+	case ModelNCPTX:
+		if pb.Constraints == nil {
+			pb.Constraints = map[string]string{}
+		}
+		if pb.Constraints["cpu"] == "" {
+			pb.Constraints["cpu"] = "4"
+		}
+		if pb.Constraints["memory"] == "" {
+			pb.Constraints["memory"] = "4Gi"
+		}
+		if len(pb.Config.GetCommand()) == 0 {
+			pb.Config.Command = []string{
+				"/sbin/cevoCntrEntryPoint",
+			}
+		}
+		if pb.Config.Image == "" {
+			pb.Config.Image = "ncptx:latest"
+		}
+	default:
+		if pb.Constraints == nil {
+			pb.Constraints = map[string]string{}
+		}
+		if pb.Constraints["cpu"] == "" {
+			pb.Constraints["cpu"] = "8"
+		}
+		if pb.Constraints["memory"] == "" {
+			pb.Constraints["memory"] = "8Gi"
+		}
+		if len(pb.Config.GetCommand()) == 0 {
+			pb.Config.Command = []string{
+				"/entrypoint.sh",
+			}
+		}
+		if pb.Config.Image == "" {
+			pb.Config.Image = "cptx:latest"
 		}
 	}
 	if pb.Services == nil {
@@ -438,9 +569,28 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Name:   "ssh",
 				Inside: 22,
 			},
-			32767: {
+			9337: {
+				Name:   "gnoi",
+				Inside: 32767,
+			},
+			9339: {
 				Name:   "gnmi",
 				Inside: 32767,
+			},
+			9340: {
+				Name:   "gribi",
+				Inside: 32767,
+			},
+		}
+	}
+	if pb.Config.Cert == nil {
+		pb.Config.Cert = &tpb.CertificateCfg{
+			Config: &tpb.CertificateCfg_SelfSigned{
+				SelfSigned: &tpb.SelfSignedCertCfg{
+					CertName: "grpc-server-cert",
+					KeyName:  "my_key",
+					KeySize:  2048,
+				},
 			},
 		}
 	}
@@ -450,24 +600,16 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
 	}
-	if pb.Config == nil {
-		pb.Config = &tpb.Config{}
-	}
-	if len(pb.Config.GetCommand()) == 0 {
-		pb.Config.Command = []string{
-			"/entrypoint.sh",
-		}
-	}
-	if pb.Config.Image == "" {
-		pb.Config.Image = "cptx:latest"
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config.Env == nil {
 		pb.Config.Env = map[string]string{
-			"CPTX": "1",
+			"JUNOS_EVOLVED_CONTAINER": "1",
 		}
 	}
 	if pb.Config.EntryCommand == "" {
-		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- cli -c", pb.Name)
+		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- cli", pb.Name)
 	}
 	if pb.Config.ConfigPath == "" {
 		pb.Config.ConfigPath = "/home/evo/configdisk"

@@ -37,6 +37,9 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 )
 
+func init() {
+	skipValidation = true
+}
 func defaultNode(pb *tpb.Node) *tpb.Node {
 	node, _ := defaults(pb)
 	return node
@@ -113,13 +116,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "xrd:latest",
@@ -133,6 +149,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "fs.inotify.max_user_instances",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MinValue: 64000}},
+						},
+					},
 				},
 			},
 		},
@@ -179,13 +205,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "xrd:latest",
@@ -199,6 +238,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "fs.inotify.max_user_instances",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MinValue: 64000}},
+						},
+					},
 				},
 			},
 		},
@@ -249,13 +298,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -269,6 +331,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
@@ -338,13 +410,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -358,6 +443,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
@@ -434,13 +529,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -454,6 +562,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
@@ -500,13 +618,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -520,6 +651,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
@@ -596,13 +737,26 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
-				6030: {
+				9339: {
 					Name:   "gnmi",
+					Inside: 57400,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 57400,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 57400,
+				},
+				9559: {
+					Name:   "p4rt",
 					Inside: 57400,
 				},
 			},
 			Labels: map[string]string{
-				"vendor": tpb.Vendor_CISCO.String(),
+				"vendor":       tpb.Vendor_CISCO.String(),
+				"ondatra-role": "DUT",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -616,6 +770,16 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+			},
+			HostConstraints: []*tpb.HostConstraint{
+				{
+					Constraint: &tpb.HostConstraint_KernelConstraint{
+						KernelConstraint: &tpb.KernelParam{
+							Name:           "kernel.pid_max",
+							ConstraintType: &tpb.KernelParam_BoundedInteger{BoundedInteger: &tpb.BoundedInteger{MaxValue: 1048575}},
+						},
+					},
 				},
 			},
 		},
