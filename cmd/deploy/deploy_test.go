@@ -132,10 +132,17 @@ controllers:
 `
 )
 
-func TestNew(t *testing.T) {
-	c := New()
+func TestNewDeploy(t *testing.T) {
+	c := NewDeploy()
 	if !strings.HasPrefix(c.Use, "deploy") {
 		t.Fatalf("unexpected command object: got %q, want \"deploy\"", c.Use)
+	}
+}
+
+func TestNewTeardown(t *testing.T) {
+	c := NewTeardown()
+	if !strings.HasPrefix(c.Use, "teardown") {
+		t.Fatalf("unexpected command object: got %q, want \"teardown\"", c.Use)
 	}
 }
 
