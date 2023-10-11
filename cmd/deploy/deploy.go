@@ -25,13 +25,22 @@ import (
 	log "k8s.io/klog/v2"
 )
 
-func New() *cobra.Command {
+func NewDeploy() *cobra.Command {
 	deployCmd := &cobra.Command{
 		Use:   "deploy <deployment yaml>",
 		Short: "Deploy cluster.",
 		RunE:  deployFn,
 	}
 	return deployCmd
+}
+
+func NewTeardown() *cobra.Command {
+	teardownCmd := &cobra.Command{
+		Use:   "teardown <deployment yaml>",
+		Short: "Teardown cluster deployment.",
+		RunE:  teardownFn,
+	}
+	return teardownCmd
 }
 
 type ClusterSpec struct {
@@ -108,5 +117,20 @@ func deployFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Infof("Deployment complete, ready for topology")
+	return nil
+}
+
+func teardownFn(cmd *cobra.Command, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("%s: missing args", cmd.Use)
+	}
+	d, err := newDeployment(args[0], false)
+	if err != nil {
+		return err
+	}
+	if err := d.Delete(); err != nil {
+		return err
+	}
+	log.Infof("Cluster deployment teardown complete")
 	return nil
 }

@@ -40,8 +40,8 @@ $cli deploy kne/deploy/kne/kind-bridge.yaml --report_usage=false
 
 kubectl get pods -A
 
-# Cleanup the kind cluster
-kind delete cluster --name kne
+# Cleanup the cluster
+$cli teardown kne/deploy/kne/kind-bridge.yaml
 
 # Create a kind cluster with GAR access and image loading
 cat >/tmp/dep-cfg.yaml << EOF
@@ -80,8 +80,8 @@ if ! docker exec kne-control-plane crictl images | grep "docker.io/networkop/ini
   exit 1
 fi
 
-# Cleanup the kind cluster
-kind delete cluster --name kne
+# Cleanup the cluster
+$cli teardown kne/deploy/kne/kind-bridge.yaml
 
 ## Create a kubeadm single node cluster
 sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
@@ -111,5 +111,8 @@ $cli topology service kne/examples/openconfig/lemming.pb.txt
 
 # Delete the topology
 $cli delete kne/examples/openconfig/lemming.pb.txt
+
+# Cleanup the cluster (no-op with external cluster)
+$cli teardown kne/deploy/kne/external-multinode.yaml
 
 popd

@@ -63,7 +63,8 @@ environment.`,
 	root.AddCommand(newDeleteCmd())
 	root.AddCommand(newShowCmd())
 	root.AddCommand(topology.New())
-	root.AddCommand(deploy.New())
+	root.AddCommand(deploy.NewDeploy())
+	root.AddCommand(deploy.NewTeardown())
 	return root
 }
 
