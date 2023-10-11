@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -123,7 +124,7 @@ func TestLemming(t *testing.T) {
 
 func TestOTG(t *testing.T) {
 	ate := ondatra.ATE(t, "otg")
-	cfg := ate.OTG().NewConfig(t)
+	cfg := gosnappi.NewConfig()
 	portNames := []string{"port1", "port2", "port3", "port4"}
 	for _, name := range portNames {
 		cfg.Ports().Add().SetName(name)

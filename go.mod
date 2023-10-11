@@ -14,6 +14,7 @@ require (
 	github.com/kr/pretty v0.3.1
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
 	github.com/open-traffic-generator/ixia-c-operator v0.3.6
+	github.com/open-traffic-generator/snappi/gosnappi v0.11.14
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/lemming/operator v0.2.0
@@ -93,7 +94,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/open-traffic-generator/snappi/gosnappi v0.11.14 // indirect
 	github.com/openconfig/gnoi v0.0.0-20230221223856-1727ed932554 // indirect
 	github.com/openconfig/gnsi v1.2.3 // indirect
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
