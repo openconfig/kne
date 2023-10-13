@@ -374,8 +374,8 @@ To delete a topology use `kne delete`:
 kne delete examples/multivendor/multivendor.pb.txt
 ```
 
-To delete a cluster use `kind delete cluster`:
+To delete a cluster use `kne teardown`:
 
 ```bash
-kind delete cluster --name=kne
+kne teardown deploy/kne/kind-bridge.yaml
 ```
