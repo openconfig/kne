@@ -346,9 +346,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 				Name:   "ssh",
 				Inside: 22,
 			},
-			6030: {
+			// this should also cover gnoi/gnsi
+			9339: {
 				Name:   "gnmi",
-				Inside: 6030,
+				Inside: 9339,
 			},
 			9340: {
 				Name:   "gribi",
@@ -357,14 +358,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			9559: {
 				Name:   "p4rt",
 				Inside: 9559,
-			},
-			9339: {
-				Name:   "gnoi",
-				Inside: 9339,
-			},	
-			9339: {
-				Name:   "gnsi",
-				Inside: 9339,
 			},	
 		}
 	}
