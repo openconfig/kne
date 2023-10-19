@@ -10,13 +10,13 @@ data:
       "images": [
             {
                 "name": "controller",
-                "path": "ghcr.io/open-traffic-generator/ixia-c-controller",
-                "tag": "0.0.1-4554"
+                "path": "ghcr.io/open-traffic-generator/keng-controller",
+                "tag": "0.0.1-5308"
             },
             {
                 "name": "gnmi-server",
-                "path": "ghcr.io/open-traffic-generator/ixia-c-gnmi-server",
-                "tag": "1.12.7"
+                "path": "ghcr.io/open-traffic-generator/otg-gnmi-server",
+                "tag": "1.12.8"
             },
             {
                 "name": "traffic-engine",
