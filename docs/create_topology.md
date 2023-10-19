@@ -189,6 +189,15 @@ kubectl apply -f manifests/controllers/keysight/ixiatg-operator.yaml
 kubectl apply -f manifests/controllers/keysight/ixiatg-configmap.yaml
 ```
 
+The above steps will allow deployment of the Community edition controller. For licensed controller the following additional step is required.
+
+```bash
+kubectl create secret -n ixiatg-op-system generic license-server --from-literal=addresses="<license IP addresses>"
+```
+
+See more on the
+[Ixia-operator GitHub repo](https://github.com/open-traffic-generator/ixia-c-operator).
+
 ### SR Linux Controller
 
 ```bash
