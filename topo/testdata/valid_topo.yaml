@@ -4,7 +4,7 @@ nodes:
     vendor: ARISTA
   - name: "otg"
     vendor: KEYSIGHT
-    version: "0.0.1-9999"
+    version: "v0.1"
     services:
       40051:
         name: grpc

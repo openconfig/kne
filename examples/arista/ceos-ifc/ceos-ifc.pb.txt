@@ -2,7 +2,7 @@ name: "ceos-ifc"
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
-    version: "0.0.1-9999"
+    version: "v0.1"
     interfaces: {
         key: "eth3"
         value: {
