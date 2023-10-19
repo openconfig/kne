@@ -195,6 +195,12 @@ The above steps will allow deployment of the Community edition controller. For l
 kubectl create secret -n ixiatg-op-system generic license-server --from-literal=addresses="<license IP addresses>"
 ```
 
+When upgrading ensure the secret is deleted before the operator is upgraded.
+
+```bash
+kubectl delete secret -n ixiatg-op-system license-server
+```
+
 See more on the
 [Ixia-operator GitHub repo](https://github.com/open-traffic-generator/ixia-c-operator).
 
