@@ -1250,7 +1250,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 	}
 
 	if i.ConfigMap == "" && i.ConfigMapData == nil {
-		log.Warningf("IxiaTG controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/ixia-c-operator#ixia-c-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
+		log.Warningf("IxiaTG controller deployed without configmap, before creating a topology with ixia-c be sure to create a configmap following https://github.com/open-traffic-generator/keng-operator#keng-operator and apply it using 'kubectl apply -f ixiatg-configmap.yaml'")
 		return nil
 	}
 	if i.ConfigMapData != nil {

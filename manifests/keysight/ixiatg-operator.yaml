@@ -387,7 +387,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/open-traffic-generator/keng-operator:0.3.12
+        image: ghcr.io/open-traffic-generator/keng-operator:0.3.13
         livenessProbe:
           httpGet:
             path: /healthz

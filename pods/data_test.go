@@ -2202,7 +2202,7 @@ var (
                 "command": [
                     "/manager"
                 ],
-                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "image": "ghcr.io/open-traffic-generator/keng-operator:0.3.13",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                     "failureThreshold": 3,
@@ -2411,7 +2411,7 @@ var (
                 "command": [
                     "/manager"
                 ],
-                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "image": "ghcr.io/open-traffic-generator/keng-operator:0.3.13",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                     "failureThreshold": 3,
@@ -2582,7 +2582,7 @@ var (
                 }
             },
             {
-                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "image": "ghcr.io/open-traffic-generator/keng-operator:0.3.13",
                 "imageID": "",
                 "lastState": {},
                 "name": "manager",
@@ -2616,7 +2616,7 @@ var (
 			},
 			{
 				Name:   "manager",
-				Image:  "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+				Image:  "ghcr.io/open-traffic-generator/keng-operator:0.3.13",
 				Reason: "ContainerCreating",
 			},
 		},
@@ -2981,7 +2981,7 @@ var (
                 "command": [
                     "/manager"
                 ],
-                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+                "image": "ghcr.io/open-traffic-generator/keng-operator:0.3.13",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                     "failureThreshold": 3,
@@ -3154,8 +3154,8 @@ var (
             },
             {
                 "containerID": "containerd://2f69e4e109842b198534badca065147a6c64de6af15c652c98e909e4e7395d0c",
-                "image": "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
-                "imageID": "ghcr.io/open-traffic-generator/ixia-c-operator@sha256:157c99a77f89db86ba5074656c9b43b8edce828e863704b631e624cbfac7e813",
+                "image": "ghcr.io/open-traffic-generator/keng-operator:0.3.13",
+                "imageID": "ghcr.io/open-traffic-generator/keng-operator@sha256:30b629370b7aafafeecd7a9c2a4eabae2c3129a877a4d161d86070002ab6b2e2",
                 "lastState": {},
                 "name": "manager",
                 "ready": false,
@@ -3194,7 +3194,7 @@ var (
 			},
 			{
 				Name:  "manager",
-				Image: "ghcr.io/open-traffic-generator/ixia-c-operator:0.3.1",
+				Image: "ghcr.io/open-traffic-generator/keng-operator:0.3.13",
 				Ready: true,
 			},
 		},

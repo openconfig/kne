@@ -202,7 +202,7 @@ kubectl delete secret -n ixiatg-op-system license-server
 ```
 
 See more on the
-[Ixia-operator GitHub repo](https://github.com/open-traffic-generator/ixia-c-operator).
+[keng-operator GitHub repo](https://github.com/open-traffic-generator/keng-operator).
 
 ### SR Linux Controller
 
