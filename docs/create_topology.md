@@ -198,7 +198,7 @@ kubectl create secret -n ixiatg-op-system generic license-server --from-literal=
 When upgrading ensure the secret is deleted before the operator is upgraded.
 
 ```bash
-kubectl delete secret -n ixiatg-op-system license-server
+kubectl delete secret/license-server -n ixiatg-op-system
 ```
 
 See more on the
