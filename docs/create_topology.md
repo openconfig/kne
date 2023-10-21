@@ -184,18 +184,20 @@ deployment](#deploy-a-cluster).
 
 ### IxiaTG Controller
 
+`ixiatg` controller orchestrates the lifecycle of the [Ixia-c](https://ixia-c.dev) test nodes that add [Open Traffic Generator](https://otg.dev) capabilities to the KNE topology. To deploy:
+
 ```bash
 kubectl apply -f manifests/controllers/keysight/ixiatg-operator.yaml
 kubectl apply -f manifests/controllers/keysight/ixiatg-configmap.yaml
 ```
 
-The above steps will allow deployment of the Community edition controller. For licensed controller the following additional step is required.
+With the steps above the Ixia-c nodes will operate in the [Community Edition](https://github.com/open-traffic-generator/ixia-c/blob/mkdocs/docs/licensing.md#license-editions) mode. To enable full capabilities of Ixia-c, a valid Keysight Elastic Network Generator license is required. Use the following additional step to provide the address of the Keysight Licensing Server with the license to the `ixiatg` controller:
 
 ```bash
-kubectl create secret -n ixiatg-op-system generic license-server --from-literal=addresses="<license IP addresses>"
+kubectl create secret -n ixiatg-op-system generic license-server --from-literal=addresses="<license_server_IP_addresses>"
 ```
 
-When upgrading ensure the secret is deleted before the operator is upgraded.
+If later you need to use a different license server IP, delete the existing secret first.
 
 ```bash
 kubectl delete secret/license-server -n ixiatg-op-system
