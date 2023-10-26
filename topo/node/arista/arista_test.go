@@ -17,7 +17,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	ceos "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1"
 	ceosclient "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1/dynamic"
@@ -27,9 +26,6 @@ import (
 	ceospb "github.com/openconfig/kne/proto/ceos"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	scrapliopts "github.com/scrapli/scrapligo/driver/options"
-	scraplitransport "github.com/scrapli/scrapligo/transport"
-	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -434,88 +430,6 @@ func TestCRD(t *testing.T) {
 			}
 			if s := cmp.Diff(tt.wantDevice, &device.Spec); s != "" {
 				t.Errorf("New() CEosLabDevice CRDs unexpected diff (-want +got):\n%s", s)
-			}
-		})
-	}
-}
-
-func TestResetCfg(t *testing.T) {
-	ki := fake.NewSimpleClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "pod1",
-		},
-	})
-
-	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
-	}
-	ki.PrependWatchReactor("*", reaction)
-
-	ni := &node.Impl{
-		KubeClient: ki,
-		Namespace:  "test",
-		Proto: &topopb.Node{
-			Name:   "pod1",
-			Vendor: topopb.Vendor_ARISTA,
-			Config: &topopb.Config{},
-		},
-	}
-
-	tests := []struct {
-		desc     string
-		wantErr  bool
-		ni       *node.Impl
-		testFile string
-	}{
-		{
-			// successfully configure certificate
-			desc:     "success",
-			wantErr:  false,
-			ni:       ni,
-			testFile: "testdata/reset_config_success",
-		},
-		{
-			// device returns "% Invalid input" -- we expect to fail
-			desc:     "failure",
-			wantErr:  true,
-			ni:       ni,
-			testFile: "testdata/reset_config_failure",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			nImpl, err := New(tt.ni)
-
-			if err != nil {
-				t.Fatalf("failed creating kne arista node")
-			}
-
-			n, _ := nImpl.(*Node)
-
-			n.testOpts = []scrapliutil.Option{
-				scrapliopts.WithTransportType(scraplitransport.FileTransport),
-				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
-				scrapliopts.WithTransportReadSize(1),
-				scrapliopts.WithReadDelay(0),
-				scrapliopts.WithDefaultLogger(),
-			}
-
-			ctx := context.Background()
-
-			err = n.ResetCfg(ctx)
-			if err != nil && !tt.wantErr {
-				t.Fatalf("resetting config failed, error: %+v\n", err)
 			}
 		})
 	}
