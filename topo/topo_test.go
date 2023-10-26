@@ -93,6 +93,18 @@ func NewConfigurable(impl *node.Impl) (node.Node, error) {
 	return &configurable{Impl: impl}, nil
 }
 
+type loopbackable struct {
+	*node.Impl
+}
+
+func (l *loopbackable) HardwareLoopbackSupported() bool {
+	return true
+}
+
+func NewLoopbackable(impl *node.Impl) (node.Node, error) {
+	return &loopbackable{Impl: impl}, nil
+}
+
 type notConfigurable struct {
 	*node.Impl
 }
@@ -141,6 +153,7 @@ func (nc *notCertable) GetProto() *tpb.Node {
 
 func TestNew(t *testing.T) {
 	node.Vendor(tpb.Vendor(1001), NewConfigurable)
+	node.Vendor(tpb.Vendor(1006), NewLoopbackable)
 	tf, err := tfake.NewSimpleClientset()
 	if err != nil {
 		t.Fatalf("cannot create fake topology clientset: %v", err)
@@ -369,6 +382,30 @@ func TestNew(t *testing.T) {
 			},
 		},
 		wantErr: "invalid link",
+	}, {
+		desc: "loopback supported",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1006),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+				},
+			},
+			Links: []*tpb.Link{
+				{
+					ANode: "r1",
+					AInt:  "eth1",
+					ZNode: "r1",
+					ZInt:  "eth2",
+				},
+			},
+		},
+		wantNodes: []string{"r1"},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {

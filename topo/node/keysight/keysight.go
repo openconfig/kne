@@ -322,6 +322,12 @@ func (n *Node) FixInterfaces() {
 	}
 }
 
+func (n *Node) HardwareLoopbackSupported() bool {
+	// IxiaTG supports hardware loopback due to the node implementation creating
+	// a pod per port.
+	return true
+}
+
 func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
