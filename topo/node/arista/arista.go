@@ -65,6 +65,7 @@ type Node struct {
 var (
 	_ node.Certer       = (*Node)(nil)
 	_ node.ConfigPusher = (*Node)(nil)
+	_ node.Resetter     = (*Node)(nil)
 
 	ethIntfRe  = regexp.MustCompile(`^Ethernet\d+(?:/\d+)?(?:/\d+)?$`)
 	mgmtIntfRe = regexp.MustCompile(`^Management\d+(?:/\d+)?$`)
