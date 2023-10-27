@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	cpb "github.com/openconfig/kne/proto/ceos"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -296,6 +297,32 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 	if resp.Failed == nil {
 		log.Infof("%s - finished config push", n.Impl.Proto.Name)
+	}
+
+	return resp.Failed
+}
+
+func (n *Node) ResetCfg(ctx context.Context) error {
+	log.Infof("%s resetting config", n.Name())
+
+	err := n.SpawnCLIConn()
+	if err != nil {
+		return err
+	}
+
+	defer n.cliConn.Close()
+
+	// this takes a long time sometimes, so we crank timeouts up
+	resp, err := n.cliConn.SendCommand(
+		"configure replace startup-config",
+		scrapliopts.WithTimeoutOps(300*time.Second),
+	)
+	if err != nil {
+		return err
+	}
+
+	if resp.Failed == nil {
+		log.Infof("%s - finshed resetting config", n.Name())
 	}
 
 	return resp.Failed

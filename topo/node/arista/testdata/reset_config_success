@@ -7,7 +7,7 @@ spine1#
 spine1#terminal length 0
 Pagination disabled.
 spine1#
-spine1#configure replace clean-config
+spine1#configure replace startup-config
 Aug 21 18:37:16 localhost Launcher: %LAUNCHER-6-PROCESS_STOP: Configuring process 'CapiApp' to stop in role 'ActiveSupervisor'
 Aug 21 18:37:16 localhost Stp: %SPANTREE-6-STABLE_CHANGE: Stp state is now not stable
 Aug 21 18:37:16 localhost Stp: %SPANTREE-6-INTERFACE_ADD: Interface Ethernet11 has been added to instance MST0
