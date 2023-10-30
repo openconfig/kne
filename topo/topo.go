@@ -474,9 +474,9 @@ func (m *Manager) load() error {
 	for _, l := range m.topo.Links {
 		aNode := m.nodes[l.ANode]
 		zNode := m.nodes[l.ZNode]
-		loopbackSupported := aNode.HardwareLoopbackSupported() && zNode.HardwareLoopbackSupported()
-		if !loopbackSupported && l.ANode == l.ZNode {
-			return fmt.Errorf("invalid link: hardware loopback %s:%s %s:%s not supported", l.ANode, l.AInt, l.ZNode, l.ZInt)
+		loop := aNode.BackToBackLoop() && zNode.BackToBackLoop()
+		if !loop && l.ANode == l.ZNode {
+			return fmt.Errorf("invalid link: back to back loop %s:%s %s:%s not supported", l.ANode, l.AInt, l.ZNode, l.ZInt)
 		}
 	}
 	return nil

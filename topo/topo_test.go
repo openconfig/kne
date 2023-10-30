@@ -97,7 +97,7 @@ type loopbackable struct {
 	*node.Impl
 }
 
-func (l *loopbackable) HardwareLoopbackSupported() bool {
+func (l *loopbackable) BackToBackLoop() bool {
 	return true
 }
 

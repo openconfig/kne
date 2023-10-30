@@ -322,8 +322,8 @@ func (n *Node) FixInterfaces() {
 	}
 }
 
-func (n *Node) HardwareLoopbackSupported() bool {
-	// IxiaTG supports hardware loopback due to the node implementation creating
+func (n *Node) BackToBackLoop() bool {
+	// IxiaTG supports back to back loops due to the node implementation creating
 	// a pod per port.
 	return true
 }
