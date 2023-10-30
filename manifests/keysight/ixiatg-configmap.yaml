@@ -11,7 +11,7 @@ data:
             {
                 "name": "controller",
                 "path": "ghcr.io/open-traffic-generator/licensed/ixia-c-controller",
-                "tag": "0.0.1-4554"
+                "tag": "0.0.1-4555"
             },
             {
                 "name": "gnmi-server",
