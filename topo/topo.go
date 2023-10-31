@@ -427,9 +427,6 @@ func (m *Manager) load() error {
 	uid := 0
 	for _, l := range m.topo.Links {
 		log.Infof("Adding Link: %s:%s %s:%s", l.ANode, l.AInt, l.ZNode, l.ZInt)
-		if l.ANode == l.ZNode {
-			return fmt.Errorf("invalid link: hardware loopback %s:%s %s:%s not supported", l.ANode, l.AInt, l.ZNode, l.ZInt)
-		}
 		aNode, ok := nMap[l.ANode]
 		if !ok {
 			return fmt.Errorf("invalid topology: missing node %q", l.ANode)
@@ -473,6 +470,14 @@ func (m *Manager) load() error {
 			return fmt.Errorf("failed to load topology: %w", err)
 		}
 		m.nodes[k] = nn
+	}
+	for _, l := range m.topo.Links {
+		aNode := m.nodes[l.ANode]
+		zNode := m.nodes[l.ZNode]
+		loop := aNode.BackToBackLoop() && zNode.BackToBackLoop()
+		if !loop && l.ANode == l.ZNode {
+			return fmt.Errorf("invalid link: back to back loop %s:%s %s:%s not supported", l.ANode, l.AInt, l.ZNode, l.ZInt)
+		}
 	}
 	return nil
 }

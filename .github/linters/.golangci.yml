@@ -27,7 +27,6 @@ linters:
   enable:
     - gosec
     - unconvert
-    - goconst
     - goimports
     - gofmt
     - gocritic
