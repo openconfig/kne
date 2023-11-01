@@ -8,9 +8,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/gnoigo/system"
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnoi"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -52,7 +54,7 @@ func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
 
 func testGNOI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	systemTime := dut.Operations().Time(t)
+	systemTime := gnoi.Execute(t, dut, system.NewTimeOperation())
 	t.Logf("Got gNOI system time: %v", systemTime)
 }
 
