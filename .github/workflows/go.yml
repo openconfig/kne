@@ -15,7 +15,7 @@ jobs:
       tests-excludes-regex: /cloudbuild
       race-tests-excludes-regex: /cloudbuild
       skip-race-tests: true
-      go-versions: "['1.20']"
+      go-versions: "['1.21']"
 
   linter:
     uses: openconfig/common-ci/.github/workflows/linter.yml@4a4b0744a11f707b838317e8f8788ca270873b30
