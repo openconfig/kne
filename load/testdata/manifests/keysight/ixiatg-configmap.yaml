@@ -6,7 +6,7 @@ metadata:
 data:
   versions: |
     {
-        "release": "v0.1",
+        "release": "0.0.1-9999",
         "images": [
             {
                 "name": "controller",

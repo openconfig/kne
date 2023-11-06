@@ -50,7 +50,7 @@ nodes: {
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
-    version: "v0.1"
+    version: "0.0.1-9999"
 }
 links: {
     a_node: "r1"
