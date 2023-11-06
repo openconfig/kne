@@ -58,6 +58,9 @@ type Implementation interface {
 	// Services provides a custom implementation for querying all services created for
 	// for a node. Requires context, Kubernetes client interface and namespace.
 	Services(context.Context) ([]*corev1.Service, error)
+	// BackToBackLoop returns a bool if the node supports links directly between
+	// two ports on the same node.
+	BackToBackLoop() bool
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -744,4 +747,10 @@ func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplin
 
 		return d, nil
 	}
+}
+
+// BackToBackLoop returns a bool indicating if the node supports a single link
+// connecting two ports on the same node. By default this is false.
+func (n *Impl) BackToBackLoop() bool {
+	return false
 }
