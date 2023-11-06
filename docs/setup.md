@@ -16,14 +16,14 @@ The following dependencies and required to use KNE:
 ## Install Golang
 
 1. If golang is already installed then check the version using `go version`. If
-   `1.20` or newer then golang installation is complete.
+   `1.21` or newer then golang installation is complete.
 
 1. Install the new version:
 
    ```bash
-   curl -O https://dl.google.com/go/go1.20.1.linux-amd64.tar.gz
-   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.20.1.linux-amd64.tar.gz
-   rm go1.20.1.linux-amd64.tar.gz
+   curl -O https://dl.google.com/go/go1.21.3.linux-amd64.tar.gz
+   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.21.3.linux-amd64.tar.gz
+   rm go1.21.3.linux-amd64.tar.gz
    export PATH=$PATH:/usr/local/go/bin
    export PATH=$PATH:$(go env GOPATH)/bin
    ```
