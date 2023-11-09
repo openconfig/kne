@@ -26,7 +26,7 @@ controllers:
   - kind: IxiaTG
     spec:
       operator: ../../manifests/keysight/ixiatg-operator.yaml
-      configMap: ../../manifests/keysight/ixiatg-configmap-unlicensed.yaml
+      configMap: ../../manifests/keysight/ixiatg-configmap.yaml
   - kind: SRLinux
     spec:
       operator: ../../manifests/controllers/srlinux/manifest.yaml

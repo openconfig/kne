@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	ixclient "github.com/open-traffic-generator/ixia-c-operator/api/clientset/v1beta1"
-	ixiatg "github.com/open-traffic-generator/ixia-c-operator/api/v1beta1"
+	ixclient "github.com/open-traffic-generator/keng-operator/api/clientset/v1beta1"
+	ixiatg "github.com/open-traffic-generator/keng-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"

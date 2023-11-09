@@ -13,7 +13,7 @@ require (
 	github.com/h-fam/errdiff v1.0.2
 	github.com/kr/pretty v0.3.1
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
-	github.com/open-traffic-generator/ixia-c-operator v0.3.6
+	github.com/open-traffic-generator/keng-operator v0.3.13
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.0
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gnoigo v0.0.0-20231026010722-87413fdb22e7
