@@ -468,6 +468,10 @@ func (s *server) PushConfig(ctx context.Context, req *cpb.PushConfigRequest) (*c
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create topology manager for %s: %v", topoPb.Name, err)
 	}
+	if len(req.GetConfig()) == 0 {
+		log.Infof("Empty config push is a no-op")
+		return nil, nil
+	}
 	log.Infof("Pushing config of size %v to device %q", len(req.GetConfig()), req.GetDeviceName())
 	if err := tm.ConfigPush(ctx, req.GetDeviceName(), bytes.NewReader(req.GetConfig())); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to push config to device %q: %v", req.GetDeviceName(), err)
