@@ -543,6 +543,9 @@ func (m *Manager) push(ctx context.Context) error {
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: m.topo.Name,
+				Labels: map[string]string{
+					"admission-webhook": "enabled",
+				},
 			},
 		}
 		sNs, err := m.kClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
