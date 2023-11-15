@@ -544,7 +544,7 @@ func (m *Manager) push(ctx context.Context) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: m.topo.Name,
 				Labels: map[string]string{
-					"admission-webhook": "enabled",
+					"kne-topology": "true",
 				},
 			},
 		}
