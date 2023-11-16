@@ -418,6 +418,7 @@ func (s *server) DeleteTopology(ctx context.Context, req *cpb.DeleteTopologyRequ
 	if err := tm.Delete(ctx); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete topology: %v", err)
 	}
+	delete(s.topos, req.GetTopologyName())
 	return &cpb.DeleteTopologyResponse{}, nil
 }
 
