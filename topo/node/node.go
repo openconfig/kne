@@ -450,6 +450,9 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 			},
 		},
 	}
+	for label, v := range n.GetProto().GetLabels() {
+		pod.ObjectMeta.Labels[label] = v
+	}
 	if pb.Config.ConfigData != nil {
 		vol, err := n.CreateConfig(ctx)
 		if err != nil {
