@@ -67,6 +67,7 @@ var (
 		8:  "GOBGP",
 		9:  "NOKIA",
 		10: "OPENCONFIG",
+		11: "ALPINE",
 	}
 	Vendor_value = map[string]int32{
 		"UNKNOWN":    0,
@@ -80,6 +81,7 @@ var (
 		"GOBGP":      8,
 		"NOKIA":      9,
 		"OPENCONFIG": 10,
+		"ALPINE":     11,
 	}
 )
 
@@ -128,6 +130,7 @@ const (
 	Node_CISCO_XRD    Node_Type = 12
 	Node_CISCO_E8000  Node_Type = 13
 	Node_LEMMING      Node_Type = 14
+	Node_ALPINE      Node_Type = 15
 )
 
 // Enum value maps for Node_Type.
@@ -148,6 +151,7 @@ var (
 		12: "CISCO_XRD",
 		13: "CISCO_E8000",
 		14: "LEMMING",
+		15: "ALPINE",
 	}
 	Node_Type_value = map[string]int32{
 		"UNKNOWN":      0,
@@ -165,6 +169,7 @@ var (
 		"CISCO_XRD":    12,
 		"CISCO_E8000":  13,
 		"LEMMING":      14,
+		"ALPINE": 		15,
 	}
 )
 
