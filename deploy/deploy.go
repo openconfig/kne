@@ -56,20 +56,7 @@ var (
 // logCommand runs the specified command but records standard output
 // with log.Info and standard error with log.Warning.
 func logCommand(cmd string, args ...string) error {
-	c := kexec.Command(cmd, args...)
-	outLog := logshim.New(func(v ...interface{}) {
-		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
-	})
-	errLog := logshim.New(func(v ...interface{}) {
-		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
-	})
-	defer func() {
-		outLog.Close()
-		errLog.Close()
-	}()
-	c.SetStdout(outLog)
-	c.SetStderr(errLog)
-	return c.Run()
+	return logCommandWithInput(nil, cmd, args...)
 }
 
 // logCommandWithInput runs the specified command but records standard output
@@ -89,7 +76,9 @@ func logCommandWithInput(in []byte, cmd string, args ...string) error {
 	}()
 	c.SetStdout(outLog)
 	c.SetStderr(errLog)
-	c.SetStdin(bytes.NewReader(in))
+	if len(in) > 0 {
+		c.SetStdin(bytes.NewReader(in))
+	}
 	return c.Run()
 }
 

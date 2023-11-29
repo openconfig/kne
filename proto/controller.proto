@@ -254,4 +254,5 @@ message ApplyClusterRequest {
 }
 
 // Returns apply cluster response.
-message ApplyClusterResponse {}
+message ApplyClusterResponse {
+}
