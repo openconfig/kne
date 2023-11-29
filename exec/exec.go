@@ -19,6 +19,7 @@ import (
 type Cmd interface {
 	SetStdout(io.Writer) // Redirect standard output to the writer
 	SetStderr(io.Writer) // Redirect standard error to the writer
+	SetStdin(io.Reader)  // Redirect standard in to the reader
 	Run() error          // Operates the same as os/exec/Cmd.Run
 }
 
@@ -45,7 +46,11 @@ type command struct {
 }
 
 func (c command) SetStdout(w io.Writer) { c.cmd.Stdout = w }
+
 func (c command) SetStderr(w io.Writer) { c.cmd.Stderr = w }
+
+func (c command) SetStdin(r io.Reader) { c.cmd.Stdin = r }
+
 func (c command) Run() error {
 	if err := c.cmd.Run(); err != nil {
 		return fmt.Errorf("%q failed: %v", c.cmd.String(), err)

@@ -15,6 +15,7 @@ package deploy
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/openconfig/kne/deploy"
@@ -41,6 +42,15 @@ func NewTeardown() *cobra.Command {
 		RunE:  teardownFn,
 	}
 	return teardownCmd
+}
+
+func NewApply() *cobra.Command {
+	applyCmd := &cobra.Command{
+		Use:   "apply <deployment yaml> <kubeyaml file>",
+		Short: "Apply kubeyaml to a deployed cluster.",
+		RunE:  applyFn,
+	}
+	return applyCmd
 }
 
 type ClusterSpec struct {
@@ -132,5 +142,24 @@ func teardownFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Infof("Cluster deployment teardown complete")
+	return nil
+}
+
+func applyFn(cmd *cobra.Command, args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("%s: missing args", cmd.Use)
+	}
+	d, err := newDeployment(args[0], false)
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(args[1])
+	if err != nil {
+		return err
+	}
+	if err := d.Cluster.Apply(b); err != nil {
+		return err
+	}
+	log.Infof("Apply complete")
 	return nil
 }

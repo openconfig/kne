@@ -65,6 +65,7 @@ environment.`,
 	root.AddCommand(topology.New())
 	root.AddCommand(deploy.NewDeploy())
 	root.AddCommand(deploy.NewTeardown())
+	root.AddCommand(deploy.NewApply())
 	return root
 }
 

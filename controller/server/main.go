@@ -331,6 +331,17 @@ func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (
 	return &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_RUNNING}, nil
 }
 
+func (s *server) ApplyCluster(ctx context.Context, req *cpb.ApplyClusterRequest) (*cpb.ApplyClusterResponse, error) {
+	log.Infof("Received ApplyCluster request: %v", req)
+	s.muDeploy.Lock()
+	defer s.muDeploy.Unlock()
+	d, ok := s.deployments[req.GetName()]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only apply config to clusters created using TopologyManager", req.GetName())
+	}
+	return nil, d.Cluster.Apply(req.GetData())
+}
+
 func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {
 	log.Infof("Received CreateTopology request: %v", req)
 	topoPb := req.GetTopology()

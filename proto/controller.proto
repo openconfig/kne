@@ -37,6 +37,8 @@ service TopologyManager {
   rpc PushConfig(PushConfigRequest) returns (PushConfigResponse) {}
   // Resets config of a device in a topology.
   rpc ResetConfig(ResetConfigRequest) returns (ResetConfigResponse) {}
+  // Applies kubeyaml to a running cluster.
+  rpc ApplyCluster(ApplyClusterRequest) returns (ApplyClusterResponse) {}
 }
 
 // Kind cluster specifications
@@ -213,7 +215,7 @@ message DeleteTopologyRequest {
 message DeleteTopologyResponse {
 }
 
-// Request message to view topology info
+// Request message to view topology info.
 message ShowTopologyRequest {
   string topology_name = 1;
 }
@@ -244,3 +246,12 @@ message ResetConfigRequest {
 // Returns reset config response.
 message ResetConfigResponse {
 }
+
+// Request message to apply kubeyaml to a cluster.
+message ApplyClusterRequest {
+  string name = 1;
+  bytes data = 2;
+}
+
+// Returns apply cluster response.
+message ApplyClusterResponse {}

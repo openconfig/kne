@@ -72,6 +72,27 @@ func logCommand(cmd string, args ...string) error {
 	return c.Run()
 }
 
+// logCommandWithInput runs the specified command but records standard output
+// with log.Info and standard error with log.Warning. in is sent to
+// the standard input of the command.
+func logCommandWithInput(in []byte, cmd string, args ...string) error {
+	c := kexec.Command(cmd, args...)
+	outLog := logshim.New(func(v ...interface{}) {
+		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	errLog := logshim.New(func(v ...interface{}) {
+		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
+	})
+	defer func() {
+		outLog.Close()
+		errLog.Close()
+	}()
+	c.SetStdout(outLog)
+	c.SetStderr(errLog)
+	c.SetStdin(bytes.NewReader(in))
+	return c.Run()
+}
+
 // outLogCommand runs the specified command but records standard output
 // with log.Info and standard error with log.Warning. Standard output
 // and standard error are also returned.
@@ -118,6 +139,7 @@ type Cluster interface {
 	Healthy() error
 	GetName() string
 	GetDockerNetworkResourceName() string
+	Apply([]byte) error
 }
 
 type Ingress interface {
@@ -429,6 +451,10 @@ func (e *ExternalSpec) GetDockerNetworkResourceName() string {
 	return e.Network
 }
 
+func (e *ExternalSpec) Apply(data []byte) error {
+	return logCommandWithInput(data, "kubectl", "apply", "-f", "-")
+}
+
 func init() {
 	load.Register("Kind", &load.Spec{
 		Type: KindSpec{},
@@ -652,6 +678,10 @@ func (k *KindSpec) GetName() string {
 
 func (k *KindSpec) GetDockerNetworkResourceName() string {
 	return "kind"
+}
+
+func (k *KindSpec) Apply(data []byte) error {
+	return logCommandWithInput(data, "kubectl", "apply", "-f", "-")
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
