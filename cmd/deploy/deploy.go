@@ -15,7 +15,6 @@ package deploy
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 
 	"github.com/openconfig/kne/deploy"
