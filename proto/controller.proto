@@ -250,7 +250,7 @@ message ResetConfigResponse {
 // Request message to apply kubeyaml to a cluster.
 message ApplyClusterRequest {
   string name = 1;
-  bytes data = 2;
+  bytes config = 2;
 }
 
 // Returns apply cluster response.

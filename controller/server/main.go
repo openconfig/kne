@@ -339,7 +339,7 @@ func (s *server) ApplyCluster(ctx context.Context, req *cpb.ApplyClusterRequest)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "cluster %q not found, can only apply config to clusters created using TopologyManager", req.GetName())
 	}
-	return nil, d.Cluster.Apply(req.GetData())
+	return nil, d.Cluster.Apply(req.GetConfig())
 }
 
 func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequest) (*cpb.CreateTopologyResponse, error) {

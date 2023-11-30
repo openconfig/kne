@@ -51,67 +51,61 @@ var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
+	logInfo         = log.Info
+	logWarning      = log.Warning
 )
+
+func runCommand(writeLogs bool, in []byte, cmd string, args ...string) ([]byte, error) {
+	c := kexec.Command(cmd, args...)
+	var out bytes.Buffer
+	c.SetStdout(&out)
+	if writeLogs {
+		outLog := logshim.New(func(v ...interface{}) {
+			logInfo(append([]interface{}{"(" + cmd + "): "}, v...)...)
+		})
+		errLog := logshim.New(func(v ...interface{}) {
+			logWarning(append([]interface{}{"(" + cmd + "): "}, v...)...)
+		})
+		defer func() {
+			outLog.Close()
+			errLog.Close()
+		}()
+		c.SetStdout(io.MultiWriter(outLog, &out))
+		c.SetStderr(io.MultiWriter(errLog, &out))
+	}
+	if len(in) > 0 {
+		c.SetStdin(bytes.NewReader(in))
+	}
+	err := c.Run()
+	return out.Bytes(), err
+}
 
 // logCommand runs the specified command but records standard output
 // with log.Info and standard error with log.Warning.
 func logCommand(cmd string, args ...string) error {
-	return logCommandWithInput(nil, cmd, args...)
+	_, err := runCommand(true, nil, cmd, args...)
+	return err
 }
 
 // logCommandWithInput runs the specified command but records standard output
 // with log.Info and standard error with log.Warning. in is sent to
 // the standard input of the command.
 func logCommandWithInput(in []byte, cmd string, args ...string) error {
-	c := kexec.Command(cmd, args...)
-	outLog := logshim.New(func(v ...interface{}) {
-		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
-	})
-	errLog := logshim.New(func(v ...interface{}) {
-		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
-	})
-	defer func() {
-		outLog.Close()
-		errLog.Close()
-	}()
-	c.SetStdout(outLog)
-	c.SetStderr(errLog)
-	if len(in) > 0 {
-		c.SetStdin(bytes.NewReader(in))
-	}
-	return c.Run()
+	_, err := runCommand(true, in, cmd, args...)
+	return err
 }
 
 // outLogCommand runs the specified command but records standard output
 // with log.Info and standard error with log.Warning. Standard output
 // and standard error are also returned.
 func outLogCommand(cmd string, args ...string) ([]byte, error) {
-	c := kexec.Command(cmd, args...)
-	outLog := logshim.New(func(v ...interface{}) {
-		log.Info(append([]interface{}{"(" + cmd + "): "}, v...)...)
-	})
-	errLog := logshim.New(func(v ...interface{}) {
-		log.Warning(append([]interface{}{"(" + cmd + "): "}, v...)...)
-	})
-	defer func() {
-		outLog.Close()
-		errLog.Close()
-	}()
-	var out bytes.Buffer
-	c.SetStdout(io.MultiWriter(outLog, &out))
-	c.SetStderr(io.MultiWriter(errLog, &out))
-	err := c.Run()
-	return out.Bytes(), err
+	return runCommand(true, nil, cmd, args...)
 }
 
 // outCommand runs the specified command and returns any standard output
 // as well as any errors.
 func outCommand(cmd string, args ...string) ([]byte, error) {
-	c := kexec.Command(cmd, args...)
-	var stdout bytes.Buffer
-	c.SetStdout(&stdout)
-	err := c.Run()
-	return stdout.Bytes(), err
+	return runCommand(false, nil, cmd, args...)
 }
 
 var (
@@ -440,8 +434,12 @@ func (e *ExternalSpec) GetDockerNetworkResourceName() string {
 	return e.Network
 }
 
-func (e *ExternalSpec) Apply(data []byte) error {
-	return logCommandWithInput(data, "kubectl", "apply", "-f", "-")
+func (e *ExternalSpec) Apply(cfg []byte) error {
+	return kubectlApply(cfg)
+}
+
+func kubectlApply(cfg []byte) error {
+	return logCommandWithInput(cfg, "kubectl", "apply", "-f", "-")
 }
 
 func init() {
@@ -669,8 +667,8 @@ func (k *KindSpec) GetDockerNetworkResourceName() string {
 	return "kind"
 }
 
-func (k *KindSpec) Apply(data []byte) error {
-	return logCommandWithInput(data, "kubectl", "apply", "-f", "-")
+func (k *KindSpec) Apply(cfg []byte) error {
+	return kubectlApply(cfg)
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
