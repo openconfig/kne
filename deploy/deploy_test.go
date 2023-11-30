@@ -128,7 +128,7 @@ func TestRunCommand(t *testing.T) {
 			}
 
 			origLogWarning := logWarning
-			defer func(args ...interface{}) {
+			defer func() {
 				logWarning = origLogWarning
 			}()
 			var warnings bytes.Buffer
@@ -151,7 +151,6 @@ func TestRunCommand(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestKubectlApply(t *testing.T) {
