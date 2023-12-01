@@ -38,6 +38,8 @@ type TopologyManagerClient interface {
 	PushConfig(ctx context.Context, in *PushConfigRequest, opts ...grpc.CallOption) (*PushConfigResponse, error)
 	// Resets config of a device in a topology.
 	ResetConfig(ctx context.Context, in *ResetConfigRequest, opts ...grpc.CallOption) (*ResetConfigResponse, error)
+	// Applies kubeyaml to a running cluster.
+	ApplyCluster(ctx context.Context, in *ApplyClusterRequest, opts ...grpc.CallOption) (*ApplyClusterResponse, error)
 }
 
 type topologyManagerClient struct {
@@ -120,6 +122,15 @@ func (c *topologyManagerClient) ResetConfig(ctx context.Context, in *ResetConfig
 	return out, nil
 }
 
+func (c *topologyManagerClient) ApplyCluster(ctx context.Context, in *ApplyClusterRequest, opts ...grpc.CallOption) (*ApplyClusterResponse, error) {
+	out := new(ApplyClusterResponse)
+	err := c.cc.Invoke(ctx, "/controller.TopologyManager/ApplyCluster", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TopologyManagerServer is the server API for TopologyManager service.
 // All implementations must embed UnimplementedTopologyManagerServer
 // for forward compatibility
@@ -140,6 +151,8 @@ type TopologyManagerServer interface {
 	PushConfig(context.Context, *PushConfigRequest) (*PushConfigResponse, error)
 	// Resets config of a device in a topology.
 	ResetConfig(context.Context, *ResetConfigRequest) (*ResetConfigResponse, error)
+	// Applies kubeyaml to a running cluster.
+	ApplyCluster(context.Context, *ApplyClusterRequest) (*ApplyClusterResponse, error)
 	mustEmbedUnimplementedTopologyManagerServer()
 }
 
@@ -170,6 +183,9 @@ func (UnimplementedTopologyManagerServer) PushConfig(context.Context, *PushConfi
 }
 func (UnimplementedTopologyManagerServer) ResetConfig(context.Context, *ResetConfigRequest) (*ResetConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResetConfig not implemented")
+}
+func (UnimplementedTopologyManagerServer) ApplyCluster(context.Context, *ApplyClusterRequest) (*ApplyClusterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApplyCluster not implemented")
 }
 func (UnimplementedTopologyManagerServer) mustEmbedUnimplementedTopologyManagerServer() {}
 
@@ -328,6 +344,24 @@ func _TopologyManager_ResetConfig_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TopologyManager_ApplyCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplyClusterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TopologyManagerServer).ApplyCluster(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/controller.TopologyManager/ApplyCluster",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TopologyManagerServer).ApplyCluster(ctx, req.(*ApplyClusterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TopologyManager_ServiceDesc is the grpc.ServiceDesc for TopologyManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -366,6 +400,10 @@ var TopologyManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResetConfig",
 			Handler:    _TopologyManager_ResetConfig_Handler,
+		},
+		{
+			MethodName: "ApplyCluster",
+			Handler:    _TopologyManager_ApplyCluster_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

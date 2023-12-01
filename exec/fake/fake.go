@@ -80,6 +80,7 @@ type Command struct {
 	unexpected []Response
 	stdout     io.Writer
 	stderr     io.Writer
+	stdin      io.Reader
 	cnt        int
 }
 
@@ -103,6 +104,9 @@ func (c *Command) SetStdout(w io.Writer) { c.stdout = w }
 
 // Stderr sets standard err to w.
 func (c *Command) SetStderr(w io.Writer) { c.stderr = w }
+
+// Stdin sets standard in to r.
+func (c *Command) SetStdin(r io.Reader) { c.stdin = r }
 
 // LogCommand is called with the string representation of the command that is
 // running.  The test program can optionally set this to their own function.
