@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package host
+package alpine
 
 import (
 	"fmt"
@@ -47,23 +47,49 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 	if initContainerImage == "" {
 		initContainerImage = DefaultInitContainerImage
 	}
-	if vendorData := config.GetVendorData(); vendorData != nil {
-		alpineConfig := &apb.AlpineConfig{}
-		if err := vendorData.UnmarshalTo(alpineConfig); err != nil {
+	sonicName := pb.Config.Name
+	sonicImage := pb.Config.Image
+	sonicCommand := pb.Config.Command
+	sonicArgs := pb.Config.Args
+
+	alpineContainers := []corev1.Container{
+		{
+			Name:            sonicName,
+			Image:           sonicImage,
+			Command:         sonicCommand,
+			Args:            sonicArgs,
+			Env:             ToEnvVar(pb.Config.Env),
+			Resources:       ToResourceRequirements(pb.Constraints),
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		}}
+
+	if vendorData := pb.Config.GetVendorData(); vendorData != nil {
+		alpineDpConfig := &apb.AlpineDataplaneConfig{}
+		if err := vendorData.UnmarshalTo(alpineDpConfig); err != nil {
 			return err
 		}
-		if sonicContainer := alpineConfig.GetSonicContainer(); sonicContainer != nil {
-			sonicName := sonicContainer.Name
-			sonicImage := sonicContainer.Image
-			sonicCommand := sonicContainer.Command
-			sonicArgs := sonicContainer.Args
-		}
-		if dataplaneContainer := alpineConfig.GetDataplaneContainer(); dataplaneContainer != nil {
-			dataplaneName := dataplaneContainer.Name
-			dataplaneImage := dataplaneContainer.Image
-			dataplaneCommand := dataplaneContainer.Command
-			dataplaneArgs := dataplaneContainer.Args
-		}
+		dataplaneName := alpineDpConfig.Name
+		dataplaneImage := alpineDpConfig.Image
+		dataplaneCommand := alpineDpConfig.Command
+		dataplaneArgs := alpineDpConfig.Args
+
+		Containers.Add({
+			corev1.Container{
+				Name:            dataplaneName,
+				Image:           dataplaneImage,
+				Command:         dataplaneCommand,
+				Args:            dataplaneArgs,
+				Env:             ToEnvVar(pb.Config.Env),
+				Resources:       ToResourceRequirements(pb.Constraints),
+				ImagePullPolicy: "IfNotPresent",
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: pointer.Bool(true),
+				}
+			}
+		})
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -83,31 +109,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 				},
 				ImagePullPolicy: "IfNotPresent",
 			}},
-			Containers: []corev1.Container{
-			{
-				Name:            sonicName,
-				Image:           sonicImage,
-				Command:         sonicCommand,
-				Args:            sonicArgs,
-				Env:             ToEnvVar(pb.Config.Env),
-				Resources:       ToResourceRequirements(pb.Constraints),
-				ImagePullPolicy: "IfNotPresent",
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: pointer.Bool(true),
-				},
-			},
-			{
-				Name:            dataplaneName,
-				Image:           dataplaneImage,
-				Command:         dataplaneCommand,
-				Args:            dataplaneArgs,
-				Env:             ToEnvVar(pb.Config.Env),
-				Resources:       ToResourceRequirements(pb.Constraints),
-				ImagePullPolicy: "IfNotPresent",
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: pointer.Bool(true),
-				},
-			}},
+			Containers: alpineContainers,
 			TerminationGracePeriodSeconds: pointer.Int64(0),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
@@ -147,17 +149,8 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
-	if pb.Config.SonicImage == "" {
-		pb.Config.SonicImage = "alpinevs:latest"
-	}
-	if pb.Config.DataplaneImage == "" {
-		pb.Config.DataplaneImage = "lucius:latest"
-	}
-	if pb.Config.ConfigPath == "" {
-		pb.Config.ConfigPath = "/etc"
-	}
-	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "config"
+	if pb.Config.Image == "" {
+		pb.Config.Image = "alpinevs:latest"
 	}
 	return pb
 }

@@ -14,7 +14,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ContainerConfig struct {
+type AlpineDataplaneConfig struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -25,18 +25,9 @@ type ContainerConfig struct {
 	Args    []string `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`       // Command args to pass into the container.
 }
 
-// AlpineVS specific vendor data for KNE
-type AlpineConfig struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
 
-	SonicContainer *ContainerConfig `protobuf:"bytes,1,opt,name=soniccontainer,proto3" json:"config,omitempty"`
-	DataplaneContainer   *ContainerConfig `protobuf:"bytes,2,opt,name=dataplanecontainer,proto3" json:"config,omitempty"`
-}
-
-func (x *AlpineConfig) Reset() {
-	*x = AlpineConfig{}
+func (x *AlpineDataplaneConfig) Reset() {
+	*x = AlpineDataplaneConfig{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_alpine_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -44,13 +35,13 @@ func (x *AlpineConfig) Reset() {
 	}
 }
 
-func (x *AlpineConfig) String() string {
+func (x *AlpineDataplaneConfig) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AlpineConfig) ProtoMessage() {}
+func (*AlpineDataplaneConfig) ProtoMessage() {}
 
-func (x *AlpineConfig) ProtoReflect() protoreflect.Message {
+func (x *AlpineDataplaneConfig) ProtoReflect() protoreflect.Message {
 	mi := &file_alpine_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -60,20 +51,6 @@ func (x *AlpineConfig) ProtoReflect() protoreflect.Message {
 		return ms
 	}
 	return mi.MessageOf(x)
-}
-
-func (x *AlpineConfig) GetSonicContainer() map[string]bool {
-	if x != nil {
-		return x.SonicContainer
-	}
-	return nil
-}
-
-func (x *AlpineConfig) GetDataplaneContainer() []string {
-	if x != nil {
-		return x.DataplaneContainer
-	}
-	return nil
 }
 
 var File_alpine_proto protoreflect.FileDescriptor
@@ -113,11 +90,11 @@ func file_alpine_proto_rawDescGZIP() []byte {
 
 var file_alpine_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_alpine_proto_goTypes = []interface{}{
-	(*AlpineConfig)(nil), // 0: alpine.AlpineConfig
-	nil,                   // 1: alpine.AlpineConfig.ToggleOverridesEntry
+	(*AlpineDataplaneConfig)(nil), // 0: alpine.AlpineDataplaneConfig
+	nil,                   // 1: alpine.AlpineDataplaneConfig.ToggleOverridesEntry
 }
 var file_alpine_proto_depIdxs = []int32{
-	1, // 0: alpine.AlpineConfig.toggle_overrides:type_name -> alpine.AlpineConfig.ToggleOverridesEntry
+	1, // 0: alpine.AlpineDataplaneConfig.toggle_overrides:type_name -> alpine.AlpineDataplaneConfig.ToggleOverridesEntry
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -132,7 +109,7 @@ func file_alpine_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_alpine_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AlpineConfig); i {
+			switch v := v.(*AlpineDataplaneConfig); i {
 			case 0:
 				return &v.state
 			case 1:

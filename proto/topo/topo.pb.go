@@ -51,6 +51,7 @@ const (
 	Vendor_GOBGP      Vendor = 8
 	Vendor_NOKIA      Vendor = 9
 	Vendor_OPENCONFIG Vendor = 10
+	Vendor_ALPINE 	  Vendor = 11
 )
 
 // Enum value maps for Vendor.
@@ -130,7 +131,7 @@ const (
 	Node_CISCO_XRD    Node_Type = 12
 	Node_CISCO_E8000  Node_Type = 13
 	Node_LEMMING      Node_Type = 14
-	Node_ALPINE      Node_Type = 15
+	Node_ALPINE       Node_Type = 15
 )
 
 // Enum value maps for Node_Type.
