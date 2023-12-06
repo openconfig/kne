@@ -2,11 +2,10 @@ name: "twodut-alpine"
 nodes: {
     name: "alpine"
     vendor: ALPINE
-    image: "sonic-vs:latest"
-    command: "go run main.go"
     config: {
+        image: "sonic-vs:latest"
+        command: "go run main.go"
         vendor_data: {
-            name: "dataplane"
             image: "us-west1-docker.pkg.dev/openconfig-lemming/release/lucius:ga"
             command: "/lucius/lucius -alsologtostderr"
             args: ""

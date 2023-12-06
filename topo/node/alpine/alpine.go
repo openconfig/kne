@@ -14,8 +14,15 @@
 package alpine
 
 import (
+	"context"
 	"fmt"
 
+	log "k8s.io/klog/v2"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/pointer"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apb "github.com/openconfig/kne/proto/alpine"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 )
@@ -39,20 +46,46 @@ type Node struct {
 	*node.Impl
 }
 
+const (
+	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga"
+)
+func ToEnvVar(kv map[string]string) []corev1.EnvVar {
+	var envVar []corev1.EnvVar
+	for k, v := range kv {
+		envVar = append(envVar, corev1.EnvVar{
+			Name:  k,
+			Value: v,
+		})
+	}
+	return envVar
+}
+func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
+	r := corev1.ResourceRequirements{
+		Requests: map[corev1.ResourceName]resource.Quantity{},
+	}
+	if v, ok := kv["cpu"]; ok {
+		r.Requests["cpu"] = resource.MustParse(v)
+	}
+	if v, ok := kv["memory"]; ok {
+		r.Requests["memory"] = resource.MustParse(v)
+	}
+	return r
+}
+
 // CreatePod creates a Pod for the Node based on the underlying proto.
-func (n *Impl) CreatePod(ctx context.Context) error {
+func (n *Node) CreatePod(ctx context.Context) error {
 	pb := n.Proto
 	log.Infof("Creating Pod:\n %+v", pb)
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
 		initContainerImage = DefaultInitContainerImage
 	}
-	sonicName := pb.Config.Name
+	sonicName := pb.Name
 	sonicImage := pb.Config.Image
 	sonicCommand := pb.Config.Command
 	sonicArgs := pb.Config.Args
 
-	alpineContainers := []corev1.Container{
+	alpineContainers := []corev1.Container {
 		{
 			Name:            sonicName,
 			Image:           sonicImage,
@@ -64,19 +97,21 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
-		}}
+		},
+	}
 
 	if vendorData := pb.Config.GetVendorData(); vendorData != nil {
 		alpineDpConfig := &apb.AlpineDataplaneConfig{}
 		if err := vendorData.UnmarshalTo(alpineDpConfig); err != nil {
 			return err
 		}
-		dataplaneName := alpineDpConfig.Name
+		// dataplaneName := alpineDpConfig.DpName
+		dataplaneName := "lucius"
 		dataplaneImage := alpineDpConfig.Image
 		dataplaneCommand := alpineDpConfig.Command
 		dataplaneArgs := alpineDpConfig.Args
 
-		Containers.Add({
+		alpineContainers = append(alpineContainers,
 			corev1.Container{
 				Name:            dataplaneName,
 				Image:           dataplaneImage,
@@ -87,9 +122,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 				ImagePullPolicy: "IfNotPresent",
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
-				}
-			}
-		})
+				},})
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
