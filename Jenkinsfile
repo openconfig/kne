@@ -22,7 +22,7 @@ pipeline {
                 sh "fkne create ./examples/openconfig/lemming.pb.txt"
                 sh "kubectl get pods -n lemming-twodut"
                 sh "fkne delete ./examples/openconfig/lemming.pb.txt"
-                sh "fkne teardown"
+                sh "fkne teardown ./deploy/kne/kind-bridge.yaml"
             }
         }
     }
