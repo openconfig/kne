@@ -75,7 +75,7 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 // CreatePod creates a Pod for the Node based on the underlying proto.
 func (n *Node) CreatePod(ctx context.Context) error {
 	pb := n.Proto
-	log.Infof("Creating Pod:\n %+v", pb)
+	log.Infof("SONIKA: Creating Pod:\n %+v", pb)
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
 		initContainerImage = DefaultInitContainerImage
@@ -105,12 +105,11 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		if err := vendorData.UnmarshalTo(alpineDpConfig); err != nil {
 			return err
 		}
-		// dataplaneName := alpineDpConfig.DpName
-		dataplaneName := "lucius"
+		dataplaneName := alpineDpConfig.Name
 		dataplaneImage := alpineDpConfig.Image
 		dataplaneCommand := alpineDpConfig.Command
 		dataplaneArgs := alpineDpConfig.Args
-
+		log.Infof("Adding dataplane container to alpine pod")
 		alpineContainers = append(alpineContainers,
 			corev1.Container{
 				Name:            dataplaneName,
@@ -124,6 +123,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 					Privileged: pointer.Bool(true),
 				},})
 	}
+	log.Infof("Num containers in Alpine:%+v", len(alpineContainers))
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pb.Name,
@@ -168,7 +168,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.V(1).Infof("Pod created:\n%+v\n", sPod)
+	log.Infof("Pod created:\n%+v\n", sPod)
 	return nil
 }
 
@@ -183,7 +183,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "alpinevs:latest"
+		pb.Config.Image = "sonic-vs:latest"
 	}
 	return pb
 }

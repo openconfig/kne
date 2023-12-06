@@ -19,6 +19,7 @@ option go_package = "github.com/openconfig/kne/proto/alpine";
 
 // Alpine specific vendor data for KNE
 message AlpineDataplaneConfig {
+  string name = 1;
   string image = 2;
   repeated string command = 3;
   repeated string args = 4;
