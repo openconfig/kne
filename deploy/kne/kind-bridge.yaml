@@ -4,7 +4,7 @@
 cluster:
   kind: Kind
   spec:
-    name: kne
+    name: forked-kne
     recycle: True
     version: v0.17.0
     image: kindest/node:v1.26.0

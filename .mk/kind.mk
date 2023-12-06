@@ -1,5 +1,5 @@
 # KIND cluster name
-KIND_CLUSTER_NAME := "kne"
+KIND_CLUSTER_NAME := "forked-kne"
 
 .PHONY: kind-install
 kind-install: 
@@ -18,7 +18,7 @@ kind-ensure:
 .PHONY: kind-start
 kind-start: kind-ensure 
 	@$(GOPATH)/bin/kind get clusters | grep $(KIND_CLUSTER_NAME)  >/dev/null 2>&1 || \
-		$(GOPATH)/bin/kind create cluster --name $(KIND_CLUSTER_NAME) --config ./kind/kind.yaml 
+		$(GOPATH)/bin/kind create cluster --name $(KIND_CLUSTER_NAME) --config ./kind/kind-no-cni.yaml 
 
 .PHONY: kind-wait-for-cni
 kind-wait-for-cni:

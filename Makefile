@@ -1,10 +1,10 @@
 MESHNET_DOCKER_IMAGE := hfam/meshnet
 GOPATH ?= ${HOME}/go
-KNE_CLI_BIN := kne
+KNE_CLI_BIN := fkne
 INSTALL_DIR := /usr/local/bin
 
 COMMIT := $(shell git describe --dirty --always)
-TAG := $(shell git describe --tags --abbrev=0 || echo latest)
+#TAG := $(shell git describe --tags --abbrev=0 || echo latest)
 
 
 include .mk/kind.mk
