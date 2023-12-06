@@ -17,11 +17,13 @@ pipeline {
             }
         }
         stage("Integration Tests") {
-            sh "fkne deploy ./deploy/kne/kind-bridge.yaml"
-            sh "fkne create ./examples/openconfig/lemming.pb.txt"
-            sh "kubectl get pods -n lemming-twodut"
-            sh "fkne delete ./examples/openconfig/lemming.pb.txt"
-            sh "fkne teardown"
+            steps {
+                sh "fkne deploy ./deploy/kne/kind-bridge.yaml"
+                sh "fkne create ./examples/openconfig/lemming.pb.txt"
+                sh "kubectl get pods -n lemming-twodut"
+                sh "fkne delete ./examples/openconfig/lemming.pb.txt"
+                sh "fkne teardown"
+            }
         }
     }
     post {
