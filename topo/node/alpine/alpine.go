@@ -72,10 +72,23 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 	return r
 }
 
+func (n *Node) Create(ctx context.Context) error {
+	if err := n.ValidateConstraints(); err != nil {
+		return fmt.Errorf("node %s failed to validate node with errors: %s", n.Name(), err)
+	}
+	if err := n.CreatePod(ctx); err != nil {
+		return fmt.Errorf("node %s failed to create pod %w", n.Name(), err)
+	}
+	if err := n.CreateService(ctx); err != nil {
+		return fmt.Errorf("node %s failed to create service %w", n.Name(), err)
+	}
+	return nil
+}
+
 // CreatePod creates a Pod for the Node based on the underlying proto.
 func (n *Node) CreatePod(ctx context.Context) error {
 	pb := n.Proto
-	log.Infof("SONIKA: Creating Pod:\n %+v", pb)
+
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
 		initContainerImage = DefaultInitContainerImage
@@ -109,7 +122,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		dataplaneImage := alpineDpConfig.Image
 		dataplaneCommand := alpineDpConfig.Command
 		dataplaneArgs := alpineDpConfig.Args
-		log.Infof("Adding dataplane container to alpine pod")
+
 		alpineContainers = append(alpineContainers,
 			corev1.Container{
 				Name:            dataplaneName,
@@ -123,7 +136,6 @@ func (n *Node) CreatePod(ctx context.Context) error {
 					Privileged: pointer.Bool(true),
 				},})
 	}
-	log.Infof("Num containers in Alpine:%+v", len(alpineContainers))
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pb.Name,
