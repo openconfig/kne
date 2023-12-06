@@ -4,7 +4,7 @@ KNE_CLI_BIN := kne
 INSTALL_DIR := /usr/local/bin
 
 COMMIT := $(shell git describe --dirty --always)
-#TAG := $(shell git describe --tags --abbrev=0 || echo latest)
+TAG := $(shell git describe --tags --abbrev=0 || echo latest)
 
 
 include .mk/kind.mk
