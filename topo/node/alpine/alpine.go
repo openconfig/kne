@@ -19,7 +19,6 @@ import (
 
 	log "k8s.io/klog/v2"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/pointer"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apb "github.com/openconfig/kne/proto/alpine"
@@ -46,32 +45,6 @@ type Node struct {
 	*node.Impl
 }
 
-const (
-	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga"
-)
-func ToEnvVar(kv map[string]string) []corev1.EnvVar {
-	var envVar []corev1.EnvVar
-	for k, v := range kv {
-		envVar = append(envVar, corev1.EnvVar{
-			Name:  k,
-			Value: v,
-		})
-	}
-	return envVar
-}
-func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
-	r := corev1.ResourceRequirements{
-		Requests: map[corev1.ResourceName]resource.Quantity{},
-	}
-	if v, ok := kv["cpu"]; ok {
-		r.Requests["cpu"] = resource.MustParse(v)
-	}
-	if v, ok := kv["memory"]; ok {
-		r.Requests["memory"] = resource.MustParse(v)
-	}
-	return r
-}
-
 func (n *Node) Create(ctx context.Context) error {
 	if err := n.ValidateConstraints(); err != nil {
 		return fmt.Errorf("node %s failed to validate node with errors: %s", n.Name(), err)
@@ -91,21 +64,17 @@ func (n *Node) CreatePod(ctx context.Context) error {
 
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
-		initContainerImage = DefaultInitContainerImage
+		initContainerImage = node.DefaultInitContainerImage
 	}
-	sonicName := pb.Name
-	sonicImage := pb.Config.Image
-	sonicCommand := pb.Config.Command
-	sonicArgs := pb.Config.Args
 
 	alpineContainers := []corev1.Container {
 		{
-			Name:            sonicName,
-			Image:           sonicImage,
-			Command:         sonicCommand,
-			Args:            sonicArgs,
-			Env:             ToEnvVar(pb.Config.Env),
-			Resources:       ToResourceRequirements(pb.Constraints),
+			Name:            pb.Name,
+			Image:           pb.Config.Image,
+			Command:         pb.Config.Command,
+			Args:            pb.Config.Args,
+			Env:             node.ToEnvVar(pb.Config.Env),
+			Resources:       node.ToResourceRequirements(pb.Constraints),
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
@@ -129,12 +98,14 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				Image:           dataplaneImage,
 				Command:         dataplaneCommand,
 				Args:            dataplaneArgs,
-				Env:             ToEnvVar(pb.Config.Env),
-				Resources:       ToResourceRequirements(pb.Constraints),
+				Env:             node.ToEnvVar(pb.Config.Env),
+				Resources:       node.ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
-				},})
+				},
+			},
+		)
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
