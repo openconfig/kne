@@ -51,6 +51,7 @@ const (
 	Vendor_GOBGP      Vendor = 8
 	Vendor_NOKIA      Vendor = 9
 	Vendor_OPENCONFIG Vendor = 10
+	Vendor_DRIVENETS  Vendor = 11
 )
 
 // Enum value maps for Vendor.
@@ -67,6 +68,7 @@ var (
 		8:  "GOBGP",
 		9:  "NOKIA",
 		10: "OPENCONFIG",
+		11: "DRIVENETS",
 	}
 	Vendor_value = map[string]int32{
 		"UNKNOWN":    0,
@@ -80,6 +82,7 @@ var (
 		"GOBGP":      8,
 		"NOKIA":      9,
 		"OPENCONFIG": 10,
+		"DRIVENETS" : 11,
 	}
 )
 
@@ -128,6 +131,7 @@ const (
 	Node_CISCO_XRD    Node_Type = 12
 	Node_CISCO_E8000  Node_Type = 13
 	Node_LEMMING      Node_Type = 14
+	Node_DRIVENETS    Node_Type = 15
 )
 
 // Enum value maps for Node_Type.
@@ -148,6 +152,7 @@ var (
 		12: "CISCO_XRD",
 		13: "CISCO_E8000",
 		14: "LEMMING",
+		15: "DRIVENETS",
 	}
 	Node_Type_value = map[string]int32{
 		"UNKNOWN":      0,
@@ -165,6 +170,7 @@ var (
 		"CISCO_XRD":    12,
 		"CISCO_E8000":  13,
 		"LEMMING":      14,
+		"DRIVENETS":    15,
 	}
 )
 

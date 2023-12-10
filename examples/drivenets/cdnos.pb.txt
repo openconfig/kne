@@ -1,0 +1,17 @@
+name: "cdnos-twodut"
+nodes: {
+    name: "cdnos1"
+    vendor: DRIVENETS
+    model: "CDNOS"
+}
+nodes: {
+    name: "cdnos2"
+    vendor: DRIVENETS
+    model: "CDNOS"
+}
+links: {
+    a_node: "cdnos1"
+    a_int: "eth1"
+    z_node: "cdnos2"
+    z_int: "eth1"
+}
