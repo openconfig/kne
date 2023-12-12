@@ -35,19 +35,16 @@ const (
 )
 
 // Alpine specific vendor data for KNE
-type AlpineDataplaneConfig struct {
+type AlpineConfig struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name    string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Image   string   `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"`
-	Command []string `protobuf:"bytes,3,rep,name=command,proto3" json:"command,omitempty"`
-	Args    []string `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
+	Containers []*Container `protobuf:"bytes,1,rep,name=containers,proto3" json:"containers,omitempty"`
 }
 
-func (x *AlpineDataplaneConfig) Reset() {
-	*x = AlpineDataplaneConfig{}
+func (x *AlpineConfig) Reset() {
+	*x = AlpineConfig{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_alpine_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -55,13 +52,13 @@ func (x *AlpineDataplaneConfig) Reset() {
 	}
 }
 
-func (x *AlpineDataplaneConfig) String() string {
+func (x *AlpineConfig) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AlpineDataplaneConfig) ProtoMessage() {}
+func (*AlpineConfig) ProtoMessage() {}
 
-func (x *AlpineDataplaneConfig) ProtoReflect() protoreflect.Message {
+func (x *AlpineConfig) ProtoReflect() protoreflect.Message {
 	mi := &file_alpine_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -73,33 +70,83 @@ func (x *AlpineDataplaneConfig) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AlpineDataplaneConfig.ProtoReflect.Descriptor instead.
-func (*AlpineDataplaneConfig) Descriptor() ([]byte, []int) {
+// Deprecated: Use AlpineConfig.ProtoReflect.Descriptor instead.
+func (*AlpineConfig) Descriptor() ([]byte, []int) {
 	return file_alpine_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AlpineDataplaneConfig) GetName() string {
+func (x *AlpineConfig) GetContainers() []*Container {
+	if x != nil {
+		return x.Containers
+	}
+	return nil
+}
+
+type Container struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Name    string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Image   string   `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"`
+	Command []string `protobuf:"bytes,3,rep,name=command,proto3" json:"command,omitempty"`
+	Args    []string `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
+}
+
+func (x *Container) Reset() {
+	*x = Container{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_alpine_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Container) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Container) ProtoMessage() {}
+
+func (x *Container) ProtoReflect() protoreflect.Message {
+	mi := &file_alpine_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Container.ProtoReflect.Descriptor instead.
+func (*Container) Descriptor() ([]byte, []int) {
+	return file_alpine_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Container) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *AlpineDataplaneConfig) GetImage() string {
+func (x *Container) GetImage() string {
 	if x != nil {
 		return x.Image
 	}
 	return ""
 }
 
-func (x *AlpineDataplaneConfig) GetCommand() []string {
+func (x *Container) GetCommand() []string {
 	if x != nil {
 		return x.Command
 	}
 	return nil
 }
 
-func (x *AlpineDataplaneConfig) GetArgs() []string {
+func (x *Container) GetArgs() []string {
 	if x != nil {
 		return x.Args
 	}
@@ -110,17 +157,20 @@ var File_alpine_proto protoreflect.FileDescriptor
 
 var file_alpine_proto_rawDesc = []byte{
 	0x0a, 0x0c, 0x61, 0x6c, 0x70, 0x69, 0x6e, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x06,
-	0x61, 0x6c, 0x70, 0x69, 0x6e, 0x65, 0x22, 0x6f, 0x0a, 0x15, 0x41, 0x6c, 0x70, 0x69, 0x6e, 0x65,
-	0x44, 0x61, 0x74, 0x61, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12,
-	0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e,
-	0x61, 0x6d, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x05, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6d,
-	0x6d, 0x61, 0x6e, 0x64, 0x18, 0x03, 0x20, 0x03, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6d, 0x6d,
-	0x61, 0x6e, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x72, 0x67, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28,
-	0x09, 0x52, 0x04, 0x61, 0x72, 0x67, 0x73, 0x42, 0x28, 0x5a, 0x26, 0x67, 0x69, 0x74, 0x68, 0x75,
-	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6f, 0x70, 0x65, 0x6e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67,
-	0x2f, 0x6b, 0x6e, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x61, 0x6c, 0x70, 0x69, 0x6e,
-	0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x61, 0x6c, 0x70, 0x69, 0x6e, 0x65, 0x22, 0x41, 0x0a, 0x0c, 0x41, 0x6c, 0x70, 0x69, 0x6e, 0x65,
+	0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x31, 0x0a, 0x0a, 0x63, 0x6f, 0x6e, 0x74, 0x61, 0x69,
+	0x6e, 0x65, 0x72, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x11, 0x2e, 0x61, 0x6c, 0x70,
+	0x69, 0x6e, 0x65, 0x2e, 0x43, 0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x65, 0x72, 0x52, 0x0a, 0x63,
+	0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x65, 0x72, 0x73, 0x22, 0x63, 0x0a, 0x09, 0x43, 0x6f, 0x6e,
+	0x74, 0x61, 0x69, 0x6e, 0x65, 0x72, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x69, 0x6d,
+	0x61, 0x67, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x69, 0x6d, 0x61, 0x67, 0x65,
+	0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x18, 0x03, 0x20, 0x03, 0x28,
+	0x09, 0x52, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x72,
+	0x67, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x09, 0x52, 0x04, 0x61, 0x72, 0x67, 0x73, 0x42, 0x28,
+	0x5a, 0x26, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6f, 0x70, 0x65,
+	0x6e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2f, 0x6b, 0x6e, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x2f, 0x61, 0x6c, 0x70, 0x69, 0x6e, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -135,16 +185,18 @@ func file_alpine_proto_rawDescGZIP() []byte {
 	return file_alpine_proto_rawDescData
 }
 
-var file_alpine_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_alpine_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_alpine_proto_goTypes = []interface{}{
-	(*AlpineDataplaneConfig)(nil), // 0: alpine.AlpineDataplaneConfig
+	(*AlpineConfig)(nil), // 0: alpine.AlpineConfig
+	(*Container)(nil),    // 1: alpine.Container
 }
 var file_alpine_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: alpine.AlpineConfig.containers:type_name -> alpine.Container
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_alpine_proto_init() }
@@ -154,7 +206,19 @@ func file_alpine_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_alpine_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AlpineDataplaneConfig); i {
+			switch v := v.(*AlpineConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_alpine_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Container); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -172,7 +236,7 @@ func file_alpine_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_alpine_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -6,11 +6,13 @@ nodes: {
         image: "sonic-vs:latest"
         command: ["go", "run", "main.go"]
         vendor_data {
-            [type.googleapis.com/alpine.AlpineDataplaneConfig] {
-                name: "dataplane"
-                image: "us-west1-docker.pkg.dev/openconfig-lemming/release/lucius:ga"
-                command: "/lucius/lucius"
-                args: "-alsologtostderr"
+            [type.googleapis.com/alpine.AlpineConfig] {
+                containers: {
+                    name: "dataplane"
+                    image: "us-west1-docker.pkg.dev/openconfig-lemming/release/lucius:ga"
+                    command: "/lucius/lucius"
+                    args: "-alsologtostderr"
+                }
             }
         }
     }

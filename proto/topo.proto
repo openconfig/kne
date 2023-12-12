@@ -63,7 +63,6 @@ message Node {
     CISCO_XRD = 12;
     CISCO_E8000 = 13;
     LEMMING = 14;
-    ALPINE = 15;
   }
   string name = 1;  // Name of the node in the topology. Must be unique.
   Type type = 2 [deprecated = true];

@@ -14,14 +14,22 @@
 package alpine
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/pointer"
+	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	tpb "github.com/openconfig/kne/proto/topo"
+	apb "github.com/openconfig/kne/proto/alpine"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
+	kfake "k8s.io/client-go/kubernetes/fake"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestNew(t *testing.T) {
@@ -47,7 +55,13 @@ func TestNew(t *testing.T) {
 			Config: &tpb.Config{
 				Command:      []string{"/bin/sh", "-c", "sleep 2000000000000"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
-				Image:        "sonic-vs:latest",
+				Image:        "alpine:latest",
+			},
+			Services: map[uint32]*tpb.Service{
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
 			},
 		},
 	}, {
@@ -55,16 +69,22 @@ func TestNew(t *testing.T) {
 		nImpl: &node.Impl{
 			Proto: &tpb.Node{
 				Config: &tpb.Config{
-					Image: "alpine-vs:latest",
+					Image: "alpine:latest",
 					Command: []string{"go", "run", "main"},
 				},
 			},
 		},
 		want: &tpb.Node{
 			Config: &tpb.Config{
-				Image: "alpine-vs:latest",
+				Image: "alpine:latest",
 				Command: []string{"go", "run", "main"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+			},
+			Services: map[uint32]*tpb.Service{
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
 			},
 		},
 	}, 
@@ -80,6 +100,123 @@ func TestNew(t *testing.T) {
 			}
 			if !proto.Equal(n.GetProto(), tt.want) {
 				t.Fatalf("New() failed: got\n%swant\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
+			}
+		})
+	}
+}
+
+func TestCreateNode(t *testing.T) {
+
+	vendorData, err := anypb.New(&apb.AlpineConfig{
+		Containers: []*apb.Container{
+			{
+				Name: "dp",
+				Image: "dpImage",
+				Command: []string{"dpCommand"},
+				Args: []string{"dpArgs"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("cannot marshal AlpineConfig into \"any\" protobuf: %v", err)
+	}
+	tests := []struct {
+		desc    string
+		nImpl   *node.Impl
+		wantAlpineCtr    corev1.Container
+		wantDpCtr    corev1.Container
+		wantErr string
+	}{{
+		desc: "get all containers",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "alpine",
+				Config: &tpb.Config{
+					Image: "alpineImage",
+					Command: []string{"alpineCommand"},
+					Args: []string{"alpineArgs"},
+					VendorData: vendorData,
+				},
+			},
+		},
+		wantAlpineCtr: corev1.Container{
+			Name:            "alpine",
+			Image:           "alpineImage",
+			Command:         []string{"alpineCommand"},
+			Args:            []string{"alpineArgs"},
+			Resources:       corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+		wantDpCtr: corev1.Container	{
+			Name:            "dp",
+			Image:           "dpImage",
+			Command:         []string{"dpCommand"},
+			Args:            []string{"dpArgs"},
+			Resources:       corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+	},
+	{
+		desc: "get only alpine containers",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "alpine",
+				Config: &tpb.Config{
+					Image: "alpineImage",
+					Command: []string{"alpineCommand"},
+					Args: []string{"alpineArgs"},
+				},
+			},
+		},
+		wantAlpineCtr: corev1.Container{
+			Name:            "alpine",
+			Image:           "alpineImage",
+			Command:         []string{"alpineCommand"},
+			Args:            []string{"alpineArgs"},
+			Resources:       corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+	},}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			n := &Node{
+				Impl: &node.Impl{
+					Namespace:  "test",
+					KubeClient: kfake.NewSimpleClientset(),
+					Proto: tt.nImpl.Proto,
+				},
+			}
+			err := n.CreatePod(context.Background())
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: got %v, want %s", err, s)
+			}
+
+			pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(context.Background(), n.Name(), metav1.GetOptions{})
+			containers := pod.Spec.Containers
+			if len(containers) < 1 || len(containers) > 2 {
+				t.Fatalf("Num containers mismatch: want: 1 or 2 got:%v", len(containers))
+			}
+			alpineCtr := containers[0]
+			if s := cmp.Diff(tt.wantAlpineCtr, alpineCtr); s != "" {
+				t.Fatalf("Alpine Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, alpineCtr, tt.wantAlpineCtr)
+			}
+			if len(containers) == 2 {
+				dpCtr := containers[1]
+				if s := cmp.Diff(tt.wantDpCtr, dpCtr); s != "" {
+					t.Fatalf("DP Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, dpCtr, tt.wantDpCtr)
+				}
 			}
 		})
 	}

@@ -61,6 +61,7 @@ func (n *Node) Create(ctx context.Context) error {
 // CreatePod creates a Pod for the Node based on the underlying proto.
 func (n *Node) CreatePod(ctx context.Context) error {
 	pb := n.Proto
+	log.Infof("Creating Pod:\n %+v", pb)
 
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -83,29 +84,37 @@ func (n *Node) CreatePod(ctx context.Context) error {
 	}
 
 	if vendorData := pb.Config.GetVendorData(); vendorData != nil {
-		alpineDpConfig := &apb.AlpineDataplaneConfig{}
-		if err := vendorData.UnmarshalTo(alpineDpConfig); err != nil {
+		alpineConfig := &apb.AlpineConfig{}
+
+		if err := vendorData.UnmarshalTo(alpineConfig); err != nil {
 			return err
 		}
-		dataplaneName := alpineDpConfig.Name
-		dataplaneImage := alpineDpConfig.Image
-		dataplaneCommand := alpineDpConfig.Command
-		dataplaneArgs := alpineDpConfig.Args
 
-		alpineContainers = append(alpineContainers,
-			corev1.Container{
-				Name:            dataplaneName,
-				Image:           dataplaneImage,
-				Command:         dataplaneCommand,
-				Args:            dataplaneArgs,
-				Env:             node.ToEnvVar(pb.Config.Env),
-				Resources:       node.ToResourceRequirements(pb.Constraints),
-				ImagePullPolicy: "IfNotPresent",
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: pointer.Bool(true),
+		if len(alpineConfig.Containers) != 1 {
+			log.Infof("Alpine custom containers not found.")
+		} else {
+			dpContainer := alpineConfig.Containers[0]
+
+			dataplaneName := dpContainer.Name
+			dataplaneImage := dpContainer.Image
+			dataplaneCommand := dpContainer.Command
+			dataplaneArgs := dpContainer.Args
+
+			alpineContainers = append(alpineContainers,
+				corev1.Container{
+					Name:            dataplaneName,
+					Image:           dataplaneImage,
+					Command:         dataplaneCommand,
+					Args:            dataplaneArgs,
+					Env:             node.ToEnvVar(pb.Config.Env),
+					Resources:       node.ToResourceRequirements(pb.Constraints),
+					ImagePullPolicy: "IfNotPresent",
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: pointer.Bool(true),
+					},
 				},
-			},
-		)
+			)
+		}
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -152,6 +161,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Pod created:\n%+v\n", sPod)
+
 	return nil
 }
 
@@ -166,7 +176,15 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "sonic-vs:latest"
+		pb.Config.Image = "alpine:latest"
+	}
+	if pb.Services == nil {
+		pb.Services = map[uint32]*tpb.Service{
+			22: {
+				Name:   "ssh",
+				Inside: 22,
+			},
+		}
 	}
 	return pb
 }
