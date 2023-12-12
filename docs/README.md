@@ -23,7 +23,7 @@ They are recommended to be done in order.
 
 ## KNE with a Multi Node Cluster
 
-[KNE with a Mult Node Cluster](multinode.md)
+[KNE with a Multi Node Cluster](multinode.md)
 
 KNE can easily be scaled to run large topologies utilizing its Kubernetes
 backbone. This guide describes how to set up a k8s multi worker node cluster
