@@ -75,6 +75,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			Command:         pb.Config.Command,
 			Args:            pb.Config.Args,
 			Env:             node.ToEnvVar(pb.Config.Env),
+			// TODO: Update resources to the containers as per the constraints
 			Resources:       node.ToResourceRequirements(pb.Constraints),
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
