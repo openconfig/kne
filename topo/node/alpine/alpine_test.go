@@ -201,7 +201,6 @@ func TestCreateNode(t *testing.T) {
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: got %v, want %s", err, s)
 			}
-
 			pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(context.Background(), n.Name(), metav1.GetOptions{})
 			containers := pod.Spec.Containers
 			if len(containers) < 1 || len(containers) > 2 {
