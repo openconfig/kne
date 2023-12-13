@@ -33,7 +33,6 @@ import (
 )
 
 func TestNew(t *testing.T) {
-
 	tests := []struct {
 		desc    string
 		nImpl   *node.Impl
