@@ -18,18 +18,18 @@ import (
 	"fmt"
 	"testing"
 
-	"k8s.io/utils/pointer"
 	"github.com/google/go-cmp/cmp"
 	"github.com/h-fam/errdiff"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	tpb "github.com/openconfig/kne/proto/topo"
 	apb "github.com/openconfig/kne/proto/alpine"
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	kfake "k8s.io/client-go/kubernetes/fake"
 	"google.golang.org/protobuf/types/known/anypb"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 )
 
 func TestNew(t *testing.T) {
@@ -69,15 +69,15 @@ func TestNew(t *testing.T) {
 		nImpl: &node.Impl{
 			Proto: &tpb.Node{
 				Config: &tpb.Config{
-					Image: "alpine:latest",
+					Image:   "alpine:latest",
 					Command: []string{"go", "run", "main"},
 				},
 			},
 		},
 		want: &tpb.Node{
 			Config: &tpb.Config{
-				Image: "alpine:latest",
-				Command: []string{"go", "run", "main"},
+				Image:        "alpine:latest",
+				Command:      []string{"go", "run", "main"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
 			},
 			Services: map[uint32]*tpb.Service{
@@ -87,7 +87,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
-	}, 
+	},
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -110,10 +110,10 @@ func TestCreateNode(t *testing.T) {
 	vendorData, err := anypb.New(&apb.AlpineConfig{
 		Containers: []*apb.Container{
 			{
-				Name: "dp",
-				Image: "dpImage",
+				Name:    "dp",
+				Image:   "dpImage",
 				Command: []string{"dpCommand"},
-				Args: []string{"dpArgs"},
+				Args:    []string{"dpArgs"},
 			},
 		},
 	})
@@ -121,42 +121,42 @@ func TestCreateNode(t *testing.T) {
 		t.Fatalf("cannot marshal AlpineConfig into \"any\" protobuf: %v", err)
 	}
 	tests := []struct {
-		desc    string
-		nImpl   *node.Impl
-		wantAlpineCtr    corev1.Container
-		wantDpCtr    corev1.Container
-		wantErr string
+		desc          string
+		nImpl         *node.Impl
+		wantAlpineCtr corev1.Container
+		wantDpCtr     corev1.Container
+		wantErr       string
 	}{{
 		desc: "get all containers",
 		nImpl: &node.Impl{
 			Proto: &tpb.Node{
 				Name: "alpine",
 				Config: &tpb.Config{
-					Image: "alpineImage",
-					Command: []string{"alpineCommand"},
-					Args: []string{"alpineArgs"},
+					Image:      "alpineImage",
+					Command:    []string{"alpineCommand"},
+					Args:       []string{"alpineArgs"},
 					VendorData: vendorData,
 				},
 			},
 		},
 		wantAlpineCtr: corev1.Container{
-			Name:            "alpine",
-			Image:           "alpineImage",
-			Command:         []string{"alpineCommand"},
-			Args:            []string{"alpineArgs"},
-			Resources:       corev1.ResourceRequirements{
+			Name:    "alpine",
+			Image:   "alpineImage",
+			Command: []string{"alpineCommand"},
+			Args:    []string{"alpineArgs"},
+			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{}},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
 		},
-		wantDpCtr: corev1.Container	{
-			Name:            "dp",
-			Image:           "dpImage",
-			Command:         []string{"dpCommand"},
-			Args:            []string{"dpArgs"},
-			Resources:       corev1.ResourceRequirements{
+		wantDpCtr: corev1.Container{
+			Name:    "dp",
+			Image:   "dpImage",
+			Command: []string{"dpCommand"},
+			Args:    []string{"dpArgs"},
+			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{}},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
@@ -164,38 +164,38 @@ func TestCreateNode(t *testing.T) {
 			},
 		},
 	},
-	{
-		desc: "get only alpine containers",
-		nImpl: &node.Impl{
-			Proto: &tpb.Node{
-				Name: "alpine",
-				Config: &tpb.Config{
-					Image: "alpineImage",
-					Command: []string{"alpineCommand"},
-					Args: []string{"alpineArgs"},
+		{
+			desc: "get only alpine containers",
+			nImpl: &node.Impl{
+				Proto: &tpb.Node{
+					Name: "alpine",
+					Config: &tpb.Config{
+						Image:   "alpineImage",
+						Command: []string{"alpineCommand"},
+						Args:    []string{"alpineArgs"},
+					},
 				},
 			},
-		},
-		wantAlpineCtr: corev1.Container{
-			Name:            "alpine",
-			Image:           "alpineImage",
-			Command:         []string{"alpineCommand"},
-			Args:            []string{"alpineArgs"},
-			Resources:       corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{}},
-			ImagePullPolicy: "IfNotPresent",
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: pointer.Bool(true),
+			wantAlpineCtr: corev1.Container{
+				Name:    "alpine",
+				Image:   "alpineImage",
+				Command: []string{"alpineCommand"},
+				Args:    []string{"alpineArgs"},
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{}},
+				ImagePullPolicy: "IfNotPresent",
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: pointer.Bool(true),
+				},
 			},
-		},
-	},}
+		}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			n := &Node{
 				Impl: &node.Impl{
 					Namespace:  "test",
 					KubeClient: kfake.NewSimpleClientset(),
-					Proto: tt.nImpl.Proto,
+					Proto:      tt.nImpl.Proto,
 				},
 			}
 			err := n.CreatePod(context.Background())

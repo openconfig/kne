@@ -4,7 +4,6 @@ nodes: {
     vendor: ALPINE
     config: {
         image: "sonic-vs:latest"
-        command: ["go", "run", "main.go"]
         vendor_data {
             [type.googleapis.com/alpine.AlpineConfig] {
                 containers: {
@@ -27,9 +26,6 @@ nodes: {
 nodes: {
     name: "host"
     vendor: HOST
-    config: {
-        image: "alpine-host:latest"
-    }
     services:{
         key: 22
         value: {

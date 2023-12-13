@@ -46,6 +46,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	log "k8s.io/klog/v2"
 
+	_ "github.com/openconfig/kne/topo/node/alpine"
 	_ "github.com/openconfig/kne/topo/node/arista"
 	_ "github.com/openconfig/kne/topo/node/cisco"
 	_ "github.com/openconfig/kne/topo/node/gobgp"
@@ -54,7 +55,6 @@ import (
 	_ "github.com/openconfig/kne/topo/node/keysight"
 	_ "github.com/openconfig/kne/topo/node/nokia"
 	_ "github.com/openconfig/kne/topo/node/openconfig"
-	_ "github.com/openconfig/kne/topo/node/alpine"
 )
 
 var protojsonUnmarshaller = protojson.UnmarshalOptions{

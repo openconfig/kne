@@ -17,13 +17,13 @@ import (
 	"context"
 	"fmt"
 
-	log "k8s.io/klog/v2"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apb "github.com/openconfig/kne/proto/alpine"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	log "k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -68,7 +68,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		initContainerImage = node.DefaultInitContainerImage
 	}
 
-	alpineContainers := []corev1.Container {
+	alpineContainers := []corev1.Container{
 		{
 			Name:            pb.Name,
 			Image:           pb.Config.Image,
@@ -90,22 +90,20 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			return err
 		}
 
-		if len(alpineConfig.Containers) != 1 {
+		if len(alpineConfig.Containers) > 1 {
+			// Only Dataplane container is supported as the custom container
+			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", len(alpineConfig.Containers))
+		} else if len(alpineConfig.Containers) == 0 {
 			log.Infof("Alpine custom containers not found.")
 		} else {
 			dpContainer := alpineConfig.Containers[0]
 
-			dataplaneName := dpContainer.Name
-			dataplaneImage := dpContainer.Image
-			dataplaneCommand := dpContainer.Command
-			dataplaneArgs := dpContainer.Args
-
 			alpineContainers = append(alpineContainers,
 				corev1.Container{
-					Name:            dataplaneName,
-					Image:           dataplaneImage,
-					Command:         dataplaneCommand,
-					Args:            dataplaneArgs,
+					Name:            dpContainer.Name,
+					Image:           dpContainer.Image,
+					Command:         dpContainer.Command,
+					Args:            dpContainer.Args,
 					Env:             node.ToEnvVar(pb.Config.Env),
 					Resources:       node.ToResourceRequirements(pb.Constraints),
 					ImagePullPolicy: "IfNotPresent",
@@ -134,7 +132,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				},
 				ImagePullPolicy: "IfNotPresent",
 			}},
-			Containers: alpineContainers,
+			Containers:                    alpineContainers,
 			TerminationGracePeriodSeconds: pointer.Int64(0),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
@@ -170,7 +168,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config = &tpb.Config{}
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{"/bin/sh", "-c", "sleep 2000000000000"}
+		pb.Config.Command = []string{"go", "run", "main.go"}
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
