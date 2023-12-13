@@ -1,0 +1,49 @@
+name: "twodut-alpine"
+nodes: {
+    name: "alpine"
+    vendor: ALPINE
+    config: {
+        image: "sonic-vs:latest"
+        vendor_data {
+            [type.googleapis.com/alpine.AlpineConfig] {
+                containers: {
+                    name: "dataplane"
+                    image: "us-west1-docker.pkg.dev/openconfig-lemming/release/lucius:ga"
+                    command: "/lucius/lucius"
+                    args: "-alsologtostderr"
+                }
+            }
+        }
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+nodes: {
+    name: "host"
+    vendor: HOST
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+
+links: {
+    a_node: "alpine"
+    a_int: "eth1"
+    z_node: "host"
+    z_int: "eth1"
+}
+links: {
+    a_node: "alpine"
+    a_int: "eth2"
+    z_node: "host"
+    z_int: "eth2"
+}
