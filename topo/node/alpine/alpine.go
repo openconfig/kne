@@ -91,12 +91,10 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			return err
 		}
 
-		if len(alpineConfig.Containers) > 1 {
-			// Only Dataplane container is supported as the custom container
-			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", len(alpineConfig.Containers))
-		} else if len(alpineConfig.Containers) == 0 {
+		switch len := len(alpineConfig.Containers); len {
+		case 0:
 			log.Infof("Alpine custom containers not found.")
-		} else {
+		case 1:
 			dpContainer := alpineConfig.Containers[0]
 
 			alpineContainers = append(alpineContainers,
@@ -114,8 +112,12 @@ func (n *Node) CreatePod(ctx context.Context) error {
 					},
 				},
 			)
+		default:
+			// Only Dataplane container is supported as the custom container
+			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", len)
 		}
 	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pb.Name,
