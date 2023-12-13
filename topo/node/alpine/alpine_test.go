@@ -105,7 +105,6 @@ func TestNew(t *testing.T) {
 }
 
 func TestCreateNode(t *testing.T) {
-
 	vendorData, err := anypb.New(&apb.AlpineConfig{
 		Containers: []*apb.Container{
 			{
