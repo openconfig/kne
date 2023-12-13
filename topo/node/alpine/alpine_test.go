@@ -202,6 +202,9 @@ func TestCreateNode(t *testing.T) {
 				t.Fatalf("unexpected error: got %v, want %s", err, s)
 			}
 			pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(context.Background(), n.Name(), metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("Could not get the pod: %v", err)
+			}
 			containers := pod.Spec.Containers
 			if len(containers) < 1 || len(containers) > 2 {
 				t.Fatalf("Num containers mismatch: want: 1 or 2 got:%v", len(containers))
