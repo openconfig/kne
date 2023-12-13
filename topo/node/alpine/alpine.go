@@ -184,6 +184,8 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			},
 		}
 	}
+	// TODO: Add appropriate default constraints for the Alpine KNE node
+
 	return pb
 }
 
