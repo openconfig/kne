@@ -8,9 +8,9 @@ containers and the connections between them. It also allows us to expose
 services from the containers. Overall k8s is a great tool for creating network
 topology emulations.
 
-The full documentation for k8s concepts can be found at
-https://kubernetes.io/docs/concepts/. Below is a very basic summary of the major
-k8s concepts specific to KNE.
+The full documentation for k8s concepts can be found on the
+[official site](https://kubernetes.io/docs/concepts/). Below is a very basic
+summary of the major k8s concepts specific to KNE.
 
 ### Container
 
@@ -94,7 +94,7 @@ Now that we have a cluster, the next step is to run `kne create`. This command
 creates a topology inside the k8s cluster. A topology is specified from a
 textproto defined by:
 
-```
+```proto
 message Topology {
   string name = 1;          // Name of the topology.
   repeated Node nodes = 2;  // List of nodes in the topology.
@@ -108,7 +108,7 @@ note that `node` in k8s refers to a worker that makes up a k8s cluster.
 
 Let's consider the example topology below:
 
-```
+```proto
 name: "my-topology"
 nodes: {
   name: "r1"
@@ -179,16 +179,15 @@ In this case we are specifying a two node topology with two links seen below:
 
 ![topology](images/k8s-kne-example-topo.png)
 
--   `my-topology` is the **namespace** representing our topology
--   `r1` and `otg1` are 2 separate **pods** in the namespace
--   `lemming` and `magna` are **containers** created from the **container
-    images** `lemming:latest` and `magna:latest` respectively
--   `eth1` and `eth2` are networking resources shared by containers in a single
-    pod
-    -   `eth1` from pod `r1` is connected to `eth1` from pod `otg1`
-    -   `eth2` from pod `r1` is connected to `eth2` from pod `otg1`
--   `grpc`, `gnmi`, `gnoi`, and `gribi` are **services** in their respective
-    pods
-    -   note that the outside and inside ports can be different, i.e. what is
-        exposed externally via a load balancer and internally via a shared port
-        assigned to the pod
+- `my-topology` is the **namespace** representing our topology
+- `r1` and `otg1` are 2 separate **pods** in the namespace
+- `lemming` and `magna` are **containers** created from the **container images**
+  `lemming:latest` and `magna:latest` respectively
+- `eth1` and `eth2` are networking resources shared by containers in a single
+  pod
+  - `eth1` from pod `r1` is connected to `eth1` from pod `otg1`
+  - `eth2` from pod `r1` is connected to `eth2` from pod `otg1`
+- `grpc`, `gnmi`, `gnoi`, and `gribi` are **services** in their respective pods
+  - note that the outside and inside ports can be different, i.e. what is
+    exposed externally via a load balancer and internally via a shared port
+    assigned to the pod
