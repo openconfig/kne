@@ -53,7 +53,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Config: &tpb.Config{
-				Command:      []string{"/bin/sh", "-c", "sleep 2000000000000"},
+				Command:      []string{"go", "run", "main.go"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
 				Image:        "alpine:latest",
 			},
@@ -70,14 +70,14 @@ func TestNew(t *testing.T) {
 			Proto: &tpb.Node{
 				Config: &tpb.Config{
 					Image:   "alpine:latest",
-					Command: []string{"go", "run", "main"},
+					Command: []string{"go", "run", "main.go"},
 				},
 			},
 		},
 		want: &tpb.Node{
 			Config: &tpb.Config{
 				Image:        "alpine:latest",
-				Command:      []string{"go", "run", "main"},
+				Command:      []string{"go", "run", "main.go"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
 			},
 			Services: map[uint32]*tpb.Service{

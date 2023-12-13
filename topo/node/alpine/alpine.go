@@ -70,11 +70,11 @@ func (n *Node) CreatePod(ctx context.Context) error {
 
 	alpineContainers := []corev1.Container{
 		{
-			Name:            pb.Name,
-			Image:           pb.Config.Image,
-			Command:         pb.Config.Command,
-			Args:            pb.Config.Args,
-			Env:             node.ToEnvVar(pb.Config.Env),
+			Name:    pb.Name,
+			Image:   pb.Config.Image,
+			Command: pb.Config.Command,
+			Args:    pb.Config.Args,
+			Env:     node.ToEnvVar(pb.Config.Env),
 			// TODO: Update resources to the containers as per the constraints
 			Resources:       node.ToResourceRequirements(pb.Constraints),
 			ImagePullPolicy: "IfNotPresent",
@@ -101,11 +101,11 @@ func (n *Node) CreatePod(ctx context.Context) error {
 
 			alpineContainers = append(alpineContainers,
 				corev1.Container{
-					Name:            dpContainer.Name,
-					Image:           dpContainer.Image,
-					Command:         dpContainer.Command,
-					Args:            dpContainer.Args,
-					Env:             node.ToEnvVar(pb.Config.Env),
+					Name:    dpContainer.Name,
+					Image:   dpContainer.Image,
+					Command: dpContainer.Command,
+					Args:    dpContainer.Args,
+					Env:     node.ToEnvVar(pb.Config.Env),
 					// TODO: Update resources to the containers as per the constraints
 					Resources:       node.ToResourceRequirements(pb.Constraints),
 					ImagePullPolicy: "IfNotPresent",
