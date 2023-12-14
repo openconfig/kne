@@ -87,6 +87,9 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
       "sudo apt-get -o DPkg::Lock::Timeout=60 install kubelet kubeadm kubectl -y",
       "kubectl version --client",
+      "echo 'source <(kubectl completion bash)' >> ~/.bashrc",
+      "echo 'alias k=kubectl' >> ~/.bashrc",
+      "echo 'complete -o default -F __start_kubectl k' >> ~/.bashrc",
     ]
   }
 
@@ -151,6 +154,16 @@ build {
       "PATH=$PATH:/usr/local/go/bin",
       "/home/$USER/go/bin/go-licenses check github.com/openconfig/ondatra",
       "/home/$USER/go/bin/go-licenses save github.com/openconfig/ondatra --save_path=\"../third_party/licenses/ondatra\"",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing openconfig tools...",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install tree -y",
+      "bash -c \"$(curl -sL https://get-gnmic.openconfig.net)\"",
+      "bash -c \"$(curl -sL https://get-gribic.kmrd.dev)\"",
+      "bash -c \"$(curl -sL https://get-gnoic.kmrd.dev)\"",
     ]
   }
 }

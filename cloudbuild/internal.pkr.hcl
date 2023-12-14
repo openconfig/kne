@@ -96,6 +96,9 @@ build {
       "sudo apt-get -o DPkg::Lock::Timeout=60 update",
       "sudo apt-get -o DPkg::Lock::Timeout=60 install kubelet kubeadm kubectl -y",
       "kubectl version --client",
+      "echo 'source <(kubectl completion bash)' >> ~/.bashrc",
+      "echo 'alias k=kubectl' >> ~/.bashrc",
+      "echo 'complete -o default -F __start_kubectl k' >> ~/.bashrc",
     ]
   }
 
@@ -155,6 +158,16 @@ build {
       "/usr/local/go/bin/go build",
       "cd ../../kneproxy",
       "/usr/local/go/bin/go build",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing openconfig tools...",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install tree -y",
+      "bash -c \"$(curl -sL https://get-gnmic.openconfig.net)\"",
+      "bash -c \"$(curl -sL https://get-gribic.kmrd.dev)\"",
+      "bash -c \"$(curl -sL https://get-gnoic.kmrd.dev)\"",
     ]
   }
 
