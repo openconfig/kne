@@ -1147,39 +1147,39 @@ type CdnosSpec struct {
 	kClient      kubernetes.Interface
 }
 
-func (l *CdnosSpec) SetKClient(k kubernetes.Interface) {
-	l.kClient = k
+func (c *CdnosSpec) SetKClient(k kubernetes.Interface) {
+	c.kClient = k
 }
 
-func (l *CdnosSpec) Deploy(ctx context.Context) error {
-	if l.OperatorData != nil {
+func (c *CdnosSpec) Deploy(ctx context.Context) error {
+	if c.OperatorData != nil {
 		f, err := os.CreateTemp("", "cdnos-operator-*.yaml")
 		if err != nil {
 			return err
 		}
 		defer os.Remove(f.Name())
-		if _, err := f.Write(l.OperatorData); err != nil {
+		if _, err := f.Write(c.OperatorData); err != nil {
 			return err
 		}
 		if err := f.Close(); err != nil {
 			return err
 		}
-		l.Operator = f.Name()
+		c.Operator = f.Name()
 	}
-	if l.Operator == "" && l.ManifestDir != "" {
-		log.Errorf("Deploying Cdnos controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", l.ManifestDir)
-		l.Operator = filepath.Join(l.ManifestDir, "manifest.yaml")
+	if c.Operator == "" && c.ManifestDir != "" {
+		log.Errorf("Deploying Cdnos controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", c.ManifestDir)
+		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
 	}
-	log.Infof("Deploying Cdnos controller from: %s", l.Operator)
-	if err := logCommand("kubectl", "apply", "-f", l.Operator); err != nil {
+	log.Infof("Deploying Cdnos controller from: %s", c.Operator)
+	if err := run.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
 		return fmt.Errorf("failed to deploy cdnos operator: %w", err)
 	}
 	log.Infof("Cdnos controller deployed")
 	return nil
 }
 
-func (l *CdnosSpec) Healthy(ctx context.Context) error {
-	return deploymentHealthy(ctx, l.kClient, "cdnos-controller-system")
+func (c *CdnosSpec) Healthy(ctx context.Context) error {
+	return deploymentHealthy(ctx, c.kClient, "cdnos-controller-system")
 }
 
 
