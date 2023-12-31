@@ -28,3 +28,6 @@ controllers:
   - kind: Lemming
     spec:
       operator: ../../manifests/controllers/lemming/manifest.yaml
+  - kind: Cdnos
+    spec:
+      operator: ../../manifests/controllers/cdnos/manifest.yaml

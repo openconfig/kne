@@ -117,8 +117,15 @@ Field           | Type       | Description
 
 Field  | Type      | Description
 ------ | --------- | ----------------------------------------------------
-`kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, `CEOSLab`, and `Lemming`.
+`kind` | string    | Name of the controller type. The current options currently are `Cdnos`, `IxiaTG`, `SRLinux`, `CEOSLab`, and `Lemming`.
 `spec` | yaml.Node | Fields that set the options for the controller type.
+
+##### Cdnos
+
+Field           | Type       | Description
+--------------- | ---------- | -----------
+`operator`      | string     | Path of the yaml file to create a Cdnos operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/cdnos/manifest.yaml).
+~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a CEOSLab operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~
 
 ##### IxiaTG
 
@@ -177,6 +184,7 @@ following vendors use a controller:
 - Keysight: `ixiatg`
 - Nokia: `srlinux`
 - Arista: `ceoslab`
+- Drivenets: `cdnos`
 - OpenConfig: `lemming`
 
 These controllers can be deployed as part of [cluster
@@ -223,6 +231,15 @@ kubectl apply -f manifests/controllers/ceoslab/manifest.yaml
 
 See more on the
 [arista-ceoslab-operator GitHub repo](https://github.com/aristanetworks/arista-ceoslab-operator).
+
+### Cdnos Controller
+
+```bash
+kubectl apply -f manifests/controllers/cdnos/manifest.yaml
+```
+
+See more on the
+[cdnos-controller GitHub repo](https://github.com/drivenets/cdnos-controller).
 
 #### lemming
 

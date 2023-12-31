@@ -81,6 +81,7 @@ message Cluster {
     CONTROLLER_TYPE_SRLINUX = 2;
     CONTROLLER_TYPE_CEOSLAB = 3;
     CONTROLLER_TYPE_LEMMING = 4;
+    CONTROLLER_TYPE_CDNOS = 5;
   }
   repeated ControllerType controllers = 4;
 }
