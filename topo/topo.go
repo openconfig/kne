@@ -556,6 +556,11 @@ func (m *Manager) push(ctx context.Context) error {
 		log.Infof("Server Namespace: %+v", sNs)
 	}
 
+	// refresh auth for each google artifact registry in config map, if no config map then no-op
+	// after refresh, store the creds in a secret in the new namespace and associate with the default
+	// service account
+	// if the accesstoken has json, use that instead to avoid ever needing a refresh
+
 	if err := m.createMeshnetTopologies(ctx); err != nil {
 		return fmt.Errorf("failed to create meshnet topologies: %w", err)
 	}
