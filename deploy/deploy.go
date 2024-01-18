@@ -671,6 +671,11 @@ func (k *KindSpec) Apply(cfg []byte) error {
 	return kubectlApply(cfg)
 }
 
+// setupGoogleArtifactRegistryAccess creates docker config credentials for GAR in
+// the kubelet. These credentials however may be short lived if only an access token
+// is found for gcloud credentials. To address this, imagePullSecrets are also created
+// in the default namespace. All new topology namespaces should first check if GAR
+// imagePullSecrets exist, and if so duplicate and refresh them for each new namespace.
 func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
@@ -695,15 +700,21 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error 
 	if err != nil {
 		return fmt.Errorf("failed to find gcloud credentials: %v", err)
 	}
-	token, err := creds.TokenSource.Token()
-	if err != nil {
-		return fmt.Errorf("failed to get token from gcloud credentials: %v", err)
+	args := []string{"login", "-u"}
+	if len(creds.JSON) > 0 {
+		args = append(args, "_json_key", "-p", string(creds.JSON))
+	} else {
+		token, err := creds.TokenSource.Token()
+		if err != nil {
+			return fmt.Errorf("failed to get token from gcloud credentials: %v", err)
+		}
+		args = append(args, "oauth2accesstoken", "-p", token.AccessToken)
 	}
 	// Logs will show up as coming from logshim.go.  Since this is output
 	// from an external program that is the best we can do.
 	for _, r := range k.GoogleArtifactRegistries {
-		s := fmt.Sprintf("https://%s", r)
-		if err := logCommand("docker", "login", "-u", "oauth2accesstoken", "-p", token.AccessToken, s); err != nil {
+		rArgs := append(args, fmt.Sprintf("https://%s", r))
+		if err := logCommand("docker", rArgs...); err != nil {
 			return err
 		}
 	}
@@ -728,6 +739,7 @@ func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error 
 	}
 	log.Infof("Setup credentials for accessing GAR locations %v in kind cluster", k.GoogleArtifactRegistries)
 	return nil
+	// Create imagePullSecrets using registry lib
 }
 
 func (k *KindSpec) loadContainerImages() error {
