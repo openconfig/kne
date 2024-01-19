@@ -179,4 +179,11 @@ build {
       "rm add-google-cloud-ops-agent-repo.sh",
     ]
   }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing network diagnosis tools...",
+      "sudo apt-get -o DPkg::Lock::Timeout=60 install net-tools iptables nftables -y",
+    ]
+  }
 }
