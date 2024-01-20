@@ -115,7 +115,10 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return err
 	}
 	for e := range w.ResultChan() {
-		p := e.Object.(*corev1.Pod)
+		p, ok := e.Object.(*corev1.Pod)
+		if !ok {
+			continue
+		}
 		if p.Status.Phase == corev1.PodRunning {
 			break
 		}
@@ -256,7 +259,10 @@ func (n *Node) Create(ctx context.Context) error {
 		return err
 	}
 	for e := range w.ResultChan() {
-		p := e.Object.(*corev1.Pod)
+		p, ok := e.Object.(*corev1.Pod)
+		if !ok {
+			continue
+		}
 		if p.Status.Phase == corev1.PodPending {
 			break
 		}
