@@ -220,7 +220,10 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 		return err
 	}
 	for e := range w.ResultChan() {
-		p := e.Object.(*corev1.Pod)
+		p, ok := e.Object.(*corev1.Pod)
+		if !ok {
+			continue
+		}
 		if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodRunning {
 			break
 		}
