@@ -20,6 +20,7 @@ import (
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
+	"github.com/openconfig/kne/cluster"
 	"github.com/openconfig/kne/events"
 	kexec "github.com/openconfig/kne/exec"
 	"github.com/openconfig/kne/load"
@@ -28,7 +29,6 @@ import (
 	"github.com/openconfig/kne/pods"
 	epb "github.com/openconfig/kne/proto/event"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
-	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,17 +42,16 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	dockerConfigEnvVar        = "DOCKER_CONFIG"
-	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
-)
-
 var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
 	logInfo         = log.Info
 	logWarning      = log.Warning
+	healthTimeout   = time.Minute
+
+	// Stubs for testing.
+	execLookPath = exec.LookPath
 )
 
 func runCommand(writeLogs bool, in []byte, cmd string, args ...string) ([]byte, error) {
@@ -107,14 +106,6 @@ func outLogCommand(cmd string, args ...string) ([]byte, error) {
 func outCommand(cmd string, args ...string) ([]byte, error) {
 	return runCommand(false, nil, cmd, args...)
 }
-
-var (
-	healthTimeout = time.Minute
-
-	// Stubs for testing.
-	execLookPath                 = exec.LookPath
-	googleFindDefaultCredentials = google.FindDefaultCredentials
-)
 
 type Cluster interface {
 	Deploy(context.Context) error
@@ -671,75 +662,8 @@ func (k *KindSpec) Apply(cfg []byte) error {
 	return kubectlApply(cfg)
 }
 
-// setupGoogleArtifactRegistryAccess creates docker config credentials for GAR in
-// the kubelet. These credentials however may be short lived if only an access token
-// is found for gcloud credentials. To address this, imagePullSecrets are also created
-// in the default namespace. All new topology namespaces should first check if GAR
-// imagePullSecrets exist, and if so duplicate and refresh them for each new namespace.
 func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
-	// Create a temporary dir to hold a new docker config that lacks credsStore.
-	// Then use `docker login` to store the generated credentials directly in
-	// the temporary docker config.
-	// See https://kind.sigs.k8s.io/docs/user/private-registries/#use-an-access-token
-	// for more information.
-	tempDockerDir, err := os.MkdirTemp("", "kne_kind_docker")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tempDockerDir)
-	originalConfig := os.Getenv(dockerConfigEnvVar)
-	defer os.Setenv(dockerConfigEnvVar, originalConfig)
-	if err := os.Setenv(dockerConfigEnvVar, tempDockerDir); err != nil {
-		return err
-	}
-	configPath := filepath.Join(tempDockerDir, "config.json")
-	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
-		return err
-	}
-	creds, err := googleFindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
-	if err != nil {
-		return fmt.Errorf("failed to find gcloud credentials: %v", err)
-	}
-	args := []string{"login", "-u"}
-	if len(creds.JSON) > 0 {
-		args = append(args, "_json_key", "-p", string(creds.JSON))
-	} else {
-		token, err := creds.TokenSource.Token()
-		if err != nil {
-			return fmt.Errorf("failed to get token from gcloud credentials: %v", err)
-		}
-		args = append(args, "oauth2accesstoken", "-p", token.AccessToken)
-	}
-	// Logs will show up as coming from logshim.go.  Since this is output
-	// from an external program that is the best we can do.
-	for _, r := range k.GoogleArtifactRegistries {
-		rArgs := append(args, fmt.Sprintf("https://%s", r))
-		if err := logCommand("docker", rArgs...); err != nil {
-			return err
-		}
-	}
-	args := []string{"get", "nodes"}
-	if k.Name != "" {
-		args = append(args, "--name", k.Name)
-	}
-	nodes, err := outCommand("kind", args...)
-	if err != nil {
-		return err
-	}
-	// Copy the new docker config to each node and restart kubelet so it
-	// picks up the new config that contains the embedded credentials.
-	for _, node := range strings.Split(string(nodes), " ") {
-		node = strings.TrimSuffix(node, "\n")
-		if err := logCommand("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
-			return err
-		}
-		if err := logCommand("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
-			return err
-		}
-	}
-	log.Infof("Setup credentials for accessing GAR locations %v in kind cluster", k.GoogleArtifactRegistries)
-	return nil
-	// Create imagePullSecrets using registry lib
+	return cluster.CreateKindDockerConfigWithGAR(ctx, k.GoogleArtifactRegistries)
 }
 
 func (k *KindSpec) loadContainerImages() error {
@@ -787,30 +711,6 @@ func (k *KindSpec) loadContainerImages() error {
 		}
 	}
 	log.Infof("Loaded all container images")
-	return nil
-}
-
-type DockerConfig struct {
-	Auths map[string]struct{} `json:"auths"`
-}
-
-func writeDockerConfig(path string, registries []string) error {
-	dc := &DockerConfig{Auths: map[string]struct{}{}}
-	for _, r := range registries {
-		dc.Auths[r] = struct{}{}
-	}
-	b, err := json.MarshalIndent(dc, "", "  ")
-	if err != nil {
-		return err
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if _, err := f.Write(b); err != nil {
-		return err
-	}
 	return nil
 }
 

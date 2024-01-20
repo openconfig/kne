@@ -27,6 +27,7 @@ import (
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
+	"github.com/openconfig/kne/cluster"
 	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
@@ -244,6 +245,14 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 	if m.reportUsage {
 		finish := m.reportCreateEvent(ctx)
 		defer func() { finish(rerr) }()
+	}
+	// Determine if cluster needs docker auth refresh. Refresh if needed.
+	if kind, err := cluster.CurrentIsKind(); err == nil && kind {
+		log.Infof("Cluster is kind")
+		if err := cluster.RefreshKindDockerConfigWithGAR(ctx); err != nil {
+			log.Warningf("Failed to refresh docker auth, cluster may need to be re-created using `kne teardown` and `kne deploy`")
+		}
+		log.Infof("Refreshed")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
@@ -555,11 +564,6 @@ func (m *Manager) push(ctx context.Context) error {
 		}
 		log.Infof("Server Namespace: %+v", sNs)
 	}
-
-	// refresh auth for each google artifact registry in config map, if no config map then no-op
-	// after refresh, store the creds in a secret in the new namespace and associate with the default
-	// service account
-	// if the accesstoken has json, use that instead to avoid ever needing a refresh
 
 	if err := m.createMeshnetTopologies(ctx); err != nil {
 		return fmt.Errorf("failed to create meshnet topologies: %w", err)

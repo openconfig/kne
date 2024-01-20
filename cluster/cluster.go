@@ -1,17 +1,30 @@
-package docker
+package cluster
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/openconfig/gnmi/errlist"
+	kexec "github.com/openconfig/kne/exec"
+	logshim "github.com/openconfig/kne/logshim"
 	"golang.org/x/oauth2/google"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	log "k8s.io/klog/v2"
 )
 
 const (
-	dockerConfigEnvVar        = "DOCKER_CONFIG"
-	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
+	dockerConfigEnvVar = "DOCKER_CONFIG"
+	kubeletConfigPath  = "/var/lib/kubelet/config.json"
 )
 
 var (
+	kubeletConfigPathTemplate    = "%s:" + kubeletConfigPath
 	execLookPath                 = exec.LookPath
 	googleFindDefaultCredentials = google.FindDefaultCredentials
 )
@@ -83,18 +96,6 @@ func CreateKindDockerConfigWithGAR(ctx context.Context, registries []string) err
 	if err := checkDependencies(); err != nil {
 		return err
 	}
-	if b, err := outCommand("kubectl", "config", "current-context"); err != nil {
-		return err
-	}
-	clusterName := string(b)
-	if !strings.HasPrefix(clusterName, "kind-") {
-		return fmt.Errorf("current cluster %v is not a kind cluster", clusterName)
-	}
-	parts := strings.SplitN(clusterName, "-")
-	if len(parts) != 2 {
-		return fmt.Errorf("unable to parse kind cluster name")
-	}
-	kindName := parts[1]
 	// Create a temporary dir to hold a new docker config that lacks credsStore.
 	// Then use `docker login` to store the generated credentials directly in
 	// the temporary docker config.
@@ -128,18 +129,13 @@ func CreateKindDockerConfigWithGAR(ctx context.Context, registries []string) err
 			return err
 		}
 	}
-	args := []string{"get", "nodes"}
-	if kindName != "" {
-		args = append(args, "--name", kindName)
-	}
-	nodes, err := outCommand("kind", args...)
+	// Copy the new docker config to each node and restart kubelet so it
+	// picks up the new config that contains the embedded credentials.
+	nodes, err := listCurrentKindNodes(ctx)
 	if err != nil {
 		return err
 	}
-	// Copy the new docker config to each node and restart kubelet so it
-	// picks up the new config that contains the embedded credentials.
-	for _, node := range strings.Split(string(nodes), " ") {
-		node = strings.TrimSuffix(node, "\n")
+	for _, node := range nodes {
 		if err := logCommand("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
 			return err
 		}
@@ -155,20 +151,16 @@ func RefreshKindDockerConfigWithGAR(ctx context.Context) error {
 	if err := checkDependencies(); err != nil {
 		return err
 	}
-	args := []string{"get", "nodes"}
-	if k.Name != "" {
-		args = append(args, "--name", k.Name)
-	}
-	nodes, err := outCommand("kind", args...)
+	nodes, err := listCurrentKindNodes(ctx)
 	if err != nil {
 		return err
 	}
-	for _, node := range strings.Split(string(nodes), " ") {
-		node = strings.TrimSuffix(node, "\n")
-		if cfg, err := outCommand("docker", "cat", fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
+	for _, node := range nodes {
+		cfg, err := outCommand("docker", "exec", node, "cat", kubeletConfigPath)
+		if err != nil {
 			return err
 		}
-		var dCfg DockerConfig{}
+		var dCfg DockerConfig
 		if err := json.Unmarshal(cfg, &dCfg); err != nil {
 			return err
 		}
@@ -183,30 +175,52 @@ func RefreshKindDockerConfigWithGAR(ctx context.Context) error {
 	return nil
 }
 
+func CurrentIsKind() (bool, error) {
+	b, err := outCommand("kubectl", "config", "current-context")
+	if err != nil {
+		return false, fmt.Errorf("unable to determine current cluster information: %v", err)
+	}
+	clusterName := string(b)
+	if !strings.HasPrefix(clusterName, "kind-") {
+		return false, nil
+	}
+	return true, nil
+}
+
 func currentKindClusterName() (string, error) {
-	if b, err := outCommand("kubectl", "config", "current-context"); err != nil {
+	b, err := outCommand("kubectl", "config", "current-context")
+	if err != nil {
 		return "", fmt.Errorf("unable to determine current cluster information: %v", err)
 	}
 	clusterName := string(b)
 	if !strings.HasPrefix(clusterName, "kind-") {
 		return "", fmt.Errorf("current cluster %v is not a kind cluster", clusterName)
 	}
-	parts := strings.SplitN(clusterName, "-")
+	parts := strings.SplitN(clusterName, "-", 2)
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unable to parse kind cluster name")
 	}
 	return parts[1], nil
 }
 
-func listKindNodes(ctx context.Context) ([]string, error) {
+func listCurrentKindNodes(ctx context.Context) ([]string, error) {
+	kName, err := currentKindClusterName()
+	if err != nil {
+		return nil, err
+	}
 	args := []string{"get", "nodes"}
-	if k.Name != "" {
-		args = append(args, "--name", k.Name)
+	if kName != "" {
+		args = append(args, "--name", kName)
 	}
 	nodes, err := outCommand("kind", args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	names := []string{}
+	for _, n := range strings.Split(string(nodes), " ") {
+		names = append(names, strings.TrimSuffix(n, "\n"))
+	}
+	return names, nil
 }
 
 type DockerConfig struct {
