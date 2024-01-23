@@ -27,7 +27,7 @@ import (
 	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
-	"github.com/openconfig/kne/cluster"
+	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
@@ -246,13 +246,11 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		finish := m.reportCreateEvent(ctx)
 		defer func() { finish(rerr) }()
 	}
-	// Determine if cluster needs docker auth refresh. Refresh if needed.
-	if kind, err := cluster.CurrentIsKind(); err == nil && kind {
-		log.Infof("Cluster is kind")
-		if err := cluster.RefreshKindDockerConfigWithGAR(ctx); err != nil {
-			log.Warningf("Failed to refresh docker auth, cluster may need to be re-created using `kne teardown` and `kne deploy`")
+	// Refresh cluster GAR access if needed.
+	if isKind, err := kind.ClusterIsKind(); err == nil && isKind {
+		if err := kind.RefreshGARAccess(ctx); err != nil {
+			log.Warningf("Failed to refresh GAR access, cluster may need to be re-created using `kne teardown` and `kne deploy`")
 		}
-		log.Infof("Refreshed")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	// Watch the containter status of the pods so we can fail if a container fails to start running.
