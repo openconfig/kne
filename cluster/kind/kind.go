@@ -22,7 +22,6 @@ const (
 
 var (
 	kubeletConfigPathTemplate    = "%s:" + kubeletConfigPath
-	execLookPath                 = exec.LookPath
 	googleFindDefaultCredentials = google.FindDefaultCredentials
 	clusterKindNameRE            = regexp.MustCompile("kind-(.*)")
 )
