@@ -7,11 +7,10 @@ import (
 )
 
 func TestClusterIsKind(t *testing.T) {
-	tests := []struct{
-		desc string
+	tests := []struct {
+		desc    string
 		wantErr string
-	}{{
-	}}
+	}{{}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if s := errdiff.Substring(nil, tt.wantErr); s != "" {
@@ -22,11 +21,10 @@ func TestClusterIsKind(t *testing.T) {
 }
 
 func TestClusterKindName(t *testing.T) {
-	tests := []struct{
-		desc string
+	tests := []struct {
+		desc    string
 		wantErr string
-	}{{
-	}}
+	}{{}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if s := errdiff.Substring(nil, tt.wantErr); s != "" {
@@ -37,11 +35,10 @@ func TestClusterKindName(t *testing.T) {
 }
 
 func TestClusterKindNodes(t *testing.T) {
-	tests := []struct{
-		desc string
+	tests := []struct {
+		desc    string
 		wantErr string
-	}{{
-	}}
+	}{{}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if s := errdiff.Substring(nil, tt.wantErr); s != "" {
@@ -52,11 +49,10 @@ func TestClusterKindNodes(t *testing.T) {
 }
 
 func TestSetupGARAccess(t *testing.T) {
-	tests := []struct{
-		desc string
+	tests := []struct {
+		desc    string
 		wantErr string
-	}{{
-	}}
+	}{{}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if s := errdiff.Substring(nil, tt.wantErr); s != "" {
@@ -67,11 +63,10 @@ func TestSetupGARAccess(t *testing.T) {
 }
 
 func TestRefreshGARAccess(t *testing.T) {
-	tests := []struct{
-		desc string
+	tests := []struct {
+		desc    string
 		wantErr string
-	}{{
-	}}
+	}{{}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if s := errdiff.Substring(nil, tt.wantErr); s != "" {
