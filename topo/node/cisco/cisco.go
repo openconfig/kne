@@ -369,7 +369,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{
-			Image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga",
+			Image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:latest",
 			Cert: &tpb.CertificateCfg{
 				Config: &tpb.CertificateCfg_SelfSigned{
 					SelfSigned: &tpb.SelfSignedCertCfg{
@@ -423,6 +423,12 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_CISCO.String()
+	}
+	if pb.Labels["model"] != pb.Model {
+		pb.Labels["model"] = pb.Model
+	}
+	if pb.Labels["os"] != pb.Os {
+		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT

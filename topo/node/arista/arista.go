@@ -359,28 +359,23 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			},
 		}
 	}
+	if pb.Os == "" {
+		pb.Os = "eos"
+	}
+	if pb.Model == "" {
+		pb.Model = "ceos"
+	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
 	}
-	if pb.Labels["model"] == "" {
-		if pb.Labels["model"] = pb.Model; pb.Model == "" {
-			pb.Model = "ceos"
-			pb.Labels["model"] = pb.Model
-		}
-	} else {
-		pb.Model = pb.Labels["model"]
+	if pb.Labels["model"] != pb.Model {
+		pb.Labels["model"] = pb.Model
 	}
-
-	if pb.Labels["os"] == "" {
-		if pb.Labels["os"] = pb.Os; pb.Os == "" {
-			pb.Os = "eos"
-			pb.Labels["os"] = pb.Os
-		}
-	} else {
-		pb.Os = pb.Labels["os"]
+	if pb.Labels["os"] != pb.Os {
+		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels["version"] == "" {
 		pb.Labels["version"] = pb.Version
@@ -390,7 +385,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{
-			Image: "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
+			Image: "us-west1-docker.pkg.dev/gep-kne/arista/ceos:latest",
 			Cert: &tpb.CertificateCfg{
 				Config: &tpb.CertificateCfg_SelfSigned{
 					SelfSigned: &tpb.SelfSignedCertCfg{

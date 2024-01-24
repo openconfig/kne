@@ -128,7 +128,7 @@ func TestNew(t *testing.T) {
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
-					Image:        "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
+					Image:        "us-west1-docker.pkg.dev/gep-kne/arista/ceos:latest",
 					Cert: &topopb.CertificateCfg{
 						Config: &topopb.CertificateCfg_SelfSigned{
 							SelfSigned: &topopb.SelfSignedCertCfg{
@@ -200,8 +200,8 @@ func TestNew(t *testing.T) {
 				},
 			},
 			want: &topopb.Node{
-				Model: "foo",
-				Os:    "bar",
+				Model: "ceos",
+				Os:    "eos",
 				Config: &topopb.Config{
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
 					Image:        "foo",
@@ -225,8 +225,8 @@ func TestNew(t *testing.T) {
 				},
 				Labels: map[string]string{
 					"vendor":       "ARISTA",
-					"model":        "foo",
-					"os":           "bar",
+					"model":        "ceos",
+					"os":           "eos",
 					"version":      "",
 					"ondatra-role": "DUT",
 				},
