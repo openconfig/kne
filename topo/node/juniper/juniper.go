@@ -100,17 +100,21 @@ func (n *Node) SpawnCLIConn() error {
 
 // Returns config required to configure gRPC service
 func (n *Node) GRPCConfig() []string {
-	return []string{
+	port := n.Proto.Services[9339].GetInside()
+	log.Infof("gNMI Port %d", port)
+	portConfig := fmt.Sprintf("set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port %d", port)
+	var configs []string = []string{
 		"set system services extension-service request-response grpc ssl hot-reloading",
 		"set system services extension-service request-response grpc ssl use-pki",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
-		"commit",
 	}
+	configs = append(configs, portConfig)
+	configs = append(configs, "commit")
+	return configs
 }
 
 // Waits and retries until CLI config mode is up and config is applied
