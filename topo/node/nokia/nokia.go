@@ -322,9 +322,6 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
-	if pb.Config == nil {
-		pb.Config = &tpb.Config{}
-	}
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			443: {

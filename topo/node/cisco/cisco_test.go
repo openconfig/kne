@@ -107,6 +107,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: ModelXRD,
+			Os:    "ios-xr",
 			Constraints: map[string]string{
 				"cpu":    "2",
 				"memory": "2Gi",
@@ -189,6 +190,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: ModelXRD,
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -280,6 +282,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8201",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -390,6 +393,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8202",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -513,6 +517,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8201-32FH",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -602,6 +607,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8101-32H",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -721,6 +727,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8102-64H",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {

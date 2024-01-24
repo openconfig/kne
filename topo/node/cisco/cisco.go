@@ -365,7 +365,18 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		}
 	}
 	if pb.Config == nil {
-		pb.Config = &tpb.Config{}
+		pb.Config = &tpb.Config{
+			Image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga",
+			Cert: &tpb.CertificateCfg{
+				Config: &tpb.CertificateCfg_SelfSigned{
+					SelfSigned: &tpb.SelfSignedCertCfg{
+						CertName: pb.Name + ".pem",
+						KeyName:  pb.Name + ".key",
+						KeySize:  2048,
+					},
+				},
+			},
+		}
 	}
 	if pb.Config.ConfigFile == "" {
 		pb.Config.ConfigFile = "startup.cfg"
@@ -375,6 +386,9 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	}
 	if pb.Model == "" {
 		pb.Model = ModelXRD
+	}
+	if pb.Os == "" {
+		pb.Os = "ios-xr"
 	}
 	pb = constraints(pb)
 	if pb.Services == nil {

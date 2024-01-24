@@ -438,6 +438,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "cptx",
+			Os:    "evo",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -513,6 +514,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "cptx",
+			Os:    "evo",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -587,6 +589,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
+			Os:    "evo",
 			Model: "ncptx",
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -652,6 +655,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Model: "cptx",
+			Os:    "evo",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
