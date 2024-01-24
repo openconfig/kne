@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"

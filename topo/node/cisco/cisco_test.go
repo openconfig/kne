@@ -21,20 +21,18 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/h-fam/errdiff"
-	"github.com/openconfig/kne/topo/node"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/testing/protocmp"
-	"k8s.io/client-go/kubernetes/fake"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"github.com/openconfig/gnmi/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/kne/topo/node"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func init() {

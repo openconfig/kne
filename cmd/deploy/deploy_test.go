@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 )
 
 var (

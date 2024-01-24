@@ -20,7 +20,7 @@ import (
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
-	kexec "github.com/openconfig/kne/exec"
+	"github.com/openconfig/kne/exec/run"
 	"github.com/openconfig/kne/load"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
@@ -46,7 +46,8 @@ var (
 	healthTimeout   = time.Minute
 
 	// Stubs for testing.
-	execLookPath = exec.LookPath
+	execLookPath       = exec.LookPath
+	kindSetupGARAccess = kind.SetupGARAccess
 )
 
 type Cluster interface {
@@ -203,7 +204,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	}
 
 	log.Infof("Checking kubectl versions.")
-	output, err := kexec.OutCommand("kubectl", "version", "--output=yaml")
+	output, err := run.OutCommand("kubectl", "version", "--output=yaml")
 	if err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
@@ -353,7 +354,7 @@ func (e *ExternalSpec) Delete() error {
 }
 
 func (e *ExternalSpec) Healthy() error {
-	if err := kexec.LogCommand("kubectl", "cluster-info"); err != nil {
+	if err := run.LogCommand("kubectl", "cluster-info"); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -372,7 +373,7 @@ func (e *ExternalSpec) Apply(cfg []byte) error {
 }
 
 func kubectlApply(cfg []byte) error {
-	return kexec.LogCommandWithInput(cfg, "kubectl", "apply", "-f", "-")
+	return run.LogCommandWithInput(cfg, "kubectl", "apply", "-f", "-")
 }
 
 func init() {
@@ -460,7 +461,7 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("failed to parse desired kind version: %w", err)
 		}
 
-		stdout, err := kexec.OutCommand("kind", "version")
+		stdout, err := run.OutCommand("kind", "version")
 		if err != nil {
 			return fmt.Errorf("failed to get kind version: %w", err)
 		}
@@ -489,7 +490,7 @@ func (k *KindSpec) create() error {
 	}
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
-		if err := kexec.LogCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
+		if err := run.LogCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
 			log.Infof("Recycling existing cluster %q", k.Name)
 			return nil
 		}
@@ -514,7 +515,7 @@ func (k *KindSpec) create() error {
 		args = append(args, "--config", k.KindConfigFile)
 	}
 	log.Infof("Creating kind cluster with: %v", args)
-	if out, err := kexec.OutLogCommand("kind", args...); err != nil {
+	if out, err := run.OutLogCommand("kind", args...); err != nil {
 		msg := []string{}
 		// Filter output to only show lines relevant to the error message. For kind these are lines
 		// prefixed with "ERROR" or "Command Output".
@@ -542,14 +543,14 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	// The set_pid_max script modifies the kernel.pid_max value to
 	// be acceptable for the Cisco 8000e container.
 	if _, err := os.Stat(setPIDMaxScript); err == nil {
-		if err := kexec.LogCommand(setPIDMaxScript); err != nil {
+		if err := run.LogCommand(setPIDMaxScript); err != nil {
 			return fmt.Errorf("failed to exec set_pid_max script: %w", err)
 		}
 	}
 
 	for _, s := range k.AdditionalManifests {
 		log.Infof("Found manifest %q", s)
-		if err := kexec.LogCommand("kubectl", "apply", "-f", s); err != nil {
+		if err := run.LogCommand("kubectl", "apply", "-f", s); err != nil {
 			return fmt.Errorf("failed to deploy manifest: %w", err)
 		}
 	}
@@ -576,14 +577,14 @@ func (k *KindSpec) Delete() error {
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
 	}
-	if err := kexec.LogCommand("kind", args...); err != nil {
+	if err := run.LogCommand("kind", args...); err != nil {
 		return fmt.Errorf("failed to delete cluster: %w", err)
 	}
 	return nil
 }
 
 func (k *KindSpec) Healthy() error {
-	if err := kexec.LogCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
+	if err := run.LogCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -605,7 +606,7 @@ func (k *KindSpec) Apply(cfg []byte) error {
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
-	return kind.SetupGARAccess(ctx, k.GoogleArtifactRegistries)
+	return kindSetupGARAccess(ctx, k.GoogleArtifactRegistries)
 }
 
 func (k *KindSpec) loadContainerImages() error {
@@ -623,7 +624,7 @@ func (k *KindSpec) loadContainerImages() error {
 		var out []byte
 		var err error
 		for ; ; retries-- {
-			out, err = kexec.OutCommand("docker", "pull", s)
+			out, err = run.OutCommand("docker", "pull", s)
 			// Command succeeded or out of retries then break.
 			if err == nil || retries == 0 {
 				break
@@ -640,7 +641,7 @@ func (k *KindSpec) loadContainerImages() error {
 			return err
 		}
 		if d != s {
-			if err := kexec.LogCommand("docker", "tag", s, d); err != nil {
+			if err := run.LogCommand("docker", "tag", s, d); err != nil {
 				return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
 			}
 		}
@@ -648,7 +649,7 @@ func (k *KindSpec) loadContainerImages() error {
 		if k.Name != "" {
 			args = append(args, "--name", k.Name)
 		}
-		if err := kexec.LogCommand("kind", args...); err != nil {
+		if err := run.LogCommand("kind", args...); err != nil {
 			return fmt.Errorf("failed to load %q: %w", d, err)
 		}
 	}
@@ -752,7 +753,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "metallb-native.yaml")
 	}
 	log.Infof("Deploying MetalLB from: %s", m.Manifest)
-	if err := kexec.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return fmt.Errorf("failed to deploy metallb: %w", err)
 	}
 	if _, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{}); err != nil {
@@ -882,7 +883,7 @@ func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Meshnet from: %s", m.Manifest)
-	if err := kexec.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return fmt.Errorf("failed to deploy meshnet: %w", err)
 	}
 	log.Infof("Meshnet Deployed")
@@ -956,7 +957,7 @@ func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
 		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying CEOSLab controller from: %s", c.Operator)
-	if err := kexec.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
 		return fmt.Errorf("failed to deploy ceoslab operator: %w", err)
 	}
 	log.Infof("CEOSLab controller deployed")
@@ -1005,7 +1006,7 @@ func (l *LemmingSpec) Deploy(ctx context.Context) error {
 		l.Operator = filepath.Join(l.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Lemming controller from: %s", l.Operator)
-	if err := kexec.LogCommand("kubectl", "apply", "-f", l.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", l.Operator); err != nil {
 		return fmt.Errorf("failed to deploy lemming operator: %w", err)
 	}
 	log.Infof("Lemming controller deployed")
@@ -1054,7 +1055,7 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
-	if err := kexec.LogCommand("kubectl", "apply", "-f", s.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", s.Operator); err != nil {
 		return fmt.Errorf("failed to deploy srlinux operator: %w", err)
 	}
 	log.Infof("SRLinux controller deployed")
@@ -1105,7 +1106,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.Operator = filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")
 	}
 	log.Infof("Deploying IxiaTG controller from: %s", i.Operator)
-	if err := kexec.LogCommand("kubectl", "apply", "-f", i.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", i.Operator); err != nil {
 		return fmt.Errorf("failed to deploy ixiatg operator: %w", err)
 	}
 
@@ -1139,7 +1140,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.ConfigMap = f.Name()
 	}
 	log.Infof("Deploying IxiaTG config map from: %s", i.ConfigMap)
-	if err := kexec.LogCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
 		return fmt.Errorf("failed to deploy ixiatg config map: %w", err)
 	}
 	log.Infof("IxiaTG controller deployed")

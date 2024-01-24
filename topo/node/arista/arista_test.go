@@ -23,7 +23,7 @@ import (
 	ceosclient "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1/dynamic"
 	fakeclient "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1/dynamic/fake"
 	"github.com/google/go-cmp/cmp"
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 	ceospb "github.com/openconfig/kne/proto/ceos"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"

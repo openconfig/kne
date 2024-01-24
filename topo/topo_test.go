@@ -25,9 +25,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/h-fam/errdiff"
 	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -445,6 +445,14 @@ func (f *fakeMetricsReporter) ReportCreateTopologyEnd(_ context.Context, _ strin
 
 func TestCreate(t *testing.T) {
 	ctx := context.Background()
+
+	origKindClusterIsKind := kindClusterIsKind
+	defer func() {
+		kindClusterIsKind = origKindClusterIsKind
+	}()
+	kindClusterIsKind = func() (bool, error) {
+		return false, nil
+	}
 
 	origNewMetricsReporter := newMetricsReporter
 	defer func() {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 	"k8s.io/apimachinery/pkg/types"
 	kfake "k8s.io/client-go/kubernetes/fake"
 )

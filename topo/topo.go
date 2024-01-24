@@ -58,10 +58,15 @@ import (
 	_ "github.com/openconfig/kne/topo/node/openconfig"
 )
 
-var protojsonUnmarshaller = protojson.UnmarshalOptions{
-	AllowPartial:   true,
-	DiscardUnknown: false,
-}
+var (
+	protojsonUnmarshaller = protojson.UnmarshalOptions{
+		AllowPartial:   true,
+		DiscardUnknown: false,
+	}
+
+	// Stubs for testing.
+	kindClusterIsKind = kind.ClusterIsKind
+)
 
 // Manager is a topology manager for a cluster instance.
 type Manager struct {
@@ -247,7 +252,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		defer func() { finish(rerr) }()
 	}
 	// Refresh cluster GAR access if needed.
-	if isKind, err := kind.ClusterIsKind(); err == nil && isKind {
+	if isKind, err := kindClusterIsKind(); err == nil && isKind {
 		if err := kind.RefreshGARAccess(ctx); err != nil {
 			log.Warningf("Failed to refresh GAR access, cluster may need to be re-created using `kne teardown` and `kne deploy`")
 		}

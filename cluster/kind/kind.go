@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	kexec "github.com/openconfig/kne/exec"
+	"github.com/openconfig/kne/exec/run"
 	"golang.org/x/oauth2/google"
 	log "k8s.io/klog/v2"
 )
@@ -40,7 +40,7 @@ func ClusterIsKind() (bool, error) {
 }
 
 func clusterName() (string, error) {
-	b, err := kexec.OutCommand("kubectl", "config", "current-context")
+	b, err := run.OutCommand("kubectl", "config", "current-context")
 	if err != nil {
 		return "", fmt.Errorf("unable to determine cluster information: %v", err)
 	}
@@ -64,7 +64,7 @@ func clusterKindNodes() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := kexec.OutCommand("kind", "get", "nodes", "--name", name)
+	out, err := run.OutCommand("kind", "get", "nodes", "--name", name)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func SetupGARAccess(ctx context.Context, registries []string) error {
 	}
 	for _, r := range registries {
 		s := fmt.Sprintf("https://%s", r)
-		if err := kexec.LogCommandWithInput([]byte(token.AccessToken), "docker", "login", "-u", "oauth2accesstoken", "--password-stdin", s); err != nil {
+		if err := run.LogCommandWithInput([]byte(token.AccessToken), "docker", "login", "-u", "oauth2accesstoken", "--password-stdin", s); err != nil {
 			return err
 		}
 	}
@@ -116,10 +116,10 @@ func SetupGARAccess(ctx context.Context, registries []string) error {
 		return err
 	}
 	for _, node := range nodes {
-		if err := kexec.LogCommand("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
+		if err := run.LogCommand("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
 			return err
 		}
-		if err := kexec.LogCommand("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
+		if err := run.LogCommand("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
 			return err
 		}
 	}
@@ -132,7 +132,7 @@ func RefreshGARAccess(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	cfg, err := kexec.OutCommand("docker", "exec", nodes[0], "cat", kubeletConfigPath)
+	cfg, err := run.OutCommand("docker", "exec", nodes[0], "cat", kubeletConfigPath)
 	if err != nil {
 		log.Infof("Kubelet docker config not found on %v, no GAR access to refresh", nodes[0])
 		return nil
