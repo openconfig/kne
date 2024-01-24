@@ -366,10 +366,21 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
 	}
 	if pb.Labels["model"] == "" {
-		pb.Labels["model"] = pb.Model
+		if pb.Labels["model"] = pb.Model; pb.Model == "" {
+			pb.Model = "ceos"
+			pb.Labels["model"] = pb.Model
+		}
+	} else {
+		pb.Model = pb.Labels["model"]
 	}
+
 	if pb.Labels["os"] == "" {
-		pb.Labels["os"] = pb.Os
+		if pb.Labels["os"] = pb.Os; pb.Os == "" {
+			pb.Os = "eos"
+			pb.Labels["os"] = pb.Os
+		}
+	} else {
+		pb.Os = pb.Labels["os"]
 	}
 	if pb.Labels["version"] == "" {
 		pb.Labels["version"] = pb.Version
@@ -378,7 +389,18 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config == nil {
-		pb.Config = &tpb.Config{}
+		pb.Config = &tpb.Config{
+			Image: "us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
+			Cert: &tpb.CertificateCfg{
+				Config: &tpb.CertificateCfg_SelfSigned{
+					SelfSigned: &tpb.SelfSignedCertCfg{
+						CertName: "gnmiCert.pem",
+						KeyName:  "gnmiCertKey.key",
+						KeySize:  4096,
+					},
+				},
+			},
+		}
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- Cli", pb.Name)
