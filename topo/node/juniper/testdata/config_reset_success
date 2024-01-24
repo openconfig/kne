@@ -49,6 +49,10 @@ root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grp
 
 [edit]
 root@cptx2#
+root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767
+
+[edit]
+root@cptx2#
 root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true
 
 [edit]
@@ -58,10 +62,6 @@ root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grp
 [edit]
 root@cptx2#
 root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0
-
-[edit]
-root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767
 
 [edit]
 root@cptx2#
