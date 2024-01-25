@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -107,6 +108,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: ModelXRD,
+			Os:    "ios-xr",
 			Constraints: map[string]string{
 				"cpu":    "2",
 				"memory": "2Gi",
@@ -136,6 +138,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_CISCO.String(),
 				"ondatra-role": "DUT",
+				"model":        ModelXRD,
+				"os":           "ios-xr",
 			},
 			Config: &tpb.Config{
 				Image: "xrd:latest",
@@ -149,6 +153,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ems.pem",
+							KeyName:  "ems.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -189,6 +202,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: ModelXRD,
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -225,6 +239,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_CISCO.String(),
 				"ondatra-role": "DUT",
+				"model":        ModelXRD,
+				"os":           "ios-xr",
 			},
 			Config: &tpb.Config{
 				Image: "xrd:latest",
@@ -238,6 +254,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ems.pem",
+							KeyName:  "ems.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -280,6 +305,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8201",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -318,6 +344,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_CISCO.String(),
 				"ondatra-role": "DUT",
+				"model":        "8201",
+				"os":           "ios-xr",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -331,6 +359,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ems.pem",
+							KeyName:  "ems.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -390,6 +427,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8202",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -430,6 +468,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_CISCO.String(),
 				"ondatra-role": "DUT",
+				"model":        "8202",
+				"os":           "ios-xr",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -443,6 +483,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ems.pem",
+							KeyName:  "ems.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -513,6 +562,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8201-32FH",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -549,6 +599,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_CISCO.String(),
 				"ondatra-role": "DUT",
+				"model":        "8201-32FH",
+				"os":           "ios-xr",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -562,6 +614,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ems.pem",
+							KeyName:  "ems.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -602,6 +663,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8101-32H",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -638,6 +700,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_CISCO.String(),
 				"ondatra-role": "DUT",
+				"model":        "8101-32H",
+				"os":           "ios-xr",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -651,6 +715,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ems.pem",
+							KeyName:  "ems.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -721,6 +794,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "8102-64H",
+			Os:    "ios-xr",
 			Interfaces: map[string]*tpb.Interface{
 				"eth1": {},
 				"eth2": {
@@ -757,6 +831,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_CISCO.String(),
 				"ondatra-role": "DUT",
+				"model":        "8102-64H",
+				"os":           "ios-xr",
 			},
 			Config: &tpb.Config{
 				Image: "8000e:latest",
@@ -770,6 +846,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "ems.pem",
+							KeyName:  "ems.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -793,8 +878,8 @@ func TestNew(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if s := cmp.Diff(n.GetProto(), tt.want, protocmp.Transform(), protocmp.IgnoreFields(&tpb.Service{}, "node_port")); s != "" {
-				t.Fatalf("Protos not equal: %s", s)
+			if s := cmp.Diff(tt.want, n.GetProto(), protocmp.Transform(), protocmp.IgnoreFields(&tpb.Service{}, "node_port")); s != "" {
+				t.Fatalf("New() failed: diff (-want, +got): %v\nwant\n\n %s\ngot\n\n%s", s, prototext.Format(tt.want), prototext.Format(n.GetProto()))
 			}
 			err = n.Create(context.Background())
 			if s := errdiff.Check(err, tt.cErr); s != "" {

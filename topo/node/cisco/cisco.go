@@ -376,8 +376,22 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	if pb.Config.ConfigPath == "" {
 		pb.Config.ConfigPath = "/"
 	}
+	if pb.Config.Cert == nil {
+		pb.Config.Cert = &tpb.CertificateCfg{
+			Config: &tpb.CertificateCfg_SelfSigned{
+				SelfSigned: &tpb.SelfSignedCertCfg{
+					CertName: "ems.pem",
+					KeyName:  "ems.key",
+					KeySize:  2048,
+				},
+			},
+		}
+	}
 	if pb.Model == "" {
 		pb.Model = ModelXRD
+	}
+	if pb.Os == "" {
+		pb.Os = "ios-xr"
 	}
 	pb = constraints(pb)
 	if pb.Services == nil {
@@ -409,6 +423,12 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_CISCO.String()
+	}
+	if pb.Labels["model"] == "" {
+		pb.Labels["model"] = pb.Model
+	}
+	if pb.Labels["os"] == "" {
+		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT

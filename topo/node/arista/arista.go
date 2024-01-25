@@ -359,6 +359,12 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			},
 		}
 	}
+	if pb.Os == "" {
+		pb.Os = "eos"
+	}
+	if pb.Model == "" {
+		pb.Model = "ceos"
+	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
 	}
@@ -388,6 +394,20 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.ConfigFile == "" {
 		pb.Config.ConfigFile = "startup-config"
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "ceos:latest"
+	}
+	if pb.Config.Cert == nil {
+		pb.Config.Cert = &tpb.CertificateCfg{
+			Config: &tpb.CertificateCfg_SelfSigned{
+				SelfSigned: &tpb.SelfSignedCertCfg{
+					CertName: "gnmiCert.pem",
+					KeyName:  "gnmiCertKey.key",
+					KeySize:  4096,
+				},
+			},
+		}
 	}
 	return pb
 }

@@ -328,9 +328,6 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
-	if pb.Config == nil {
-		pb.Config = &tpb.Config{}
-	}
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			443: {
@@ -359,11 +356,23 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			},
 		}
 	}
+	if pb.Model == "" {
+		pb.Model = "ixrd2"
+	}
+	if pb.Os == "" {
+		pb.Os = "nokia_srlinux"
+	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_NOKIA.String()
+	}
+	if pb.Labels["model"] == "" {
+		pb.Labels["model"] = pb.Model
+	}
+	if pb.Labels["os"] == "" {
+		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT

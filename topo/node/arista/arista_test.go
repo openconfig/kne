@@ -31,7 +31,7 @@ import (
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/anypb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -128,11 +128,21 @@ func TestNew(t *testing.T) {
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
+					Image:        "ceos:latest",
+					Cert: &topopb.CertificateCfg{
+						Config: &topopb.CertificateCfg_SelfSigned{
+							SelfSigned: &topopb.SelfSignedCertCfg{
+								CertName: "gnmiCert.pem",
+								KeyName:  "gnmiCertKey.key",
+								KeySize:  4096,
+							},
+						},
+					},
 				},
 				Labels: map[string]string{
 					"vendor":       "ARISTA",
-					"model":        "",
-					"os":           "",
+					"model":        "ceos",
+					"os":           "eos",
 					"version":      "",
 					"ondatra-role": "DUT",
 				},
@@ -158,6 +168,8 @@ func TestNew(t *testing.T) {
 						Inside: 9340,
 					},
 				},
+				Model: "ceos",
+				Os:    "eos",
 			},
 		}, {
 			desc: "with config",
@@ -182,12 +194,14 @@ func TestNew(t *testing.T) {
 						},
 					},
 					Labels: map[string]string{
-						"model": "foo",
-						"os":    "bar",
+						"model": "",
+						"os":    "",
 					},
 				},
 			},
 			want: &topopb.Node{
+				Model: "ceos",
+				Os:    "eos",
 				Config: &topopb.Config{
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
 					Image:        "foo",
@@ -211,8 +225,8 @@ func TestNew(t *testing.T) {
 				},
 				Labels: map[string]string{
 					"vendor":       "ARISTA",
-					"model":        "foo",
-					"os":           "bar",
+					"model":        "ceos",
+					"os":           "eos",
 					"version":      "",
 					"ondatra-role": "DUT",
 				},
@@ -251,8 +265,8 @@ func TestNew(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if !proto.Equal(n.GetProto(), tt.want) {
-				t.Fatalf("New() failed: got\n\n%swant\n\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
+			if diff := cmp.Diff(tt.want, n.GetProto(), protocmp.Transform()); diff != "" {
+				t.Fatalf("New() failed: diff (-want, +got): %v\nwant\n\n %s\ngot\n\n%s", diff, prototext.Format(tt.want), prototext.Format(n.GetProto()))
 			}
 		})
 	}

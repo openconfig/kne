@@ -531,6 +531,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Model == "" {
 		pb.Model = ModelCPTX
 	}
+	if pb.Os == "" {
+		pb.Os = "evo"
+	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
@@ -612,6 +615,12 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
+	}
+	if pb.Labels["model"] == "" {
+		pb.Labels["model"] = pb.Model
+	}
+	if pb.Labels["os"] == "" {
+		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
