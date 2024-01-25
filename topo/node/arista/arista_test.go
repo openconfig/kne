@@ -128,7 +128,7 @@ func TestNew(t *testing.T) {
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
-					Image:        "us-west1-docker.pkg.dev/gep-kne/arista/ceos:latest",
+					Image:        "ceos:latest",
 					Cert: &topopb.CertificateCfg{
 						Config: &topopb.CertificateCfg_SelfSigned{
 							SelfSigned: &topopb.SelfSignedCertCfg{
@@ -194,8 +194,8 @@ func TestNew(t *testing.T) {
 						},
 					},
 					Labels: map[string]string{
-						"model": "foo",
-						"os":    "bar",
+						"model": "",
+						"os":    "",
 					},
 				},
 			},

@@ -154,6 +154,15 @@ func TestNew(t *testing.T) {
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
 				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "pod1.pem",
+							KeyName:  "pod1.key",
+							KeySize:  2048,
+						},
+					},
+				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
 				{
@@ -245,6 +254,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "pod1.pem",
+							KeyName:  "pod1.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -341,6 +359,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "pod1.pem",
+							KeyName:  "pod1.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -456,6 +483,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "pod1.pem",
+							KeyName:  "pod1.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -579,6 +615,15 @@ func TestNew(t *testing.T) {
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
 				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "pod1.pem",
+							KeyName:  "pod1.key",
+							KeySize:  2048,
+						},
+					},
+				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
 				{
@@ -670,6 +715,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "pod1.pem",
+							KeyName:  "pod1.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{
@@ -792,6 +846,15 @@ func TestNew(t *testing.T) {
 				ConfigFile:   "foo",
 				ConfigData: &tpb.Config_Data{
 					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "pod1.pem",
+							KeyName:  "pod1.key",
+							KeySize:  2048,
+						},
+					},
 				},
 			},
 			HostConstraints: []*tpb.HostConstraint{

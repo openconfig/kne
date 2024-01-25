@@ -371,10 +371,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_ARISTA.String()
 	}
-	if pb.Labels["model"] != pb.Model {
+	if pb.Labels["model"] == "" {
 		pb.Labels["model"] = pb.Model
 	}
-	if pb.Labels["os"] != pb.Os {
+	if pb.Labels["os"] == "" {
 		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels["version"] == "" {
@@ -384,18 +384,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 	}
 	if pb.Config == nil {
-		pb.Config = &tpb.Config{
-			Image: "us-west1-docker.pkg.dev/gep-kne/arista/ceos:latest",
-			Cert: &tpb.CertificateCfg{
-				Config: &tpb.CertificateCfg_SelfSigned{
-					SelfSigned: &tpb.SelfSignedCertCfg{
-						CertName: "gnmiCert.pem",
-						KeyName:  "gnmiCertKey.key",
-						KeySize:  4096,
-					},
-				},
-			},
-		}
+		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- Cli", pb.Name)
@@ -405,6 +394,20 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.ConfigFile == "" {
 		pb.Config.ConfigFile = "startup-config"
+	}
+	if pb.Config.Image == "" {
+		pb.Config.Image = "ceos:latest"
+	}
+	if pb.Config.Cert == nil {
+		pb.Config.Cert = &tpb.CertificateCfg{
+			Config: &tpb.CertificateCfg_SelfSigned{
+				SelfSigned: &tpb.SelfSignedCertCfg{
+					CertName: "gnmiCert.pem",
+					KeyName:  "gnmiCertKey.key",
+					KeySize:  4096,
+				},
+			},
+		}
 	}
 	return pb
 }
