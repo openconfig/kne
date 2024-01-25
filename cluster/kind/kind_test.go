@@ -297,13 +297,68 @@ func (f *fakeTokenSource) Token() (*oauth2.Token, error) {
 }
 
 func TestRefreshGARAccess(t *testing.T) {
+	ctx := context.Background()
+
 	tests := []struct {
 		desc    string
+		resp    []fexec.Response
 		wantErr string
-	}{{}}
+	}{{
+		desc: "1 reg",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}, Stdout: "kne-control-plane"},
+			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "cat", "/var/lib/kubelet/config.json"}, Stdout: `{"auths": {"us-west1-docker.pkg.dev": {}}}`},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "--password-stdin", "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}, Stdout: "kne-control-plane"},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", "kne-control-plane:/var/lib/kubelet/config.json"}},
+			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "systemctl", "restart", "kubelet.service"}},
+		},
+	}, {
+		desc: "2 regs",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}, Stdout: "kne-control-plane"},
+			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "cat", "/var/lib/kubelet/config.json"}, Stdout: `{"auths": {"us-west1-docker.pkg.dev": {}, "us-central1-docker.pkg.dev": {}}}`},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "--password-stdin", "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "--password-stdin", "https://us-central1-docker.pkg.dev"}},
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}, Stdout: "kne-control-plane"},
+			{Cmd: "docker", Args: []string{"cp", ".*/config.json", "kne-control-plane:/var/lib/kubelet/config.json"}},
+			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "systemctl", "restart", "kubelet.service"}},
+		},
+	}, {
+		desc: "0 regs",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}, Stdout: "kne-control-plane"},
+			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "cat", "/var/lib/kubelet/config.json"}, Err: "no file"},
+		},
+	}, {
+		desc: "invalid docker cfg",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}, Stdout: "kne-control-plane"},
+			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "cat", "/var/lib/kubelet/config.json"}, Stdout: `{"auths": {"us-west1-docker.pkg.dev": {`},
+		},
+		wantErr: "unexpected end of JSON input",
+	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			if s := errdiff.Substring(nil, tt.wantErr); s != "" {
+			fexec.LogCommand = func(s string) {
+				t.Logf("%s: %s", tt.desc, s)
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
+			googleFindDefaultCredentials = func(_ context.Context, _ ...string) (*google.Credentials, error) {
+				return &google.Credentials{TokenSource: &fakeTokenSource{}}, nil
+			}
+
+			err := RefreshGARAccess(ctx)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}
 		})
