@@ -380,8 +380,8 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		pb.Config.Cert = &tpb.CertificateCfg{
 			Config: &tpb.CertificateCfg_SelfSigned{
 				SelfSigned: &tpb.SelfSignedCertCfg{
-					CertName: pb.Name + ".pem",
-					KeyName:  pb.Name + ".key",
+					CertName: "private_key.pem",
+					KeyName:  "private_key.key",
 					KeySize:  2048,
 				},
 			},

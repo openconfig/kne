@@ -105,6 +105,8 @@ func TestNew(t *testing.T) {
 			},
 		},
 		want: &topopb.Node{
+			Model: "ixrd2",
+			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
 				ConfigFile: "config.cli",
@@ -113,6 +115,8 @@ func TestNew(t *testing.T) {
 				"vendor":       "NOKIA",
 				"foo":          "test_label",
 				"ondatra-role": "DUT",
+				"model":        "ixrd2",
+				"os":           "nokia_srlinux",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
@@ -158,6 +162,8 @@ func TestNew(t *testing.T) {
 			},
 		},
 		want: &topopb.Node{
+			Model: "ixrd2",
+			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
 				ConfigFile: "config.json",
@@ -166,6 +172,8 @@ func TestNew(t *testing.T) {
 				"vendor":       "NOKIA",
 				"foo":          "test_label",
 				"ondatra-role": "DUT",
+				"model":        "ixrd2",
+				"os":           "nokia_srlinux",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
