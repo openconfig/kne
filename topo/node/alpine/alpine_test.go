@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 	apb "github.com/openconfig/kne/proto/alpine"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"

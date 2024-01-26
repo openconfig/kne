@@ -40,7 +40,8 @@ func TestCommand(t *testing.T) {
 		{
 			name: "failed command with no output",
 			cmd:  "false",
-			err:  "failed: exit status 1",
+
+			err: "failed: exit status 1",
 		},
 		{
 			name:   "successful command with output",

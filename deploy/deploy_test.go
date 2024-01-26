@@ -1,7 +1,6 @@
 package deploy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"testing"
@@ -11,15 +10,13 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 	mfake "github.com/openconfig/kne/api/metallb/clientset/v1beta1/fake"
 	"github.com/openconfig/kne/deploy/mocks"
 	kexec "github.com/openconfig/kne/exec"
 	fexec "github.com/openconfig/kne/exec/fake"
 	"github.com/pkg/errors"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,125 +29,11 @@ import (
 )
 
 const (
-	verbose         = true
-	fakeAccessToken = "some-fake-token"
+	verbose = true
 )
 
 func init() {
 	klog.LogToStderr(false)
-}
-
-func TestRunCommand(t *testing.T) {
-	tests := []struct {
-		desc         string
-		writeLogs    bool
-		in           string
-		cmd          string
-		args         []string
-		resp         []fexec.Response
-		want         string
-		wantInfos    string
-		wantWarnings string
-		wantErr      string
-	}{{
-		desc:      "log no input",
-		writeLogs: true,
-		cmd:       "echo",
-		args:      []string{"hello"},
-		resp: []fexec.Response{
-			{Cmd: "echo", Args: []string{"hello"}, Stdout: "hello"},
-		},
-		want:      "hello",
-		wantInfos: "(echo): hello",
-	}, {
-		desc:      "log no input with stderr",
-		writeLogs: true,
-		cmd:       "echo",
-		args:      []string{"hello"},
-		resp: []fexec.Response{
-			{Cmd: "echo", Args: []string{"hello"}, Stdout: "hello", Stderr: "err"},
-		},
-		want:         "helloerr",
-		wantInfos:    "(echo): hello",
-		wantWarnings: "(echo): err",
-	}, {
-		desc:      "log with input",
-		writeLogs: true,
-		in:        "echo hello",
-		cmd:       "cat",
-		resp: []fexec.Response{
-			{Cmd: "cat", Stdout: "hello"},
-		},
-		want:      "hello",
-		wantInfos: "(cat): hello",
-	}, {
-		desc: "no log no input",
-		cmd:  "echo",
-		args: []string{"hello"},
-		resp: []fexec.Response{
-			{Cmd: "echo", Args: []string{"hello"}, Stdout: "hello"},
-		},
-		want: "hello",
-	}, {
-		desc: "no log with input",
-		in:   "echo hello",
-		cmd:  "cat",
-		resp: []fexec.Response{
-			{Cmd: "cat", Stdout: "hello"},
-		},
-		want: "hello",
-	}, {
-		desc: "failed command",
-		cmd:  "false",
-		resp: []fexec.Response{
-			{Cmd: "false", Err: "failure"},
-		},
-		wantErr: "failure",
-	}}
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			if verbose {
-				fexec.LogCommand = func(s string) {
-					t.Logf("%s: %s", tt.desc, s)
-				}
-			}
-			cmds := fexec.Commands(tt.resp)
-			kexec.Command = cmds.Command
-			defer checkCmds(t, cmds)
-
-			origLogInfo := logInfo
-			defer func() {
-				logInfo = origLogInfo
-			}()
-			var infos bytes.Buffer
-			logInfo = func(args ...interface{}) {
-				fmt.Fprint(&infos, args...)
-			}
-
-			origLogWarning := logWarning
-			defer func() {
-				logWarning = origLogWarning
-			}()
-			var warnings bytes.Buffer
-			logWarning = func(args ...interface{}) {
-				fmt.Fprint(&warnings, args...)
-			}
-
-			got, err := runCommand(tt.writeLogs, []byte(tt.in), tt.cmd, tt.args...)
-			if s := errdiff.Substring(err, tt.wantErr); s != "" {
-				t.Fatalf("unexpected error: %s", s)
-			}
-			if string(got) != tt.want {
-				t.Errorf("runCommand() got output %v, want %v", string(got), tt.want)
-			}
-			if string(infos.Bytes()) != tt.wantInfos {
-				t.Errorf("runCommand() got info logs %v, want %v", string(infos.Bytes()), tt.wantInfos)
-			}
-			if string(warnings.Bytes()) != tt.wantWarnings {
-				t.Errorf("runCommand() got warning logs %v, want %v", string(warnings.Bytes()), tt.wantWarnings)
-			}
-		})
-	}
 }
 
 func TestKubectlApply(t *testing.T) {
@@ -208,13 +91,12 @@ func TestKindSpec(t *testing.T) {
 	pullRetryDelay = time.Millisecond
 
 	tests := []struct {
-		desc           string
-		k              *KindSpec
-		resp           []fexec.Response
-		execPathErr    bool
-		findCredsErr   bool
-		tokenSourceErr bool
-		wantErr        string
+		desc        string
+		k           *KindSpec
+		resp        []fexec.Response
+		execPathErr bool
+		setupGARErr bool
+		wantErr     string
 	}{{
 		desc: "create cluster with cli",
 		k: &KindSpec{
@@ -259,104 +141,25 @@ func TestKindSpec(t *testing.T) {
 		},
 		wantErr: "failed to create cluster",
 	}, {
-		desc: "create cluster with GAR - 1 reg",
-		k: &KindSpec{
-			Name:                     "test",
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
-		},
-		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
-			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
-			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}},
-		},
-	}, {
-		desc: "create cluster with GAR - 2 regs",
+		desc: "create cluster with GAR",
 		k: &KindSpec{
 			Name:                     "test",
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev", "us-central1-docker.pkg.dev"},
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-central1-docker.pkg.dev"}},
-			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
-			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}},
 		},
 	}, {
-		desc: "create cluster with GAR - failed to get creds",
+		desc: "create cluster with GAR - failure",
 		k: &KindSpec{
 			Name:                     "test",
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
+			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev", "us-central1-docker.pkg.dev"},
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 		},
-		findCredsErr: true,
-		wantErr:      "failed to find gcloud credentials",
-	}, {
-		desc: "create cluster with GAR - failed to get access token",
-		k: &KindSpec{
-			Name:                     "test",
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
-		},
-		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-		},
-		tokenSourceErr: true,
-		wantErr:        "unable to generate token",
-	}, {
-		desc: "create cluster with GAR - failed docker login",
-		k: &KindSpec{
-			Name:                     "test",
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
-		},
-		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}, Err: "failed to login to docker"},
-		},
-		wantErr: "failed to login to docker",
-	}, {
-		desc: "create cluster with GAR - failed to get nodes",
-		k: &KindSpec{
-			Name:                     "test",
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
-		},
-		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
-			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}, Err: "failed to get nodes"},
-		},
-		wantErr: "failed to get nodes",
-	}, {
-		desc: "create cluster with GAR - failed to cp config to node",
-		k: &KindSpec{
-			Name:                     "test",
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
-		},
-		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
-			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}, Err: "failed to cp config to node"},
-		},
-		wantErr: "failed to cp config to node",
-	}, {
-		desc: "create cluster with GAR - failed to restart kubelet",
-		k: &KindSpec{
-			Name:                     "test",
-			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev"},
-		},
-		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "-p", fakeAccessToken, "https://us-west1-docker.pkg.dev"}},
-			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}},
-			{Cmd: "docker", Args: []string{"cp", ".*/config.json", ":/var/lib/kubelet/config.json"}},
-			{Cmd: "docker", Args: []string{"exec", "", "systemctl", "restart", "kubelet.service"}, Err: "failed to restart kubelet"},
-		},
-		wantErr: "failed to restart kubelet",
+		setupGARErr: true,
+		wantErr:     "failed to setup GAR access",
 	}, {
 		desc: "create cluster load containers",
 		k: &KindSpec{
@@ -656,11 +459,11 @@ func TestKindSpec(t *testing.T) {
 				}
 				return "fakePath", nil
 			}
-			googleFindDefaultCredentials = func(_ context.Context, _ ...string) (*google.Credentials, error) {
-				if tt.findCredsErr {
-					return nil, errors.New("unable to find default credentials")
+			kindSetupGARAccess = func(_ context.Context, _ []string) error {
+				if tt.setupGARErr {
+					return errors.New("unable to setup GAR access")
 				}
-				return &google.Credentials{TokenSource: &fakeTokenSource{tokenErr: tt.tokenSourceErr}}, nil
+				return nil
 			}
 			err := tt.k.Deploy(ctx)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
@@ -668,17 +471,6 @@ func TestKindSpec(t *testing.T) {
 			}
 		})
 	}
-}
-
-type fakeTokenSource struct {
-	tokenErr bool
-}
-
-func (f *fakeTokenSource) Token() (*oauth2.Token, error) {
-	if f.tokenErr {
-		return nil, errors.New("unable to generate token")
-	}
-	return &oauth2.Token{AccessToken: fakeAccessToken}, nil
 }
 
 type fakeWatch struct {

@@ -3,7 +3,7 @@ package keysight
 import (
 	"testing"
 
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"

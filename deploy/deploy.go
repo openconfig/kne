@@ -1,13 +1,11 @@
 package deploy
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -20,15 +18,14 @@ import (
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
+	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
-	kexec "github.com/openconfig/kne/exec"
+	"github.com/openconfig/kne/exec/run"
 	"github.com/openconfig/kne/load"
-	logshim "github.com/openconfig/kne/logshim"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	epb "github.com/openconfig/kne/proto/event"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
-	"golang.org/x/oauth2/google"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,78 +39,15 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	dockerConfigEnvVar        = "DOCKER_CONFIG"
-	kubeletConfigPathTemplate = "%s:/var/lib/kubelet/config.json"
-)
-
 var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
-	logInfo         = log.Info
-	logWarning      = log.Warning
-)
-
-func runCommand(writeLogs bool, in []byte, cmd string, args ...string) ([]byte, error) {
-	c := kexec.Command(cmd, args...)
-	var out bytes.Buffer
-	c.SetStdout(&out)
-	if writeLogs {
-		outLog := logshim.New(func(v ...interface{}) {
-			logInfo(append([]interface{}{"(" + cmd + "): "}, v...)...)
-		})
-		errLog := logshim.New(func(v ...interface{}) {
-			logWarning(append([]interface{}{"(" + cmd + "): "}, v...)...)
-		})
-		defer func() {
-			outLog.Close()
-			errLog.Close()
-		}()
-		c.SetStdout(io.MultiWriter(outLog, &out))
-		c.SetStderr(io.MultiWriter(errLog, &out))
-	}
-	if len(in) > 0 {
-		c.SetStdin(bytes.NewReader(in))
-	}
-	err := c.Run()
-	return out.Bytes(), err
-}
-
-// logCommand runs the specified command but records standard output
-// with log.Info and standard error with log.Warning.
-func logCommand(cmd string, args ...string) error {
-	_, err := runCommand(true, nil, cmd, args...)
-	return err
-}
-
-// logCommandWithInput runs the specified command but records standard output
-// with log.Info and standard error with log.Warning. in is sent to
-// the standard input of the command.
-func logCommandWithInput(in []byte, cmd string, args ...string) error {
-	_, err := runCommand(true, in, cmd, args...)
-	return err
-}
-
-// outLogCommand runs the specified command but records standard output
-// with log.Info and standard error with log.Warning. Standard output
-// and standard error are also returned.
-func outLogCommand(cmd string, args ...string) ([]byte, error) {
-	return runCommand(true, nil, cmd, args...)
-}
-
-// outCommand runs the specified command and returns any standard output
-// as well as any errors.
-func outCommand(cmd string, args ...string) ([]byte, error) {
-	return runCommand(false, nil, cmd, args...)
-}
-
-var (
-	healthTimeout = time.Minute
+	healthTimeout   = time.Minute
 
 	// Stubs for testing.
-	execLookPath                 = exec.LookPath
-	googleFindDefaultCredentials = google.FindDefaultCredentials
+	execLookPath       = exec.LookPath
+	kindSetupGARAccess = kind.SetupGARAccess
 )
 
 type Cluster interface {
@@ -270,7 +204,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	}
 
 	log.Infof("Checking kubectl versions.")
-	output, err := outCommand("kubectl", "version", "--output=yaml")
+	output, err := run.OutCommand("kubectl", "version", "--output=yaml")
 	if err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
@@ -420,7 +354,7 @@ func (e *ExternalSpec) Delete() error {
 }
 
 func (e *ExternalSpec) Healthy() error {
-	if err := logCommand("kubectl", "cluster-info"); err != nil {
+	if err := run.LogCommand("kubectl", "cluster-info"); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -439,7 +373,7 @@ func (e *ExternalSpec) Apply(cfg []byte) error {
 }
 
 func kubectlApply(cfg []byte) error {
-	return logCommandWithInput(cfg, "kubectl", "apply", "-f", "-")
+	return run.LogCommandWithInput(cfg, "kubectl", "apply", "-f", "-")
 }
 
 func init() {
@@ -527,7 +461,7 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("failed to parse desired kind version: %w", err)
 		}
 
-		stdout, err := outCommand("kind", "version")
+		stdout, err := run.OutCommand("kind", "version")
 		if err != nil {
 			return fmt.Errorf("failed to get kind version: %w", err)
 		}
@@ -556,7 +490,7 @@ func (k *KindSpec) create() error {
 	}
 	if k.Recycle {
 		log.Infof("Attempting to recycle existing cluster %q...", k.Name)
-		if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
+		if err := run.LogCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.Name)); err == nil {
 			log.Infof("Recycling existing cluster %q", k.Name)
 			return nil
 		}
@@ -581,7 +515,7 @@ func (k *KindSpec) create() error {
 		args = append(args, "--config", k.KindConfigFile)
 	}
 	log.Infof("Creating kind cluster with: %v", args)
-	if out, err := outLogCommand("kind", args...); err != nil {
+	if out, err := run.OutLogCommand("kind", args...); err != nil {
 		msg := []string{}
 		// Filter output to only show lines relevant to the error message. For kind these are lines
 		// prefixed with "ERROR" or "Command Output".
@@ -609,22 +543,22 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	// The set_pid_max script modifies the kernel.pid_max value to
 	// be acceptable for the Cisco 8000e container.
 	if _, err := os.Stat(setPIDMaxScript); err == nil {
-		if err := logCommand(setPIDMaxScript); err != nil {
+		if err := run.LogCommand(setPIDMaxScript); err != nil {
 			return fmt.Errorf("failed to exec set_pid_max script: %w", err)
 		}
 	}
 
 	for _, s := range k.AdditionalManifests {
 		log.Infof("Found manifest %q", s)
-		if err := logCommand("kubectl", "apply", "-f", s); err != nil {
+		if err := run.LogCommand("kubectl", "apply", "-f", s); err != nil {
 			return fmt.Errorf("failed to deploy manifest: %w", err)
 		}
 	}
 
 	if len(k.GoogleArtifactRegistries) != 0 {
-		log.Infof("Setting up Google Artifact Registry access for %v", k.GoogleArtifactRegistries)
+		log.Infof("Setting up GAR access for %v", k.GoogleArtifactRegistries)
 		if err := k.setupGoogleArtifactRegistryAccess(ctx); err != nil {
-			return fmt.Errorf("failed to setup Google artifact registry access: %w", err)
+			return fmt.Errorf("failed to setup GAR access: %w", err)
 		}
 	}
 
@@ -643,14 +577,14 @@ func (k *KindSpec) Delete() error {
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
 	}
-	if err := logCommand("kind", args...); err != nil {
+	if err := run.LogCommand("kind", args...); err != nil {
 		return fmt.Errorf("failed to delete cluster: %w", err)
 	}
 	return nil
 }
 
 func (k *KindSpec) Healthy() error {
-	if err := logCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
+	if err := run.LogCommand("kubectl", "cluster-info", "--context", fmt.Sprintf("kind-%s", k.GetName())); err != nil {
 		return fmt.Errorf("cluster not healthy: %w", err)
 	}
 	return nil
@@ -672,62 +606,7 @@ func (k *KindSpec) Apply(cfg []byte) error {
 }
 
 func (k *KindSpec) setupGoogleArtifactRegistryAccess(ctx context.Context) error {
-	// Create a temporary dir to hold a new docker config that lacks credsStore.
-	// Then use `docker login` to store the generated credentials directly in
-	// the temporary docker config.
-	// See https://kind.sigs.k8s.io/docs/user/private-registries/#use-an-access-token
-	// for more information.
-	tempDockerDir, err := os.MkdirTemp("", "kne_kind_docker")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tempDockerDir)
-	originalConfig := os.Getenv(dockerConfigEnvVar)
-	defer os.Setenv(dockerConfigEnvVar, originalConfig)
-	if err := os.Setenv(dockerConfigEnvVar, tempDockerDir); err != nil {
-		return err
-	}
-	configPath := filepath.Join(tempDockerDir, "config.json")
-	if err := writeDockerConfig(configPath, k.GoogleArtifactRegistries); err != nil {
-		return err
-	}
-	creds, err := googleFindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
-	if err != nil {
-		return fmt.Errorf("failed to find gcloud credentials: %v", err)
-	}
-	token, err := creds.TokenSource.Token()
-	if err != nil {
-		return fmt.Errorf("failed to get token from gcloud credentials: %v", err)
-	}
-	// Logs will show up as coming from logshim.go.  Since this is output
-	// from an external program that is the best we can do.
-	for _, r := range k.GoogleArtifactRegistries {
-		s := fmt.Sprintf("https://%s", r)
-		if err := logCommand("docker", "login", "-u", "oauth2accesstoken", "-p", token.AccessToken, s); err != nil {
-			return err
-		}
-	}
-	args := []string{"get", "nodes"}
-	if k.Name != "" {
-		args = append(args, "--name", k.Name)
-	}
-	nodes, err := outCommand("kind", args...)
-	if err != nil {
-		return err
-	}
-	// Copy the new docker config to each node and restart kubelet so it
-	// picks up the new config that contains the embedded credentials.
-	for _, node := range strings.Split(string(nodes), " ") {
-		node = strings.TrimSuffix(node, "\n")
-		if err := logCommand("docker", "cp", configPath, fmt.Sprintf(kubeletConfigPathTemplate, node)); err != nil {
-			return err
-		}
-		if err := logCommand("docker", "exec", node, "systemctl", "restart", "kubelet.service"); err != nil {
-			return err
-		}
-	}
-	log.Infof("Setup credentials for accessing GAR locations %v in kind cluster", k.GoogleArtifactRegistries)
-	return nil
+	return kindSetupGARAccess(ctx, k.GoogleArtifactRegistries)
 }
 
 func (k *KindSpec) loadContainerImages() error {
@@ -745,7 +624,7 @@ func (k *KindSpec) loadContainerImages() error {
 		var out []byte
 		var err error
 		for ; ; retries-- {
-			out, err = outCommand("docker", "pull", s)
+			out, err = run.OutCommand("docker", "pull", s)
 			// Command succeeded or out of retries then break.
 			if err == nil || retries == 0 {
 				break
@@ -762,7 +641,7 @@ func (k *KindSpec) loadContainerImages() error {
 			return err
 		}
 		if d != s {
-			if err := logCommand("docker", "tag", s, d); err != nil {
+			if err := run.LogCommand("docker", "tag", s, d); err != nil {
 				return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
 			}
 		}
@@ -770,35 +649,11 @@ func (k *KindSpec) loadContainerImages() error {
 		if k.Name != "" {
 			args = append(args, "--name", k.Name)
 		}
-		if err := logCommand("kind", args...); err != nil {
+		if err := run.LogCommand("kind", args...); err != nil {
 			return fmt.Errorf("failed to load %q: %w", d, err)
 		}
 	}
 	log.Infof("Loaded all container images")
-	return nil
-}
-
-type DockerConfig struct {
-	Auths map[string]struct{} `json:"auths"`
-}
-
-func writeDockerConfig(path string, registries []string) error {
-	dc := &DockerConfig{Auths: map[string]struct{}{}}
-	for _, r := range registries {
-		dc.Auths[r] = struct{}{}
-	}
-	b, err := json.MarshalIndent(dc, "", "  ")
-	if err != nil {
-		return err
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if _, err := f.Write(b); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -898,7 +753,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "metallb-native.yaml")
 	}
 	log.Infof("Deploying MetalLB from: %s", m.Manifest)
-	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return fmt.Errorf("failed to deploy metallb: %w", err)
 	}
 	if _, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{}); err != nil {
@@ -1028,7 +883,7 @@ func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Meshnet from: %s", m.Manifest)
-	if err := logCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
 		return fmt.Errorf("failed to deploy meshnet: %w", err)
 	}
 	log.Infof("Meshnet Deployed")
@@ -1102,7 +957,7 @@ func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
 		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying CEOSLab controller from: %s", c.Operator)
-	if err := logCommand("kubectl", "apply", "-f", c.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
 		return fmt.Errorf("failed to deploy ceoslab operator: %w", err)
 	}
 	log.Infof("CEOSLab controller deployed")
@@ -1151,7 +1006,7 @@ func (l *LemmingSpec) Deploy(ctx context.Context) error {
 		l.Operator = filepath.Join(l.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Lemming controller from: %s", l.Operator)
-	if err := logCommand("kubectl", "apply", "-f", l.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", l.Operator); err != nil {
 		return fmt.Errorf("failed to deploy lemming operator: %w", err)
 	}
 	log.Infof("Lemming controller deployed")
@@ -1200,7 +1055,7 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
-	if err := logCommand("kubectl", "apply", "-f", s.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", s.Operator); err != nil {
 		return fmt.Errorf("failed to deploy srlinux operator: %w", err)
 	}
 	log.Infof("SRLinux controller deployed")
@@ -1251,7 +1106,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.Operator = filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")
 	}
 	log.Infof("Deploying IxiaTG controller from: %s", i.Operator)
-	if err := logCommand("kubectl", "apply", "-f", i.Operator); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", i.Operator); err != nil {
 		return fmt.Errorf("failed to deploy ixiatg operator: %w", err)
 	}
 
@@ -1285,7 +1140,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.ConfigMap = f.Name()
 	}
 	log.Infof("Deploying IxiaTG config map from: %s", i.ConfigMap)
-	if err := logCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
+	if err := run.LogCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
 		return fmt.Errorf("failed to deploy ixiatg config map: %w", err)
 	}
 	log.Infof("IxiaTG controller deployed")

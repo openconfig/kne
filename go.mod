@@ -10,7 +10,6 @@ require (
 	github.com/golang/glog v1.1.2
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
-	github.com/h-fam/errdiff v1.0.2
 	github.com/kr/pretty v0.3.1
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
 	github.com/open-traffic-generator/keng-operator v0.3.14
