@@ -39,6 +39,8 @@ var (
 	configModeTimeout = 10 * time.Minute
 	// Time between polls - config mode
 	configModeRetrySleep = 30 * time.Second
+	// Default gRPC port
+	defaultGrpcPort = uint32(32767)
 )
 
 const (
@@ -100,12 +102,20 @@ func (n *Node) SpawnCLIConn() error {
 
 // Returns config required to configure gRPC service
 func (n *Node) GRPCConfig() []string {
+	port := defaultGrpcPort
+	for _, service := range n.GetProto().GetServices() {
+		if service.GetName() == "gnmi" {
+			port = service.GetInside()
+		}
+	}
+	log.Infof("gNMI Port %d", port)
+	portConfig := fmt.Sprintf("set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port %d", port)
 	return []string{
 		"set system services extension-service request-response grpc ssl hot-reloading",
 		"set system services extension-service request-response grpc ssl use-pki",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
+		portConfig,
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
@@ -521,6 +531,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Model == "" {
 		pb.Model = ModelCPTX
 	}
+	if pb.Os == "" {
+		pb.Os = "evo"
+	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
@@ -602,6 +615,12 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Labels["vendor"] == "" {
 		pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
+	}
+	if pb.Labels["model"] == "" {
+		pb.Labels["model"] = pb.Model
+	}
+	if pb.Labels["os"] == "" {
+		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT

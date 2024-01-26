@@ -22,6 +22,7 @@ import (
 	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -438,6 +439,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "cptx",
+			Os:    "evo",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -467,6 +469,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
 				"ondatra-role": "DUT",
+				"model":        "cptx",
+				"os":           "evo",
 			},
 			Config: &tpb.Config{
 				Image: "cptx:latest",
@@ -513,6 +517,7 @@ func TestNew(t *testing.T) {
 		want: &tpb.Node{
 			Name:  "pod1",
 			Model: "cptx",
+			Os:    "evo",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -542,6 +547,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
 				"ondatra-role": "DUT",
+				"model":        "cptx",
+				"os":           "evo",
 			},
 			Config: &tpb.Config{
 				Image: "cptx:latest",
@@ -587,6 +594,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
+			Os:    "evo",
 			Model: "ncptx",
 			Constraints: map[string]string{
 				"cpu":    "4",
@@ -617,6 +625,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
 				"ondatra-role": "DUT",
+				"model":        "ncptx",
+				"os":           "evo",
 			},
 			Config: &tpb.Config{
 				Image: "ncptx:latest",
@@ -652,6 +662,7 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Model: "cptx",
+			Os:    "evo",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -681,6 +692,8 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
 				"ondatra-role": "DUT",
+				"model":        "cptx",
+				"os":           "evo",
 			},
 			Config: &tpb.Config{
 				Image: "cptx:latest",
@@ -714,8 +727,8 @@ func TestNew(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if s := cmp.Diff(n.GetProto(), tt.want, protocmp.Transform(), protocmp.IgnoreFields(&tpb.Service{}, "node_port")); s != "" {
-				t.Fatalf("Protos not equal: %s", s)
+			if s := cmp.Diff(tt.want, n.GetProto(), protocmp.Transform(), protocmp.IgnoreFields(&tpb.Service{}, "node_port")); s != "" {
+				t.Fatalf("New() failed: diff (-want, +got): %v\nwant\n\n %s\ngot\n\n%s", s, prototext.Format(tt.want), prototext.Format(n.GetProto()))
 			}
 			err = n.Create(context.Background())
 			if s := errdiff.Check(err, tt.cErr); s != "" {

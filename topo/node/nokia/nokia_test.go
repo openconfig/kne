@@ -19,7 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/gnmi/errdiff"
+	"github.com/google/go-cmp/cmp"
+  "github.com/openconfig/gnmi/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
@@ -27,7 +28,7 @@ import (
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -104,6 +105,8 @@ func TestNew(t *testing.T) {
 			},
 		},
 		want: &topopb.Node{
+			Model: "ixrd2",
+			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
 				ConfigFile: "config.cli",
@@ -112,6 +115,8 @@ func TestNew(t *testing.T) {
 				"vendor":       "NOKIA",
 				"foo":          "test_label",
 				"ondatra-role": "DUT",
+				"model":        "ixrd2",
+				"os":           "nokia_srlinux",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
@@ -157,6 +162,8 @@ func TestNew(t *testing.T) {
 			},
 		},
 		want: &topopb.Node{
+			Model: "ixrd2",
+			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
 				ConfigFile: "config.json",
@@ -165,6 +172,8 @@ func TestNew(t *testing.T) {
 				"vendor":       "NOKIA",
 				"foo":          "test_label",
 				"ondatra-role": "DUT",
+				"model":        "ixrd2",
+				"os":           "nokia_srlinux",
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
@@ -208,8 +217,8 @@ func TestNew(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if !proto.Equal(n.GetProto(), tt.want) {
-				t.Fatalf("New() failed: got\n%swant\n%s", prototext.Format(n.GetProto()), prototext.Format(tt.want))
+			if diff := cmp.Diff(tt.want, n.GetProto(), protocmp.Transform()); diff != "" {
+				t.Fatalf("New() failed: diff (-want, +got): %v\nwant\n\n %s\ngot\n\n%s", diff, prototext.Format(tt.want), prototext.Format(n.GetProto()))
 			}
 		})
 	}
