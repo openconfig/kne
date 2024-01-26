@@ -124,6 +124,13 @@ func TestClusterKindNodes(t *testing.T) {
 		},
 		want: []string{"kne-control-plane", "kne-worker"},
 	}, {
+		desc: "no nodes",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}},
+		},
+		want: []string{},
+	}, {
 		desc: "is not kind",
 		resp: []fexec.Response{
 			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kne"},
@@ -193,6 +200,14 @@ func TestSetupGARAccess(t *testing.T) {
 			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "systemctl", "restart", "kubelet.service"}},
 			{Cmd: "docker", Args: []string{"cp", ".*/config.json", "kne-worker:/var/lib/kubelet/config.json"}},
 			{Cmd: "docker", Args: []string{"exec", "kne-worker", "systemctl", "restart", "kubelet.service"}},
+		},
+	}, {
+		desc: "0 nodes",
+		regs: []string{"us-west1-docker.pkg.dev"},
+		resp: []fexec.Response{
+			{Cmd: "docker", Args: []string{"login", "-u", "oauth2accesstoken", "--password-stdin", "https://us-west1-docker.pkg.dev"}},
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}},
 		},
 	}, {
 		desc: "2 regs",
@@ -274,7 +289,7 @@ func TestSetupGARAccess(t *testing.T) {
 				if tt.findCredsErr {
 					return nil, errors.New("unable to find default credentials")
 				}
-				return &google.Credentials{TokenSource: &fakeTokenSource{tokenErr: tt.tokenSourceErr}}, nil
+				return &google.Credentials{TokenSource: &fakeTokenSource{hasTokenErr: tt.tokenSourceErr}}, nil
 			}
 
 			err := SetupGARAccess(ctx, tt.regs)
@@ -286,11 +301,11 @@ func TestSetupGARAccess(t *testing.T) {
 }
 
 type fakeTokenSource struct {
-	tokenErr bool
+	hasTokenErr bool
 }
 
 func (f *fakeTokenSource) Token() (*oauth2.Token, error) {
-	if f.tokenErr {
+	if f.hasTokenErr {
 		return nil, errors.New("unable to generate token")
 	}
 	return &oauth2.Token{AccessToken: "some-fake-token"}, nil
@@ -334,6 +349,12 @@ func TestRefreshGARAccess(t *testing.T) {
 			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
 			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}, Stdout: "kne-control-plane"},
 			{Cmd: "docker", Args: []string{"exec", "kne-control-plane", "cat", "/var/lib/kubelet/config.json"}, Err: "no file"},
+		},
+	}, {
+		desc: "0 nodes",
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"config", "current-context"}, Stdout: "kind-kne"},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "kne"}},
 		},
 	}, {
 		desc: "invalid docker cfg",

@@ -66,6 +66,9 @@ func clusterKindNodes() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(out) == 0 {
+		return []string{}, nil
+	}
 	nodes := []string{}
 	for _, n := range strings.Split(string(out), " ") {
 		nodes = append(nodes, strings.TrimSuffix(n, "\n"))
@@ -129,6 +132,10 @@ func RefreshGARAccess(ctx context.Context) error {
 	nodes, err := clusterKindNodes()
 	if err != nil {
 		return err
+	}
+	if len(nodes) == 0 {
+		log.Infof("No kind nodes found in cluster, no GAR access to refresh")
+		return nil
 	}
 	cfg, err := run.OutCommand("docker", "exec", nodes[0], "cat", kubeletConfigPath)
 	if err != nil {
