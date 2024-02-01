@@ -487,26 +487,31 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		return nil
 	}
 	for k, v := range n.Proto.Services {
-		name := v.Name
-		if name == "" {
-			name = fmt.Sprintf("port-%d", k)
+		names := dedupServiceNames(append(v.Names, v.Name))
+		if names == nil {
+			names = append(names, fmt.Sprintf("port-%d", k))
 		}
-		if v.Outside != 0 {
-			log.Warningf("Outside should not be set by user. The key is used as the target external port")
+		for _, name := range names {
+			if name == "" {
+				continue
+			}
+			if v.Outside != 0 {
+				log.Warningf("Outside should not be set by user. The key is used as the target external port")
+			}
+			sp := corev1.ServicePort{
+				Name:       name,
+				Protocol:   "TCP",
+				Port:       int32(k),
+				TargetPort: intstr.FromInt(int(v.Inside)),
+			}
+			if v.NodePort != 0 {
+				sp.NodePort = int32(v.NodePort)
+			}
+			if v.Outside != 0 {
+				sp.Port = int32(v.Outside)
+			}
+			servicePorts = append(servicePorts, sp)
 		}
-		sp := corev1.ServicePort{
-			Name:       name,
-			Protocol:   "TCP",
-			Port:       int32(k),
-			TargetPort: intstr.FromInt(int(v.Inside)),
-		}
-		if v.NodePort != 0 {
-			sp.NodePort = int32(v.NodePort)
-		}
-		if v.Outside != 0 {
-			sp.Port = int32(v.Outside)
-		}
-		servicePorts = append(servicePorts, sp)
 	}
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -533,6 +538,17 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	}
 	log.V(1).Infof("Created Service:\n%v\n", sS)
 	return nil
+}
+
+func dedupServiceNames(s []string) []string {
+	allNames := make(map[string]bool)
+	deDuped := []string{}
+	for _, name := range s {
+		allNames[name] = true
+		deDuped = append(deDuped, name)
+	}
+
+	return deDuped
 }
 
 // Delete remove the node from the cluster.
