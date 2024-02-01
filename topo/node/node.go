@@ -488,16 +488,13 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	}
 	for k, v := range n.Proto.Services {
 		names := dedupServiceNames(append(v.Names, v.Name))
-		if names == nil {
+		if len(names) == 0 {
 			names = append(names, fmt.Sprintf("port-%d", k))
 		}
+		if v.Outside != 0 {
+			log.Warningf("Outside should not be set by user. The key is used as the target external port")
+		}
 		for _, name := range names {
-			if name == "" {
-				continue
-			}
-			if v.Outside != 0 {
-				log.Warningf("Outside should not be set by user. The key is used as the target external port")
-			}
 			sp := corev1.ServicePort{
 				Name:       name,
 				Protocol:   "TCP",
@@ -544,7 +541,7 @@ func dedupServiceNames(s []string) []string {
 	allNames := make(map[string]bool)
 	deDuped := []string{}
 	for _, name := range s {
-		if !allNames[name] {
+		if name != "" && !allNames[name] {
 			allNames[name] = true
 			deDuped = append(deDuped, name)
 		}
