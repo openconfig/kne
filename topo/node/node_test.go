@@ -468,7 +468,7 @@ func TestService(t *testing.T) {
 				cmpopts.SortSlices(func(a, b corev1.ServicePort) bool {
 					return a.Name < b.Name
 				})); s != "" {
-				t.Fatalf("Services() failed: %s \n\n got: %s", s, got)
+				t.Fatalf("Services() failed: %s", s)
 			}
 		})
 	}
