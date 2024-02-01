@@ -207,7 +207,7 @@ message Service {
   string inside_ip = 4;   // Cluster IP for the service.
   uint32 node_port = 6;   // Port on the K8s worker node used by the cluster.
 
-  // List of service names to be mapped to the port (optional). 
+  // List of service names to be mapped to the port (optional).
   // If only one field out of "name" or "names" is provided in the input topo,
   // the unspecified field is ignored.
   // If both are provided, names in both fields are considered excluding any
