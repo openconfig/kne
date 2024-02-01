@@ -544,8 +544,10 @@ func dedupServiceNames(s []string) []string {
 	allNames := make(map[string]bool)
 	deDuped := []string{}
 	for _, name := range s {
-		allNames[name] = true
-		deDuped = append(deDuped, name)
+		if !allNames[name] {
+			allNames[name] = true
+			deDuped = append(deDuped, name)
+		}
 	}
 
 	return deDuped

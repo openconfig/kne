@@ -320,7 +320,128 @@ func TestService(t *testing.T) {
 			},
 		}),
 		wantCreateErr: `"service-dev1" already exists`,
-	}}
+	}, {
+		desc: "services valid names with duplicates",
+		node: &topopb.Node{
+			Name:   "dev2",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				9339: {
+					Name:   "gnmi",
+					Names:  []string{"gnmi", "gribi"},
+					Inside: 9339,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 9339,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev2",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev2"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{
+					{
+						Name:       "gnmi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   0,
+					},
+					{
+						Name:       "gribi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   0,
+					},
+					{
+						Name:       "gnoi",
+						Protocol:   "TCP",
+						Port:       9337,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   0,
+					},
+				},
+				Selector: map[string]string{"app": "dev2"},
+				Type:     "LoadBalancer",
+			},
+		}},
+	},
+		{
+			desc: "services valid names without duplicates",
+			node: &topopb.Node{
+				Name:   "dev2",
+				Vendor: topopb.Vendor(1001),
+				Services: map[uint32]*topopb.Service{
+					9339: {
+						Name:   "gnmi",
+						Names:  []string{"gnsi", "gribi"},
+						Inside: 9339,
+					},
+					9337: {
+						Name:   "gnoi",
+						Inside: 9339,
+					},
+				},
+			},
+			kClient: kfake.NewSimpleClientset(),
+			want: []*corev1.Service{{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-dev2",
+					Namespace: "test",
+					Labels:    map[string]string{"pod": "dev2"},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "gnmi",
+							Protocol:   "TCP",
+							Port:       9339,
+							TargetPort: intstr.FromInt(9339),
+							NodePort:   0,
+						},
+						{
+							Name:       "gnsi",
+							Protocol:   "TCP",
+							Port:       9339,
+							TargetPort: intstr.FromInt(9339),
+							NodePort:   0,
+						},
+						{
+							Name:       "gribi",
+							Protocol:   "TCP",
+							Port:       9339,
+							TargetPort: intstr.FromInt(9339),
+							NodePort:   0,
+						},
+						{
+							Name:       "gnoi",
+							Protocol:   "TCP",
+							Port:       9337,
+							TargetPort: intstr.FromInt(9339),
+							NodePort:   0,
+						},
+					},
+					Selector: map[string]string{"app": "dev2"},
+					Type:     "LoadBalancer",
+				},
+			}},
+		},
+	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			n := &Impl{
@@ -347,7 +468,7 @@ func TestService(t *testing.T) {
 				cmpopts.SortSlices(func(a, b corev1.ServicePort) bool {
 					return a.Name < b.Name
 				})); s != "" {
-				t.Fatalf("Services() failed: %s", s)
+				t.Fatalf("Services() failed: %s \n\n got: %s", s, got)
 			}
 		})
 	}
