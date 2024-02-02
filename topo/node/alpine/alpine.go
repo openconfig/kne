@@ -16,6 +16,7 @@ package alpine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	apb "github.com/openconfig/kne/proto/alpine"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -38,6 +39,19 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	n := &Node{
 		Impl: nodeImpl,
 	}
+	idx := 1
+	intf := map[string]*tpb.Interface{}
+	for k, v := range n.Proto.Interfaces {
+		if strings.HasPrefix(k, "Ethernet") {
+			name := fmt.Sprintf("eth%d", idx)
+			idx++
+			intf[name] = v
+		} else {
+			intf[k] = v
+		}
+
+	}
+	n.Proto.Interfaces = intf
 	return n, nil
 }
 
@@ -84,6 +98,11 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		},
 	}
 
+	var intfMap []string
+	for k, v := range pb.Interfaces {
+		intfMap = append(intfMap, fmt.Sprintf("%s:%s", v.IntName, k))
+	}
+
 	if vendorData := pb.Config.GetVendorData(); vendorData != nil {
 		alpineConfig := &apb.AlpineConfig{}
 
@@ -91,12 +110,14 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			return err
 		}
 
-		switch len := len(alpineConfig.Containers); len {
+		switch numContainers := len(alpineConfig.Containers); numContainers {
 		case 0:
 			log.Infof("Alpine custom containers not found.")
 		case 1:
 			dpContainer := alpineConfig.Containers[0]
-
+			if len(intfMap) != 0 {
+				dpContainer.Args = append(dpContainer.Args, "--portMap="+strings.Join(intfMap, ","))
+			}
 			alpineContainers = append(alpineContainers,
 				corev1.Container{
 					Name:    dpContainer.Name,
@@ -114,7 +135,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			)
 		default:
 			// Only Dataplane container is supported as the custom container
-			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", len)
+			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", numContainers)
 		}
 	}
 
