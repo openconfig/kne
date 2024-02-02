@@ -158,6 +158,27 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			},
 		},
 	}
+
+	if pb.Config.ConfigData != nil {
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			return err
+		}
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      node.ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
+		for i, c := range pod.Spec.Containers {
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
+			pod.Spec.Containers[i].Args = append(pod.Spec.Containers[i].Args, fmt.Sprintf("--config_file=%s/%s", pb.Config.ConfigPath, pb.Config.ConfigFile))
+		}
+
+	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return err
