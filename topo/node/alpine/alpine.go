@@ -39,9 +39,14 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	n := &Node{
 		Impl: nodeImpl,
 	}
+	n.Proto.Interfaces = renameInterfaces(nodeImpl.Proto.Interfaces)
+	return n, nil
+}
+
+func renameInterfaces(in map[string]*tpb.Interface) map[string]*tpb.Interface {
 	idx := 1
 	intf := map[string]*tpb.Interface{}
-	for k, v := range n.Proto.Interfaces {
+	for k, v := range in {
 		if strings.HasPrefix(k, "Ethernet") {
 			name := fmt.Sprintf("eth%d", idx)
 			idx++
@@ -49,10 +54,8 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		} else {
 			intf[k] = v
 		}
-
 	}
-	n.Proto.Interfaces = intf
-	return n, nil
+	return intf
 }
 
 type Node struct {
@@ -82,21 +85,19 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		initContainerImage = node.DefaultInitContainerImage
 	}
 
-	alpineContainers := []corev1.Container{
-		{
-			Name:    pb.Name,
-			Image:   pb.Config.Image,
-			Command: pb.Config.Command,
-			Args:    pb.Config.Args,
-			Env:     node.ToEnvVar(pb.Config.Env),
-			// TODO: Update resources to the containers as per the constraints
-			Resources:       node.ToResourceRequirements(pb.Constraints),
-			ImagePullPolicy: "IfNotPresent",
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: pointer.Bool(true),
-			},
+	alpineContainers := []corev1.Container{{
+		Name:    pb.Name,
+		Image:   pb.Config.Image,
+		Command: pb.Config.Command,
+		Args:    pb.Config.Args,
+		Env:     node.ToEnvVar(pb.Config.Env),
+		// TODO: Update resources to the containers as per the constraints
+		Resources:       node.ToResourceRequirements(pb.Constraints),
+		ImagePullPolicy: "IfNotPresent",
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: pointer.Bool(true),
 		},
-	}
+	}}
 
 	var intfMap []string
 	for k, v := range pb.Interfaces {
@@ -198,7 +199,6 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
 			pod.Spec.Containers[i].Args = append(pod.Spec.Containers[i].Args, fmt.Sprintf("--config_file=%s/%s", pb.Config.ConfigPath, pb.Config.ConfigFile))
 		}
-
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
