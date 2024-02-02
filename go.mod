@@ -27,7 +27,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.17.0
-	github.com/srl-labs/srl-controller v0.6.0
+	github.com/srl-labs/srl-controller v0.6.1
 	github.com/srl-labs/srlinux-scrapli v0.6.0
 	go.universe.tf/metallb v0.13.5
 	golang.org/x/oauth2 v0.12.0
