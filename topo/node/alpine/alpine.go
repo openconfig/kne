@@ -16,6 +16,7 @@ package alpine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	apb "github.com/openconfig/kne/proto/alpine"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -38,7 +39,23 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	n := &Node{
 		Impl: nodeImpl,
 	}
+	n.Proto.Interfaces = renameInterfaces(nodeImpl.Proto.Interfaces)
 	return n, nil
+}
+
+func renameInterfaces(in map[string]*tpb.Interface) map[string]*tpb.Interface {
+	idx := 1
+	intf := map[string]*tpb.Interface{}
+	for k, v := range in {
+		if strings.HasPrefix(k, "Ethernet") {
+			name := fmt.Sprintf("eth%d", idx)
+			idx++
+			intf[name] = v
+		} else {
+			intf[k] = v
+		}
+	}
+	return intf
 }
 
 type Node struct {
@@ -68,20 +85,23 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		initContainerImage = node.DefaultInitContainerImage
 	}
 
-	alpineContainers := []corev1.Container{
-		{
-			Name:    pb.Name,
-			Image:   pb.Config.Image,
-			Command: pb.Config.Command,
-			Args:    pb.Config.Args,
-			Env:     node.ToEnvVar(pb.Config.Env),
-			// TODO: Update resources to the containers as per the constraints
-			Resources:       node.ToResourceRequirements(pb.Constraints),
-			ImagePullPolicy: "IfNotPresent",
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: pointer.Bool(true),
-			},
+	alpineContainers := []corev1.Container{{
+		Name:    pb.Name,
+		Image:   pb.Config.Image,
+		Command: pb.Config.Command,
+		Args:    pb.Config.Args,
+		Env:     node.ToEnvVar(pb.Config.Env),
+		// TODO: Update resources to the containers as per the constraints
+		Resources:       node.ToResourceRequirements(pb.Constraints),
+		ImagePullPolicy: "IfNotPresent",
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: pointer.Bool(true),
 		},
+	}}
+
+	var intfMap []string
+	for k, v := range pb.Interfaces {
+		intfMap = append(intfMap, fmt.Sprintf("%s:%s", v.IntName, k))
 	}
 
 	if vendorData := pb.Config.GetVendorData(); vendorData != nil {
@@ -91,12 +111,14 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			return err
 		}
 
-		switch len := len(alpineConfig.Containers); len {
+		switch numContainers := len(alpineConfig.Containers); numContainers {
 		case 0:
 			log.Infof("Alpine custom containers not found.")
 		case 1:
 			dpContainer := alpineConfig.Containers[0]
-
+			if len(intfMap) != 0 {
+				dpContainer.Args = append(dpContainer.Args, "--portMap="+strings.Join(intfMap, ","))
+			}
 			alpineContainers = append(alpineContainers,
 				corev1.Container{
 					Name:    dpContainer.Name,
@@ -114,7 +136,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			)
 		default:
 			// Only Dataplane container is supported as the custom container
-			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", len)
+			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", numContainers)
 		}
 	}
 
@@ -157,6 +179,26 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				},
 			},
 		},
+	}
+
+	if pb.Config.ConfigData != nil {
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			return err
+		}
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		vm := corev1.VolumeMount{
+			Name:      node.ConfigVolumeName,
+			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			ReadOnly:  true,
+		}
+		if vol.VolumeSource.ConfigMap != nil {
+			vm.SubPath = pb.Config.ConfigFile
+		}
+		for i, c := range pod.Spec.Containers {
+			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
+			pod.Spec.Containers[i].Args = append(pod.Spec.Containers[i].Args, fmt.Sprintf("--config_file=%s/%s", pb.Config.ConfigPath, pb.Config.ConfigFile))
+		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {

@@ -86,8 +86,44 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
-	},
-	}
+	}, {
+		desc: "with interfaces",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Config: &tpb.Config{
+					Image:   "alpine:latest",
+					Command: []string{"go", "run", "main.go"},
+				},
+				Interfaces: map[string]*tpb.Interface{
+					"Ethernet1/1/1": {
+						IntName:     "Ethernet1/1/1",
+						PeerName:    "peer",
+						PeerIntName: "Ethernet2/2/2",
+					},
+				},
+			},
+		},
+		want: &tpb.Node{
+			Config: &tpb.Config{
+				Image:        "alpine:latest",
+				Command:      []string{"go", "run", "main.go"},
+				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
+			},
+			Interfaces: map[string]*tpb.Interface{
+				"eth1": {
+					IntName:     "Ethernet1/1/1",
+					PeerName:    "peer",
+					PeerIntName: "Ethernet2/2/2",
+				},
+			},
+			Services: map[uint32]*tpb.Service{
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+			},
+		},
+	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			n, err := New(tt.nImpl)
@@ -104,16 +140,14 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestCreateNode(t *testing.T) {
+func TestCreatePod(t *testing.T) {
 	vendorData, err := anypb.New(&apb.AlpineConfig{
-		Containers: []*apb.Container{
-			{
-				Name:    "dp",
-				Image:   "dpImage",
-				Command: []string{"dpCommand"},
-				Args:    []string{"dpArgs"},
-			},
-		},
+		Containers: []*apb.Container{{
+			Name:    "dp",
+			Image:   "dpImage",
+			Command: []string{"dpCommand"},
+			Args:    []string{"dpArgs"},
+		}},
 	})
 	if err != nil {
 		t.Fatalf("cannot marshal AlpineConfig into \"any\" protobuf: %v", err)
@@ -161,32 +195,73 @@ func TestCreateNode(t *testing.T) {
 				Privileged: pointer.Bool(true),
 			},
 		},
-	},
-		{
-			desc: "get only alpine containers",
-			nImpl: &node.Impl{
-				Proto: &tpb.Node{
-					Name: "alpine",
-					Config: &tpb.Config{
-						Image:   "alpineImage",
-						Command: []string{"alpineCommand"},
-						Args:    []string{"alpineArgs"},
+	}, {
+		desc: "get all containers with ports",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "alpine",
+				Config: &tpb.Config{
+					Image:      "alpineImage",
+					Command:    []string{"alpineCommand"},
+					Args:       []string{"alpineArgs"},
+					VendorData: vendorData,
+				},
+				Interfaces: map[string]*tpb.Interface{
+					"eth1": {
+						IntName: "Ethernet1/1/1",
 					},
 				},
 			},
-			wantAlpineCtr: corev1.Container{
-				Name:    "alpine",
-				Image:   "alpineImage",
-				Command: []string{"alpineCommand"},
-				Args:    []string{"alpineArgs"},
-				Resources: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{}},
-				ImagePullPolicy: "IfNotPresent",
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: pointer.Bool(true),
+		},
+		wantAlpineCtr: corev1.Container{
+			Name:    "alpine",
+			Image:   "alpineImage",
+			Command: []string{"alpineCommand"},
+			Args:    []string{"alpineArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+		wantDpCtr: corev1.Container{
+			Name:    "dp",
+			Image:   "dpImage",
+			Command: []string{"dpCommand"},
+			Args:    []string{"dpArgs", "--portMap=Ethernet1/1/1:eth1"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+	}, {
+		desc: "get only alpine containers",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "alpine",
+				Config: &tpb.Config{
+					Image:   "alpineImage",
+					Command: []string{"alpineCommand"},
+					Args:    []string{"alpineArgs"},
 				},
 			},
-		}}
+		},
+		wantAlpineCtr: corev1.Container{
+			Name:    "alpine",
+			Image:   "alpineImage",
+			Command: []string{"alpineCommand"},
+			Args:    []string{"alpineArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			n := &Node{
