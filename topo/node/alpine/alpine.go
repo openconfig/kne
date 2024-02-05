@@ -117,7 +117,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		case 1:
 			dpContainer := alpineConfig.Containers[0]
 			if len(intfMap) != 0 {
-				dpContainer.Args = append(dpContainer.Args, "--portMap="+strings.Join(intfMap, ","))
+				dpContainer.Args = append(dpContainer.Args, "--port_map="+strings.Join(intfMap, ","))
 			}
 			alpineContainers = append(alpineContainers,
 				corev1.Container{
