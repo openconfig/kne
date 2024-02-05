@@ -205,6 +205,9 @@ func TestCreatePod(t *testing.T) {
 					Command:    []string{"alpineCommand"},
 					Args:       []string{"alpineArgs"},
 					VendorData: vendorData,
+					ConfigData: &tpb.Config_Data{Data: []byte{'h', 'i'}},
+					ConfigPath: "/etc/sonic",
+					ConfigFile: "config_db.json",
 				},
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {
@@ -217,25 +220,37 @@ func TestCreatePod(t *testing.T) {
 			Name:    "alpine",
 			Image:   "alpineImage",
 			Command: []string{"alpineCommand"},
-			Args:    []string{"alpineArgs"},
+			Args:    []string{"alpineArgs", "--config_file=/etc/sonic/config_db.json"},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{}},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "startup-config-volume",
+				ReadOnly:  true,
+				MountPath: "/etc/sonic/config_db.json",
+				SubPath:   "config_db.json",
+			}},
 		},
 		wantDpCtr: corev1.Container{
 			Name:    "dp",
 			Image:   "dpImage",
 			Command: []string{"dpCommand"},
-			Args:    []string{"dpArgs", "--portMap=Ethernet1/1/1:eth1"},
+			Args:    []string{"dpArgs", "--port_map=Ethernet1/1/1:eth1", "--config_file=/etc/sonic/config_db.json"},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{}},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "startup-config-volume",
+				ReadOnly:  true,
+				MountPath: "/etc/sonic/config_db.json",
+				SubPath:   "config_db.json",
+			}},
 		},
 	}, {
 		desc: "get only alpine containers",
