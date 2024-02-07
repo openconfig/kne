@@ -527,10 +527,12 @@ func (n *Impl) CreateService(ctx context.Context) error {
 }
 
 func DedupServiceNames(s *tpb.Service, port uint32) string {
-	allNames := make(map[string]bool)
+	allNames := map[string]bool{
+		"": true,
+	}
 	deDuped := ""
 	for _, name := range append(s.Names, s.Name) {
-		if name != "" && !allNames[name] {
+		if !allNames[name] {
 			allNames[name] = true
 			deDuped += name + "-"
 		}
