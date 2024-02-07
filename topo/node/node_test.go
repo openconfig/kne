@@ -350,7 +350,7 @@ func TestService(t *testing.T) {
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{
 					{
-						Name:       "gnmi-gnoi",
+						Name:       "gnmi",
 						Protocol:   "TCP",
 						Port:       9339,
 						TargetPort: intstr.FromInt(9339),
@@ -398,7 +398,7 @@ func TestService(t *testing.T) {
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{
 					{
-						Name:       "gnsi-gnmi",
+						Name:       "gnsi",
 						Protocol:   "TCP",
 						Port:       9339,
 						TargetPort: intstr.FromInt(9339),
@@ -444,7 +444,7 @@ func TestService(t *testing.T) {
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{
-							Name:       "gribi-gnmi",
+							Name:       "gribi",
 							Protocol:   "TCP",
 							Port:       9339,
 							TargetPort: intstr.FromInt(9339),

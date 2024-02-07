@@ -527,21 +527,13 @@ func (n *Impl) CreateService(ctx context.Context) error {
 }
 
 func DedupServiceNames(s *tpb.Service, port uint32) string {
-	allNames := map[string]bool{
-		"": true,
-	}
-	deDuped := ""
 	for _, name := range append(s.Names, s.Name) {
-		if !allNames[name] {
-			allNames[name] = true
-			deDuped += name + "-"
+		if name != "" {
+			return name
 		}
 	}
-	if deDuped == "" {
-		deDuped = fmt.Sprintf("port-%d", port)
-	}
 
-	return strings.Trim(deDuped, "-")
+	return fmt.Sprintf("port-%d", port)
 }
 
 // Delete remove the node from the cluster.
