@@ -327,13 +327,12 @@ func TestService(t *testing.T) {
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				9339: {
-					Name:   "gnmi",
-					Names:  []string{"gnmi", "gribi"},
+					Names:  []string{"gnmi", "gnoi", "gnoi"},
 					Inside: 9339,
 				},
 				9337: {
-					Name:   "gnoi",
-					Inside: 9339,
+					Name:   "gribi",
+					Inside: 9337,
 				},
 			},
 		},
@@ -351,7 +350,7 @@ func TestService(t *testing.T) {
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{
 					{
-						Name:       "gnmi",
+						Name:       "gnmi-gnoi",
 						Protocol:   "TCP",
 						Port:       9339,
 						TargetPort: intstr.FromInt(9339),
@@ -360,15 +359,8 @@ func TestService(t *testing.T) {
 					{
 						Name:       "gribi",
 						Protocol:   "TCP",
-						Port:       9339,
-						TargetPort: intstr.FromInt(9339),
-						NodePort:   0,
-					},
-					{
-						Name:       "gnoi",
-						Protocol:   "TCP",
 						Port:       9337,
-						TargetPort: intstr.FromInt(9339),
+						TargetPort: intstr.FromInt(9337),
 						NodePort:   0,
 					},
 				},
@@ -383,13 +375,12 @@ func TestService(t *testing.T) {
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				9339: {
-					Name:   "gnmi",
-					Names:  []string{"gnsi", "gribi"},
+					Names:  []string{"gnsi", "gnmi"},
 					Inside: 9339,
 				},
 				9337: {
-					Name:   "gnoi",
-					Inside: 9339,
+					Name:   "gribi",
+					Inside: 9337,
 				},
 			},
 		},
@@ -407,14 +398,7 @@ func TestService(t *testing.T) {
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{
 					{
-						Name:       "gnmi",
-						Protocol:   "TCP",
-						Port:       9339,
-						TargetPort: intstr.FromInt(9339),
-						NodePort:   0,
-					},
-					{
-						Name:       "gnsi",
+						Name:       "gnsi-gnmi",
 						Protocol:   "TCP",
 						Port:       9339,
 						TargetPort: intstr.FromInt(9339),
@@ -423,15 +407,8 @@ func TestService(t *testing.T) {
 					{
 						Name:       "gribi",
 						Protocol:   "TCP",
-						Port:       9339,
-						TargetPort: intstr.FromInt(9339),
-						NodePort:   0,
-					},
-					{
-						Name:       "gnoi",
-						Protocol:   "TCP",
 						Port:       9337,
-						TargetPort: intstr.FromInt(9339),
+						TargetPort: intstr.FromInt(9337),
 						NodePort:   0,
 					},
 				},
@@ -451,10 +428,6 @@ func TestService(t *testing.T) {
 						Names:  []string{"", "gribi"},
 						Inside: 9339,
 					},
-					9337: {
-						Name:   "gnoi",
-						Inside: 9339,
-					},
 				},
 			},
 			kClient: kfake.NewSimpleClientset(),
@@ -471,23 +444,9 @@ func TestService(t *testing.T) {
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{
-							Name:       "gnmi",
+							Name:       "gribi-gnmi",
 							Protocol:   "TCP",
 							Port:       9339,
-							TargetPort: intstr.FromInt(9339),
-							NodePort:   0,
-						},
-						{
-							Name:       "gribi",
-							Protocol:   "TCP",
-							Port:       9339,
-							TargetPort: intstr.FromInt(9339),
-							NodePort:   0,
-						},
-						{
-							Name:       "gnoi",
-							Protocol:   "TCP",
-							Port:       9337,
 							TargetPort: intstr.FromInt(9339),
 							NodePort:   0,
 						},

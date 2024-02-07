@@ -161,11 +161,11 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 	for label, v := range proto.GetLabels() {
 		device.ObjectMeta.Labels[label] = v
 	}
-	for _, service := range proto.GetServices() {
+	for k, service := range proto.GetServices() {
 		if device.Spec.Services == nil {
 			device.Spec.Services = map[string]ceos.ServiceConfig{}
 		}
-		device.Spec.Services[service.Name] = ceos.ServiceConfig{
+		device.Spec.Services[node.DedupServiceNames(service, k)] = ceos.ServiceConfig{
 			TCPPorts: []ceos.PortConfig{{
 				In:  int32(service.Inside),
 				Out: int32(service.Outside),

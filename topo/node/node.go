@@ -487,28 +487,17 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		return nil
 	}
 	for k, v := range n.Proto.Services {
-		names := dedupServiceNames(append(v.Names, v.Name))
-		if len(names) == 0 {
-			names = append(names, fmt.Sprintf("port-%d", k))
-		}
 		if v.Outside != 0 {
 			log.Warningf("Outside should not be set by user. The key is used as the target external port")
 		}
-		for _, name := range names {
-			sp := corev1.ServicePort{
-				Name:       name,
-				Protocol:   "TCP",
-				Port:       int32(k),
-				TargetPort: intstr.FromInt(int(v.Inside)),
-			}
-			if v.NodePort != 0 {
-				sp.NodePort = int32(v.NodePort)
-			}
-			if v.Outside != 0 {
-				sp.Port = int32(v.Outside)
-			}
-			servicePorts = append(servicePorts, sp)
+		sp := corev1.ServicePort{
+			Protocol:   "TCP",
+			Port:       int32(k),
+			NodePort:   int32(v.NodePort),
+			TargetPort: intstr.FromInt(int(v.Inside)),
+			Name:       DedupServiceNames(v, k),
 		}
+		servicePorts = append(servicePorts, sp)
 	}
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -533,21 +522,24 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.V(1).Infof("Created Service:\n%v\n", sS)
+	log.Infof("Created Service:\n%v\n", sS)
 	return nil
 }
 
-func dedupServiceNames(s []string) []string {
+func DedupServiceNames(s *tpb.Service, port uint32) string {
 	allNames := make(map[string]bool)
-	deDuped := []string{}
-	for _, name := range s {
+	deDuped := ""
+	for _, name := range append(s.Names, s.Name) {
 		if name != "" && !allNames[name] {
 			allNames[name] = true
-			deDuped = append(deDuped, name)
+			deDuped += name + "-"
 		}
 	}
+	if deDuped == "" {
+		deDuped = fmt.Sprintf("port-%d", port)
+	}
 
-	return deDuped
+	return strings.Trim(deDuped, "-")
 }
 
 // Delete remove the node from the cluster.

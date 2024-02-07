@@ -104,7 +104,7 @@ func (n *Node) lemmingCreate(ctx context.Context) error {
 	ports := map[string]lemmingv1.ServicePort{}
 
 	for k, v := range n.Proto.Services {
-		ports[v.Name] = lemmingv1.ServicePort{
+		ports[node.DedupServiceNames(v, k)] = lemmingv1.ServicePort{
 			InnerPort: int32(v.Inside),
 			OuterPort: int32(k),
 		}

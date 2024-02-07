@@ -61,8 +61,8 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 		ixiaCRD.Spec.InitContainer.Sleep = n.GetProto().Config.Sleep
 	}
 
-	for _, svc := range n.GetProto().Services {
-		ixiaCRD.Spec.ApiEndPoint[svc.Name] = ixiatg.IxiaTGSvcPort{
+	for k, svc := range n.GetProto().Services {
+		ixiaCRD.Spec.ApiEndPoint[node.DedupServiceNames(svc, k)] = ixiatg.IxiaTGSvcPort{
 			In:  int32(svc.Inside),
 			Out: int32(svc.Outside),
 		}

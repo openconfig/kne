@@ -103,8 +103,9 @@ func (n *Node) SpawnCLIConn() error {
 // Returns config required to configure gRPC service
 func (n *Node) GRPCConfig() []string {
 	port := defaultGrpcPort
-	for _, service := range n.GetProto().GetServices() {
-		if service.GetName() == "gnmi" {
+	for k, service := range n.GetProto().GetServices() {
+		name := node.DedupServiceNames(service, k)
+		if strings.Contains(name, "gnmi") {
 			port = service.GetInside()
 		}
 	}
