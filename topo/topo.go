@@ -575,7 +575,7 @@ func (m *Manager) push(ctx context.Context) error {
 	log.Infof("Creating Node Pods")
 	for _, n := range m.nodes {
 		for key, service := range n.GetProto().Services {
-			updateServiceName(service, key)
+			updateServicePortName(service, key)
 		}
 		if err := n.Create(ctx); err != nil {
 			return fmt.Errorf("failed to create node %s: %w", n, err)
@@ -593,7 +593,7 @@ func (m *Manager) push(ctx context.Context) error {
 	return nil
 }
 
-func updateServiceName(s *tpb.Service, port uint32) {
+func updateServicePortName(s *tpb.Service, port uint32) {
 	if s.Name != "" {
 		return
 	}
