@@ -1986,7 +1986,7 @@ func TestUpdateServicePortName(t *testing.T) {
 			},
 			want: &tpb.Service{
 				Name:   "gnmi",
-				Names:  []string{"", "gribi"},
+				Names:  []string{"gribi"},
 				Inside: 9339,
 			},
 		},

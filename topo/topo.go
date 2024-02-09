@@ -594,16 +594,20 @@ func (m *Manager) push(ctx context.Context) error {
 }
 
 func updateServicePortName(s *tpb.Service, port uint32) {
-	if s.Name != "" {
-		return
-	}
+	i := 0
 	for _, name := range s.Names {
 		if name != "" {
-			s.Name = name
-			return
+			s.Names[i] = name
+			i++
 		}
 	}
-	s.Name = fmt.Sprintf("port-%d", port)
+	s.Names = s.Names[:i]
+
+	if s.Name == "" && len(s.Names) > 0 {
+		s.Name = s.Names[0]
+	} else if s.Name == "" {
+		s.Name = fmt.Sprintf("port-%d", port)
+	}
 }
 
 // createMeshnetTopologies creates meshnet resources for all available nodes.
