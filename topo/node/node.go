@@ -495,7 +495,7 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			Port:       int32(k),
 			NodePort:   int32(v.NodePort),
 			TargetPort: intstr.FromInt(int(v.Inside)),
-			Name:       DedupServiceNames(v, k),
+			Name:       v.Name,
 		}
 		servicePorts = append(servicePorts, sp)
 	}
@@ -524,16 +524,6 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	}
 	log.Infof("Created Service:\n%v\n", sS)
 	return nil
-}
-
-func DedupServiceNames(s *tpb.Service, port uint32) string {
-	for _, name := range append(s.Names, s.Name) {
-		if name != "" {
-			return name
-		}
-	}
-
-	return fmt.Sprintf("port-%d", port)
 }
 
 // Delete remove the node from the cluster.

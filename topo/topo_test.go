@@ -588,6 +588,55 @@ func TestCreate(t *testing.T) {
 				},
 			},
 		},
+	}, {
+		desc: "services with empty strings, valid names without duplicates, with duplicates",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "dev1",
+					Vendor: tpb.Vendor(1001),
+					Config: &tpb.Config{},
+					Services: map[uint32]*tpb.Service{
+						9339: {
+							Name:   "gnmi",
+							Names:  []string{"", "gribi"},
+							Inside: 9339,
+						},
+					},
+				},
+				{
+					Name:   "dev2",
+					Vendor: tpb.Vendor(1001),
+					Config: &tpb.Config{},
+					Services: map[uint32]*tpb.Service{
+						9339: {
+							Names:  []string{"gnsi", "gnmi"},
+							Inside: 9339,
+						},
+						9337: {
+							Name:   "gribi",
+							Inside: 9337,
+						},
+					},
+				},
+				{
+					Name:   "dev3",
+					Vendor: tpb.Vendor(1001),
+					Config: &tpb.Config{},
+					Services: map[uint32]*tpb.Service{
+						9339: {
+							Names:  []string{"gnmi", "gnoi", "gnoi"},
+							Inside: 9339,
+						},
+						9337: {
+							Name:   "gribi",
+							Inside: 9337,
+						},
+					},
+				},
+			},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
