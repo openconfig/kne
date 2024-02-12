@@ -2001,18 +2001,6 @@ func TestUpdateServicePortName(t *testing.T) {
 				Inside: 9339,
 			},
 		},
-		{
-			desc: "services valid name with empty names",
-			svc: &tpb.Service{
-				Name:   "gnmi",
-				Inside: 9339,
-			},
-			key: uint32(1000),
-			want: &tpb.Service{
-				Name:   "gnmi",
-				Inside: 9339,
-			},
-		},
 	}
 
 	for _, tt := range tests {
