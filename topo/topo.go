@@ -594,14 +594,13 @@ func (m *Manager) push(ctx context.Context) error {
 }
 
 func updateServicePortName(s *tpb.Service, port uint32) {
-	i := 0
+	namesWithoutEmpty := make([]string, 0)
 	for _, name := range s.Names {
 		if name != "" {
-			s.Names[i] = name
-			i++
+			namesWithoutEmpty = append(namesWithoutEmpty, name)
 		}
 	}
-	s.Names = s.Names[:i]
+	s.Names = namesWithoutEmpty
 
 	if s.Name == "" && len(s.Names) > 0 {
 		s.Name = s.Names[0]
