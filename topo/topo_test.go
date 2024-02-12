@@ -1944,3 +1944,81 @@ func TestStateMap(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateServicePortName(t *testing.T) {
+	tests := []struct {
+		desc string
+		key  uint32
+		svc  *tpb.Service
+		want *tpb.Service
+	}{
+		{
+			desc: "services valid names with duplicates",
+			svc: &tpb.Service{
+				Name:   "gnmi",
+				Names:  []string{"gnmi", "gribi", "gribi"},
+				Inside: 9339,
+			},
+			want: &tpb.Service{
+				Name:   "gnmi",
+				Names:  []string{"gnmi", "gribi", "gribi"},
+				Inside: 9339,
+			},
+		},
+		{
+			desc: "services valid names with empty name",
+			svc: &tpb.Service{
+				Names:  []string{"gnmi", "gribi"},
+				Inside: 9339,
+			},
+			want: &tpb.Service{
+				Name:   "gnmi",
+				Names:  []string{"gnmi", "gribi"},
+				Inside: 9339,
+			},
+		},
+		{
+			desc: "services valid names with empty string",
+			svc: &tpb.Service{
+				Name:   "gnmi",
+				Names:  []string{"", "gribi"},
+				Inside: 9339,
+			},
+			want: &tpb.Service{
+				Name:   "gnmi",
+				Names:  []string{"gribi"},
+				Inside: 9339,
+			},
+		},
+		{
+			desc: "services empty name and names",
+			svc: &tpb.Service{
+				Inside: 9339,
+			},
+			key: uint32(1000),
+			want: &tpb.Service{
+				Name:   "port-1000",
+				Inside: 9339,
+			},
+		},
+		{
+			desc: "services valid name with empty names",
+			svc: &tpb.Service{
+				Name:   "gnmi",
+				Inside: 9339,
+			},
+			key: uint32(1000),
+			want: &tpb.Service{
+				Name:   "gnmi",
+				Inside: 9339,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		updateServicePortName(tt.svc, tt.key)
+		if s := cmp.Diff(tt.svc, tt.want, protocmp.Transform()); s != "" {
+			t.Fatalf("updateServicePortName() failed: %s \n\n got: %s", s, tt.svc)
+		}
+	}
+}

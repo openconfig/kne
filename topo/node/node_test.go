@@ -320,7 +320,8 @@ func TestService(t *testing.T) {
 			},
 		}),
 		wantCreateErr: `"service-dev1" already exists`,
-	}}
+	},
+	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			n := &Impl{

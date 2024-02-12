@@ -487,24 +487,15 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		return nil
 	}
 	for k, v := range n.Proto.Services {
-		name := v.Name
-		if name == "" {
-			name = fmt.Sprintf("port-%d", k)
-		}
 		if v.Outside != 0 {
 			log.Warningf("Outside should not be set by user. The key is used as the target external port")
 		}
 		sp := corev1.ServicePort{
-			Name:       name,
 			Protocol:   "TCP",
 			Port:       int32(k),
+			NodePort:   int32(v.NodePort),
 			TargetPort: intstr.FromInt(int(v.Inside)),
-		}
-		if v.NodePort != 0 {
-			sp.NodePort = int32(v.NodePort)
-		}
-		if v.Outside != 0 {
-			sp.Port = int32(v.Outside)
+			Name:       v.Name,
 		}
 		servicePorts = append(servicePorts, sp)
 	}
@@ -531,7 +522,7 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.V(1).Infof("Created Service:\n%v\n", sS)
+	log.Infof("Created Service:\n%v\n", sS)
 	return nil
 }
 

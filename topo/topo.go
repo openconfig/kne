@@ -574,6 +574,9 @@ func (m *Manager) push(ctx context.Context) error {
 
 	log.Infof("Creating Node Pods")
 	for _, n := range m.nodes {
+		for key, service := range n.GetProto().Services {
+			updateServicePortName(service, key)
+		}
 		if err := n.Create(ctx); err != nil {
 			return fmt.Errorf("failed to create node %s: %w", n, err)
 		}
@@ -588,6 +591,23 @@ func (m *Manager) push(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func updateServicePortName(s *tpb.Service, port uint32) {
+	i := 0
+	for _, name := range s.Names {
+		if name != "" {
+			s.Names[i] = name
+			i++
+		}
+	}
+	s.Names = s.Names[:i]
+
+	if s.Name == "" && len(s.Names) > 0 {
+		s.Name = s.Names[0]
+	} else if s.Name == "" {
+		s.Name = fmt.Sprintf("port-%d", port)
+	}
 }
 
 // createMeshnetTopologies creates meshnet resources for all available nodes.
