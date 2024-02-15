@@ -22,7 +22,6 @@ import (
 	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -263,7 +262,7 @@ func TestConfigPush(t *testing.T) {
 				Proto:      validPb,
 			},
 			testFile: "testdata/config_push_success",
-			testConf: "testdata/cptx-config",
+			testConf: "testdata/ncptx-config",
 		},
 		{
 			// We encounter unexpected response -- we expect to fail
@@ -275,7 +274,7 @@ func TestConfigPush(t *testing.T) {
 				Proto:      validPb,
 			},
 			testFile: "testdata/config_push_failure",
-			testConf: "testdata/cptx-config",
+			testConf: "testdata/ncptx-config",
 		},
 	}
 
@@ -381,7 +380,7 @@ func TestResetCfg(t *testing.T) {
 			nImpl, err := New(tt.ni)
 
 			if err != nil {
-				t.Fatalf("failed creating kne juniper cptx node")
+				t.Fatalf("failed creating kne juniper ncptx node")
 			}
 
 			n, _ := nImpl.(*Node)
@@ -438,11 +437,11 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "cptx",
+			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "8",
-				"memory": "8Gi",
+				"cpu":    "4",
+				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
 				443: {
@@ -469,13 +468,13 @@ func TestNew(t *testing.T) {
 			Labels: map[string]string{
 				"vendor":       tpb.Vendor_JUNIPER.String(),
 				"ondatra-role": "DUT",
-				"model":        "cptx",
+				"model":        "ncptx",
 				"os":           "evo",
 			},
 			Config: &tpb.Config{
-				Image: "cptx:latest",
+				Image: "ncptx:latest",
 				Command: []string{
-					"/entrypoint.sh",
+					"/sbin/cevoCntrEntryPoint",
 				},
 				Env: map[string]string{
 					"JUNOS_EVOLVED_CONTAINER": "1",
@@ -516,86 +515,8 @@ func TestNew(t *testing.T) {
 		},
 		want: &tpb.Node{
 			Name:  "pod1",
-			Model: "cptx",
-			Os:    "evo",
-			Constraints: map[string]string{
-				"cpu":    "8",
-				"memory": "8Gi",
-			},
-			Services: map[uint32]*tpb.Service{
-				443: {
-					Name:   "ssl",
-					Inside: 443,
-				},
-				22: {
-					Name:   "ssh",
-					Inside: 22,
-				},
-				9337: {
-					Name:   "gnoi",
-					Inside: 32767,
-				},
-				9339: {
-					Name:   "gnmi",
-					Inside: 32767,
-				},
-				9340: {
-					Name:   "gribi",
-					Inside: 32767,
-				},
-			},
-			Labels: map[string]string{
-				"vendor":       tpb.Vendor_JUNIPER.String(),
-				"ondatra-role": "DUT",
-				"model":        "cptx",
-				"os":           "evo",
-			},
-			Config: &tpb.Config{
-				Image: "cptx:latest",
-				Command: []string{
-					"/entrypoint.sh",
-				},
-				Env: map[string]string{
-					"JUNOS_EVOLVED_CONTAINER": "1",
-				},
-				EntryCommand: "kubectl exec -it pod1 -- cli",
-				ConfigPath:   "/",
-				ConfigFile:   "foo",
-				ConfigData: &tpb.Config_Data{
-					Data: []byte("config file data"),
-				},
-				Cert: &tpb.CertificateCfg{
-					Config: &tpb.CertificateCfg_SelfSigned{
-						SelfSigned: &tpb.SelfSignedCertCfg{
-							CertName: "grpc-server-cert",
-							KeyName:  "my_key",
-							KeySize:  2048,
-						},
-					},
-				},
-			},
-		},
-	}, {
-		desc: "full proto ncptx",
-		ni: &node.Impl{
-			KubeClient: fake.NewSimpleClientset(),
-			Namespace:  "test",
-			Proto: &tpb.Node{
-				Name:  "pod1",
-				Model: "ncptx",
-				Config: &tpb.Config{
-					ConfigFile: "foo",
-					ConfigPath: "/",
-					ConfigData: &tpb.Config_Data{
-						Data: []byte("config file data"),
-					},
-				},
-			},
-		},
-		want: &tpb.Node{
-			Name:  "pod1",
-			Os:    "evo",
 			Model: "ncptx",
+			Os:    "evo",
 			Constraints: map[string]string{
 				"cpu":    "4",
 				"memory": "4Gi",
@@ -654,15 +575,26 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "defaults check with empty proto",
+		desc: "full proto cptx",
 		ni: &node.Impl{
 			KubeClient: fake.NewSimpleClientset(),
 			Namespace:  "test",
-			Proto:      &tpb.Node{},
+			Proto: &tpb.Node{
+				Name:  "pod1",
+				Model: "cptx",
+				Config: &tpb.Config{
+					ConfigFile: "foo",
+					ConfigPath: "/",
+					ConfigData: &tpb.Config_Data{
+						Data: []byte("config file data"),
+					},
+				},
+			},
 		},
 		want: &tpb.Node{
-			Model: "cptx",
+			Name:  "pod1",
 			Os:    "evo",
+			Model: "cptx",
 			Constraints: map[string]string{
 				"cpu":    "8",
 				"memory": "8Gi",
@@ -703,6 +635,73 @@ func TestNew(t *testing.T) {
 				Env: map[string]string{
 					"JUNOS_EVOLVED_CONTAINER": "1",
 				},
+				EntryCommand: "kubectl exec -it pod1 -- cli",
+				ConfigPath:   "/",
+				ConfigFile:   "foo",
+				ConfigData: &tpb.Config_Data{
+					Data: []byte("config file data"),
+				},
+				Cert: &tpb.CertificateCfg{
+					Config: &tpb.CertificateCfg_SelfSigned{
+						SelfSigned: &tpb.SelfSignedCertCfg{
+							CertName: "grpc-server-cert",
+							KeyName:  "my_key",
+							KeySize:  2048,
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc: "defaults check with empty proto",
+		ni: &node.Impl{
+			KubeClient: fake.NewSimpleClientset(),
+			Namespace:  "test",
+			Proto:      &tpb.Node{},
+		},
+		want: &tpb.Node{
+			Model: "ncptx",
+			Os:    "evo",
+			Constraints: map[string]string{
+				"cpu":    "4",
+				"memory": "4Gi",
+			},
+			Services: map[uint32]*tpb.Service{
+				443: {
+					Name:   "ssl",
+					Inside: 443,
+				},
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				9337: {
+					Name:   "gnoi",
+					Inside: 32767,
+				},
+				9339: {
+					Name:   "gnmi",
+					Inside: 32767,
+				},
+				9340: {
+					Name:   "gribi",
+					Inside: 32767,
+				},
+			},
+			Labels: map[string]string{
+				"vendor":       tpb.Vendor_JUNIPER.String(),
+				"ondatra-role": "DUT",
+				"model":        "ncptx",
+				"os":           "evo",
+			},
+			Config: &tpb.Config{
+				Image: "ncptx:latest",
+				Command: []string{
+					"/sbin/cevoCntrEntryPoint",
+				},
+				Env: map[string]string{
+					"JUNOS_EVOLVED_CONTAINER": "1",
+				},
 				EntryCommand: "kubectl exec -it  -- cli",
 				ConfigPath:   "/home/evo/configdisk",
 				ConfigFile:   "juniper.conf",
@@ -728,7 +727,7 @@ func TestNew(t *testing.T) {
 				return
 			}
 			if s := cmp.Diff(tt.want, n.GetProto(), protocmp.Transform(), protocmp.IgnoreFields(&tpb.Service{}, "node_port")); s != "" {
-				t.Fatalf("New() failed: diff (-want, +got): %v\nwant\n\n %s\ngot\n\n%s", s, prototext.Format(tt.want), prototext.Format(n.GetProto()))
+				t.Fatalf("New() failed: diff (-want, +got): \n%s", s)
 			}
 			err = n.Create(context.Background())
 			if s := errdiff.Check(err, tt.cErr); s != "" {

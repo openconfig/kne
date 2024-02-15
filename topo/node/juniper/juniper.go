@@ -529,7 +529,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Model == "" {
-		pb.Model = ModelCPTX
+		pb.Model = ModelNCPTX
 	}
 	if pb.Os == "" {
 		pb.Os = "evo"
