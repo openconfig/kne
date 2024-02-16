@@ -204,7 +204,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	}
 
 	log.Infof("Validating kubectl version")
-	if err := validateKubectlVersion(ctx); err != nil {
+	if err := validateKubectlVersion(); err != nil {
 		return fmt.Errorf("kubectl version outside of supported range: %v", err)
 	}
 
@@ -272,7 +272,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	return nil
 }
 
-func validateKubectlVersion(ctx context.Context) error {
+func validateKubectlVersion() error {
 	output, err := run.OutCommand("kubectl", "version", "--output=yaml")
 	if err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
