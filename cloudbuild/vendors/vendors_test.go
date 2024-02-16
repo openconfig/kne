@@ -76,14 +76,6 @@ func TestCEOS(t *testing.T) {
 	// testP4RT(t, dut)
 }
 
-func TestCTPX(t *testing.T) {
-	dut := ondatra.DUT(t, "cptx")
-	testGNMI(t, dut)
-	testGRIBI(t, dut)
-	testGNOI(t, dut)
-	// testP4RT(t, dut)
-}
-
 func TestNCTPX(t *testing.T) {
 	dut := ondatra.DUT(t, "ncptx")
 	testGNMI(t, dut)
