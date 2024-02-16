@@ -291,7 +291,11 @@ func validateKubectlVersion(ctx context.Context) error {
 		return fmt.Errorf("failed to parse k8s server version: %w", err)
 	}
 	origMajor := kClientVersion.Major
-	kClientVersion.Major -= 2
+	if kClientVersion.Major < 2 {
+		kClientVersion.Major = 0
+	} else {
+		kClientVersion.Major -= 2
+	}
 	if kServerVersion.LT(kClientVersion) {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
