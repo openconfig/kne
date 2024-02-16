@@ -422,6 +422,16 @@ func TestKindSpec(t *testing.T) {
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
 		},
 	}, {
+		desc: "kind prerelease version pass",
+		k: &KindSpec{
+			Name:    "test",
+			Version: "v0.15.0",
+		},
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.15.0-prelease go1.18.2 linux/amd64"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+		},
+	}, {
 		desc: "kind version pass - major",
 		k: &KindSpec{
 			Name:    "test",

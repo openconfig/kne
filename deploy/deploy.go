@@ -302,11 +302,19 @@ func validateKubectlVersion(ctx context.Context) error {
 	return nil
 }
 
+// parseVersion takes a github semver string and parses it into a comparable struct
+// with prereleases and builds stripped.
 func parseVersion(s string) (semver.Version, error) {
 	if !strings.HasPrefix(s, "v") {
 		return semver.Version{}, fmt.Errorf("missing prefix on major version")
 	}
-	return semver.Parse(s[1:])
+	v, err := semver.Parse(s[1:])
+	if err != nil {
+		return semver.Version{}, err
+	}
+	v.Pre = nil
+	v.Build = nil
+	return v, nil
 }
 
 func (d *Deployment) Delete() error {
