@@ -349,28 +349,28 @@ func TestKindSpec(t *testing.T) {
 			Name:    "test",
 			Version: "versionfoo",
 		},
-		wantErr: "failed to get versions from",
+		wantErr: "No Major.Minor.Patch elements found",
 	}, {
 		desc: "failed kind version - invalid major",
 		k: &KindSpec{
 			Name:    "test",
 			Version: "vr.1.1",
 		},
-		wantErr: "failed to convert major version",
+		wantErr: `Invalid character(s) found in major number "r"`,
 	}, {
 		desc: "failed kind version - invalid minor",
 		k: &KindSpec{
 			Name:    "test",
 			Version: "v0.foo.15",
 		},
-		wantErr: "failed to convert minor version",
+		wantErr: `Invalid character(s) found in minor number "foo"`,
 	}, {
 		desc: "failed kind version - invalid patch",
 		k: &KindSpec{
 			Name:    "test",
 			Version: "v0.1.foo",
 		},
-		wantErr: "failed to convert patch version",
+		wantErr: `Invalid character(s) found in patch number "foo"`,
 	}, {
 		desc: "failed kind version less check",
 		k: &KindSpec{

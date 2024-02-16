@@ -10,10 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/blang/semver"
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
@@ -22,7 +22,6 @@ import (
 	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/exec/run"
 	"github.com/openconfig/kne/load"
-	"github.com/blang/semver"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	epb "github.com/openconfig/kne/proto/event"
@@ -204,8 +203,8 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		return fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
-	log.Infof("Validating kubectl versions")
-	if err := validateKubectlVersions(ctx); err != nil {
+	log.Infof("Validating kubectl version")
+	if err := validateKubectlVersion(ctx); err != nil {
 		return fmt.Errorf("kubectl version outside of supported range: %v", err)
 	}
 
@@ -283,11 +282,11 @@ func validateKubectlVersion(ctx context.Context) error {
 	if err := yaml.Unmarshal(output, &kubeYAML); err != nil {
 		return fmt.Errorf("failed get kubectl version: %w", err)
 	}
-	kClientVersion, err := semver.New(kubeYAML.ClientVersion.GitVersion)
+	kClientVersion, err := parseVersion(kubeYAML.ClientVersion.GitVersion)
 	if err != nil {
 		return fmt.Errorf("failed to parse k8s client version: %w", err)
 	}
-	kServerVersion, err := semver.New(kubeYAML.ServerVersion.GitVersion)
+	kServerVersion, err := parseVersion(kubeYAML.ServerVersion.GitVersion)
 	if err != nil {
 		return fmt.Errorf("failed to parse k8s server version: %w", err)
 	}
@@ -300,6 +299,14 @@ func validateKubectlVersion(ctx context.Context) error {
 	if kClientVersion.LT(kServerVersion) {
 		log.Warning("Kube client and server versions are not within expected range.")
 	}
+	return nil
+}
+
+func parseVersion(s string) (semver.Version, error) {
+	if !strings.HasPrefix(s, "v") {
+		return semver.Version{}, fmt.Errorf("missing prefix on major version")
+	}
+	return semver.Parse(s[1:])
 }
 
 func (d *Deployment) Delete() error {
@@ -416,7 +423,7 @@ func (k *KindSpec) checkDependencies() error {
 		return errs.Err()
 	}
 	if k.Version != "" {
-		wantV, err := semver.New(k.Version)
+		wantV, err := parseVersion(k.Version)
 		if err != nil {
 			return fmt.Errorf("failed to parse desired kind version: %w", err)
 		}
@@ -431,7 +438,7 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("failed to parse kind version from: %s", stdout)
 		}
 
-		gotV, err := semver.New(vKindFields[1])
+		gotV, err := parseVersion(vKindFields[1])
 		if err != nil {
 			return fmt.Errorf("kind version check failed: %w", err)
 		}
