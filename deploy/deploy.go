@@ -10,10 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/blang/semver"
 	dtypes "github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
@@ -203,33 +203,10 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		return fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
-	log.Infof("Checking kubectl versions.")
-	output, err := run.OutCommand("kubectl", "version", "--output=yaml")
-	if err != nil {
-		return fmt.Errorf("failed get kubectl version: %w", err)
+	log.Infof("Validating kubectl version")
+	if err := validateKubectlVersion(); err != nil {
+		return fmt.Errorf("kubectl version outside of supported range: %v", err)
 	}
-	kubeYAML := kubeVersion{}
-	if err := yaml.Unmarshal(output, &kubeYAML); err != nil {
-		return fmt.Errorf("failed get kubectl version: %w", err)
-	}
-	kClientVersion, err := getVersion(kubeYAML.ClientVersion.GitVersion)
-	if err != nil {
-		return fmt.Errorf("failed to parse k8s client version: %w", err)
-	}
-	kServerVersion, err := getVersion(kubeYAML.ServerVersion.GitVersion)
-	if err != nil {
-		return fmt.Errorf("failed to parse k8s server version: %w", err)
-	}
-	origMajor := kClientVersion.Major
-	kClientVersion.Major -= 2
-	if kServerVersion.Less(kClientVersion) {
-		log.Warning("Kube client and server versions are not within expected range.")
-	}
-	kClientVersion.Major = origMajor + 2
-	if kClientVersion.Less(kServerVersion) {
-		log.Warning("Kube client and server versions are not within expected range.")
-	}
-	log.V(1).Info("Found k8s versions:\n", string(output))
 
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -293,6 +270,55 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	}
 	log.Infof("Controllers deployed and healthy")
 	return nil
+}
+
+func validateKubectlVersion() error {
+	output, err := run.OutCommand("kubectl", "version", "--output=yaml")
+	if err != nil {
+		return fmt.Errorf("failed get kubectl version: %w", err)
+	}
+	log.V(1).Info("Found k8s versions:\n", string(output))
+	kubeYAML := kubeVersion{}
+	if err := yaml.Unmarshal(output, &kubeYAML); err != nil {
+		return fmt.Errorf("failed get kubectl version: %w", err)
+	}
+	kClientVersion, err := parseVersion(kubeYAML.ClientVersion.GitVersion)
+	if err != nil {
+		return fmt.Errorf("failed to parse k8s client version: %w", err)
+	}
+	kServerVersion, err := parseVersion(kubeYAML.ServerVersion.GitVersion)
+	if err != nil {
+		return fmt.Errorf("failed to parse k8s server version: %w", err)
+	}
+	origMajor := kClientVersion.Major
+	if kClientVersion.Major < 2 {
+		kClientVersion.Major = 0
+	} else {
+		kClientVersion.Major -= 2
+	}
+	if kServerVersion.LT(kClientVersion) {
+		log.Warning("Kube client and server versions are not within expected range.")
+	}
+	kClientVersion.Major = origMajor + 2
+	if kClientVersion.LT(kServerVersion) {
+		log.Warning("Kube client and server versions are not within expected range.")
+	}
+	return nil
+}
+
+// parseVersion takes a github semver string and parses it into a comparable struct
+// with prereleases and builds stripped.
+func parseVersion(s string) (semver.Version, error) {
+	if !strings.HasPrefix(s, "v") {
+		return semver.Version{}, fmt.Errorf("missing prefix on major version")
+	}
+	v, err := semver.Parse(s[1:])
+	if err != nil {
+		return semver.Version{}, err
+	}
+	v.Pre = nil
+	v.Build = nil
+	return v, nil
 }
 
 func (d *Deployment) Delete() error {
@@ -397,53 +423,6 @@ type KindSpec struct {
 	AdditionalManifests      []string          `yaml:"additionalManifests" kne:"yaml"`
 }
 
-type version struct {
-	Major int
-	Minor int
-	Patch int
-}
-
-func (v version) String() string {
-	return fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
-}
-
-func (v version) Less(t *version) bool {
-	if v.Major == t.Major {
-		if v.Minor == t.Minor {
-			return v.Patch < t.Patch
-		}
-		return v.Minor < t.Minor
-	}
-	return v.Major < t.Major
-}
-
-// getVersion takes a git version tag string "v1.20.1" and returns a version
-// comparable version struct.
-func getVersion(s string) (*version, error) {
-	versions := strings.Split(s, ".")
-	if len(versions) != 3 {
-		return nil, fmt.Errorf("failed to get versions from: %s", s)
-	}
-	v := &version{}
-	var err error
-	if !strings.HasPrefix(versions[0], "v") {
-		return nil, fmt.Errorf("missing prefix on major version: %s", s)
-	}
-	v.Major, err = strconv.Atoi(versions[0][1:])
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert major version: %s", s)
-	}
-	v.Minor, err = strconv.Atoi(versions[1])
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert minor version: %s", s)
-	}
-	v.Patch, err = strconv.Atoi(versions[2])
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert patch version: %s", s)
-	}
-	return v, nil
-}
-
 func (k *KindSpec) checkDependencies() error {
 	var errs errlist.List
 	bins := []string{"kind"}
@@ -456,7 +435,7 @@ func (k *KindSpec) checkDependencies() error {
 		return errs.Err()
 	}
 	if k.Version != "" {
-		wantV, err := getVersion(k.Version)
+		wantV, err := parseVersion(k.Version)
 		if err != nil {
 			return fmt.Errorf("failed to parse desired kind version: %w", err)
 		}
@@ -471,11 +450,11 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("failed to parse kind version from: %s", stdout)
 		}
 
-		gotV, err := getVersion(vKindFields[1])
+		gotV, err := parseVersion(vKindFields[1])
 		if err != nil {
 			return fmt.Errorf("kind version check failed: %w", err)
 		}
-		if gotV.Less(wantV) {
+		if gotV.LT(wantV) {
 			return fmt.Errorf("kind version check failed: got %s, want %s. install with `go install sigs.k8s.io/kind@%s`", gotV, wantV, wantV)
 		}
 		log.Infof("kind version valid: got %s want %s", gotV, wantV)
