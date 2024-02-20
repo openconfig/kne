@@ -403,7 +403,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			Config: &tpb.CertificateCfg_SelfSigned{
 				SelfSigned: &tpb.SelfSignedCertCfg{
 					CertName: "gnmiCert.pem",
-					KeyName:  "gnmiCertKey.key",
+					KeyName:  "gnmiCertKey.pem",
 					KeySize:  4096,
 				},
 			},

@@ -2,94 +2,72 @@ name: "multivendor"
 nodes: {
   name: "ceos"
   vendor: ARISTA
-  model: "ceos"
-  os: "eos"
   config: {
-    config_path: "/mnt/flash"
-    config_file: "startup-config"
     file: "ceos.cfg"
-    cert: {
-      self_signed: {
-        cert_name: "gnmiCert.pem"
-        key_name: "gnmiCertKey.pem"
-        key_size: 4096
-      }
-    }
   }
 }
 nodes: {
-  name: "cptx"
+  name: "ncptx"
   vendor: JUNIPER
-  model: "cptx"
-  os: "evo"
   config: {
-    config_path: "/home/evo/configdisk"
-    config_file: "juniper.conf"
-    file: "cptx.cfg"
-    cert: {
-      self_signed: {
-        cert_name: "grpc-server-cert",
-        key_name: "N/A",
-        key_size: 4096,
-      }
-    }
+    file: "ncptx.cfg"
   }
   interfaces: {
-    key: "eth4"
+    key: "eth5"
     value: {
       name: "et-0/0/0"
     }
   }
   interfaces: {
-    key: "eth5"
+    key: "eth6"
     value: {
       name: "et-0/0/1"
     }
   }
   interfaces: {
-    key: "eth6"
+    key: "eth7"
     value: {
       name: "et-0/0/2"
     }
   }
   interfaces: {
-    key: "eth7"
+    key: "eth8"
     value: {
       name: "et-0/0/3"
     }
   }
   interfaces: {
-    key: "eth8"
+    key: "eth9"
     value: {
       name: "et-0/0/4"
     }
   }
   interfaces: {
-    key: "eth9"
+    key: "eth10"
     value: {
       name: "et-0/0/5"
     }
   }
   interfaces: {
-    key: "eth10"
+    key: "eth11"
     value: {
       name: "et-0/0/6"
     }
   }
   interfaces: {
-    key: "eth11"
+    key: "eth12"
     value: {
       name: "et-0/0/7"
     }
   }
   interfaces: {
-    key: "eth12"
+    key: "eth13"
     value: {
       name: "et-0/0/8"
     }
   }
   interfaces: {
-    key: "eth13"
+    key: "eth14"
     value: {
       name: "et-0/0/9"
     }
@@ -105,8 +83,6 @@ nodes: {
 nodes: {
   name: "xrd"
   vendor: CISCO
-  model: "xrd"
-  os: "ios-xr"
   config: {
     file: "xrd.cfg"
   }
@@ -135,43 +111,43 @@ links: {
   z_node: "xrd"
   z_int: "eth3"
 }
-# ceos - cptx
+# ceos - ncptx
 links: {
   a_node: "ceos"
   a_int: "eth4"
-  z_node: "cptx"
-  z_int: "eth4"
-}
-links: {
-  a_node: "ceos"
-  a_int: "eth5"
-  z_node: "cptx"
+  z_node: "ncptx"
   z_int: "eth5"
 }
 links: {
   a_node: "ceos"
-  a_int: "eth6"
-  z_node: "cptx"
+  a_int: "eth5"
+  z_node: "ncptx"
   z_int: "eth6"
 }
-# xrd - cptx
+links: {
+  a_node: "ceos"
+  a_int: "eth6"
+  z_node: "ncptx"
+  z_int: "eth7"
+}
+# xrd - ncptx
 links: {
   a_node: "xrd"
   a_int: "eth4"
-  z_node: "cptx"
-  z_int: "eth7"
-}
-links: {
-  a_node: "xrd"
-  a_int: "eth5"
-  z_node: "cptx"
+  z_node: "ncptx"
   z_int: "eth8"
 }
 links: {
   a_node: "xrd"
-  a_int: "eth6"
-  z_node: "cptx"
+  a_int: "eth5"
+  z_node: "ncptx"
   z_int: "eth9"
+}
+links: {
+  a_node: "xrd"
+  a_int: "eth6"
+  z_node: "ncptx"
+  z_int: "eth10"
 }
 # otg - everything
 links: {
@@ -183,8 +159,8 @@ links: {
 links: {
   a_node: "otg"
   a_int: "eth2"
-  z_node: "cptx"
-  z_int: "eth10"
+  z_node: "ncptx"
+  z_int: "eth11"
 }
 links: {
   a_node: "otg"
@@ -236,22 +212,22 @@ links: {
   z_node: "xrd"
   z_int: "eth9"
 }
-# srl - cptx
+# srl - ncptx
 links: {
   a_node: "srl"
   a_int: "eth7"
-  z_node: "cptx"
-  z_int: "eth11"
-}
-links: {
-  a_node: "srl"
-  a_int: "eth8"
-  z_node: "cptx"
+  z_node: "ncptx"
   z_int: "eth12"
 }
 links: {
   a_node: "srl"
-  a_int: "eth9"
-  z_node: "cptx"
+  a_int: "eth8"
+  z_node: "ncptx"
   z_int: "eth13"
+}
+links: {
+  a_node: "srl"
+  a_int: "eth9"
+  z_node: "ncptx"
+  z_int: "eth14"
 }
