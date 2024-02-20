@@ -35,9 +35,6 @@ $cli deploy kne/cloudbuild/vendors/deployment.yaml --report_usage=false
 $cli create kne/cloudbuild/vendors/topology.textproto --report_usage=false
 popd
 
-# Arista cEOS is not fully healthy after topo creation
-sleep 60
-
 # Run an ondatra test
 pushd "$HOME/kne/cloudbuild"
 go test -v vendors/vendors_test.go \

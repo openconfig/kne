@@ -133,7 +133,7 @@ func TestNew(t *testing.T) {
 						Config: &topopb.CertificateCfg_SelfSigned{
 							SelfSigned: &topopb.SelfSignedCertCfg{
 								CertName: "gnmiCert.pem",
-								KeyName:  "gnmiCertKey.key",
+								KeyName:  "gnmiCertKey.pem",
 								KeySize:  4096,
 							},
 						},
