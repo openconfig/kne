@@ -267,20 +267,12 @@ func lemmingDefaults(pb *tpb.Node) *tpb.Node {
 		pb.Services = map[uint32]*tpb.Service{
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			9339: {
-				Name:   "gnmi",
+				Names:   []string{"gnmi", "gnoi", "gnsi"},
 				Inside: 9339,
 			},
 			9340: {
-				Name:   "gribi",
+				Names:   []string{"gribi"},
 				Inside: 9340,
-			},
-			9341: {
-				Name:   "gnsi",
-				Inside: 9339,
-			},
-			9342: {
-				Name:   "gnoi",
-				Inside: 9339,
 			},
 		}
 	}

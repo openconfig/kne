@@ -12,6 +12,7 @@ import (
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	pathzpb "github.com/openconfig/gnsi/pathz"
 	"github.com/openconfig/ondatra/gnoi"
 	kinit "github.com/openconfig/ondatra/knebind/init"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
@@ -27,6 +28,25 @@ func testGNMI(t *testing.T, dut *ondatra.DUTDevice) {
 	if v.IsPresent() {
 		t.Logf("Got gNMI system state: %v", v.String())
 	}
+}
+
+func testGNOI(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	systemTime := gnoi.Execute(t, dut, system.NewTimeOperation())
+	t.Logf("Got gNOI system time: %v", systemTime)
+}
+
+func testGNSI(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	c := dut.RawAPIs().GNSI(t)
+	req := &pathzpb.GetRequest{
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+	}
+	resp, err := c.Pathz().Get(context.Background(), req)
+	if err != nil {
+		t.Fatalf("gNSI failure: Pathz.Get request failed: %v", err)
+	}
+	t.Logf("Got gNSI Pathz.Get response: %v", resp)
 }
 
 func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
@@ -52,12 +72,6 @@ func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func testGNOI(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	systemTime := gnoi.Execute(t, dut, system.NewTimeOperation())
-	t.Logf("Got gNOI system time: %v", systemTime)
-}
-
 func testP4RT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := dut.RawAPIs().P4RT(t)
@@ -71,48 +85,54 @@ func testP4RT(t *testing.T, dut *ondatra.DUTDevice) {
 func TestCEOS(t *testing.T) {
 	dut := ondatra.DUT(t, "ceos")
 	testGNMI(t, dut)
+	testGNOI(t, dut)
+	testGNSI(t, dut)
 	testGRIBI(t, dut)
-	// testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testP4RT(t, dut)
 }
 
 func TestNCTPX(t *testing.T) {
 	dut := ondatra.DUT(t, "ncptx")
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
+	testP4RT(t, dut)
 }
 
 func TestSRL(t *testing.T) {
 	dut := ondatra.DUT(t, "srl")
 	testGNMI(t, dut)
+	testGNOI(t, dut)
+	testGNSI(t, dut)
 	testGRIBI(t, dut)
-	// testGNOI(t, dut)
 	testP4RT(t, dut)
 }
 
 func TestXRD(t *testing.T) {
 	dut := ondatra.DUT(t, "xrd")
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
+	testP4RT(t, dut)
 }
 
 func Test8000e(t *testing.T) {
 	dut := ondatra.DUT(t, "e8000")
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
+	testP4RT(t, dut)
 }
 
 func TestLemming(t *testing.T) {
 	dut := ondatra.DUT(t, "lemming")
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
 	// testP4RT(t, dut)
 }
 
