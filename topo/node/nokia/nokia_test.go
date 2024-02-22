@@ -120,27 +120,23 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
-					Name:   "ssl",
+					Names:  []string{"ssl"},
 					Inside: 443,
 				},
 				22: {
-					Name:   "ssh",
+					Names:  []string{"ssh"},
 					Inside: 22,
 				},
-				9337: {
-					Name:   "gnoi",
-					Inside: 57400,
-				},
 				9339: {
-					Name:   "gnmi",
+					Names:  []string{"gnmi", "gnoi", "gnsi"},
 					Inside: 57400,
 				},
 				9340: {
-					Name:   "gribi",
+					Names:  []string{"gribi"},
 					Inside: 57401,
 				},
 				9559: {
-					Name:   "p4rt",
+					Names:  []string{"p4rt"},
 					Inside: 9559,
 				},
 			},
@@ -177,27 +173,23 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*topopb.Service{
 				443: {
-					Name:   "ssl",
+					Names:  []string{"ssl"},
 					Inside: 443,
 				},
 				22: {
-					Name:   "ssh",
+					Names:  []string{"ssh"},
 					Inside: 22,
 				},
-				9337: {
-					Name:   "gnoi",
-					Inside: 57400,
-				},
 				9339: {
-					Name:   "gnmi",
+					Names:  []string{"gnmi", "gnoi", "gnsi"},
 					Inside: 57400,
 				},
 				9340: {
-					Name:   "gribi",
+					Names:  []string{"gribi"},
 					Inside: 57401,
 				},
 				9559: {
-					Name:   "p4rt",
+					Names:  []string{"p4rt"},
 					Inside: 9559,
 				},
 			},
