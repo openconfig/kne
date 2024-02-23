@@ -397,23 +397,19 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			22: {
-				Name:   "ssh",
+				Names:  []string{"ssh"},
 				Inside: 22,
 			},
 			9339: {
-				Name:   "gnmi",
+				Names:  []string{"gnmi", "gnoi", "gnsi"},
 				Inside: 57400,
 			},
 			9340: {
-				Name:   "gribi",
-				Inside: 57400,
-			},
-			9337: {
-				Name:   "gnoi",
+				Names:  []string{"gribi"},
 				Inside: 57400,
 			},
 			9559: {
-				Name:   "p4rt",
+				Names:  []string{"p4rt"},
 				Inside: 57400,
 			},
 		}
