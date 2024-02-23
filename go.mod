@@ -16,12 +16,8 @@ require (
 	github.com/open-traffic-generator/keng-operator v0.3.15
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.7
 	github.com/openconfig/gnmi v0.10.0
-	github.com/openconfig/gnoigo v0.0.0-20231026010722-87413fdb22e7
-	github.com/openconfig/gnsi v1.2.3
-	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/lemming/operator v0.2.0
 	github.com/openconfig/ondatra v0.5.3-0.20240221005017-ee276ff6695e
-	github.com/p4lang/p4runtime v1.3.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.11
@@ -100,12 +96,16 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openconfig/gnoi v0.2.0 // indirect
+	github.com/openconfig/gnoigo v0.0.0-20231026010722-87413fdb22e7 // indirect
+	github.com/openconfig/gnsi v1.2.3 // indirect
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
 	github.com/openconfig/goyang v1.4.5 // indirect
+	github.com/openconfig/gribi v1.0.0 // indirect
 	github.com/openconfig/ygnmi v0.11.1 // indirect
 	github.com/openconfig/ygot v0.29.18 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
+	github.com/p4lang/p4runtime v1.3.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
