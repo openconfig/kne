@@ -1,118 +1,136 @@
 package vendors_test
 
 import (
-	"context"
-	"io"
+	"fmt"
 	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/gnoigo/system"
-	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnoi"
 	kinit "github.com/openconfig/ondatra/knebind/init"
-	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 func TestMain(m *testing.M) {
 	ondatra.RunTests(m, kinit.Init)
 }
 
-func testGNMI(t *testing.T, dut *ondatra.DUTDevice) {
+func testConfigPush(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	v := gnmi.Lookup(t, dut, gnmi.OC().System().State())
-	if v.IsPresent() {
-		t.Logf("Got gNMI system state: %v", v.String())
-	}
+	t.Run("config push", func(t *testing.T) {
+		tmpl := "hostname %s"
+		switch dut.Vendor() {
+		case ondatra.JUNIPER:
+			// TODO(alexmasi): Figure out Juniper config.
+		case ondatra.NOKIA:
+			tmpl = "host-name %s"
+		}
+		cfg := fmt.Sprintf(tmpl, dut.Name())
+		dut.Config().New().WithText(cfg).Append(t)
+		t.Logf("Successfully pushed config for DUT %s", dut)
+	})
 }
 
-func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
+func testGNMI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	c := dut.RawAPIs().GRIBI(t)
-	req := &gribipb.GetRequest{
-		NetworkInstance: &gribipb.GetRequest_All{},
-		Aft:             gribipb.AFTType_ALL,
-	}
-	stream, err := c.Get(context.Background(), req)
-	if err != nil {
-		t.Fatalf("gRIBI failure: Get request failed: %v", err)
-	}
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			t.Fatalf("gRIBI failure: failed to recv from stream: %v", err)
-		}
-		t.Logf("Got gRIBI AFT entries: %v", resp.GetEntry())
-	}
+	t.Run("gnmi", func(t *testing.T) {
+		dut.RawAPIs().GNMI(t)
+		t.Logf("Got GNMI client for DUT %s", dut)
+	})
 }
 
 func testGNOI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	systemTime := gnoi.Execute(t, dut, system.NewTimeOperation())
-	t.Logf("Got gNOI system time: %v", systemTime)
+	t.Run("gnoi", func(t *testing.T) {
+		dut.RawAPIs().GNOI(t)
+		t.Logf("Got GNOI client for DUT %s", dut)
+	})
+}
+
+func testGNSI(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Run("gnsi", func(t *testing.T) {
+		dut.RawAPIs().GNSI(t)
+		t.Logf("Got GNSI client for DUT %s", dut)
+	})
+}
+
+func testGRIBI(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Run("gribi", func(t *testing.T) {
+		dut.RawAPIs().GRIBI(t)
+		t.Logf("Got GRIBI client for DUT %s", dut)
+	})
 }
 
 func testP4RT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	c := dut.RawAPIs().P4RT(t)
-	resp, err := c.Capabilities(context.Background(), &p4pb.CapabilitiesRequest{})
-	if err != nil {
-		t.Fatalf("P4RT failure: Capabilities request failed: %v", err)
-	}
-	t.Logf("Got P4RT Capabilities response: %v", resp)
+	t.Run("p4rt", func(t *testing.T) {
+		dut.RawAPIs().P4RT(t)
+		t.Logf("Got P4RT client for DUT %s", dut)
+	})
 }
 
 func TestCEOS(t *testing.T) {
 	dut := ondatra.DUT(t, "ceos")
+	testConfigPush(t, dut)
 	testGNMI(t, dut)
+	testGNOI(t, dut)
+	// GNSI is not yet implemented by ceos.
+	// testGNSI(t, dut)
 	testGRIBI(t, dut)
-	// testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testP4RT(t, dut)
 }
 
 func TestNCTPX(t *testing.T) {
 	dut := ondatra.DUT(t, "ncptx")
+	// TODO(alexmasi): Figure out Juniper config.
+	// testConfigPush(t, dut)
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
+	testP4RT(t, dut)
 }
 
 func TestSRL(t *testing.T) {
 	dut := ondatra.DUT(t, "srl")
+	testConfigPush(t, dut)
 	testGNMI(t, dut)
+	testGNOI(t, dut)
+	testGNSI(t, dut)
 	testGRIBI(t, dut)
-	// testGNOI(t, dut)
 	testP4RT(t, dut)
 }
 
 func TestXRD(t *testing.T) {
 	dut := ondatra.DUT(t, "xrd")
+	testConfigPush(t, dut)
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
+	testP4RT(t, dut)
 }
 
 func Test8000e(t *testing.T) {
 	dut := ondatra.DUT(t, "e8000")
+	testConfigPush(t, dut)
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
-	// testP4RT(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
+	testP4RT(t, dut)
 }
 
 func TestLemming(t *testing.T) {
 	dut := ondatra.DUT(t, "lemming")
 	testGNMI(t, dut)
-	testGRIBI(t, dut)
 	testGNOI(t, dut)
+	testGNSI(t, dut)
+	testGRIBI(t, dut)
+	// P4RT is not yet implemented by lemming.
 	// testP4RT(t, dut)
 }
 
@@ -124,7 +142,6 @@ func TestOTG(t *testing.T) {
 		cfg.Ports().Add().SetName(name)
 	}
 	ate.OTG().PushConfig(t, cfg)
-
 	gotPortNames := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Name().State())
 	sort.Strings(gotPortNames)
 	if !cmp.Equal(gotPortNames, portNames) {

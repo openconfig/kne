@@ -331,20 +331,12 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				9339: {
-					Name:   "gnmi",
+					Names:  []string{"gnmi", "gnoi", "gnsi"},
 					Inside: 9339,
 				},
 				9340: {
-					Name:   "gribi",
+					Names:  []string{"gribi"},
 					Inside: 9340,
-				},
-				9341: {
-					Name:   "gnsi",
-					Inside: 9339,
-				},
-				9342: {
-					Name:   "gnoi",
-					Inside: 9339,
 				},
 			},
 		},
@@ -431,14 +423,12 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				40051: {
-					Name:    "grpc",
-					Inside:  40051,
-					Outside: 40051,
+					Names:  []string{"grpc"},
+					Inside: 40051,
 				},
 				50051: {
-					Name:    "gnmi",
-					Inside:  50051,
-					Outside: 50051,
+					Names:  []string{"gnmi"},
+					Inside: 50051,
 				},
 			},
 		},
@@ -452,11 +442,8 @@ func TestNew(t *testing.T) {
 				},
 				Services: map[uint32]*tpb.Service{
 					22: {
-						Name:      "ssh",
-						Inside:    22,
-						Outside:   22,
-						InsideIp:  "1.1.1.1",
-						OutsideIp: "10.10.10.10",
+						Names:  []string{"ssh"},
+						Inside: 22,
 					},
 				},
 			},
@@ -474,21 +461,16 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				22: {
-					Name:      "ssh",
-					Inside:    22,
-					Outside:   22,
-					InsideIp:  "1.1.1.1",
-					OutsideIp: "10.10.10.10",
+					Names:  []string{"ssh"},
+					Inside: 22,
 				},
 				40051: {
-					Name:    "grpc",
-					Inside:  40051,
-					Outside: 40051,
+					Names:  []string{"grpc"},
+					Inside: 40051,
 				},
 				50051: {
-					Name:    "gnmi",
-					Inside:  50051,
-					Outside: 50051,
+					Names:  []string{"gnmi"},
+					Inside: 50051,
 				},
 			},
 		},
@@ -515,14 +497,12 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				40051: {
-					Name:    "grpc",
-					Inside:  40051,
-					Outside: 40051,
+					Names:  []string{"grpc"},
+					Inside: 40051,
 				},
 				50051: {
-					Name:    "gnmi",
-					Inside:  50051,
-					Outside: 50051,
+					Names:  []string{"gnmi"},
+					Inside: 50051,
 				},
 			},
 		},
@@ -536,9 +516,8 @@ func TestNew(t *testing.T) {
 				},
 				Services: map[uint32]*tpb.Service{
 					40051: {
-						Name:    "foobar",
-						Inside:  40051,
-						Outside: 40051,
+						Names:  []string{"foobar"},
+						Inside: 40051,
 					},
 				},
 			},
@@ -556,14 +535,12 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				40051: {
-					Name:    "foobar",
-					Inside:  40051,
-					Outside: 40051,
+					Names:  []string{"foobar"},
+					Inside: 40051,
 				},
 				50051: {
-					Name:    "gnmi",
-					Inside:  50051,
-					Outside: 50051,
+					Names:  []string{"gnmi"},
+					Inside: 50051,
 				},
 			},
 		},
@@ -589,14 +566,12 @@ func TestNew(t *testing.T) {
 			},
 			Services: map[uint32]*tpb.Service{
 				40051: {
-					Name:    "grpc",
-					Inside:  40051,
-					Outside: 40051,
+					Names:  []string{"grpc"},
+					Inside: 40051,
 				},
 				50051: {
-					Name:    "gnmi",
-					Inside:  50051,
-					Outside: 50051,
+					Names:  []string{"gnmi"},
+					Inside: 50051,
 				},
 			},
 			Labels: map[string]string{

@@ -342,20 +342,24 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			443: {
-				Name:   "ssl",
+				Names:  []string{"ssl"},
 				Inside: 443,
 			},
 			22: {
-				Name:   "ssh",
+				Names:  []string{"ssh"},
 				Inside: 22,
 			},
 			6030: {
-				Name:   "gnmi",
+				Names:  []string{"gnmi", "gnoi"},
 				Inside: 6030,
 			},
 			9340: {
-				Name:   "gribi",
+				Names:  []string{"gribi"},
 				Inside: 9340,
+			},
+			9559: {
+				Names:  []string{"p4rt"},
+				Inside: 9559,
 			},
 		}
 	}
