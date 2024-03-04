@@ -124,8 +124,8 @@ Field  | Type      | Description
 
 Field           | Type       | Description
 --------------- | ---------- | -----------
-`operator`      | string     | Path of the yaml file to create an IxiaTG operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/keysight/ixiatg-operator.yaml).
-`configMap`     | string     | Path of the yaml file to create an IxiaTG config map in the cluster. The validated config map for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/keysight/ixiatg-configmap.yaml).
+`operator`      | string     | Path of the yaml file to create an IxiaTG operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-operator.yaml).
+`configMap`     | string     | Path of the yaml file to create an IxiaTG config map in the cluster. The validated config map for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-configmap.yaml).
 ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an IxiaTG operator in the cluster. The directory is expected to contain a file with the name `ixiatg-operator.yaml`. Optionally the directory can contain a file with the name `ixiatg-configmap.yaml` to apply a config map of the desired container images used by the controller.~~
 
 ##### SRLinux
@@ -187,8 +187,8 @@ deployment](#deploy-a-cluster).
 `ixiatg` controller orchestrates the lifecycle of the [Ixia-c](https://ixia-c.dev) test nodes that add [Open Traffic Generator](https://otg.dev) capabilities to the KNE topology. To deploy:
 
 ```bash
-kubectl apply -f manifests/controllers/keysight/ixiatg-operator.yaml
-kubectl apply -f manifests/controllers/keysight/ixiatg-configmap.yaml
+kubectl apply -f manifests/keysight/ixiatg-operator.yaml
+kubectl apply -f manifests/keysight/ixiatg-configmap.yaml
 ```
 
 With the steps above the Ixia-c nodes will operate in the [Community Edition](https://github.com/open-traffic-generator/ixia-c/blob/mkdocs/docs/licensing.md#license-editions) mode. To enable full capabilities of Ixia-c, a valid Keysight Elastic Network Generator license is required. Use the following additional step to provide the address of the Keysight Licensing Server with the license to the `ixiatg` controller:
