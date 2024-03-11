@@ -152,7 +152,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
 		if n.Impl.Proto.Model != modelCdnos {
-		return node.StatusUnknown, fmt.Errorf("invalid model specified.")
+		return node.StatusUnknown, fmt.Errorf("invalid model specified")
 	}
 	return n.cdnosStatus(ctx)
 }
@@ -180,7 +180,7 @@ func (n *Node) cdnosStatus(ctx context.Context) (node.Status, error) {
 
 func (n *Node) Delete(ctx context.Context) error {
 	if n.Impl.Proto.Model != modelCdnos {
-		return fmt.Errorf("Unknown model")
+		return fmt.Errorf("unknown model")
 	}
 	return n.cdnosDelete(ctx)
 }
@@ -255,20 +255,12 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 		pb.Services = map[uint32]*tpb.Service{
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			9339: {
-				Name:   "gnmi",
+				Names:  []string{"gnmi", "gnoi", "gnsi"},
 				Inside: 9339,
 			},
 			9340: {
-				Name:   "gribi",
+				Names:  []string{"gribi"},
 				Inside: 9340,
-			},
-			9341: {
-				Name:   "gnsi",
-				Inside: 9339,
-			},
-			9342: {
-				Name:   "gnoi",
-				Inside: 9339,
 			},
 		}
 	}
