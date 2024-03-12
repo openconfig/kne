@@ -82,7 +82,6 @@ build {
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga",
     ]
@@ -108,6 +107,7 @@ build {
       "git clone https://github.com/flannel-io/flannel.git",
       "git clone https://github.com/Mirantis/cri-dockerd.git",
       "cd cri-dockerd",
+      "PATH=$PATH:/usr/local/go/bin",
       "make cri-dockerd",
       "sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd",
       "sudo install packaging/systemd/* /etc/systemd/system",
