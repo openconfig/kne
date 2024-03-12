@@ -111,7 +111,7 @@ build {
       "PATH=$PATH:/usr/local/go/bin",
       "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",
       "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\"",
-      "make build",
+      "make cri-dockerd",
       "sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd",
       "sudo install packaging/systemd/* /etc/systemd/system",
       "sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service",
