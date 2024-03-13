@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -418,6 +417,7 @@ type KubeadmSpec struct {
 	PodNetworkAddOnManifestData []byte
 	TokenTTL                    string `yaml:"tokenTTL"`
 	Network                     string `yaml:"network"`
+	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -435,7 +435,7 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if err := k.checkDependencies(); err != nil {
 		return fmt.Errorf("failed to check for dependencies: %w", err)
 	}
-	args := []string{"init"}
+	args := []string{"kubeadm", "init"}
 	if k.CRISocket != "" {
 		args = append(args, "--cri-socket", k.CRISocket)
 	}
@@ -445,31 +445,25 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.TokenTTL != "" {
 		args = append(args, "--token-ttl", k.TokenTTL)
 	}
-	if err := run.LogCommand("kubeadm", args...); err != nil {
+	if err := run.LogCommand("sudo", args...); err != nil {
 		return err
 	}
 	kubeDir := filepath.Join(homedir.HomeDir(), ".kube")
 	if err := os.MkdirAll(kubeDir, 0750); err != nil {
 		return err
 	}
-	src, err := os.Open("/etc/kubernetes/admin.conf")
-	if err != nil {
-		return err
-	}
-	defer src.Close()
 	kubeConfig := filepath.Join(kubeDir, "config")
-	dst, err := os.Create(kubeConfig)
-	if err != nil {
+	if err := run.LogCommand("sudo", "cp", "/etc/kubernetes/admin.conf", kubeConfig); err != nil {
 		return err
 	}
-	defer dst.Close()
-	if _, err := io.Copy(dst, src); err != nil {
+	if err := run.LogCommand("sudo", "chown", fmt.Sprintf("%v:%v", os.Getuid(), os.Getgid()), kubeConfig); err != nil {
 		return err
 	}
-	if err := os.Chown(kubeConfig, os.Getuid(), os.Getgid()); err != nil {
-		return err
+	if k.AllowControlPlaneScheduling {
+		if err := run.LogCommand("kubectl", "taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"); err != nil {
+			return err
+		}
 	}
-
 	// If add on is provided, apply it.
 	if k.PodNetworkAddOnManifestData != nil {
 		f, err := os.CreateTemp("", "kubeadm-pod-network-add-on-manifest-*.yaml")
@@ -495,9 +489,9 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 		}
 	}
 
-	// If network is not provided, create a new one.
+	// Create a new docker network if not specified.
 	if k.Network == "" {
-		k.Network = "kne" + uuid.New()
+		k.Network = "kne-kubeadm-" + uuid.New()
 		if err := run.LogCommand("docker", "network", "create", k.Network); err != nil {
 			return err
 		}
@@ -506,11 +500,11 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 }
 
 func (k *KubeadmSpec) Delete() error {
-	args := []string{"reset"}
+	args := []string{"kubeadm", "reset", "--force"}
 	if k.CRISocket != "" {
 		args = append(args, "--cri-socket", k.CRISocket)
 	}
-	if err := run.LogCommand("kubeadm", args...); err != nil {
+	if err := run.LogCommand("sudo", args...); err != nil {
 		return err
 	}
 	return nil

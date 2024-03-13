@@ -8,11 +8,12 @@ cluster:
     podNetworkCIDR: 10.244.0.0/16
     tokenTTL: 0 # no timeout
     podNetworkAddOnManifest: ../../manifests/flannel/manifest.yaml
+    allowControlPlaneScheduling: true
 ingress:
   kind: MetalLB
   spec:
     manifest: ../../manifests/metallb/manifest.yaml
-    ip_count: 100
+    ip_count: 200
 cni:
   kind: Meshnet
   spec:
