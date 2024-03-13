@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ import (
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	epb "github.com/openconfig/kne/proto/event"
+	"github.com/pborman/uuid"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -400,6 +402,137 @@ func (e *ExternalSpec) Apply(cfg []byte) error {
 
 func kubectlApply(cfg []byte) error {
 	return run.LogCommandWithInput(cfg, "kubectl", "apply", "-f", "-")
+}
+
+func init() {
+	load.Register("Kubeadm", &load.Spec{
+		Type: KubeadmSpec{},
+		Tag:  "cluster",
+	})
+}
+
+type KubeadmSpec struct {
+	CRISocket                   string `yaml:"criSocket"`
+	PodNetworkCIDR              string `yaml:"podNetworkCIDR"`
+	PodNetworkAddOnManifest     string `yaml:"podNetworkAddOnManifest" kne:"yaml"`
+	PodNetworkAddOnManifestData []byte
+	TokenTTL                    string `yaml:"tokenTTL"`
+	Network                     string `yaml:"network"`
+}
+
+func (k *KubeadmSpec) checkDependencies() error {
+	var errs errlist.List
+	bins := []string{"kubeadm"}
+	for _, bin := range bins {
+		if _, err := execLookPath(bin); err != nil {
+			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
+		}
+	}
+	return errs.Err()
+}
+
+func (k *KubeadmSpec) Deploy(ctx context.Context) error {
+	if err := k.checkDependencies(); err != nil {
+		return fmt.Errorf("failed to check for dependencies: %w", err)
+	}
+	args := []string{"init"}
+	if k.CRISocket != "" {
+		args = append(args, "--cri-socket", k.CRISocket)
+	}
+	if k.PodNetworkCIDR != "" {
+		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
+	}
+	if k.TokenTTL != "" {
+		args = append(args, "--token-ttl", k.TokenTTL)
+	}
+	if err := run.LogCommand("kubeadm", args...); err != nil {
+		return err
+	}
+	kubeDir := filepath.Join(homedir.HomeDir(), ".kube")
+	if err := os.MkdirAll(kubeDir, 0750); err != nil {
+		return err
+	}
+	src, err := os.Open("/etc/kubernetes/admin.conf")
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	kubeConfig := filepath.Join(kubeDir, "config")
+	dst, err := os.Create(kubeConfig)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, src); err != nil {
+		return err
+	}
+	if err := os.Chown(kubeConfig, os.Getuid(), os.Getgid()); err != nil {
+		return err
+	}
+
+	// If add on is provided, apply it.
+	if k.PodNetworkAddOnManifestData != nil {
+		f, err := os.CreateTemp("", "kubeadm-pod-network-add-on-manifest-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(k.PodNetworkAddOnManifestData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		k.PodNetworkAddOnManifest = f.Name()
+	}
+	if k.PodNetworkAddOnManifest != "" {
+		b, err := os.ReadFile(k.PodNetworkAddOnManifest)
+		if err != nil {
+			return err
+		}
+		if err := kubectlApply(b); err != nil {
+			return err
+		}
+	}
+
+	// If network is not provided, create a new one.
+	if k.Network == "" {
+		k.Network = "kne" + uuid.New()
+		if err := run.LogCommand("docker", "network", "create", k.Network); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (k *KubeadmSpec) Delete() error {
+	args := []string{"reset"}
+	if k.CRISocket != "" {
+		args = append(args, "--cri-socket", k.CRISocket)
+	}
+	if err := run.LogCommand("kubeadm", args...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (k *KubeadmSpec) Healthy() error {
+	if err := run.LogCommand("kubectl", "cluster-info"); err != nil {
+		return fmt.Errorf("cluster not healthy: %w", err)
+	}
+	return nil
+}
+
+func (k *KubeadmSpec) GetName() string {
+	return "kubeadm"
+}
+
+func (k *KubeadmSpec) GetDockerNetworkResourceName() string {
+	return k.Network
+}
+
+func (k *KubeadmSpec) Apply(cfg []byte) error {
+	return kubectlApply(cfg)
 }
 
 func init() {
