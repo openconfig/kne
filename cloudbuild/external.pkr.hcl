@@ -64,15 +64,15 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing docker...",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 update",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install apt-transport-https ca-certificates curl gnupg lsb-release -y",
+      "sudo apt-get update",
+      "sudo apt-get install apt-transport-https ca-certificates curl gnupg lsb-release -y",
       "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
       "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 update",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install docker-ce=5:24.0.7-1~debian.12~bookworm docker-ce-cli=5:24.0.7-1~debian.12~bookworm containerd.io build-essential -y",
+      "sudo apt-get update",
+      "sudo apt-get install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install openvswitch-switch-dpdk -y",   # install openvswitch for cisco containers
+      "sudo apt-get install openvswitch-switch-dpdk -y",   # install openvswitch for cisco containers
       "echo \"fs.inotify.max_user_instances=64000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
       "sudo sysctl -p",
@@ -82,10 +82,10 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kubectl...",
-      "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg",
-      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 update",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install kubelet kubeadm kubectl -y",
+      "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg",
+      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+      "sudo apt-get update",
+      "sudo apt-get install kubelet kubeadm kubectl -y",
       "kubectl version --client",
       "echo 'source <(kubectl completion bash)' >> ~/.bashrc",
       "echo 'alias k=kubectl' >> ~/.bashrc",
@@ -106,14 +106,14 @@ build {
       "echo Installing multinode cluster dependencies...",
       "git clone https://github.com/flannel-io/flannel.git",
       "curl --create-dirs -o third_party/licenses/flannel/LICENSE https://raw.githubusercontent.com/flannel-io/flannel/master/LICENSE",
-      "git clone https://github.com/Mirantis/cri-dockerd.git --branch v0.3.1",
+      "git clone https://github.com/Mirantis/cri-dockerd.git",
       "cd cri-dockerd",
       "PATH=$PATH:/usr/local/go/bin",
       "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",
       "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\"",
-      "/usr/local/go/bin/go build",
-      "sudo cp cri-dockerd /usr/local/bin/",
-      "sudo cp -a packaging/systemd/* /etc/systemd/system",
+      "make cri-dockerd",
+      "sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd",
+      "sudo install packaging/systemd/* /etc/systemd/system",
       "sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service",
       "sudo systemctl enable cri-docker.socket",
     ]
@@ -122,7 +122,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kind...",
-      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.19.0",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.22.0",
       "curl --create-dirs -o third_party/licenses/kind/LICENSE https://raw.githubusercontent.com/kubernetes-sigs/kind/main/LICENSE",
       "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",
@@ -132,7 +132,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Cloning openconfig/kne github repo...",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install git -y",
+      "sudo apt-get install git -y",
       "git clone -b ${var.branch_name} https://github.com/openconfig/kne.git",
       "cd kne",
       "PATH=$PATH:/usr/local/go/bin",
@@ -160,7 +160,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing openconfig tools...",
-      "sudo apt-get -o DPkg::Lock::Timeout=60 install tree -y",
+      "sudo apt-get install tree -y",
       "bash -c \"$(curl -sL https://get-gnmic.openconfig.net)\"",
       "bash -c \"$(curl -sL https://get-gribic.kmrd.dev)\"",
       "bash -c \"$(curl -sL https://get-gnoic.kmrd.dev)\"",
