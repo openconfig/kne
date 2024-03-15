@@ -36,6 +36,63 @@ func init() {
 	klog.LogToStderr(false)
 }
 
+func TestKubeadmSpec(t *testing.T) {
+	ctx := context.Background()
+
+	origHomeDir := homeDir
+	defer func() {
+		homeDir = origHomeDir
+	}()
+	homeDir = func() string { return "/tmp/" }
+
+	origOSGetuid := osGetuid
+	defer func() {
+		osGetuid = origOSGetuid
+	}()
+	osGetuid = func() int { return 1111 }
+
+	origOSGetgid := osGetgid
+	defer func() {
+		osGetgid = origOSGetgid
+	}()
+	osGetgid = func() int { return 9999 }
+
+	tests := []struct { 
+		desc        string
+		k           *KubeadmSpec
+		resp        []fexec.Response
+		execPathErr bool
+		wantErr     string
+	}{{
+		desc: "create cluster",
+		k: &KubeadmSpec{},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
+			execLookPath = func(_ string) (string, error) {
+				if tt.execPathErr {
+					return "", errors.New("unable to find on path")
+				}
+				return "fakePath", nil
+			}
+
+			err := tt.k.Deploy(ctx)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
+
 func TestKubectlApply(t *testing.T) {
 	tests := []struct {
 		desc    string
