@@ -1,21 +1,15 @@
-# kind-bridge.yaml cluster config file sets up a kind cluster where default PTP CNI plugin
-# is swapped with the Bridge CNI plugin.
-# Bridge CNI plugin is required by some Network OSes to operate.
+# external-multinode.yaml cluster config file sets up ingress, cni, and controllers in an existing k8 cluster.
+# This spec instructs Metallb to use a docker network named multinode.
+# The "external" cluster lifecycle is not managed by the KNE deployment.
 cluster:
-  kind: Kind
+  kind: External
   spec:
-    name: kne
-    recycle: True
-    version: v0.17.0
-    image: kindest/node:v1.26.0
-    config: ../../manifests/kind/config.yaml
-    additionalManifests:
-      - ../../manifests/kind/bridge.yaml
+    network: multinode
 ingress:
   kind: MetalLB
   spec:
     manifest: ../../manifests/metallb/manifest.yaml
-    ip_count: 100
+    ip_count: 200
 cni:
   kind: Meshnet
   spec:
@@ -34,3 +28,6 @@ controllers:
   - kind: Lemming
     spec:
       operator: ../../manifests/controllers/lemming/manifest.yaml
+  - kind: Cdnos
+    spec:
+      operator: ../../manifests/controllers/cdnos/manifest.yaml

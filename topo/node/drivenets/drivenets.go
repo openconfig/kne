@@ -211,7 +211,7 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "pr-registry.dev.drivenets.net/cdnos_pr_61485:19.1.0.1_priv.61485.1ca7037408b5f7a975949e0912d743498b1f49b5"
+		pb.Config.Image = "registry.dev.drivenets.net/devops/cdnos:latest"
 	}
 	if pb.Config.InitImage == "" {
 		pb.Config.InitImage = node.DefaultInitContainerImage
@@ -261,6 +261,10 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 			9340: {
 				Names:  []string{"gribi"},
 				Inside: 9340,
+			},
+			830: {
+				Names:  []string{"netconf"},
+				Inside: 830,
 			},
 		}
 	}

@@ -133,7 +133,6 @@ message LemmingSpec {
 
 // CdnosSpec specifications
 message CdnosSpec {
-  string manifest_dir = 1 [deprecated = true];
   Manifest operator = 2;
 }
 

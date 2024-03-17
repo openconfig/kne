@@ -1843,6 +1843,173 @@ func TestLemmingSpec(t *testing.T) {
 	}
 }
 
+func TestCdnosSpec(t *testing.T) {
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	deploymentName := "foo"
+	deploymentNS := "cdnos-operator"
+	var replicas int32 = 2
+	d := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: deploymentNS,
+		},
+	}
+	tests := []struct {
+		desc        string
+		cdnos     *CdnosSpec
+		resp        []fexec.Response
+		dErr        string
+		hErr        string
+		ctx         context.Context
+		mockKClient func(*fake.Clientset)
+	}{{
+		desc:    "1 replica",
+		cdnos: &CdnosSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: 1,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   1,
+							ReadyReplicas:       1,
+							Replicas:            1,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     1,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}, {
+		desc: "2 replicas - data over file",
+		cdnos: &CdnosSpec{
+			OperatorData: []byte("some fake data"),
+		},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ".*.yaml"}},
+		},
+		mockKClient: func(k *fake.Clientset) {
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				f := newFakeWatch([]watch.Event{{
+					Type: watch.Added,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Spec: appsv1.DeploymentSpec{
+							Replicas: &replicas,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   0,
+							ReadyReplicas:       0,
+							Replicas:            0,
+							UnavailableReplicas: replicas,
+							UpdatedReplicas:     0,
+						},
+					},
+				}, {
+					Type: watch.Modified,
+					Object: &appsv1.Deployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      deploymentName,
+							Namespace: deploymentNS,
+						},
+						Spec: appsv1.DeploymentSpec{
+							Replicas: &replicas,
+						},
+						Status: appsv1.DeploymentStatus{
+							AvailableReplicas:   replicas,
+							ReadyReplicas:       replicas,
+							Replicas:            replicas,
+							UnavailableReplicas: 0,
+							UpdatedReplicas:     replicas,
+						},
+					},
+				}})
+				return true, f, nil
+			}
+			k.PrependWatchReactor("deployments", reaction)
+		},
+	}, {
+		desc:    "operator deploy error",
+		cdnos: &CdnosSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "failed to apply operator"},
+		},
+
+		dErr: "failed to apply operator",
+	}, {
+		desc:    "context canceled",
+		cdnos: &CdnosSpec{},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
+		},
+
+		ctx:  canceledCtx,
+		hErr: "context canceled",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
+			ki := fake.NewSimpleClientset(d)
+			if tt.mockKClient != nil {
+				tt.mockKClient(ki)
+			}
+			tt.cdnos.SetKClient(ki)
+			err := tt.cdnos.Deploy(context.Background())
+			if s := errdiff.Substring(err, tt.dErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+			if err != nil {
+				return
+			}
+			if tt.ctx == nil {
+				tt.ctx = context.Background()
+			}
+			err = tt.cdnos.Healthy(tt.ctx)
+			if s := errdiff.Substring(err, tt.hErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
+
 func checkCmds(t *testing.T, cmds *fexec.Command) {
 	t.Helper()
 	if err := cmds.Done(); err != nil {

@@ -1141,7 +1141,6 @@ func init() {
 }
 
 type CdnosSpec struct {
-	ManifestDir  string `yaml:"manifests"`
 	Operator     string `yaml:"operator" kne:"yaml"`
 	OperatorData []byte
 	kClient      kubernetes.Interface
@@ -1165,10 +1164,6 @@ func (c *CdnosSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 		c.Operator = f.Name()
-	}
-	if c.Operator == "" && c.ManifestDir != "" {
-		log.Errorf("Deploying Cdnos controller using the directory 'manifests' field (%v) is deprecated, instead provide the filepath of the operator file directly using the 'operator' field going forward", c.ManifestDir)
-		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Cdnos controller from: %s", c.Operator)
 	if err := run.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
