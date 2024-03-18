@@ -49,9 +49,9 @@ var (
 	// Stubs for testing.
 	execLookPath       = exec.LookPath
 	kindSetupGARAccess = kind.SetupGARAccess
-	homeDir = homedir.HomeDir
-	osGetuid = os.Getuid
-	osGetgid = os.Getgid
+	homeDir            = homedir.HomeDir
+	osGetuid           = os.Getuid
+	osGetgid           = os.Getgid
 )
 
 type Cluster interface {

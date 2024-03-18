@@ -43,7 +43,7 @@ func TestKubeadmSpec(t *testing.T) {
 	defer func() {
 		homeDir = origHomeDir
 	}()
-	homeDir = func() string { return "/tmp/" }
+	homeDir = func() string { return t.TempDir() }
 
 	origOSGetuid := osGetuid
 	defer func() {
@@ -57,15 +57,60 @@ func TestKubeadmSpec(t *testing.T) {
 	}()
 	osGetgid = func() int { return 9999 }
 
-	tests := []struct { 
+	tests := []struct {
 		desc        string
 		k           *KubeadmSpec
 		resp        []fexec.Response
 		execPathErr bool
 		wantErr     string
 	}{{
+		desc:        "kubeadm not found",
+		k:           &KubeadmSpec{},
+		execPathErr: true,
+		wantErr:     `install dependency "kubeadm" to deploy`,
+	}, {
 		desc: "create cluster",
-		k: &KubeadmSpec{},
+		k:    &KubeadmSpec{},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "allow control plane scheduling",
+		k: &KubeadmSpec{
+			AllowControlPlaneScheduling: true,
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+			{Cmd: "kubectl", Args: []string{"taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "pod manifest add on data",
+		k: &KubeadmSpec{
+			PodNetworkAddOnManifestData: []byte("manifest yaml"),
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "-"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "provided network",
+		k: &KubeadmSpec{
+			Network: "my-network",
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
