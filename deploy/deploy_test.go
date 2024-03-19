@@ -45,18 +45,6 @@ func TestKubeadmSpec(t *testing.T) {
 	}()
 	homeDir = func() string { return t.TempDir() }
 
-	origOSGetuid := osGetuid
-	defer func() {
-		osGetuid = origOSGetuid
-	}()
-	osGetuid = func() int { return 1111 }
-
-	origOSGetgid := osGetgid
-	defer func() {
-		osGetgid = origOSGetgid
-	}()
-	osGetgid = func() int { return 9999 }
-
 	tests := []struct {
 		desc        string
 		k           *KubeadmSpec
@@ -73,8 +61,7 @@ func TestKubeadmSpec(t *testing.T) {
 		k:    &KubeadmSpec{},
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
-			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
-			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
 	}, {
@@ -84,8 +71,7 @@ func TestKubeadmSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
-			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
-			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
@@ -96,8 +82,7 @@ func TestKubeadmSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
-			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
-			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"apply", "-f", "-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
@@ -108,8 +93,7 @@ func TestKubeadmSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
-			{Cmd: "sudo", Args: []string{"cp", "/etc/kubernetes/admin.conf", ".*/.kube/config"}},
-			{Cmd: "sudo", Args: []string{"chown", "1111:9999", ".*/.kube/config"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 		},
 	}}
 	for _, tt := range tests {

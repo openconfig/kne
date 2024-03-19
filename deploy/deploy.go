@@ -50,8 +50,6 @@ var (
 	execLookPath       = exec.LookPath
 	kindSetupGARAccess = kind.SetupGARAccess
 	homeDir            = homedir.HomeDir
-	osGetuid           = os.Getuid
-	osGetgid           = os.Getgid
 )
 
 type Cluster interface {
@@ -455,11 +453,11 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if err := os.MkdirAll(kubeDir, 0750); err != nil {
 		return err
 	}
-	kubeConfig := filepath.Join(kubeDir, "config")
-	if err := run.LogCommand("sudo", "cp", "/etc/kubernetes/admin.conf", kubeConfig); err != nil {
+	b, err := run.OutCommand("sudo", "cat", "/etc/kubernetes/admin.conf")
+	if err != nil {
 		return err
 	}
-	if err := run.LogCommand("sudo", "chown", fmt.Sprintf("%v:%v", osGetuid(), osGetgid()), kubeConfig); err != nil {
+	if err := os.WriteFile(filepath.Join(kubeDir, "config"), b, 0640); err != nil {
 		return err
 	}
 	if k.AllowControlPlaneScheduling {
