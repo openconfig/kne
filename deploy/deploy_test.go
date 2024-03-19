@@ -1857,14 +1857,14 @@ func TestCdnosSpec(t *testing.T) {
 	}
 	tests := []struct {
 		desc        string
-		cdnos     *CdnosSpec
+		cdnos       *CdnosSpec
 		resp        []fexec.Response
 		dErr        string
 		hErr        string
 		ctx         context.Context
 		mockKClient func(*fake.Clientset)
 	}{{
-		desc:    "1 replica",
+		desc:  "1 replica",
 		cdnos: &CdnosSpec{},
 		resp: []fexec.Response{
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},
@@ -1959,7 +1959,7 @@ func TestCdnosSpec(t *testing.T) {
 			k.PrependWatchReactor("deployments", reaction)
 		},
 	}, {
-		desc:    "operator deploy error",
+		desc:  "operator deploy error",
 		cdnos: &CdnosSpec{},
 		resp: []fexec.Response{
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}, Err: "failed to apply operator"},
@@ -1967,7 +1967,7 @@ func TestCdnosSpec(t *testing.T) {
 
 		dErr: "failed to apply operator",
 	}, {
-		desc:    "context canceled",
+		desc:  "context canceled",
 		cdnos: &CdnosSpec{},
 		resp: []fexec.Response{
 			{Cmd: "kubectl", Args: []string{"apply", "-f", ""}},

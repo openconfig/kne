@@ -125,7 +125,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 			InterfaceCount: len(nodeSpec.Interfaces) + 1,
 			InitSleep:      int(config.Sleep),
 			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
-			Labels: nodeSpec.Labels,
+			Labels:         nodeSpec.Labels,
 		},
 	}
 	if config.Cert != nil {
@@ -151,7 +151,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
-		if n.Impl.Proto.Model != modelCdnos {
+	if n.Impl.Proto.Model != modelCdnos {
 		return node.StatusUnknown, fmt.Errorf("invalid model specified")
 	}
 	return n.cdnosStatus(ctx)

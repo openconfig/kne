@@ -1132,7 +1132,6 @@ func (i *IxiaTGSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, i.kClient, "ixiatg-op-system")
 }
 
-
 func init() {
 	load.Register("Cdnos", &load.Spec{
 		Type: CdnosSpec{},
@@ -1176,7 +1175,6 @@ func (c *CdnosSpec) Deploy(ctx context.Context) error {
 func (c *CdnosSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, c.kClient, "cdnos-controller-system")
 }
-
 
 func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string) error {
 	log.Infof("Waiting on deployment %q to be healthy", name)
