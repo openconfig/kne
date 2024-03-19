@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	epb "github.com/openconfig/kne/proto/event"
+	"github.com/pborman/uuid"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -48,6 +49,7 @@ var (
 	// Stubs for testing.
 	execLookPath       = exec.LookPath
 	kindSetupGARAccess = kind.SetupGARAccess
+	homeDir            = homedir.HomeDir
 )
 
 type Cluster interface {
@@ -400,6 +402,132 @@ func (e *ExternalSpec) Apply(cfg []byte) error {
 
 func kubectlApply(cfg []byte) error {
 	return run.LogCommandWithInput(cfg, "kubectl", "apply", "-f", "-")
+}
+
+func init() {
+	load.Register("Kubeadm", &load.Spec{
+		Type: KubeadmSpec{},
+		Tag:  "cluster",
+	})
+}
+
+type KubeadmSpec struct {
+	CRISocket                   string `yaml:"criSocket"`
+	PodNetworkCIDR              string `yaml:"podNetworkCIDR"`
+	PodNetworkAddOnManifest     string `yaml:"podNetworkAddOnManifest" kne:"yaml"`
+	PodNetworkAddOnManifestData []byte
+	TokenTTL                    string `yaml:"tokenTTL"`
+	Network                     string `yaml:"network"`
+	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
+}
+
+func (k *KubeadmSpec) checkDependencies() error {
+	var errs errlist.List
+	bins := []string{"kubeadm"}
+	for _, bin := range bins {
+		if _, err := execLookPath(bin); err != nil {
+			errs.Add(fmt.Errorf("install dependency %q to deploy", bin))
+		}
+	}
+	return errs.Err()
+}
+
+func (k *KubeadmSpec) Deploy(ctx context.Context) error {
+	if err := k.checkDependencies(); err != nil {
+		return fmt.Errorf("failed to check for dependencies: %w", err)
+	}
+	args := []string{"kubeadm", "init"}
+	if k.CRISocket != "" {
+		args = append(args, "--cri-socket", k.CRISocket)
+	}
+	if k.PodNetworkCIDR != "" {
+		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
+	}
+	if k.TokenTTL != "" {
+		args = append(args, "--token-ttl", k.TokenTTL)
+	}
+	if err := run.LogCommand("sudo", args...); err != nil {
+		return err
+	}
+	kubeDir := filepath.Join(homeDir(), ".kube")
+	if err := os.MkdirAll(kubeDir, 0750); err != nil {
+		return err
+	}
+	b, err := run.OutCommand("sudo", "cat", "/etc/kubernetes/admin.conf")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(kubeDir, "config"), b, 0640); err != nil {
+		return err
+	}
+	if k.AllowControlPlaneScheduling {
+		if err := run.LogCommand("kubectl", "taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"); err != nil {
+			return err
+		}
+	}
+	// If add on is provided, apply it.
+	if k.PodNetworkAddOnManifestData != nil {
+		f, err := os.CreateTemp("", "kubeadm-pod-network-add-on-manifest-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(k.PodNetworkAddOnManifestData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		k.PodNetworkAddOnManifest = f.Name()
+	}
+	if k.PodNetworkAddOnManifest != "" {
+		b, err := os.ReadFile(k.PodNetworkAddOnManifest)
+		if err != nil {
+			return err
+		}
+		if err := kubectlApply(b); err != nil {
+			return err
+		}
+	}
+
+	// Create a new docker network if not specified.
+	if k.Network == "" {
+		k.Network = "kne-kubeadm-" + uuid.New()
+		if err := run.LogCommand("docker", "network", "create", k.Network); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (k *KubeadmSpec) Delete() error {
+	args := []string{"kubeadm", "reset", "--force"}
+	if k.CRISocket != "" {
+		args = append(args, "--cri-socket", k.CRISocket)
+	}
+	if err := run.LogCommand("sudo", args...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (k *KubeadmSpec) Healthy() error {
+	if err := run.LogCommand("kubectl", "cluster-info"); err != nil {
+		return fmt.Errorf("cluster not healthy: %w", err)
+	}
+	return nil
+}
+
+func (k *KubeadmSpec) GetName() string {
+	return "kubeadm"
+}
+
+func (k *KubeadmSpec) GetDockerNetworkResourceName() string {
+	return k.Network
+}
+
+func (k *KubeadmSpec) Apply(cfg []byte) error {
+	return kubectlApply(cfg)
 }
 
 func init() {

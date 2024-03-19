@@ -36,6 +36,92 @@ func init() {
 	klog.LogToStderr(false)
 }
 
+func TestKubeadmSpec(t *testing.T) {
+	ctx := context.Background()
+
+	origHomeDir := homeDir
+	defer func() {
+		homeDir = origHomeDir
+	}()
+	homeDir = func() string { return t.TempDir() }
+
+	tests := []struct {
+		desc        string
+		k           *KubeadmSpec
+		resp        []fexec.Response
+		execPathErr bool
+		wantErr     string
+	}{{
+		desc:        "kubeadm not found",
+		k:           &KubeadmSpec{},
+		execPathErr: true,
+		wantErr:     `install dependency "kubeadm" to deploy`,
+	}, {
+		desc: "create cluster",
+		k:    &KubeadmSpec{},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "allow control plane scheduling",
+		k: &KubeadmSpec{
+			AllowControlPlaneScheduling: true,
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+			{Cmd: "kubectl", Args: []string{"taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "pod manifest add on data",
+		k: &KubeadmSpec{
+			PodNetworkAddOnManifestData: []byte("manifest yaml"),
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+			{Cmd: "kubectl", Args: []string{"apply", "-f", "-"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "provided network",
+		k: &KubeadmSpec{
+			Network: "my-network",
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if verbose {
+				fexec.LogCommand = func(s string) {
+					t.Logf("%s: %s", tt.desc, s)
+				}
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
+			execLookPath = func(_ string) (string, error) {
+				if tt.execPathErr {
+					return "", errors.New("unable to find on path")
+				}
+				return "fakePath", nil
+			}
+
+			err := tt.k.Deploy(ctx)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
+
 func TestKubectlApply(t *testing.T) {
 	tests := []struct {
 		desc    string

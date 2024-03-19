@@ -83,13 +83,21 @@ fi
 # Cleanup the cluster
 $cli teardown kne/deploy/kne/kind-bridge.yaml
 
+# Create a kubeadm cluster
+$cli deploy kne/deploy/kne/kubeadm.yaml --report_usage=false
+
+kubectl get pods -A
+
+# Cleanup the kubeadm cluster
+$cli teardown kne/deploy/kne/kubeadm.yaml
+
 ## Create a kubeadm single node cluster
 sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
 mkdir -p "$HOME"/.kube
 sudo cp /etc/kubernetes/admin.conf "$HOME"/.kube/config
 sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 kubectl taint nodes --all node-role.kubernetes.io/control-plane-  # allows pods to be scheduled on control plane node
-kubectl apply -f "$HOME"/flannel/Documentation/kube-flannel.yml
+kubectl apply -f kne/manifests/flannel/manifest.yaml
 docker network create multinode
 
 # Deploy an external cluster
