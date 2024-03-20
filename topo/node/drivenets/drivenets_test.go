@@ -3,6 +3,7 @@ package drivenets
 import (
 	"testing"
 
+	"github.com/openconfig/gnmi/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 )
@@ -37,20 +38,11 @@ func TestNew(t *testing.T) {
 			errString: "unknown model",
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := New(tt.nodeImpl)
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("New() error = nil, wantErr %v", tt.wantErr)
-					return
-				}
-				if err.Error() != tt.errString {
-					t.Errorf("New() error = %v, wantErr %v", err, tt.errString)
-				}
-			} else if err != nil {
-				t.Errorf("New() unexpected error = %v", err)
+			if diff := errdiff.Substring(err, tt.errString); diff != "" {
+				t.Errorf("New() %v", diff)
 			}
 		})
 	}

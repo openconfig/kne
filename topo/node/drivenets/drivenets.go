@@ -309,7 +309,7 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: sCM.Name, // reference to your ConfigMap
+					Name: sCM.Name,
 				},
 			},
 		},

@@ -133,7 +133,7 @@ message LemmingSpec {
 
 // CdnosSpec specifications
 message CdnosSpec {
-  Manifest operator = 2;
+  Manifest operator = 1;
 }
 
 message Manifest {
