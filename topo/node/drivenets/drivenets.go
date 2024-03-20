@@ -288,20 +288,31 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	case *tpb.Config_Data:
 		data = v.Data
 	}
-	if data != nil {
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-config", pb.Name),
-			},
-			Data: map[string]string{
-				pb.Config.ConfigFile: string(data),
-			},
-		}
-		sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
-		if err != nil {
-			return nil, err
-		}
-		log.V(1).Infof("Server Config Map:\n%v\n", sCM)
+	if data == nil {
+		return nil, nil
 	}
-	return nil, nil
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-config", pb.Name),
+		},
+		Data: map[string]string{
+			pb.Config.ConfigFile: string(data),
+		},
+	}
+	sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	log.V(1).Infof("Server Config Map:\n%v\n", sCM)
+	volume := &corev1.Volume{
+		Name: fmt.Sprintf("%s-config-volume", pb.Name),
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: sCM.Name, // reference to your ConfigMap
+				},
+			},
+		},
+	}
+	return volume, nil
 }
