@@ -20,8 +20,6 @@ nodes: {
     name: "cdnos1"
     vendor: DRIVENETS
     config: {
-        config_path: "/config_load"
-        config_file: "default"
         file: "cdnos2.cfg"
         image: "registry.dev.drivenets.net/devops/cdnos_dev_v19_1:19.1.0.101_dev.dev_v19_1"
     }

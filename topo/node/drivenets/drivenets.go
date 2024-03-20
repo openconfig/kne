@@ -210,6 +210,12 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
+	if pb.Config.ConfigFile == "" {
+		pb.Config.ConfigFile = "default"
+	}
+	if pb.Config.ConfigPath == "" {
+		pb.Config.ConfigPath = "/config_load"
+	}
 	if pb.Config.Image == "" {
 		pb.Config.Image = "registry.dev.drivenets.net/devops/cdnos:latest"
 	}
