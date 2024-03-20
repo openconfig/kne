@@ -1,0 +1,25 @@
+name: "cdnos-demo"
+nodes: {
+    name: "cdnos1"
+    vendor: DRIVENETS
+    config: {
+        file: "cdnos1.cfg"
+        image: "registry.dev.drivenets.net/devops/cdnos_dev_v19_1:19.1.0.101_dev.dev_v19_1"
+    }
+    model: "CDNOS"
+}
+nodes: {
+    name: "cdnos2"
+    vendor: DRIVENETS
+    config: {
+        file: "cdnos2.cfg"
+        image: "registry.dev.drivenets.net/devops/cdnos_dev_v19_1:19.1.0.101_dev.dev_v19_1"
+    }
+    model: "CDNOS"
+}
+links: {
+    a_node: "cdnos1"
+    a_int: "eno0"
+    z_node: "cdnos2"
+    z_int: "eno0"
+}

@@ -50,6 +50,7 @@ import (
 	_ "github.com/openconfig/kne/topo/node/alpine"
 	_ "github.com/openconfig/kne/topo/node/arista"
 	_ "github.com/openconfig/kne/topo/node/cisco"
+	_ "github.com/openconfig/kne/topo/node/drivenets"
 	_ "github.com/openconfig/kne/topo/node/gobgp"
 	_ "github.com/openconfig/kne/topo/node/host"
 	_ "github.com/openconfig/kne/topo/node/juniper"

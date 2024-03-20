@@ -88,6 +88,7 @@ message ControllerSpec {
     SRLinuxSpec srlinux = 2;
     CEOSLabSpec ceoslab = 3;
     LemmingSpec lemming = 4;
+    CdnosSpec cdnos = 5;
   }
 }
 
@@ -128,6 +129,11 @@ message CEOSLabSpec {
 message LemmingSpec {
   string manifest_dir = 1 [deprecated = true];
   Manifest operator = 2;
+}
+
+// CdnosSpec specifications
+message CdnosSpec {
+  Manifest operator = 1;
 }
 
 message Manifest {

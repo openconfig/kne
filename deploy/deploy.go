@@ -154,6 +154,8 @@ func (d *Deployment) event() *epb.Cluster {
 			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_SRLINUX)
 		case *LemmingSpec:
 			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_LEMMING)
+		case *CdnosSpec:
+			c.Controllers = append(c.Controllers, epb.Cluster_CONTROLLER_TYPE_CDNOS)
 		}
 	}
 	return c
@@ -1256,6 +1258,50 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 
 func (i *IxiaTGSpec) Healthy(ctx context.Context) error {
 	return deploymentHealthy(ctx, i.kClient, "ixiatg-op-system")
+}
+
+func init() {
+	load.Register("Cdnos", &load.Spec{
+		Type: CdnosSpec{},
+		Tag:  "controllers",
+	})
+}
+
+type CdnosSpec struct {
+	Operator     string `yaml:"operator" kne:"yaml"`
+	OperatorData []byte
+	kClient      kubernetes.Interface
+}
+
+func (c *CdnosSpec) SetKClient(k kubernetes.Interface) {
+	c.kClient = k
+}
+
+func (c *CdnosSpec) Deploy(ctx context.Context) error {
+	if c.OperatorData != nil {
+		f, err := os.CreateTemp("", "cdnos-operator-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(f.Name())
+		if _, err := f.Write(c.OperatorData); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		c.Operator = f.Name()
+	}
+	log.Infof("Deploying Cdnos controller from: %s", c.Operator)
+	if err := run.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
+		return fmt.Errorf("failed to deploy cdnos operator: %w", err)
+	}
+	log.Infof("Cdnos controller deployed")
+	return nil
+}
+
+func (c *CdnosSpec) Healthy(ctx context.Context) error {
+	return deploymentHealthy(ctx, c.kClient, "cdnos-controller-system")
 }
 
 func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string) error {

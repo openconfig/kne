@@ -177,6 +177,7 @@ following vendors use a controller:
 - Keysight: `ixiatg`
 - Nokia: `srlinux`
 - Arista: `ceoslab`
+- Drivenets: `cdnos`
 - OpenConfig: `lemming`
 
 These controllers can be deployed as part of [cluster
@@ -223,6 +224,15 @@ kubectl apply -f manifests/controllers/ceoslab/manifest.yaml
 
 See more on the
 [arista-ceoslab-operator GitHub repo](https://github.com/aristanetworks/arista-ceoslab-operator).
+
+### Cdnos Controller
+
+```bash
+kubectl apply -f manifests/controllers/cdnos/manifest.yaml
+```
+
+See more on the
+[cdnos-controller GitHub repo](https://github.com/drivenets/cdnos-controller).
 
 #### lemming
 
