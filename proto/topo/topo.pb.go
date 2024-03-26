@@ -201,6 +201,58 @@ func (Node_Type) EnumDescriptor() ([]byte, []int) {
 	return file_topo_proto_rawDescGZIP(), []int{1, 0}
 }
 
+type Interface_InterfaceType int32
+
+const (
+	Interface_UNKNOWN    Interface_InterfaceType = 0
+	Interface_LOOPBACK   Interface_InterfaceType = 1
+	Interface_MANAGEMENT Interface_InterfaceType = 2
+	Interface_DATA       Interface_InterfaceType = 3
+)
+
+// Enum value maps for Interface_InterfaceType.
+var (
+	Interface_InterfaceType_name = map[int32]string{
+		0: "UNKNOWN",
+		1: "LOOPBACK",
+		2: "MANAGEMENT",
+		3: "DATA",
+	}
+	Interface_InterfaceType_value = map[string]int32{
+		"UNKNOWN":    0,
+		"LOOPBACK":   1,
+		"MANAGEMENT": 2,
+		"DATA":       3,
+	}
+)
+
+func (x Interface_InterfaceType) Enum() *Interface_InterfaceType {
+	p := new(Interface_InterfaceType)
+	*p = x
+	return p
+}
+
+func (x Interface_InterfaceType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Interface_InterfaceType) Descriptor() protoreflect.EnumDescriptor {
+	return file_topo_proto_enumTypes[2].Descriptor()
+}
+
+func (Interface_InterfaceType) Type() protoreflect.EnumType {
+	return &file_topo_proto_enumTypes[2]
+}
+
+func (x Interface_InterfaceType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Interface_InterfaceType.Descriptor instead.
+func (Interface_InterfaceType) EnumDescriptor() ([]byte, []int) {
+	return file_topo_proto_rawDescGZIP(), []int{5, 0}
+}
+
 // Topology message defines what nodes and links will be created
 // inside the mesh.
 type Topology struct {
@@ -639,6 +691,10 @@ type Interface struct {
 	Uid int64 `protobuf:"varint,6,opt,name=uid,proto3" json:"uid,omitempty"`
 	// Name of group to which this interface belongs
 	Group string `protobuf:"bytes,7,opt,name=group,proto3" json:"group,omitempty"`
+	// Type of the interface - Loopback, Management , Data etc.
+	Type Interface_InterfaceType `protobuf:"varint,8,opt,name=type,proto3,enum=topo.Interface_InterfaceType" json:"type,omitempty"`
+	// IPAddress associated with the interface.
+	IPAddress string `protobuf:"bytes,9,opt,name=IPAddress,proto3" json:"IPAddress,omitempty"`
 }
 
 func (x *Interface) Reset() {
@@ -718,6 +774,20 @@ func (x *Interface) GetUid() int64 {
 func (x *Interface) GetGroup() string {
 	if x != nil {
 		return x.Group
+	}
+	return ""
+}
+
+func (x *Interface) GetType() Interface_InterfaceType {
+	if x != nil {
+		return x.Type
+	}
+	return Interface_UNKNOWN
+}
+
+func (x *Interface) GetIPAddress() string {
+	if x != nil {
+		return x.IPAddress
 	}
 	return ""
 }
@@ -1318,7 +1388,7 @@ var file_topo_proto_rawDesc = []byte{
 	0x61, 0x6c, 0x75, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x08, 0x6d, 0x61, 0x78, 0x56,
 	0x61, 0x6c, 0x75, 0x65, 0x12, 0x1b, 0x0a, 0x09, 0x6d, 0x69, 0x6e, 0x5f, 0x76, 0x61, 0x6c, 0x75,
 	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x08, 0x6d, 0x69, 0x6e, 0x56, 0x61, 0x6c, 0x75,
-	0x65, 0x22, 0xb5, 0x01, 0x0a, 0x09, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x66, 0x61, 0x63, 0x65, 0x12,
+	0x65, 0x22, 0xcc, 0x02, 0x0a, 0x09, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x66, 0x61, 0x63, 0x65, 0x12,
 	0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e,
 	0x61, 0x6d, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x69, 0x6e, 0x74, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18,
 	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x69, 0x6e, 0x74, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x10,
@@ -1420,53 +1490,55 @@ func file_topo_proto_rawDescGZIP() []byte {
 	return file_topo_proto_rawDescData
 }
 
-var file_topo_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_topo_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_topo_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_topo_proto_goTypes = []interface{}{
-	(Vendor)(0),               // 0: topo.Vendor
-	(Node_Type)(0),            // 1: topo.Node.Type
-	(*Topology)(nil),          // 2: topo.Topology
-	(*Node)(nil),              // 3: topo.Node
-	(*HostConstraint)(nil),    // 4: topo.HostConstraint
-	(*KernelParam)(nil),       // 5: topo.KernelParam
-	(*BoundedInteger)(nil),    // 6: topo.BoundedInteger
-	(*Interface)(nil),         // 7: topo.Interface
-	(*Link)(nil),              // 8: topo.Link
-	(*Config)(nil),            // 9: topo.Config
-	(*CertificateCfg)(nil),    // 10: topo.CertificateCfg
-	(*SelfSignedCertCfg)(nil), // 11: topo.SelfSignedCertCfg
-	(*Service)(nil),           // 12: topo.Service
-	nil,                       // 13: topo.Node.LabelsEntry
-	nil,                       // 14: topo.Node.ServicesEntry
-	nil,                       // 15: topo.Node.ConstraintsEntry
-	nil,                       // 16: topo.Node.InterfacesEntry
-	nil,                       // 17: topo.Config.EnvEntry
-	(*anypb.Any)(nil),         // 18: google.protobuf.Any
+	(Vendor)(0),                  // 0: topo.Vendor
+	(Node_Type)(0),               // 1: topo.Node.Type
+	(Interface_InterfaceType)(0), // 2: topo.Interface.InterfaceType
+	(*Topology)(nil),             // 3: topo.Topology
+	(*Node)(nil),                 // 4: topo.Node
+	(*HostConstraint)(nil),       // 5: topo.HostConstraint
+	(*KernelParam)(nil),          // 6: topo.KernelParam
+	(*BoundedInteger)(nil),       // 7: topo.BoundedInteger
+	(*Interface)(nil),            // 8: topo.Interface
+	(*Link)(nil),                 // 9: topo.Link
+	(*Config)(nil),               // 10: topo.Config
+	(*CertificateCfg)(nil),       // 11: topo.CertificateCfg
+	(*SelfSignedCertCfg)(nil),    // 12: topo.SelfSignedCertCfg
+	(*Service)(nil),              // 13: topo.Service
+	nil,                          // 14: topo.Node.LabelsEntry
+	nil,                          // 15: topo.Node.ServicesEntry
+	nil,                          // 16: topo.Node.ConstraintsEntry
+	nil,                          // 17: topo.Node.InterfacesEntry
+	nil,                          // 18: topo.Config.EnvEntry
+	(*anypb.Any)(nil),            // 19: google.protobuf.Any
 }
 var file_topo_proto_depIdxs = []int32{
-	3,  // 0: topo.Topology.nodes:type_name -> topo.Node
-	8,  // 1: topo.Topology.links:type_name -> topo.Link
+	4,  // 0: topo.Topology.nodes:type_name -> topo.Node
+	9,  // 1: topo.Topology.links:type_name -> topo.Link
 	1,  // 2: topo.Node.type:type_name -> topo.Node.Type
-	13, // 3: topo.Node.labels:type_name -> topo.Node.LabelsEntry
-	9,  // 4: topo.Node.config:type_name -> topo.Config
-	14, // 5: topo.Node.services:type_name -> topo.Node.ServicesEntry
-	15, // 6: topo.Node.constraints:type_name -> topo.Node.ConstraintsEntry
+	14, // 3: topo.Node.labels:type_name -> topo.Node.LabelsEntry
+	10, // 4: topo.Node.config:type_name -> topo.Config
+	15, // 5: topo.Node.services:type_name -> topo.Node.ServicesEntry
+	16, // 6: topo.Node.constraints:type_name -> topo.Node.ConstraintsEntry
 	0,  // 7: topo.Node.vendor:type_name -> topo.Vendor
-	16, // 8: topo.Node.interfaces:type_name -> topo.Node.InterfacesEntry
-	4,  // 9: topo.Node.host_constraints:type_name -> topo.HostConstraint
-	5,  // 10: topo.HostConstraint.kernel_constraint:type_name -> topo.KernelParam
-	6,  // 11: topo.KernelParam.bounded_integer:type_name -> topo.BoundedInteger
-	17, // 12: topo.Config.env:type_name -> topo.Config.EnvEntry
-	10, // 13: topo.Config.cert:type_name -> topo.CertificateCfg
-	18, // 14: topo.Config.vendor_data:type_name -> google.protobuf.Any
-	11, // 15: topo.CertificateCfg.self_signed:type_name -> topo.SelfSignedCertCfg
-	12, // 16: topo.Node.ServicesEntry.value:type_name -> topo.Service
-	7,  // 17: topo.Node.InterfacesEntry.value:type_name -> topo.Interface
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	17, // 8: topo.Node.interfaces:type_name -> topo.Node.InterfacesEntry
+	5,  // 9: topo.Node.host_constraints:type_name -> topo.HostConstraint
+	6,  // 10: topo.HostConstraint.kernel_constraint:type_name -> topo.KernelParam
+	7,  // 11: topo.KernelParam.bounded_integer:type_name -> topo.BoundedInteger
+	2,  // 12: topo.Interface.type:type_name -> topo.Interface.InterfaceType
+	18, // 13: topo.Config.env:type_name -> topo.Config.EnvEntry
+	11, // 14: topo.Config.cert:type_name -> topo.CertificateCfg
+	19, // 15: topo.Config.vendor_data:type_name -> google.protobuf.Any
+	12, // 16: topo.CertificateCfg.self_signed:type_name -> topo.SelfSignedCertCfg
+	13, // 17: topo.Node.ServicesEntry.value:type_name -> topo.Service
+	8,  // 18: topo.Node.InterfacesEntry.value:type_name -> topo.Interface
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_topo_proto_init() }
@@ -1626,7 +1698,7 @@ func file_topo_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_topo_proto_rawDesc,
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,

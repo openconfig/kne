@@ -114,6 +114,12 @@ message BoundedInteger {
 
 // Interface keys must be the same as the links a,z int.
 message Interface {
+  enum InterfaceType {
+    UNKNOWN = 0;
+    LOOPBACK = 1;
+    MANAGEMENT = 2;
+    DATA = 3;
+  }
   // Name of the interface provided by Node implementation. This will be used
   // to map the int_name into a vendor specific interface name. Vendor operators
   // should provide the name mapping from the node interface key to this vendor
@@ -131,6 +137,10 @@ message Interface {
   int64 uid = 6;
   // Name of group to which this interface belongs
   string group = 7;
+  // Type of the interface - Loopback, Management , Data etc.
+  InterfaceType type = 8;
+  // IPAddress associated with the interface.
+  string IPAddress = 9;
 }
 
 // Link is single link between nodes in the topology.
