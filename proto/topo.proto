@@ -139,8 +139,8 @@ message Interface {
   string group = 7;
   // Type of the interface - Loopback, Management , Data etc.
   InterfaceType type = 8;
-  // IPAddress associated with the interface.
-  string IPAddress = 9;
+  // ip_address associated with the interface.
+  string ip_address = 9;
 }
 
 // Link is single link between nodes in the topology.
