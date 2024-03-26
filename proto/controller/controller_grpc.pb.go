@@ -40,6 +40,8 @@ type TopologyManagerClient interface {
 	ResetConfig(ctx context.Context, in *ResetConfigRequest, opts ...grpc.CallOption) (*ResetConfigResponse, error)
 	// Applies kubeyaml to a running cluster.
 	ApplyCluster(ctx context.Context, in *ApplyClusterRequest, opts ...grpc.CallOption) (*ApplyClusterResponse, error)
+	// Joins host into an existing Kubeadm cluster.
+	JoinCluster(ctx context.Context, in *JoinClusterRequest, opts ...grpc.CallOption) (*JoinClusterResponse, error)
 }
 
 type topologyManagerClient struct {
@@ -131,6 +133,15 @@ func (c *topologyManagerClient) ApplyCluster(ctx context.Context, in *ApplyClust
 	return out, nil
 }
 
+func (c *topologyManagerClient) JoinCluster(ctx context.Context, in *JoinClusterRequest, opts ...grpc.CallOption) (*JoinClusterResponse, error) {
+	out := new(JoinClusterResponse)
+	err := c.cc.Invoke(ctx, "/controller.TopologyManager/JoinCluster", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TopologyManagerServer is the server API for TopologyManager service.
 // All implementations must embed UnimplementedTopologyManagerServer
 // for forward compatibility
@@ -153,6 +164,8 @@ type TopologyManagerServer interface {
 	ResetConfig(context.Context, *ResetConfigRequest) (*ResetConfigResponse, error)
 	// Applies kubeyaml to a running cluster.
 	ApplyCluster(context.Context, *ApplyClusterRequest) (*ApplyClusterResponse, error)
+	// Joins host into an existing Kubeadm cluster.
+	JoinCluster(context.Context, *JoinClusterRequest) (*JoinClusterResponse, error)
 	mustEmbedUnimplementedTopologyManagerServer()
 }
 
@@ -186,6 +199,9 @@ func (UnimplementedTopologyManagerServer) ResetConfig(context.Context, *ResetCon
 }
 func (UnimplementedTopologyManagerServer) ApplyCluster(context.Context, *ApplyClusterRequest) (*ApplyClusterResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ApplyCluster not implemented")
+}
+func (UnimplementedTopologyManagerServer) JoinCluster(context.Context, *JoinClusterRequest) (*JoinClusterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method JoinCluster not implemented")
 }
 func (UnimplementedTopologyManagerServer) mustEmbedUnimplementedTopologyManagerServer() {}
 
@@ -362,6 +378,24 @@ func _TopologyManager_ApplyCluster_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TopologyManager_JoinCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JoinClusterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TopologyManagerServer).JoinCluster(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/controller.TopologyManager/JoinCluster",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TopologyManagerServer).JoinCluster(ctx, req.(*JoinClusterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TopologyManager_ServiceDesc is the grpc.ServiceDesc for TopologyManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -404,6 +438,10 @@ var TopologyManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ApplyCluster",
 			Handler:    _TopologyManager_ApplyCluster_Handler,
+		},
+		{
+			MethodName: "JoinCluster",
+			Handler:    _TopologyManager_JoinCluster_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
