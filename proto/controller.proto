@@ -39,6 +39,8 @@ service TopologyManager {
   rpc ResetConfig(ResetConfigRequest) returns (ResetConfigResponse) {}
   // Applies kubeyaml to a running cluster.
   rpc ApplyCluster(ApplyClusterRequest) returns (ApplyClusterResponse) {}
+  // Joins host into an existing Kubeadm cluster.
+  rpc JoinCluster(JoinClusterRequest) returns (JoinClusterResponse) {}
 }
 
 // Kind cluster specifications
@@ -261,4 +263,16 @@ message ApplyClusterRequest {
 
 // Returns apply cluster response.
 message ApplyClusterResponse {
+}
+
+// Request message to join in to a Kubeadm cluster.
+message JoinClusterRequest {
+  string api_server_endpoint = 1;
+  string token = 2;
+  string discovery_token_ca_cert_hash = 3;
+  string cri_socket = 4;
+}
+
+// Returns join cluster response.
+message JoinClusterResponse {
 }

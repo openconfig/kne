@@ -20,12 +20,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/kne/deploy"
+	"github.com/openconfig/kne/exec/run"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
@@ -512,6 +514,31 @@ func (s *server) ResetConfig(ctx context.Context, req *cpb.ResetConfigRequest) (
 		return nil, status.Errorf(codes.Internal, "failed to reset config for device %q: %v", req.GetDeviceName(), err)
 	}
 	return &cpb.ResetConfigResponse{}, nil
+}
+
+func (s *server) JoinCluster(ctx context.Context, req *cpb.JoinClusterRequest) (*cpb.JoinClusterResponse, error) {
+	log.Infof("Received JoinCluster request: %v", req)
+	if _, err := exec.LookPath("kubeadm"); err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "install kubeadm to join")
+	}
+	args := []string{"kubeadm", "join"}
+	if req.GetApiServerEndpoint() == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "api server endpoint required")
+	}
+	args = append(args, req.GetApiServerEndpoint())
+	if req.GetToken() != "" {
+		args = append(args, "--token", req.GetToken())
+	}
+	if req.GetDiscoveryTokenCaCertHash() != "" {
+		args = append(args, "--discovery-token-ca-cert-hash", req.GetDiscoveryTokenCaCertHash())
+	}
+	if req.GetCriSocket() != "" {
+		args = append(args, "--cri-socket", req.GetCriSocket())
+	}
+	if err := run.LogCommand("sudo", args...); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to join kubeadm cluster: %v", err)
+	}
+	return &cpb.JoinClusterResponse{}, nil
 }
 
 func validatePath(path string) (string, error) {
