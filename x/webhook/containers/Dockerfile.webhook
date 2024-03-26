@@ -1,0 +1,9 @@
+FROM alpine:3.16
+
+RUN mkdir /launcher
+COPY build-out/kne_webhook /launcher
+WORKDIR /launcher
+
+EXPOSE 8080
+
+CMD ["./kne_webhook"]

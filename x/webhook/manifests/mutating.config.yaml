@@ -1,0 +1,46 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: "kne-assembly-webhook.dsdn.org"
+webhooks:
+  - name: "kne-assembly-webhook.dsdn.org"
+    namespaceSelector:
+      matchLabels:
+        kne-topology: "true"
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+        scope: "*"
+    clientConfig:
+      service:
+        namespace: default
+        name: kne-assembly-webhook
+        path: /mutate-pods
+        port: 443
+      caBundle: |
+        LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURRekNDQWl1Z0F3SUJBZ0lVYk82ZzBlUE1j
+        bnRFbW1mQjV0dGpPOGM5dlZZd0RRWUpLb1pJaHZjTkFRRUwKQlFBd01URUxNQWtHQTFVRUJoTUNR
+        VlV4SWpBZ0JnTlZCQU1NR1hOcGJYQnNaUzFyZFdKbGNtNWxkR1Z6TFhkbApZbWh2YjJzd0hoY05N
+        ak14TVRFd01UWXlNVEF6V2hjTk1qUXhNVEE1TVRZeU1UQXpXakF4TVFzd0NRWURWUVFHCkV3SkJW
+        VEVpTUNBR0ExVUVBd3daYzJsdGNHeGxMV3QxWW1WeWJtVjBaWE10ZDJWaWFHOXZhekNDQVNJd0RR
+        WUoKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBSjlraC9EQ2ErYWhxdXhPc2hVdjcr
+        TzlqSkFlQ1NOMwoxK1lYSXRZK1EvK05sdjV3MUVPZjc5ZzJ3MjNxUjlMamdMU1BKNVkwNE1IR1pt
+        YzBUK05BdHkzRFJEN29Eb1hrCkg2SkNQVm56b2VuakZTOGRJOE9XVkxmcFVabjFqYXYwY1k5SEw0
+        ZGV4NUNmWGhLZUVYSjh5K3c4SHJrbVpsQ0IKZXhhTzFwZ1RySDdaK3RCMHFQa3JrQWkwVElIS0da
+        VkpteWNxK2pqcTY1dXNnWmNtdmxNa2pSUjRJZTFSUFRvNApObGtlRWZqZmZveHZsdHRwbEdHOFIx
+        bGRqUllkRkNGcXd1VGljWThaSnJvRWFabFdXaFBqWjRtbGREQlY4eG9UCmp6alh5cFRlTkNWMmxt
+        T0dSelp0L0w4V3FTaTRTRDRDbE9TZDUvTTRoaWJhRkVxTHpRSFcwTDBDQXdFQUFhTlQKTUZFd0hR
+        WURWUjBPQkJZRUZHWktQYy9RcWFqUk1OVUwyV2F4eHlMZUkxNklNQjhHQTFVZEl3UVlNQmFBRkda
+        SwpQYy9RcWFqUk1OVUwyV2F4eHlMZUkxNklNQThHQTFVZEV3RUIvd1FGTUFNQkFmOHdEUVlKS29a
+        SWh2Y05BUUVMCkJRQURnZ0VCQUNtKzE4eVQvd0hvTXJPQ2o4enRwd2F6Z0ZWd3JiY2prQ0ZlY0Iw
+        Z1g3RGZ1NkRDSzhKZFRITm0KdTRDTzUrSlVsTkhGN3lXSzAyUlhKYWRzRFNQYW55dEQvb1VudUNv
+        VTVRNzBYeW53WlVVbEplWk9nOTdUcEFHTwpRQ0lEdlJsdE9zMy96emJsUnROU3Ryb2g2cGp0bFZq
+        cVQ0Q2t6Q0xLRUc3NmRoMTVuUUtsNVF3TVgzWHpuWDNTCldPdnBSQlN5ZjR4MEV3OWlYR0VHUkdJ
+        cWQ0NEJMa2o2MlVXRVIwVGlhWmphNE9ndWpIbFQwVTYvbjZYYitLbUIKVUoySzZDS3ZvaFM2VTgy
+        OVlENzIvcHFnOURjSlNjRlZlbFpjUHlLMit6L3E1ckxINzlMaHQweGhGZzA4NGI0dQpHU1p4UEtq
+        MjR4Ni9wYkoyZExLWEUwWmdyYjRyU2hrPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    timeoutSeconds: 2
