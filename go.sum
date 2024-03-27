@@ -883,8 +883,8 @@ github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5Xh
 github.com/docker/go-units v0.4.0 h1:3uh0PgVws3nIA0Q+MwDC8yjEPf9zjRfZZWXZYDct3Tw=
 github.com/docker/go-units v0.4.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
-github.com/drivenets/cdnos-controller v1.7.0 h1:mQ52+q3+1ZkzwXmg+jhZR47FMopZSfh60v5Q3+2vKZM=
-github.com/drivenets/cdnos-controller v1.7.0/go.mod h1:s+rGGwx3UZ8TECpeC3htXJv+3sF+VK7fFiYgesxD0vA=
+github.com/drivenets/cdnos-controller v1.7.4 h1:UI6aJGfu1jny9sR1tC1+TNWVA+fuzsaedMyikqECrL4=
+github.com/drivenets/cdnos-controller v1.7.4/go.mod h1:s+rGGwx3UZ8TECpeC3htXJv+3sF+VK7fFiYgesxD0vA=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153 h1:yUdfgN0XgIJw7foRItutHYUIhlcKzcSf5vDpdhQAKTc=
