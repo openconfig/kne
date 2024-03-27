@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kne-assembly-webhook
+  name: kne-assembly-webhook
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kne-assembly-webhook
+  template:
+    metadata:
+      labels:
+        app: kne-assembly-webhook
+    spec: 
+      containers:
+        - image: webhook:latest
+          imagePullPolicy: IfNotPresent
+          name: kne-assembly-webhook
+          volumeMounts:
+            - name: tls
+              mountPath: "/etc/kne-assembly-webhook/tls"
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: kne-assembly-webhook-tls

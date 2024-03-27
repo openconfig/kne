@@ -1,0 +1,9 @@
+FROM alpine:3.16
+
+RUN mkdir /launcher
+COPY webhook /launcher
+WORKDIR /launcher
+
+EXPOSE 8080
+
+CMD ["./main"]
