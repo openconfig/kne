@@ -1,4 +1,18 @@
-// Binary dsdn-webhook is an mutating k8s webhook
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Main is an mutating k8s webhook
 // (https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/)
 package main
 
@@ -8,27 +22,27 @@ import (
 	"fmt"
 	"net/http"
 
-	"google3/net/sdn/decentralized/kne/webhook/admission/admission"
-	admissionv1 "google3/third_party/golang/k8s_io/api/v/v0_23/admission/v1/v1"
-	"google3/third_party/golang/klog_v2/klog"
+	"github.com/openconfig/kne/x/webhook/admission"
+	admissionv1 "k8s.io/api/admission/v1"
+	log "k8s.io/klog/v2"
 )
 
 const (
-	cert = "/etc/dsdn-assembly-webhook/tls/tls.crt"
-	key  = "/etc/dsdn-assembly-webhook/tls/tls.key"
+	cert = "/etc/kne-assembly-webhook/tls/tls.crt"
+	key  = "/etc/kne-assembly-webhook/tls/tls.key"
 )
 
 func main() {
 	http.HandleFunc("/mutate-pods", ServeMutatePods)
 	http.HandleFunc("/health", ServeHealth)
 
-	klog.Info("Listening on port 443...")
-	klog.Fatal(http.ListenAndServeTLS(":443", cert, key, nil))
+	log.Info("Listening on port 443...")
+	log.Fatal(http.ListenAndServeTLS(":443", cert, key, nil))
 }
 
 // ServeHealth returns 200 when things are good
 func ServeHealth(w http.ResponseWriter, r *http.Request) {
-	klog.Infof("uri %s - healthy", r.RequestURI)
+	log.Infof("uri %s - healthy", r.RequestURI)
 	fmt.Fprint(w, "OK")
 }
 
@@ -37,7 +51,7 @@ func ServeHealth(w http.ResponseWriter, r *http.Request) {
 func ServeMutatePods(w http.ResponseWriter, r *http.Request) {
 	in, err := parseRequest(*r)
 	if err != nil {
-		klog.Error(err)
+		log.Error(err)
 		return
 	}
 
@@ -62,8 +76,7 @@ func ServeMutatePods(w http.ResponseWriter, r *http.Request) {
 // parseRequest extracts an AdmissionReview from an http.Request if possible
 func parseRequest(r http.Request) (*admissionv1.AdmissionReview, error) {
 	if r.Header.Get("Content-Type") != "application/json" {
-		return nil, fmt.Errorf("Content-Type: %q should be %q",
-			r.Header.Get("Content-Type"), "application/json")
+		return nil, fmt.Errorf("Content-Type: %q should be %q", r.Header.Get("Content-Type"), "application/json")
 	}
 
 	bodybuf := new(bytes.Buffer)

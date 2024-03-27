@@ -27,6 +27,7 @@ require (
 	github.com/spf13/viper v1.17.0
 	github.com/srl-labs/srl-controller v0.6.1
 	github.com/srl-labs/srlinux-scrapli v0.6.0
+	github.com/wI2L/jsondiff v0.5.1
 	go.universe.tf/metallb v0.13.5
 	golang.org/x/oauth2 v0.13.0
 	google.golang.org/api v0.149.0
@@ -40,6 +41,13 @@ require (
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749
 	sigs.k8s.io/controller-runtime v0.14.5
 	sigs.k8s.io/yaml v1.3.0
+)
+
+require (
+	github.com/tidwall/gjson v1.17.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 )
 
 require (

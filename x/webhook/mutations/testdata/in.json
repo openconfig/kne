@@ -8,12 +8,12 @@
             "model": "ceos",
             "ondatra-role": "DUT",
             "os": "eos",
-            "topo": "dsdn-b2b",
+            "topo": "b2b",
             "vendor": "ARISTA",
             "version": ""
         },
         "name": "r0",
-        "namespace": "dsdn-b2b",
+        "namespace": "b2b",
         "ownerReferences": [
             {
                 "apiVersion": "ceoslab.arista.com/v1alpha1",
@@ -32,12 +32,6 @@
             {
                 "args": [
                     "systemd.setenv=CEOS=1",
-                    "systemd.setenv=DSDN_CONTROLLER_DEBUG_ADDR=0.0.0.0:50061",
-                    "systemd.setenv=DSDN_CONTROLLER_DEFAULT_NETWORK_INSTANCE_NAME=default",
-                    "systemd.setenv=DSDN_CONTROLLER_ENABLE_DEBUG=true",
-                    "systemd.setenv=DSDN_CONTROLLER_SID=r0",
-                    "systemd.setenv=DSDN_SERVER_ADDR=0.0.0.0:50051",
-                    "systemd.setenv=DSDN_SERVER_SELF_SIGNED_CERT=true",
                     "systemd.setenv=EOS_PLATFORM=ceoslab",
                     "systemd.setenv=ETBA=1",
                     "systemd.setenv=INTFTYPE=eth",
@@ -51,30 +45,6 @@
                     {
                         "name": "CEOS",
                         "value": "1"
-                    },
-                    {
-                        "name": "DSDN_CONTROLLER_DEBUG_ADDR",
-                        "value": "0.0.0.0:50061"
-                    },
-                    {
-                        "name": "DSDN_CONTROLLER_DEFAULT_NETWORK_INSTANCE_NAME",
-                        "value": "default"
-                    },
-                    {
-                        "name": "DSDN_CONTROLLER_ENABLE_DEBUG",
-                        "value": "true"
-                    },
-                    {
-                        "name": "DSDN_CONTROLLER_SID",
-                        "value": "r0"
-                    },
-                    {
-                        "name": "DSDN_SERVER_ADDR",
-                        "value": "0.0.0.0:50051"
-                    },
-                    {
-                        "name": "DSDN_SERVER_SELF_SIGNED_CERT",
-                        "value": "true"
                     },
                     {
                         "name": "EOS_PLATFORM",
@@ -303,7 +273,7 @@
         "containerStatuses": [
             {
                 "containerID": "containerd://0905e616570eb080cf572a5f632f90abd6fc115234e2059551e8c9338cedbe45",
-                "image": "us-west1-docker.pkg.dev/gep-kne/dsdn/ceos_dsdn:2023-09-07",
+                "image": "us-west1-docker.pkg.dev/gep-kne/ceos:ga",
                 "imageID": "docker.io/library/import-2023-11-07@sha256:c778a7bcd90456754797022daf173e157e92b7cc30310638f2c00953db61ad08",
                 "lastState": {},
                 "name": "ceos",

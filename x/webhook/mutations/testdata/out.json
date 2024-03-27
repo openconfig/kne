@@ -3,7 +3,7 @@
   "apiVersion": "v1",
   "metadata": {
       "name": "r0",
-      "namespace": "dsdn-b2b",
+      "namespace": "b2b",
       "uid": "4cc873e1-4166-415e-89a1-9692270e260d",
       "resourceVersion": "21744",
       "creationTimestamp": "2023-11-07T14:19:54Z",
@@ -12,7 +12,7 @@
           "model": "ceos",
           "ondatra-role": "DUT",
           "os": "eos",
-          "topo": "dsdn-b2b",
+          "topo": "b2b",
           "vendor": "ARISTA",
           "version": ""
       },
@@ -126,12 +126,6 @@
               ],
               "args": [
                   "systemd.setenv=CEOS=1",
-                  "systemd.setenv=DSDN_CONTROLLER_DEBUG_ADDR=0.0.0.0:50061",
-                  "systemd.setenv=DSDN_CONTROLLER_DEFAULT_NETWORK_INSTANCE_NAME=default",
-                  "systemd.setenv=DSDN_CONTROLLER_ENABLE_DEBUG=true",
-                  "systemd.setenv=DSDN_CONTROLLER_SID=r0",
-                  "systemd.setenv=DSDN_SERVER_ADDR=0.0.0.0:50051",
-                  "systemd.setenv=DSDN_SERVER_SELF_SIGNED_CERT=true",
                   "systemd.setenv=EOS_PLATFORM=ceoslab",
                   "systemd.setenv=ETBA=1",
                   "systemd.setenv=INTFTYPE=eth",
@@ -142,30 +136,6 @@
                 {
                     "name": "CEOS",
                     "value": "1"
-                },
-                {
-                    "name": "DSDN_CONTROLLER_DEBUG_ADDR",
-                    "value": "0.0.0.0:50061"
-                },
-                {
-                    "name": "DSDN_CONTROLLER_DEFAULT_NETWORK_INSTANCE_NAME",
-                    "value": "default"
-                },
-                {
-                    "name": "DSDN_CONTROLLER_ENABLE_DEBUG",
-                    "value": "true"
-                },
-                {
-                    "name": "DSDN_CONTROLLER_SID",
-                    "value": "r0"
-                },
-                {
-                    "name": "DSDN_SERVER_ADDR",
-                    "value": "0.0.0.0:50051"
-                },
-                {
-                    "name": "DSDN_SERVER_SELF_SIGNED_CERT",
-                    "value": "true"
                 },
                 {
                     "name": "EOS_PLATFORM",
@@ -247,37 +217,12 @@
               }
           },
           {
-              "name": "dsdn",
-              "image": "us-west1-docker.pkg.dev/ggn-dsdn/integration/dsdn:candidate",
+              "name": "alpine",
+              "image": "alpine:latest",
               "command": [
-                  "./dsdn",
-                  "launch"
-              ],
-              "env": [
-                  {
-                      "name": "DSDN_CONTROLLER_DEBUG_ADDR",
-                      "value": "0.0.0.0:50061"
-                  },
-                  {
-                      "name": "DSDN_CONTROLLER_DEFAULT_NETWORK_INSTANCE_NAME",
-                      "value": "default"
-                  },
-                  {
-                      "name": "DSDN_CONTROLLER_ENABLE_DEBUG",
-                      "value": "true"
-                  },
-                  {
-                      "name": "DSDN_CONTROLLER_SID",
-                      "value": "r0"
-                  },
-                  {
-                      "name": "DSDN_SERVER_ADDR",
-                      "value": "0.0.0.0:50051"
-                  },
-                  {
-                      "name": "DSDN_SERVER_SELF_SIGNED_CERT",
-                      "value": "true"
-                  }
+		  "/bin/sh",
+		  "-c",
+		  "sleep 2000000000000"
               ],
               "resources": {
                   "requests": {
@@ -289,24 +234,7 @@
               "securityContext": {
                   "privileged": true
               }
-          },
-          {
-            "name": "pmte",
-            "image": "us-west1-docker.pkg.dev/ggn-dsdn/integration/pmte:candidate",
-            "command": [
-                "./pmte_server"
-            ],
-            "resources": {
-                "requests": {
-                    "cpu": "500m",
-                    "memory": "1Gi"
-                }
-            },
-            "imagePullPolicy": "IfNotPresent",
-            "securityContext": {
-                "privileged": true
-            }
-        }
+          }
       ],
       "restartPolicy": "Always",
       "terminationGracePeriodSeconds": 0,
@@ -401,7 +329,7 @@
               "lastState": {},
               "ready": true,
               "restartCount": 0,
-              "image": "us-west1-docker.pkg.dev/gep-kne/dsdn/ceos_dsdn:2023-09-07",
+              "image": "us-west1-docker.pkg.dev/gep-kne/ceos:ga",
               "imageID": "docker.io/library/import-2023-11-07@sha256:c778a7bcd90456754797022daf173e157e92b7cc30310638f2c00953db61ad08",
               "containerID": "containerd://0905e616570eb080cf572a5f632f90abd6fc115234e2059551e8c9338cedbe45",
               "started": true
