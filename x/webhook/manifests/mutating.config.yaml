@@ -1,9 +1,9 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: "kne-assembly-webhook.dsdn.org"
+  name: "kne-assembly-webhook.kne.org"
 webhooks:
-  - name: "kne-assembly-webhook.dsdn.org"
+  - name: "kne-assembly-webhook.kne.org"
     namespaceSelector:
       matchLabels:
         kne-topology: "true"
