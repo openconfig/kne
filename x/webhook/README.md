@@ -4,6 +4,19 @@ This directory contains the code and configurations (in the form of manifests)
 for the mutating webhook. The webhook should be deployed onto a KNE
 cluster.
 
+This webhook can be used to mutate any K8 resources. This directory contains
+the generic webhook along with an example mutator that simply adds an alpine
+linux container to created pods.
+
+To develop custom a custom mutation simply change the mutate function in the
+examples subdirectory.
+
+## Build
+
+```
+./containerize.sh
+```
+
 ## Deployment
 
 For the webhook to be effective it must be deployed when the k8s cluster is up
@@ -42,6 +55,10 @@ At this point the k8s cluster is up and operational. We can now load the webhook
 manifests.
 
 ```
+$ kind load docker-image webhook:latest --name kne
+```
+
+```
 $ kubectl apply -f kne/x/webhook/manifests/
 ```
 
@@ -54,7 +71,7 @@ default                          kne-assembly-webhook-f5b8cf987-lpxjt           
 We can now create the KNE topology.
 
 *Note* The KNE topology must have the label `webhook:enabled` for each node, as in
-[this example](examples/b2b.textproto),
+[this example](examples/topology.textproto),
 otherwise the webhook will ignore the pod upon create.
 
 ```
@@ -67,15 +84,15 @@ labels {
 Use the normal KNE command to create the topology.
 
 ```
-$ kne create kne/x/webhook/examples/b2b.textproto
+$ kne create kne/x/webhook/examples/topology.textproto
 ```
 
-You should now see your routers with 3 containers instead of the one, this is
-because the webhook has injected the dsdn and pmte containers.
+You should now see r1 with 2 containers instead of the one, this is
+because the webhook has injected the alpine linux container.
 
 ```
-b2b                         r0                                                            3/3     Running   0          24s
-b2b                         r1                                                            3/3     Running   0          22s
+webhook-example                         r1                                                            3/3     Running   0          24s
+webhook-example                         r2                                                            3/3     Running   0          22s
 ```
 
 ## Removing the webhook
@@ -104,5 +121,5 @@ I1215 11:59:18.952032       1 mutate.go:30] Mutating pod r1
 I1215 11:59:18.960733       1 admission.go:47] multi container pod not requested for this container
 ```
 
-This output shows that it mutated the pod r0 and r1 but not the ate pod since
+This output shows that it mutated the pod r1 but not r2 since
 the label was not added to that KNE node.

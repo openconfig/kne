@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mutations
+package addcontainer
 
 import (
 	"encoding/json"
@@ -39,36 +39,33 @@ func parsePod(t *testing.T, name string) *corev1.Pod {
 	return p
 }
 
-func TestContainer(t *testing.T) {
+func TestAddContainer(t *testing.T) {
 	tests := []struct {
-		name      string
-		inPod     *corev1.Pod
-		wantPod   *corev1.Pod
-		wantError bool
+		name    string
+		inPod   *corev1.Pod
+		wantPod *corev1.Pod
 	}{
 		{
-			name:      "empty pod",
-			inPod:     &corev1.Pod{},
-			wantPod:   nil,
-			wantError: true,
+			name:    "valid pod",
+			inPod:   parsePod(t, "in.json"),
+			wantPod: parsePod(t, "out.json"),
 		},
 		{
-			name:      "valid pod",
-			inPod:     parsePod(t, "in.json"),
-			wantPod:   parsePod(t, "out.json"),
-			wantError: false,
+			name:    "valid pod - nomod",
+			inPod:   parsePod(t, "in_nomod.json"),
+			wantPod: parsePod(t, "out_nomod.json"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPod, err := addContainer(tt.inPod)
-			if tt.wantError != (err != nil) {
-				t.Fatalf("addContainer() returned unexpected error. want: %t, got %t, error: %v", tt.wantError, err != nil, err)
+			gotPod, err := AddContainer(tt.inPod)
+			if err != nil {
+				t.Fatalf("AddContainer() returned unexpected error: %v", err)
 			}
 
 			if diff := cmp.Diff(gotPod, tt.wantPod); diff != "" {
-				t.Errorf("addContainer() returned diff (-got, +want):\n%s", diff)
+				t.Errorf("AddContainer() returned diff (-got, +want):\n%s", diff)
 			}
 		})
 	}

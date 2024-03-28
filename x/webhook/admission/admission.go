@@ -16,22 +16,19 @@
 package admission
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
-	"github.com/openconfig/kne/x/webhook/mutations"
+	"github.com/openconfig/kne/x/webhook/mutate"
 	admissionv1 "k8s.io/api/admission/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	log "k8s.io/klog/v2"
 )
 
 // mutator is an entity capable of mutating pods. A mutation is any addition or removal from a
 // Pod configuration. This could be adding containers or simply added envVars.
 type mutator interface {
-	MutatePod(pod *corev1.Pod) ([]byte, error)
+	MutateObject(runtime.Object) ([]byte, error)
 }
 
 // Admitter admits a pod into the review process.
@@ -41,32 +38,20 @@ type Admitter struct {
 }
 
 // New builds a new Admitter.
-func New(request *admissionv1.AdmissionRequest) *Admitter {
+func New(request *admissionv1.AdmissionRequest, mutations []mutate.MutationFunc) *Admitter {
 	return &Admitter{
 		request: request,
-		mutator: mutations.New(),
+		mutator: mutate.New(mutations),
 	}
 }
 
-// Review filters for pod that should be mutated by this mutating webhook. Specifically, any pod who
+// Review filters for resources that should be mutated by this mutating webhook. Specifically, any resource who
 // has the label `"webhook":"enabled"`, will be mutated by this webhook.
 func (a Admitter) Review() (*admissionv1.AdmissionReview, error) {
-	pod, err := toPod(a.request)
+	patch, err := a.mutator.MutateObject(a.request.Object.Object)
 	if err != nil {
 		return reviewResponse(a.request.UID, false, http.StatusBadRequest, err.Error()), err
 	}
-
-	labels := pod.GetLabels()
-	if labels["webhook"] != "enabled" {
-		log.Info("webhook mutations not requested for this container")
-		return patchReviewResponse(a.request.UID, nil)
-	}
-
-	patch, err := a.mutator.MutatePod(pod)
-	if err != nil {
-		return reviewResponse(a.request.UID, false, http.StatusBadRequest, err.Error()), err
-	}
-
 	return patchReviewResponse(a.request.UID, patch)
 }
 
@@ -108,18 +93,4 @@ func patchReviewResponse(uid types.UID, patch []byte) (*admissionv1.AdmissionRev
 		},
 		Response: resp,
 	}, nil
-}
-
-// toPod extracts a pod from an admission request
-func toPod(req *admissionv1.AdmissionRequest) (*corev1.Pod, error) {
-	if req.Kind.Kind != "Pod" {
-		return nil, fmt.Errorf("only pods are supported here")
-	}
-
-	p := corev1.Pod{}
-	if err := json.Unmarshal(req.Object.Raw, &p); err != nil {
-		return nil, err
-	}
-
-	return &p, nil
 }

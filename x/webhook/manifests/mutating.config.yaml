@@ -17,7 +17,7 @@ webhooks:
       service:
         namespace: default
         name: kne-assembly-webhook
-        path: /mutate-pods
+        path: /mutate-objects
         port: 443
       caBundle: |
         LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURRekNDQWl1Z0F3SUJBZ0lVYk82ZzBlUE1j

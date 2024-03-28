@@ -8,6 +8,7 @@
       "resourceVersion": "21744",
       "creationTimestamp": "2023-11-07T14:19:54Z",
       "labels": {
+	  "webhook": "enabled",
           "app": "r0",
           "model": "ceos",
           "ondatra-role": "DUT",

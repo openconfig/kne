@@ -1,0 +1,21 @@
+name: "webhook-example"
+nodes: {
+  name: "r1"
+  vendor: OPENCONFIG
+  model: "LEMMING"
+  labels {
+    key: "webhook"
+    value: "enabled"
+  }
+}
+nodes: {
+  name: "r2"
+  vendor: OPENCONFIG
+  model: "LEMMING"
+}
+links: {
+  a_node: "r1"
+  a_int: "eth1"
+  z_node: "r2"
+  z_int: "eth1"
+}

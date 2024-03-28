@@ -23,6 +23,8 @@ import (
 	"net/http"
 
 	"github.com/openconfig/kne/x/webhook/admission"
+	"github.com/openconfig/kne/x/webhook/examples/addcontainer"
+	"github.com/openconfig/kne/x/webhook/mutate"
 	admissionv1 "k8s.io/api/admission/v1"
 	log "k8s.io/klog/v2"
 )
@@ -33,7 +35,7 @@ const (
 )
 
 func main() {
-	http.HandleFunc("/mutate-pods", ServeMutatePods)
+	http.HandleFunc("/mutate-objects", ServeMutateObjects)
 	http.HandleFunc("/health", ServeHealth)
 
 	log.Info("Listening on port 443...")
@@ -46,16 +48,16 @@ func ServeHealth(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "OK")
 }
 
-// ServeMutatePods returns an admission review with pod mutations as a json patch
+// ServeMutateObjects returns an admission review with mutations as a json patch
 // in the review response
-func ServeMutatePods(w http.ResponseWriter, r *http.Request) {
+func ServeMutateObjects(w http.ResponseWriter, r *http.Request) {
 	in, err := parseRequest(*r)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	admitter := admission.New(in.Request)
+	admitter := admission.New(in.Request, []mutate.MutationFunc{addcontainer.AddContainer})
 
 	res, err := admitter.Review()
 	if err != nil {

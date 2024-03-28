@@ -12,62 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mutations contains individual mutation to apply to a pod config.
-package mutations
+// Package mutate contains a struct for performing mutations to K8s objects.
+package mutate
 
 import (
 	"encoding/json"
 
 	"github.com/wI2L/jsondiff"
-	"google.golang.org/protobuf/proto"
-	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	log "k8s.io/klog/v2"
 )
 
-type mutationFunc func(*corev1.Pod) (*corev1.Pod, error)
+type MutationFunc func(runtime.Object) (runtime.Object, error)
 
 // Mutor contains a set of mutation functions.
 type Mutor struct {
-	mutationFuncs []mutationFunc
+	mutationFuncs []MutationFunc
 }
 
 // New build a new Mutor
-func New() *Mutor {
-	return &Mutor{
-		mutationFuncs: []mutationFunc{addContainer},
-	}
+func New(m []MutationFunc) *Mutor {
+	return &Mutor{mutationFuncs: m}
 }
 
-// MutatePod applies all mutations to a copy of the provided pod. It returns a json patch
-// (rfc6902).
-func (m *Mutor) MutatePod(pod *corev1.Pod) ([]byte, error) {
-	log.Infof("Mutating pod %s", pod.Name)
+// MutatePod applies all mutations to a copy of the provided object.
+// It returns a json patch (rfc6902).
+func (m *Mutor) MutateObject(obj runtime.Object) ([]byte, error) {
+	log.Infof("Mutating %s", obj.GetObjectKind())
 
-	// list of all mutations to be applied to the pod
-
-	mpod := pod.DeepCopy()
+	cObj := obj.DeepCopyObject()
 
 	// apply all mutations
 	for _, mutation := range m.mutationFuncs {
 		var err error
-		mpod, err = mutation(mpod)
+		cObj, err = mutation(cObj)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	mpod.Spec.AutomountServiceAccountToken = proto.Bool(false)
+	//mpod.Spec.AutomountServiceAccountToken = proto.Bool(false)
 
 	// generate json patch
-	patch, err := jsondiff.Compare(pod, mpod)
+	patch, err := jsondiff.Compare(obj, cObj)
 	if err != nil {
 		return nil, err
 	}
-
-	patchb, err := json.Marshal(patch)
-	if err != nil {
-		return nil, err
-	}
-
-	return patchb, nil
+	return json.Marshal(patch)
 }
