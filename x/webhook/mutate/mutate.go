@@ -51,7 +51,7 @@ func (m *Mutor) MutateObject(obj runtime.Object) ([]byte, error) {
 		}
 	}
 
-	//mpod.Spec.AutomountServiceAccountToken = proto.Bool(false)
+	// mpod.Spec.AutomountServiceAccountToken = proto.Bool(false)
 
 	// generate json patch
 	patch, err := jsondiff.Compare(obj, cObj)
