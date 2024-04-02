@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/openconfig/kne/x/webhook/admission"
 	"github.com/openconfig/kne/x/webhook/examples/addcontainer"
@@ -39,7 +40,11 @@ func main() {
 	http.HandleFunc("/health", ServeHealth)
 
 	log.Info("Listening on port 443...")
-	s := http.Server{Addr: ":443"}
+	s := http.Server{
+		Addr:         ":443",
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
 	log.Fatal(s.ListenAndServeTLS(cert, key))
 }
 
