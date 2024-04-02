@@ -17,8 +17,8 @@ The following guide assumes your working directory is `kne/x/webhook`.
 
 Run:
 
-```
-$ ./containerize.sh
+```bash
+./containerize.sh
 ```
 
 to build the webhook container from the binary `main.go`.
@@ -30,13 +30,13 @@ but before the KNE topology is created.
 
 Start by deploying the kubernetes cluster
 
-```
-$ kne deploy ../../deploy/kne/kind-bridge.yaml
+```bash
+kne deploy ../../deploy/kne/kind-bridge.yaml
 ```
 
 You should be in this state:
 
-```
+```bash
 $ kubectl get pods -A
 NAMESPACE                        NAME                                                          READY   STATUS    RESTARTS   AGE
 arista-ceoslab-operator-system   arista-ceoslab-operator-controller-manager-5cb5fb9db4-7jqp9   2/2     Running   0          45h
@@ -60,17 +60,17 @@ srlinux-controller               srlinux-controller-controller-manager-57f8c48bf
 At this point the k8s cluster is up and operational. We can now load the webhook
 manifests.
 
-```
-$ kind load docker-image webhook:latest --name kne
+```bash
+kind load docker-image webhook:latest --name kne
 ```
 
-```
-$ kubectl apply -f manifests/
+```bash
+kubectl apply -f manifests/
 ```
 
 This should result in the webhook pod to be present.
 
-```
+```bash
 $ kubectl get pods -A
 ...
 default                          kne-assembly-webhook-f5b8cf987-lpxjt                         1/1     Running   0          5s
@@ -83,7 +83,7 @@ We can now create the KNE topology.
 [this example](examples/topology.textproto),
 otherwise the webhook will ignore the pod upon create.
 
-```
+```bash
 labels {
     key: "webhook"
     value: "enabled"
@@ -92,20 +92,20 @@ labels {
 
 Use the normal KNE command to create the topology.
 
-```
-$ kne create examples/topology.textproto
+```bash
+kne create examples/topology.textproto
 ```
 
 You should now see r1 with 2 containers instead of the one, this is
 because the webhook has injected the alpine linux container.
 
-```
+```bash
 $ kubectl get pods -n webhook-example
 r1                                                            3/3     Running   0          24s
 r2                                                            2/2     Running   0          22s
 ```
 
-```
+```bash
 $ kubectl describe pod r1 -n webhook-example
 ...
 Containers:
@@ -118,7 +118,6 @@ Containers:
     Command:
       /bin/sh
       -c
-$ kubectl get pods -n webhook-example
       sleep 2000000000000
     State:          Running
       Started:      Tue, 02 Apr 2024 23:24:40 +0000
@@ -155,22 +154,21 @@ $ kubectl get pods -n webhook-example
 Removing the webhook can be achieved by deleting the loaded manifests from the
 k8s cluster.
 
-```
-$ kubectl delete -f manifests/
+```bash
+kubectl delete -f manifests/
 ```
 
 ## Debugging
 
 In order to obtain the logs of the webhook you can use the following command.
 
-$ kubectl get pods -n webhook-example
-```
-$ kubectl logs -l app=kne-assembly-webhook -f
+```bash
+kubectl logs -l app=kne-assembly-webhook -f
 ```
 
 In the logs you should see output similar to this:
 
-```
+```bash
 I1215 11:54:46.729680       1 main.go:25] Listening on port 443...
 I0402 23:24:36.383536       1 mutate.go:45] Mutating &TypeMeta{Kind:Pod,APIVersion:v1,}
 I0402 23:24:36.394188       1 mutate.go:45] Mutating &TypeMeta{Kind:Pod,APIVersion:v1,}
@@ -184,8 +182,8 @@ the label was not added to that KNE node.
 
 Run:
 
-```
-$ ./secure/genCerts.sh
+```bash
+./secure/genCerts.sh
 ```
 
 to optionally update the TLS certs in the manifest files. It handles updating

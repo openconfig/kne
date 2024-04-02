@@ -11,4 +11,5 @@ However this will largely be "best effort" and held to a lesser standard than
 the main tree.
 
 This is similar to the concept of core Golang X-repositories (with even looser
-requirements). See https://go.dev/wiki/X-Repositories for more info.
+requirements). See [Golang docs](https://go.dev/wiki/X-Repositories) for more
+info.

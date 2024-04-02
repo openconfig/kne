@@ -1,7 +1,8 @@
+#!/bin/bash
+#
 # Generate the server certificate and key as well as the certificate authority
 # to be used by the kube cluster to establish rpc connection to the mutating
 # webhook.
-#!/bin/bash
 
 openssl genrsa -out ca.key 2048
 

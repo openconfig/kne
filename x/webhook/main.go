@@ -39,7 +39,8 @@ func main() {
 	http.HandleFunc("/health", ServeHealth)
 
 	log.Info("Listening on port 443...")
-	log.Fatal(http.ListenAndServeTLS(":443", cert, key, nil))
+	s := http.Server{Addr: ":443"}
+	log.Fatal(s.ListenAndServeTLS(cert, key))
 }
 
 // ServeHealth returns 200 when things are good
