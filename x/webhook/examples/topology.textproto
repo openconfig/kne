@@ -1,8 +1,7 @@
 name: "webhook-example"
 nodes: {
   name: "r1"
-  vendor: OPENCONFIG
-  model: "LEMMING"
+  vendor: HOST
   labels {
     key: "webhook"
     value: "enabled"
@@ -10,8 +9,7 @@ nodes: {
 }
 nodes: {
   name: "r2"
-  vendor: OPENCONFIG
-  model: "LEMMING"
+  vendor: HOST
 }
 links: {
   a_node: "r1"

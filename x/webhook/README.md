@@ -13,9 +13,13 @@ examples subdirectory.
 
 ## Build
 
+Run:
+
 ```
-./containerize.sh
+$ ./containerize.sh
 ```
+
+to build the webhook container from the binary `main.go`.
 
 ## Deployment
 
@@ -25,7 +29,7 @@ but before the KNE topology is created.
 Start by deploying the kubernetes cluster
 
 ```
-$ kne deploy kne/deploy/kne/kind-bridge.yaml
+$ kne deploy ../../deploy/kne/kind-bridge.yaml
 ```
 
 You should be in this state:
@@ -59,13 +63,16 @@ $ kind load docker-image webhook:latest --name kne
 ```
 
 ```
-$ kubectl apply -f kne/x/webhook/manifests/
+$ kubectl apply -f manifests/
 ```
 
 This should result in the webhook pod to be present.
 
 ```
+$ kubectl get pods -A
+...
 default                          kne-assembly-webhook-f5b8cf987-lpxjt                         1/1     Running   0          5s
+...
 ```
 
 We can now create the KNE topology.
@@ -84,15 +91,61 @@ labels {
 Use the normal KNE command to create the topology.
 
 ```
-$ kne create kne/x/webhook/examples/topology.textproto
+$ kne create examples/topology.textproto
 ```
 
 You should now see r1 with 2 containers instead of the one, this is
 because the webhook has injected the alpine linux container.
 
 ```
-webhook-example                         r1                                                            3/3     Running   0          24s
-webhook-example                         r2                                                            3/3     Running   0          22s
+$ kubectl get pods -n webhook-example
+r1                                                            3/3     Running   0          24s
+r2                                                            2/2     Running   0          22s
+```
+
+```
+$ kubectl describe pod r1 -n webhook-example
+...
+Containers:
+  r1:
+    Container ID:  containerd://0dd84381ac5970d796c866adf73022c1ed5610ceb40546e443a35b7eff6a3f39
+    Image:         alpine:latest
+    Image ID:      docker.io/library/alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      /bin/sh
+      -c
+$ kubectl get pods -n webhook-example
+      sleep 2000000000000
+    State:          Running
+      Started:      Tue, 02 Apr 2024 23:24:40 +0000
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-kgrn6 (ro)
+  alpine:
+    Container ID:  containerd://be7db4c4704b415d0dda1d5ed64b70c7f271086670aa803f105399dc95e35ad8
+    Image:         alpine:latest
+    Image ID:      docker.io/library/alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      /bin/sh
+      -c
+      sleep 2000000000000
+    State:          Running
+      Started:      Tue, 02 Apr 2024 23:24:40 +0000
+    Ready:          True
+    Restart Count:  0
+    Requests:
+      cpu:        500m
+      memory:     1Gi
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-kgrn6 (ro)
+...
 ```
 
 ## Removing the webhook
@@ -101,13 +154,14 @@ Removing the webhook can be achieved by deleting the loaded manifests from the
 k8s cluster.
 
 ```
-$ kubectl delete -f kne/x/webhook/manifests/
+$ kubectl delete -f manifests/
 ```
 
 ## Debugging
 
 In order to obtain the logs of the webhook you can use the following command.
 
+$ kubectl get pods -n webhook-example
 ```
 $ kubectl logs -l app=kne-assembly-webhook -f
 ```
@@ -116,10 +170,34 @@ In the logs you should see output similar to this:
 
 ```
 I1215 11:54:46.729680       1 main.go:25] Listening on port 443...
-I1215 11:59:16.870292       1 mutate.go:30] Mutating pod r0
-I1215 11:59:18.952032       1 mutate.go:30] Mutating pod r1
-I1215 11:59:18.960733       1 admission.go:47] multi container pod not requested for this container
+I0402 23:24:36.383536       1 mutate.go:45] Mutating &TypeMeta{Kind:Pod,APIVersion:v1,}
+I0402 23:24:36.394188       1 mutate.go:45] Mutating &TypeMeta{Kind:Pod,APIVersion:v1,}
+I0402 23:24:36.394227       1 addcontainer.go:34] Ignoring pod "r2", mutation not requested
 ```
 
 This output shows that it mutated the pod r1 but not r2 since
 the label was not added to that KNE node.
+
+### TLS
+
+Run:
+
+```
+$ ./secure/genCerts.sh
+```
+
+to optionally update the TLS certs in the manifest files. It handles updating
+`manifests/tls.secret.yaml` however the `caBundle` in
+`manifests/mutating.config.yaml` will need to be updated manually based on the
+output of the script. This is not required but may be useful.
+
+## Customize the webhook
+
+Edit `main.go` to specify any mutation functions as desired. The example uses
+the mutation function found in `examples/addcontainer/addcontainer.go` but any
+mutation function is supported. This includes mutating services and other
+resources besides just pods. However you may also have to change
+`manifests/mutating.config.yaml` to select other resources types than just
+pods.
+
+After customization is done, rebuild the container and reapply the manifests.

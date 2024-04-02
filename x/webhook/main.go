@@ -61,6 +61,7 @@ func ServeMutateObjects(w http.ResponseWriter, r *http.Request) {
 
 	res, err := admitter.Review()
 	if err != nil {
+		log.Errorf("admitter.Review() error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -77,6 +78,7 @@ func ServeMutateObjects(w http.ResponseWriter, r *http.Request) {
 
 // parseRequest extracts an AdmissionReview from an http.Request if possible
 func parseRequest(r http.Request) (*admissionv1.AdmissionReview, error) {
+	log.Infof("parsing request: %v", r)
 	if r.Header.Get("Content-Type") != "application/json" {
 		return nil, fmt.Errorf("Content-Type: %q should be %q", r.Header.Get("Content-Type"), "application/json")
 	}

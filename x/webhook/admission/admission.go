@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 // mutator is an entity capable of mutating pods. A mutation is any addition or removal from a
@@ -48,7 +49,11 @@ func New(request *admissionv1.AdmissionRequest, mutations []mutate.MutationFunc)
 // Review filters for resources that should be mutated by this mutating webhook. Specifically, any resource who
 // has the label `"webhook":"enabled"`, will be mutated by this webhook.
 func (a Admitter) Review() (*admissionv1.AdmissionReview, error) {
-	patch, err := a.mutator.MutateObject(a.request.Object.Object)
+	obj, err := runtime.Decode(scheme.Codecs.UniversalDeserializer(), a.request.Object.Raw)
+	if err != nil {
+		return reviewResponse(a.request.UID, false, http.StatusBadRequest, err.Error()), err
+	}
+	patch, err := a.mutator.MutateObject(obj)
 	if err != nil {
 		return reviewResponse(a.request.UID, false, http.StatusBadRequest, err.Error()), err
 	}

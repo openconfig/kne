@@ -17,6 +17,7 @@ package mutate
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/wI2L/jsondiff"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +39,9 @@ func New(m []MutationFunc) *Mutor {
 // MutatePod applies all mutations to a copy of the provided object.
 // It returns a json patch (rfc6902).
 func (m *Mutor) MutateObject(obj runtime.Object) ([]byte, error) {
+	if obj == nil {
+		return nil, fmt.Errorf("object cannot be nil")
+	}
 	log.Infof("Mutating %s", obj.GetObjectKind())
 
 	cObj := obj.DeepCopyObject()
