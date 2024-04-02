@@ -11,6 +11,8 @@ linux container to created pods.
 To develop custom a custom mutation simply change the mutate function in the
 examples subdirectory.
 
+The following guide assumes your working directory is `kne/x/webhook`.
+
 ## Build
 
 Run:
