@@ -28,6 +28,7 @@ require (
 	github.com/spf13/viper v1.17.0
 	github.com/srl-labs/srl-controller v0.6.1
 	github.com/srl-labs/srlinux-scrapli v0.6.0
+	github.com/wI2L/jsondiff v0.5.1
 	go.universe.tf/metallb v0.13.5
 	golang.org/x/oauth2 v0.13.0
 	google.golang.org/api v0.149.0
@@ -121,6 +122,10 @@ require (
 	github.com/spf13/afero v1.10.0 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/tidwall/gjson v1.17.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel v1.19.0 // indirect
 	go.opentelemetry.io/otel/metric v1.19.0 // indirect

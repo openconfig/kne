@@ -1,0 +1,341 @@
+{
+  "kind": "Pod",
+  "apiVersion": "v1",
+  "metadata": {
+      "name": "r0",
+      "namespace": "b2b",
+      "uid": "4cc873e1-4166-415e-89a1-9692270e260d",
+      "resourceVersion": "21744",
+      "creationTimestamp": "2023-11-07T14:19:54Z",
+      "labels": {
+	  "webhook": "enabled",
+          "app": "r0",
+          "model": "ceos",
+          "ondatra-role": "DUT",
+          "os": "eos",
+          "topo": "b2b",
+          "vendor": "ARISTA",
+          "version": ""
+      },
+      "ownerReferences": [
+          {
+              "apiVersion": "ceoslab.arista.com/v1alpha1",
+              "kind": "CEosLabDevice",
+              "name": "r0",
+              "uid": "7faf439d-befe-4df4-b9f4-42dd35659927",
+              "controller": true,
+              "blockOwnerDeletion": true
+          }
+      ]
+  },
+  "spec": {
+      "volumes": [
+          {
+              "name": "volume-configmap-intfmapping-r0",
+              "configMap": {
+                  "name": "configmap-intfmapping-r0",
+                  "defaultMode": 420
+              }
+          },
+          {
+              "name": "volume-configmap-rceos-r0",
+              "configMap": {
+                  "name": "configmap-rceos-r0",
+                  "defaultMode": 509
+              }
+          },
+          {
+              "name": "volume-r0-config",
+              "configMap": {
+                  "name": "r0-config",
+                  "defaultMode": 420
+              }
+          },
+          {
+              "name": "volume-secret-selfsigned-r0-0",
+              "secret": {
+                  "secretName": "secret-selfsigned-r0-0",
+                  "defaultMode": 420
+              }
+          },
+          {
+              "name": "kube-api-access-4txwv",
+              "projected": {
+                  "sources": [
+                      {
+                          "serviceAccountToken": {
+                              "expirationSeconds": 3607,
+                              "path": "token"
+                          }
+                      },
+                      {
+                          "configMap": {
+                              "name": "kube-root-ca.crt",
+                              "items": [
+                                  {
+                                      "key": "ca.crt",
+                                      "path": "ca.crt"
+                                  }
+                              ]
+                          }
+                      },
+                      {
+                          "downwardAPI": {
+                              "items": [
+                                  {
+                                      "path": "namespace",
+                                      "fieldRef": {
+                                          "apiVersion": "v1",
+                                          "fieldPath": "metadata.namespace"
+                                      }
+                                  }
+                              ]
+                          }
+                      }
+                  ],
+                  "defaultMode": 420
+              }
+          }
+      ],
+      "initContainers": [
+          {
+              "name": "init-r0",
+              "image": "us-west1-docker.pkg.dev/gep-kne/kne/networkop/init-wait:ga",
+              "args": [
+                  "4",
+                  "0"
+              ],
+              "resources": {},
+              "volumeMounts": [
+                  {
+                      "name": "kube-api-access-4txwv",
+                      "readOnly": true,
+                      "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                  }
+              ],
+              "terminationMessagePath": "/dev/termination-log",
+              "terminationMessagePolicy": "File",
+              "imagePullPolicy": "IfNotPresent"
+          }
+      ],
+      "containers": [
+          {
+              "name": "ceos",
+              "image": "us-west1-docker.pkg.dev/gep-kne/ceos:ga",
+              "command": [
+                  "/sbin/init"
+              ],
+              "args": [
+                  "systemd.setenv=CEOS=1",
+                  "systemd.setenv=EOS_PLATFORM=ceoslab",
+                  "systemd.setenv=ETBA=1",
+                  "systemd.setenv=INTFTYPE=eth",
+                  "systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1",
+                  "systemd.setenv=container=docker"
+              ],
+              "env": [
+                {
+                    "name": "CEOS",
+                    "value": "1"
+                },
+                {
+                    "name": "EOS_PLATFORM",
+                    "value": "ceoslab"
+                },
+                {
+                    "name": "ETBA",
+                    "value": "1"
+                },
+                {
+                    "name": "INTFTYPE",
+                    "value": "eth"
+                },
+                {
+                    "name": "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT",
+                    "value": "1"
+                },
+                {
+                    "name": "container",
+                    "value": "docker"
+                }
+              ],
+              "resources": {
+                  "requests": {
+                      "cpu": "500m",
+                      "memory": "1Gi"
+                  }
+              },
+              "volumeMounts": [
+                  {
+                      "name": "volume-configmap-intfmapping-r0",
+                      "mountPath": "/mnt/flash/EosIntfMapping.json",
+                      "subPath": "EosIntfMapping.json"
+                  },
+                  {
+                      "name": "volume-configmap-rceos-r0",
+                      "mountPath": "/mnt/flash/rc.eos",
+                      "subPath": "rc.eos"
+                  },
+                  {
+                      "name": "volume-r0-config",
+                      "mountPath": "/mnt/flash/startup-config",
+                      "subPath": "startup-config"
+                  },
+                  {
+                      "name": "volume-secret-selfsigned-r0-0",
+                      "mountPath": "/mnt/flash/gnmiCert.pem",
+                      "subPath": "gnmiCert.pem"
+                  },
+                  {
+                      "name": "volume-secret-selfsigned-r0-0",
+                      "mountPath": "/mnt/flash/gnmiCertKey.pem",
+                      "subPath": "gnmiCertKey.pem"
+                  },
+                  {
+                      "name": "kube-api-access-4txwv",
+                      "readOnly": true,
+                      "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                  }
+              ],
+              "startupProbe": {
+                  "exec": {
+                      "command": [
+                          "wfw",
+                          "-t",
+                          "5"
+                      ]
+                  },
+                  "timeoutSeconds": 5,
+                  "periodSeconds": 5,
+                  "successThreshold": 1,
+                  "failureThreshold": 24
+              },
+              "terminationMessagePath": "/dev/termination-log",
+              "terminationMessagePolicy": "File",
+              "imagePullPolicy": "IfNotPresent",
+              "securityContext": {
+                  "privileged": true
+              }
+          },
+          {
+              "name": "alpine",
+              "image": "alpine:latest",
+              "command": [
+		  "/bin/sh",
+		  "-c",
+		  "sleep 2000000000000"
+              ],
+              "resources": {
+                  "requests": {
+                      "cpu": "500m",
+                      "memory": "1Gi"
+                  }
+              },
+              "imagePullPolicy": "IfNotPresent",
+              "securityContext": {
+                  "privileged": true
+              }
+          }
+      ],
+      "restartPolicy": "Always",
+      "terminationGracePeriodSeconds": 0,
+      "dnsPolicy": "ClusterFirst",
+      "serviceAccountName": "default",
+      "serviceAccount": "default",
+      "nodeName": "kne-control-plane",
+      "securityContext": {},
+      "schedulerName": "default-scheduler",
+      "tolerations": [
+          {
+              "key": "node.kubernetes.io/not-ready",
+              "operator": "Exists",
+              "effect": "NoExecute",
+              "tolerationSeconds": 300
+          },
+          {
+              "key": "node.kubernetes.io/unreachable",
+              "operator": "Exists",
+              "effect": "NoExecute",
+              "tolerationSeconds": 300
+          }
+      ],
+      "priority": 0,
+      "enableServiceLinks": true,
+      "preemptionPolicy": "PreemptLowerPriority"
+  },
+  "status": {
+      "phase": "Running",
+      "conditions": [
+          {
+              "type": "Initialized",
+              "status": "True",
+              "lastProbeTime": null,
+              "lastTransitionTime": "2023-11-07T14:20:03Z"
+          },
+          {
+              "type": "Ready",
+              "status": "True",
+              "lastProbeTime": null,
+              "lastTransitionTime": "2023-11-07T14:20:10Z"
+          },
+          {
+              "type": "ContainersReady",
+              "status": "True",
+              "lastProbeTime": null,
+              "lastTransitionTime": "2023-11-07T14:20:10Z"
+          },
+          {
+              "type": "PodScheduled",
+              "status": "True",
+              "lastProbeTime": null,
+              "lastTransitionTime": "2023-11-07T14:19:54Z"
+          }
+      ],
+      "hostIP": "192.168.16.2",
+      "podIP": "10.244.0.31",
+      "podIPs": [
+          {
+              "ip": "10.244.0.31"
+          }
+      ],
+      "startTime": "2023-11-07T14:19:54Z",
+      "initContainerStatuses": [
+          {
+              "name": "init-r0",
+              "state": {
+                  "terminated": {
+                      "exitCode": 0,
+                      "reason": "Completed",
+                      "startedAt": "2023-11-07T14:19:55Z",
+                      "finishedAt": "2023-11-07T14:20:02Z",
+                      "containerID": "containerd://68119d6b9c97273d7a5f4b9ddc8d9bc2a09f447685ccfec616f5220c95fce7d9"
+                  }
+              },
+              "lastState": {},
+              "ready": true,
+              "restartCount": 0,
+              "image": "ghcr.io/srl-labs/init-wait:latest",
+              "imageID": "docker.io/library/import-2023-11-07@sha256:6826c6c65984870f2c56cda40ff2adf5830b36d8c45738129807e1fd523059a5",
+              "containerID": "containerd://68119d6b9c97273d7a5f4b9ddc8d9bc2a09f447685ccfec616f5220c95fce7d9"
+          }
+      ],
+      "containerStatuses": [
+          {
+              "name": "ceos",
+              "state": {
+                  "running": {
+                      "startedAt": "2023-11-07T14:20:03Z"
+                  }
+              },
+              "lastState": {},
+              "ready": true,
+              "restartCount": 0,
+              "image": "us-west1-docker.pkg.dev/gep-kne/ceos:ga",
+              "imageID": "docker.io/library/import-2023-11-07@sha256:c778a7bcd90456754797022daf173e157e92b7cc30310638f2c00953db61ad08",
+              "containerID": "containerd://0905e616570eb080cf572a5f632f90abd6fc115234e2059551e8c9338cedbe45",
+              "started": true
+          }
+      ],
+      "qosClass": "Burstable"
+  }
+}
