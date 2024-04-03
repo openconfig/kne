@@ -27,10 +27,10 @@ kubectl create secret tls kne-assembly-webhook-tls \
   --cert=server.crt \
   --key=server.key \
   --dry-run=client -o yaml \
-  > ../manifests/tls.secret.yaml
+  > manifests/tls.secret.yaml
 
 echo
 echo ">> MutatingWebhookConfiguration caBundle:"
-cat ca.crt | base64 | fold
+< ca.crt base64 | fold
 
 rm ca.crt ca.key ca.srl server.crt server.csr server.key
