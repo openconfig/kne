@@ -135,6 +135,8 @@ func (d *Deployment) event() *epb.Cluster {
 		c.Cluster = epb.Cluster_CLUSTER_TYPE_EXTERNAL
 	case *KindSpec:
 		c.Cluster = epb.Cluster_CLUSTER_TYPE_KIND
+	case *KubeadmSpec:
+		c.Cluster = epb.Cluster_CLUSTER_TYPE_KUBEADM
 	}
 	switch d.Ingress.(type) {
 	case *MetalLBSpec:

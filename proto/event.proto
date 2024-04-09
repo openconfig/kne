@@ -63,6 +63,7 @@ message Cluster {
     CLUSTER_TYPE_UNSPECIFIED = 0;
     CLUSTER_TYPE_KIND = 1;
     CLUSTER_TYPE_EXTERNAL = 2;
+    CLUSTER_TYPE_KUBEADM = 3;
   }
   ClusterType cluster = 1;
   enum IngressType {

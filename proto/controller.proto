@@ -65,6 +65,15 @@ message KindSpec {
   repeated string additional_manifests = 10;
 }
 
+message KubeadmSpec {
+  string cri_socket = 1;
+  string pod_network_cidr = 2;
+  Manifest pod_network_add_on_manifest = 3;
+  string token_ttl = 4;
+  string network = 5; // name of the docker network to use for ingress
+  bool allow_control_plane_scheduling = 6;
+}
+
 // External cluster specifications
 message ExternalSpec {
   string network = 1; // name of the docker network to use for ingress
@@ -152,6 +161,7 @@ message CreateClusterRequest {
   oneof cluster_spec {
     KindSpec kind = 1;
     ExternalSpec external = 5;
+    KubeadmSpec kubeadm = 6;
   }
   oneof ingress_spec {
     MetallbSpec metallb = 2;
@@ -193,6 +203,11 @@ message ShowClusterRequest {
 message ShowClusterResponse {
   ClusterState state = 1;
   repeated string topology_names = 2;
+  // The following fields are only populated for Kubeadm clusters.
+  string api_server_endpoint = 3;
+  string token = 4;
+  string discovery_token_ca_cert_hash = 5;
+  string cri_socket = 6;
 }
 
 enum TopologyState {
