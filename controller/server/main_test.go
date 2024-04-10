@@ -28,6 +28,10 @@ func TestNewDeployment(t *testing.T) {
 		os.RemoveAll(defTestFile.Name())
 	}()
 
+	km := defaultKubeadmPodNetworkAddOnManifest
+	defer func() {
+		defaultKubeadmPodNetworkAddOnManifest = km
+	}()
 	mlb := defaultMetalLBManifest
 	defer func() {
 		defaultMetalLBManifest = mlb
@@ -58,18 +62,257 @@ func TestNewDeployment(t *testing.T) {
 	}()
 
 	tests := []struct {
-		desc                      string
-		req                       *cpb.CreateClusterRequest
-		defaultMeshnetManifestDNE bool
-		defaultMetalLBManifestDNE bool
-		defaultIxiaTGOperatorDNE  bool
-		defaultIxiaTGConfigMapDNE bool
-		defaultSRLinuxOperatorDNE bool
-		defaultCEOSLabOperatorDNE bool
-		defaultLemmingOperatorDNE bool
-		want                      *deploy.Deployment
-		wantErr                   string
+		desc                                     string
+		req                                      *cpb.CreateClusterRequest
+		defaultKubeadmPodNetworkAddOnManifestDNE bool
+		defaultMeshnetManifestDNE                bool
+		defaultMetalLBManifestDNE                bool
+		defaultIxiaTGOperatorDNE                 bool
+		defaultIxiaTGConfigMapDNE                bool
+		defaultSRLinuxOperatorDNE                bool
+		defaultCEOSLabOperatorDNE                bool
+		defaultLemmingOperatorDNE                bool
+		want                                     *deploy.Deployment
+		wantErr                                  string
 	}{{
+		desc: "kubeadm spec",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kubeadm{
+				Kubeadm: &cpb.KubeadmSpec{
+					CriSocket:      "my-socket",
+					PodNetworkCidr: "0.0.0.0/0",
+					PodNetworkAddOnManifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+					TokenTtl:                    "0",
+					AllowControlPlaneScheduling: true,
+					Network:                     "my-network",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				Metallb: &cpb.MetallbSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				Meshnet: &cpb.MeshnetSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+				},
+			},
+		},
+		want: &deploy.Deployment{
+			Cluster: &deploy.KubeadmSpec{
+				CRISocket:                   "my-socket",
+				PodNetworkCIDR:              "0.0.0.0/0",
+				PodNetworkAddOnManifest:     testFile.Name(),
+				TokenTTL:                    "0",
+				AllowControlPlaneScheduling: true,
+				Network:                     "my-network",
+			},
+			Ingress: &deploy.MetalLBSpec{
+				Manifest: testFile.Name(),
+				IPCount:  100,
+			},
+			CNI: &deploy.MeshnetSpec{
+				Manifest: testFile.Name(),
+			},
+			Progress: true,
+		},
+	}, {
+		desc: "kubeadm spec - no file provided",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kubeadm{
+				Kubeadm: &cpb.KubeadmSpec{
+					CriSocket:      "my-socket",
+					PodNetworkCidr: "0.0.0.0/0",
+					PodNetworkAddOnManifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{},
+					},
+					TokenTtl:                    "0",
+					AllowControlPlaneScheduling: true,
+					Network:                     "my-network",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				Metallb: &cpb.MetallbSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				Meshnet: &cpb.MeshnetSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+				},
+			},
+		},
+		want: &deploy.Deployment{
+			Cluster: &deploy.KubeadmSpec{
+				CRISocket:                   "my-socket",
+				PodNetworkCIDR:              "0.0.0.0/0",
+				PodNetworkAddOnManifest:     defTestFile.Name(),
+				TokenTTL:                    "0",
+				AllowControlPlaneScheduling: true,
+				Network:                     "my-network",
+			},
+			Ingress: &deploy.MetalLBSpec{
+				Manifest: testFile.Name(),
+				IPCount:  100,
+			},
+			CNI: &deploy.MeshnetSpec{
+				Manifest: testFile.Name(),
+			},
+			Progress: true,
+		},
+	}, {
+		desc: "kubeadm spec - file dne",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kubeadm{
+				Kubeadm: &cpb.KubeadmSpec{
+					CriSocket:                   "my-socket",
+					PodNetworkCidr:              "0.0.0.0/0",
+					TokenTtl:                    "0",
+					AllowControlPlaneScheduling: true,
+					Network:                     "my-network",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				Metallb: &cpb.MetallbSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				Meshnet: &cpb.MeshnetSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+				},
+			},
+		},
+		defaultKubeadmPodNetworkAddOnManifestDNE: true,
+		wantErr:                                  "failed to validate path",
+	}, {
+		desc: "kubeadm spec - with data",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_Kubeadm{
+				Kubeadm: &cpb.KubeadmSpec{
+					CriSocket:      "my-socket",
+					PodNetworkCidr: "0.0.0.0/0",
+					PodNetworkAddOnManifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_Data{
+							Data: testData,
+						},
+					},
+					TokenTtl:                    "0",
+					AllowControlPlaneScheduling: true,
+					Network:                     "my-network",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				Metallb: &cpb.MetallbSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				Meshnet: &cpb.MeshnetSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+				},
+			},
+		},
+		want: &deploy.Deployment{
+			Cluster: &deploy.KubeadmSpec{
+				CRISocket:                   "my-socket",
+				PodNetworkCIDR:              "0.0.0.0/0",
+				PodNetworkAddOnManifestData: testData,
+				TokenTTL:                    "0",
+				AllowControlPlaneScheduling: true,
+				Network:                     "my-network",
+			},
+			Ingress: &deploy.MetalLBSpec{
+				Manifest: testFile.Name(),
+				IPCount:  100,
+			},
+			CNI: &deploy.MeshnetSpec{
+				Manifest: testFile.Name(),
+			},
+			Progress: true,
+		},
+	}, {
+		desc: "external spec",
+		req: &cpb.CreateClusterRequest{
+			ClusterSpec: &cpb.CreateClusterRequest_External{
+				External: &cpb.ExternalSpec{
+					Network: "my-network",
+				},
+			},
+			IngressSpec: &cpb.CreateClusterRequest_Metallb{
+				Metallb: &cpb.MetallbSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+					IpCount: 100,
+				},
+			},
+			CniSpec: &cpb.CreateClusterRequest_Meshnet{
+				Meshnet: &cpb.MeshnetSpec{
+					Manifest: &cpb.Manifest{
+						ManifestData: &cpb.Manifest_File{
+							File: testFile.Name(),
+						},
+					},
+				},
+			},
+		},
+		want: &deploy.Deployment{
+			Cluster: &deploy.ExternalSpec{
+				Network: "my-network",
+			},
+			Ingress: &deploy.MetalLBSpec{
+				Manifest: testFile.Name(),
+				IPCount:  100,
+			},
+			CNI: &deploy.MeshnetSpec{
+				Manifest: testFile.Name(),
+			},
+			Progress: true,
+		},
+	}, {
 		desc: "request spec",
 		req: &cpb.CreateClusterRequest{
 			ClusterSpec: &cpb.CreateClusterRequest_Kind{
@@ -1115,6 +1358,10 @@ func TestNewDeployment(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			defaultKubeadmPodNetworkAddOnManifest = defTestFile.Name()
+			if tt.defaultKubeadmPodNetworkAddOnManifestDNE {
+				defaultKubeadmPodNetworkAddOnManifest = "/this/path/dne.yaml"
+			}
 			defaultMetalLBManifest = defTestFile.Name()
 			if tt.defaultMetalLBManifestDNE {
 				defaultMetalLBManifest = "/this/path/dne.yaml"
@@ -1149,6 +1396,8 @@ func TestNewDeployment(t *testing.T) {
 			}
 			ignore := cmpopts.IgnoreUnexported(
 				deploy.KindSpec{},
+				deploy.KubeadmSpec{},
+				deploy.ExternalSpec{},
 				deploy.MeshnetSpec{},
 				deploy.MetalLBSpec{},
 				deploy.IxiaTGSpec{},

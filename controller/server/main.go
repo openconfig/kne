@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"time"
 
@@ -41,15 +42,18 @@ import (
 )
 
 var (
-	defaultKubeCfg         = ""
-	defaultTopoBasePath    = ""
-	defaultMetalLBManifest = ""
-	defaultMeshnetManifest = ""
-	defaultIxiaTGOperator  = ""
-	defaultIxiaTGConfigMap = ""
-	defaultSRLinuxOperator = ""
-	defaultCEOSLabOperator = ""
-	defaultLemmingOperator = ""
+	kubeadmTokenRE = regexp.MustCompile("^kubeadm join (.+) --token (.+) --discovery-token-ca-cert-hash (.+)$")
+
+	defaultKubeCfg                        = ""
+	defaultTopoBasePath                   = ""
+	defaultKubeadmPodNetworkAddOnManifest = ""
+	defaultMeshnetManifest                = ""
+	defaultMetalLBManifest                = ""
+	defaultIxiaTGOperator                 = ""
+	defaultIxiaTGConfigMap                = ""
+	defaultSRLinuxOperator                = ""
+	defaultCEOSLabOperator                = ""
+	defaultLemmingOperator                = ""
 	// Flags.
 	port                 = flag.Int("port", 50051, "Controller server port")
 	reportUsage          = flag.Bool("report_usage", false, "Whether to reporting anonymous usage metrics")
@@ -61,6 +65,7 @@ func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeCfg = filepath.Join(home, ".kube", "config")
 		defaultTopoBasePath = filepath.Join(home, "kne", "examples")
+		defaultKubeadmPodNetworkAddOnManifest = filepath.Join(home, "kne", "manifests", "flannel", "manifest.yaml")
 		defaultMeshnetManifest = filepath.Join(home, "kne", "manifests", "meshnet", "grpc", "manifest.yaml")
 		defaultMetalLBManifest = filepath.Join(home, "kne", "manifests", "metallb", "manifest.yaml")
 		defaultIxiaTGOperator = filepath.Join(home, "kne", "manifests", "keysight", "ixiatg-operator.yaml")
@@ -115,6 +120,31 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 				return nil, fmt.Errorf("failed to validate path %q", path)
 			}
 			k.AdditionalManifests[i] = p
+		}
+		d.Cluster = k
+	case *cpb.CreateClusterRequest_Kubeadm:
+		k := &deploy.KubeadmSpec{
+			CRISocket:                   req.GetKubeadm().CriSocket,
+			PodNetworkCIDR:              req.GetKubeadm().PodNetworkCidr,
+			TokenTTL:                    req.GetKubeadm().TokenTtl,
+			Network:                     req.GetKubeadm().Network,
+			AllowControlPlaneScheduling: req.GetKubeadm().AllowControlPlaneScheduling,
+		}
+		switch t := req.GetKubeadm().GetPodNetworkAddOnManifest().GetManifestData().(type) {
+		case *cpb.Manifest_Data:
+			k.PodNetworkAddOnManifestData = req.GetKubeadm().GetPodNetworkAddOnManifest().GetData()
+		case *cpb.Manifest_File, nil: // if the manifest field is empty, use the default filepath
+			path := defaultKubeadmPodNetworkAddOnManifest
+			if req.GetKubeadm().GetPodNetworkAddOnManifest().GetFile() != "" {
+				path = req.GetKubeadm().GetPodNetworkAddOnManifest().GetFile()
+			}
+			p, err := validatePath(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", path)
+			}
+			k.PodNetworkAddOnManifest = p
+		default:
+			return nil, fmt.Errorf("manifest data type not supported: %T", t)
 		}
 		d.Cluster = k
 	case *cpb.CreateClusterRequest_External:
@@ -330,7 +360,27 @@ func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (
 	if err := d.Healthy(ctx); err != nil {
 		return &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_ERROR}, nil
 	}
-	return &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_RUNNING}, nil
+	resp := &cpb.ShowClusterResponse{State: cpb.ClusterState_CLUSTER_STATE_RUNNING}
+	ks, ok := d.Cluster.(*deploy.KubeadmSpec)
+	if !ok {
+		return resp, nil
+	}
+	resp.CriSocket = ks.CRISocket
+	if _, err := exec.LookPath("kubeadm"); err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "install kubeadm to show cluster")
+	}
+	out, err := run.OutCommand("kubeadm", "token", "create", "--print-join-command")
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get kubeadm cluster token: %v", err)
+	}
+	matches := kubeadmTokenRE.FindStringSubmatch(string(out))
+	if len(matches) != 4 {
+		return nil, status.Errorf(codes.Internal, "failed to parse kubeadm cluster token: %v", err)
+	}
+	resp.ApiServerEndpoint = matches[1]
+	resp.Token = matches[2]
+	resp.DiscoveryTokenCaCertHash = matches[3]
+	return resp, nil
 }
 
 func (s *server) ApplyCluster(ctx context.Context, req *cpb.ApplyClusterRequest) (*cpb.ApplyClusterResponse, error) {
