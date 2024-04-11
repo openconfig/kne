@@ -42,7 +42,7 @@ import (
 )
 
 var (
-	kubeadmTokenRE = regexp.MustCompile("^kubeadm join (.+) --token (.+) --discovery-token-ca-cert-hash (.+)$")
+	kubeadmTokenRE = regexp.MustCompile(`^kubeadm join ([0-9A-Za-z\.:]+) --token ([0-9A-Za-z\.]+) --discovery-token-ca-cert-hash ([0-9A-Za-z:]+)`)
 
 	defaultKubeCfg                        = ""
 	defaultTopoBasePath                   = ""
@@ -375,7 +375,7 @@ func (s *server) ShowCluster(ctx context.Context, req *cpb.ShowClusterRequest) (
 	}
 	matches := kubeadmTokenRE.FindStringSubmatch(string(out))
 	if len(matches) != 4 {
-		return nil, status.Errorf(codes.Internal, "failed to parse kubeadm cluster token: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to parse kubeadm cluster token from %q (matches %v)", string(out), matches)
 	}
 	resp.ApiServerEndpoint = matches[1]
 	resp.Token = matches[2]
