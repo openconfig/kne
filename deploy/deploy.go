@@ -393,7 +393,7 @@ func (e *ExternalSpec) Healthy() error {
 }
 
 func (e *ExternalSpec) GetName() string {
-	return "external"
+	return "kne"
 }
 
 func (e *ExternalSpec) GetDockerNetworkResourceName() string {
@@ -523,7 +523,7 @@ func (k *KubeadmSpec) Healthy() error {
 }
 
 func (k *KubeadmSpec) GetName() string {
-	return "kubeadm"
+	return "kne"
 }
 
 func (k *KubeadmSpec) GetDockerNetworkResourceName() string {
@@ -705,7 +705,7 @@ func (k *KindSpec) GetName() string {
 	if k.Name != "" {
 		return k.Name
 	}
-	return "kind"
+	return "kne"
 }
 
 func (k *KindSpec) GetDockerNetworkResourceName() string {
