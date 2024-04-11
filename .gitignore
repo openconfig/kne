@@ -6,5 +6,6 @@
 /go.work.sum
 **/super-linter.log
 kne_cli/kne_cli
+kne_cli/kne
 controller/server/server
 x/webhook/webhook
