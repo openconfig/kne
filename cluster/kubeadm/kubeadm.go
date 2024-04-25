@@ -8,13 +8,16 @@ import (
 	"github.com/openconfig/kne/exec/run"
 )
 
-const (
+var (
 	kubeadmFlagPath = "/var/lib/kubelet/kubeadm-flags.env"
 )
 
 // EnableCredentialProvider enables a credential provider according
 // to the specified config file on the kubelet.
 func EnableCredentialProvider(cfgPath string) error {
+	if _, err := os.Stat(cfgPath); err != nil {
+		return fmt.Errorf("config file not found: %v", err)
+	}
 	if err := run.LogCommand("sudo", "kubeadm", "upgrade", "node", "phase", "kubelet-config"); err != nil {
 		return err
 	}

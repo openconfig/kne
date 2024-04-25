@@ -130,6 +130,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			TokenTTL:                    req.GetKubeadm().TokenTtl,
 			Network:                     req.GetKubeadm().Network,
 			AllowControlPlaneScheduling: req.GetKubeadm().AllowControlPlaneScheduling,
+			CredentialProviderConfig:    req.GetKubeadm().CredentialProviderConfig,
 		}
 		switch t := req.GetKubeadm().GetPodNetworkAddOnManifest().GetManifestData().(type) {
 		case *cpb.Manifest_Data:
@@ -146,6 +147,13 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			k.PodNetworkAddOnManifest = p
 		default:
 			return nil, fmt.Errorf("manifest data type not supported: %T", t)
+		}
+		if k.CredentialProviderConfig != "" {
+			p, err := validatePath(k.CredentialProviderConfig)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate path %q", p)
+			}
+			k.CredentialProviderConfig = p
 		}
 		d.Cluster = k
 	case *cpb.CreateClusterRequest_External:
