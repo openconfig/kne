@@ -118,6 +118,15 @@ build {
       "sudo systemctl daemon-reload",
       "sudo systemctl enable cri-docker.socket",
       "sudo systemctl enable cri-docker.service",
+      "cd $HOME",
+      "git clone https://github.com/kubernetes/cloud-provider-gcp.git",
+      "curl -Lo bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 && sudo install bazel /usr/local/bin/",
+      "cd cloud-provider-gcp",
+      "/home/$USER/go/bin/go-licenses check github.com/kubernetes/cloud-provider-gcp",
+      "/home/$USER/go/bin/go-licenses save github.com/kubernetes/cloud-provider-gcp --save_path=\"../third_party/licenses/cloud-provider-gcp\"",
+      "bazel build cmd/auth-provider-gcp",
+      "sudo mkdir -p /etc/kubernetes/bin/",
+      "sudo cp bazel-bin/cmd/auth-provider-gcp/auth-provider-gcp_/auth-provider-gcp /etc/kubernetes/bin/",
     ]
   }
 
