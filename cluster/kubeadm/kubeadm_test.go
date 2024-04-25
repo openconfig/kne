@@ -14,7 +14,7 @@ func TestEnableCredentialProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file for test: %v", err)
 	}
-	if _, err := f.WriteString(`KUBELET_KUBEADM_ARGS="--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock"`); err != nil {
+	if _, err := f.WriteString("KUBELET_KUBEADM_ARGS=\"--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock\"\n"); err != nil {
 		t.Fatalf("Failed to write temp file for test: %v", err)
 	}
 
@@ -39,6 +39,7 @@ func TestEnableCredentialProvider(t *testing.T) {
 		cfgPath: cfg.Name(),
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "upgrade", "node", "phase", "kubelet-config"}},
+			{Cmd: "sudo", Args: []string{"cp", ".*", kubeadmFlagPath}},
 			{Cmd: "sudo", Args: []string{"systemctl", "restart", "kubelet"}},
 		},
 	}, {
@@ -53,10 +54,19 @@ func TestEnableCredentialProvider(t *testing.T) {
 		},
 		wantErr: "failed to upgrade kubelet",
 	}, {
+		desc:    "failed to copy flag config",
+		cfgPath: cfg.Name(),
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "upgrade", "node", "phase", "kubelet-config"}},
+			{Cmd: "sudo", Args: []string{"cp", ".*", kubeadmFlagPath}, Err: "failed to copy"},
+		},
+		wantErr: "failed to copy",
+	}, {
 		desc:    "failed to restart kubelet",
 		cfgPath: cfg.Name(),
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "upgrade", "node", "phase", "kubelet-config"}},
+			{Cmd: "sudo", Args: []string{"cp", ".*", kubeadmFlagPath}},
 			{Cmd: "sudo", Args: []string{"systemctl", "restart", "kubelet"}, Err: "failed to restart kubelet"},
 		},
 		wantErr: "failed to restart kubelet",
