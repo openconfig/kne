@@ -27,6 +27,7 @@ import (
 	"time"
 
 	log "github.com/golang/glog"
+	"github.com/openconfig/kne/cluster/kubeadm"
 	"github.com/openconfig/kne/deploy"
 	"github.com/openconfig/kne/exec/run"
 	cpb "github.com/openconfig/kne/proto/controller"
@@ -587,6 +588,11 @@ func (s *server) JoinCluster(ctx context.Context, req *cpb.JoinClusterRequest) (
 	}
 	if err := run.LogCommand("sudo", args...); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to join kubeadm cluster: %v", err)
+	}
+	if req.GetCredentialProviderConfig() != "" {
+		if err := kubeadm.EnableCredentialProvider(req.GetCredentialProviderConfig()); err != nil {
+			return nil, err
+		}
 	}
 	return &cpb.JoinClusterResponse{}, nil
 }

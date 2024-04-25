@@ -19,6 +19,7 @@ import (
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
 	"github.com/openconfig/kne/cluster/kind"
+	"github.com/openconfig/kne/cluster/kubeadm"
 	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/exec/run"
 	"github.com/openconfig/kne/load"
@@ -420,6 +421,7 @@ type KubeadmSpec struct {
 	PodNetworkCIDR              string `yaml:"podNetworkCIDR"`
 	PodNetworkAddOnManifest     string `yaml:"podNetworkAddOnManifest" kne:"yaml"`
 	PodNetworkAddOnManifestData []byte
+	CredentialProviderConfig    string `yaml:"credentialProviderConfig" kne:"yaml"`
 	TokenTTL                    string `yaml:"tokenTTL"`
 	Network                     string `yaml:"network"`
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
@@ -493,7 +495,12 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 			return err
 		}
 	}
-
+	// If credential provider config provided, apply it.
+	if k.CredentialProviderConfig != "" {
+		if err := kubeadm.EnableCredentialProvider(k.CredentialProviderConfig); err != nil {
+			return err
+		}
+	}
 	// Create a new docker network if not specified.
 	if k.Network == "" {
 		k.Network = "kne-kubeadm-" + uuid.New()
