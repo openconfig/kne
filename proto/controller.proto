@@ -72,6 +72,7 @@ message KubeadmSpec {
   string token_ttl = 4;
   string network = 5; // name of the docker network to use for ingress
   bool allow_control_plane_scheduling = 6;
+  string credential_provider_config = 7;
 }
 
 // External cluster specifications
@@ -286,6 +287,7 @@ message JoinClusterRequest {
   string token = 2;
   string discovery_token_ca_cert_hash = 3;
   string cri_socket = 4;
+  string credential_provider_config = 5;
 }
 
 // Returns join cluster response.
