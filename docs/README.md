@@ -29,6 +29,13 @@ KNE can easily be scaled to run large topologies utilizing its Kubernetes
 backbone. This guide describes how to set up a k8s multi worker node cluster
 and get a 150 node KNE topology up and running.
 
+## Vendor Image Requirements
+
+[Vendor Image Requirements](vendor.md)
+
+KNE uses vendor supplied images.  This document describes the expectations
+for those images.
+
 ## Kubernetes Reference
 
 [Kubernetes Reference](kubernetes_reference.md)
