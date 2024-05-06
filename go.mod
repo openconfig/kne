@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
-	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.2
+	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/docker/docker v24.0.9+incompatible
 	github.com/drivenets/cdnos-controller v1.7.4

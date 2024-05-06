@@ -100,6 +100,31 @@ func (n *Node) Create(ctx context.Context) error {
 	return nil
 }
 
+func (n *Node) Status(ctx context.Context) (node.Status, error) {
+	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.Name()}).String(),
+	})
+	if err != nil {
+		return node.StatusFailed, err
+	}
+	status := node.StatusUnknown
+	for e := range w.ResultChan() {
+		p, ok := e.Object.(*corev1.Pod)
+		if !ok {
+			continue
+		}
+		if p.Status.Phase == corev1.PodPending {
+			status = node.StatusPending
+			break
+		}
+		if p.Status.Phase == corev1.PodRunning {
+			status = node.StatusRunning
+			break
+		}
+	}
+	return status, nil
+}
+
 func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	pb := n.Proto
 	var data []byte
@@ -212,24 +237,8 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// Wait for pods
-	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.Name()}).String(),
-	})
-	if err != nil {
-		return err
-	}
-	for e := range w.ResultChan() {
-		p, ok := e.Object.(*corev1.Pod)
-		if !ok {
-			continue
-		}
-		if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodRunning {
-			break
-		}
-	}
 	log.Infof("Created CEosLabDevice CRD for node: %v", n.Name())
-	return err
+	return nil
 }
 
 func (n *Node) Delete(ctx context.Context) error {

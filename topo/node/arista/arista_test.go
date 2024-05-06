@@ -15,6 +15,7 @@ package arista
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -55,6 +56,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 			f.e = f.e[1:]
 			eCh <- e
 		}
+		close(eCh)
 	}()
 	return eCh
 }
@@ -538,6 +540,86 @@ func TestResetCfg(t *testing.T) {
 			err = n.ResetCfg(ctx)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("resetting config failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestStatus(t *testing.T) {
+	tests := []struct {
+		desc      string
+		cantWatch bool
+		noPodYet  bool
+		phase     corev1.PodPhase
+		status    node.Status
+	}{
+		{
+			desc:      "can't watch pod status",
+			cantWatch: true,
+			phase:     corev1.PodUnknown,
+			status:    node.StatusFailed,
+		},
+		{
+			desc:     "no pod in the watch channel",
+			noPodYet: true,
+			status:   node.StatusUnknown,
+		},
+		{
+			desc:   "pod pending",
+			phase:  corev1.PodPending,
+			status: node.StatusPending,
+		},
+		{
+			desc:   "pod running",
+			phase:  corev1.PodRunning,
+			status: node.StatusRunning,
+		},
+	}
+
+	ctx := context.Background()
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			name := "pod1"
+			ki := fake.NewSimpleClientset(&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+				},
+			})
+
+			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
+				if tt.cantWatch {
+					err = errors.New("")
+					return true, nil, err
+				}
+				f := &fakeWatch{}
+				if !tt.noPodYet {
+					f.e = []watch.Event{{
+						Object: &corev1.Pod{
+							Status: corev1.PodStatus{
+								Phase: tt.phase,
+							},
+						},
+					}}
+				}
+				return true, f, nil
+			}
+			ki.PrependWatchReactor("*", reaction)
+
+			ns := "default"
+			node := &Node{
+				Impl: &node.Impl{
+					KubeClient: ki,
+					Namespace:  ns,
+					Proto:      &topopb.Node{},
+				},
+			}
+			node.Impl.Proto.Name = name
+			status, err := node.Status(ctx)
+			if s := errdiff.Check(err, tt.cantWatch); s != "" {
+				t.Errorf("Status() unexpected err: %s", s)
+			}
+			if s := cmp.Diff(tt.status, status); s != "" {
+				t.Errorf("New() CEosLabDevice CRDs unexpected diff (-want +got):\n%s", s)
 			}
 		})
 	}
