@@ -83,3 +83,5 @@ implementation in
 [kne/topo/node](https://github.com/openconfig/kne/tree/main/topo/node) as well
 as the vendor specific examples in
 [kne/examples](https://github.com/openconfig/kne/tree/main/examples).
+The vendors should review and provide approval for any community contributions
+to the code they are responsible for.
