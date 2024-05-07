@@ -9,7 +9,7 @@ require (
 	github.com/docker/docker v24.0.9+incompatible
 	github.com/drivenets/cdnos-controller v1.7.4
 	github.com/ghodss/yaml v1.0.0
-	github.com/golang/glog v1.1.2
+	github.com/golang/glog v1.2.0
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/kr/pretty v0.3.1
@@ -18,7 +18,7 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.7
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/lemming/operator v0.2.0
-	github.com/openconfig/ondatra v0.5.3-0.20240221005017-ee276ff6695e
+	github.com/openconfig/ondatra v0.5.8
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/scrapli/scrapligo v1.1.11
@@ -30,9 +30,9 @@ require (
 	github.com/srl-labs/srlinux-scrapli v0.6.0
 	github.com/wI2L/jsondiff v0.5.1
 	go.universe.tf/metallb v0.13.5
-	golang.org/x/oauth2 v0.13.0
+	golang.org/x/oauth2 v0.14.0
 	google.golang.org/api v0.149.0
-	google.golang.org/grpc v1.60.1
+	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
@@ -45,7 +45,7 @@ require (
 )
 
 require (
-	bitbucket.org/creachadair/stringset v0.0.12 // indirect
+	bitbucket.org/creachadair/stringset v0.0.14 // indirect
 	cloud.google.com/go v0.111.0 // indirect
 	cloud.google.com/go/compute v1.23.3 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
@@ -97,6 +97,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/openconfig/attestz v0.2.0 // indirect
 	github.com/openconfig/gnoi v0.2.0 // indirect
 	github.com/openconfig/gnoigo v0.0.0-20231026010722-87413fdb22e7 // indirect
 	github.com/openconfig/gnsi v1.2.3 // indirect
@@ -135,7 +136,7 @@ require (
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.23.0 // indirect
-	golang.org/x/sync v0.4.0 // indirect
+	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
