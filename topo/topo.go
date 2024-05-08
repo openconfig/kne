@@ -552,6 +552,12 @@ func (m *Manager) topologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 
 // push deploys the topology to the cluster.
 func (m *Manager) push(ctx context.Context) error {
+	for _, n := range m.nodes {
+		if err := n.ValidateConstraints(); err != nil {
+			return fmt.Errorf("failed to validate node %s: %w", n, err)
+		}
+	}
+
 	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.topo.Name, metav1.GetOptions{}); err != nil {
 		log.Infof("Creating namespace for topology: %q", m.topo.Name)
 		ns := &corev1.Namespace{

@@ -61,6 +61,8 @@ type Implementation interface {
 	// BackToBackLoop returns a bool if the node supports links directly between
 	// two ports on the same node.
 	BackToBackLoop() bool
+	// ValidateConstraints validates the host with the node's constraints.
+	ValidateConstraints() error
 }
 
 // Certer provides an interface for working with certs on nodes.

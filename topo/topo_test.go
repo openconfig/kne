@@ -89,6 +89,13 @@ func (c *configurable) ConfigPush(_ context.Context, r io.Reader) error {
 	return nil
 }
 
+func (c *configurable) ValidateConstraints() error {
+	if len(c.Proto.HostConstraints) != 0 {
+		return fmt.Errorf("fake error for host constraints")
+	}
+	return nil
+}
+
 func NewConfigurable(impl *node.Impl) (node.Node, error) {
 	return &configurable{Impl: impl}, nil
 }
@@ -588,6 +595,23 @@ func TestCreate(t *testing.T) {
 				},
 			},
 		},
+	}, {
+		desc: "failed node validation",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{{
+				Name:   "r1",
+				Vendor: tpb.Vendor(1002),
+				Services: map[uint32]*tpb.Service{
+					1000: {
+						Name: "ssh",
+					},
+				},
+				Config:          &tpb.Config{},
+				HostConstraints: []*tpb.HostConstraint{{Constraint: &tpb.HostConstraint_KernelConstraint{}}},
+			}},
+		},
+		wantErr: "failed to validate node",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
