@@ -61,6 +61,8 @@ type Implementation interface {
 	// BackToBackLoop returns a bool if the node supports links directly between
 	// two ports on the same node.
 	BackToBackLoop() bool
+	// ValidateConstraints validates the host with the node's constraints.
+	ValidateConstraints() error
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -235,9 +237,6 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 // Create will create the node in the k8s cluster with all services and config
 // maps.
 func (n *Impl) Create(ctx context.Context) error {
-	if err := n.ValidateConstraints(); err != nil {
-		return fmt.Errorf("node %s failed to validate node with errors: %s", n.Name(), err)
-	}
 	if err := n.CreatePod(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create pod %w", n.Name(), err)
 	}
