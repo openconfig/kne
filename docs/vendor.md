@@ -1,15 +1,21 @@
 # Vendor Image Requirements
 
 A Vendor Image is a docker container that can be used with KNE to emulate a
-vendor's devices.
+vendor's devices.  A Vendor Image might also be a fully virtual device with
+no physical version, such as openconfig/lemming.
 
 Without vendor images KNE is just an empty virtual machine rack that does
 nothing.  Vendor supplied images are what the user of KNE sees and is interested
 in.  This document describes the requirements and expectations of vendor images
-to be used with KNE.
+and the associated code that is included in the KNE repository
 
-This document describes the image requirements and expectations in order to be
-considered *KNE Qualified*.
+A vendor image requires a corresponding node implementation in topo/node/vendor
+and should have working examples in examples/vendor.  A single node
+implementation may support multiple vendor images (e.g., cisco-xrd and cisco-8000e).  A maintainer is the person or organization that maintains the vendor
+specific node implementation and examples.
+
+In this document a vendor is considered the person or organization that makes
+image containers available for use by others.
 
 ## KNE Uses
 
@@ -58,7 +64,7 @@ changes and packet forwarding.
 
 ### Deviations
 
-The vendor should supply a document that describes what series of devices this
+The vendor should supply a document that describes what series of devices the
 image emulates as well as known limits and deviations.  These include
 
 * Protocols not supported
@@ -66,6 +72,7 @@ image emulates as well as known limits and deviations.  These include
 * OpenConfig paths only supported by hardware
 * OpenConfig paths that report different results compared to the hardware.
 * Known limitations of the emulated device
+* Supported port configurations (e.g, number of ports, line cards, etc).
 
 The listed OpenConfig paths need not be leaf nodes.  Wildcards may be used in
 the path where applicable.
@@ -73,15 +80,21 @@ the path where applicable.
 ## Testing
 
 Vendor images must be tested prior to publication.  A standard set of tests is
-found at <INSERT LOCATION HERE>.  It is expected that the image undergoes
-repeated testing to identify non-deterministic errors.
+found at <under development>.  At a minimum, a KNE node using that image should
+start and not cause the KNE emulation to hang.  It should work in both a single
+Kubernetes Worker Node environment as well as a multi-worker node environment.
+
+It is expected that released images undergo repeated testing to identify
+non-deterministic errors.
 
 ## Support
 
-Vendors are responsible for support of their images.  This includes the node
-implementation in
-[kne/topo/node](https://github.com/openconfig/kne/tree/main/topo/node) as well
-as the vendor specific examples in
-[kne/examples](https://github.com/openconfig/kne/tree/main/examples).
-The vendors should review and provide approval for any community contributions
-to the code they are responsible for.
+Vendors are responsible for support of their images.  The maintainer (typically
+the person or organization that provides the associated container images) is
+responsible for the support of the vendor image specific node implementation in
+[kne/topo/node](https://github.com/openconfig/kne/tree/main/topo/node)
+as well as the vendor specific examples in
+[kne/examples](https://github.com/openconfig/kne/tree/main/examples).  The
+maintainer should be responsive to community contributions.  In the event the
+maintainer of a particular node implementation is unresponsive a new maintainer
+may take over that implementation.
