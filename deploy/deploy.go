@@ -462,9 +462,19 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.TokenTTL != "" {
 		args = append(args, "--token-ttl", k.TokenTTL)
 	}
-	if err := run.LogCommand("sudo", args...); err != nil {
-		return err
+	log.Infof("Creating kubeadm cluster with: %v", args)
+	if out, err := run.OutLogCommand("sudo", args...); err != nil {
+		msg := []string{}
+		// Filter output to only show lines relevant to the error message. For kind these are lines
+		// prefixed with "ERROR" or "Command Output".
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.HasPrefix(line, "ERROR") || strings.HasPrefix(line, "Command Output") {
+				msg = append(msg, line)
+			}
+		}
+		return fmt.Errorf("%w: %v", err, strings.Join(msg, ", "))
 	}
+	log.Infof("Deployed kubeadm cluster")
 	kubeDir := filepath.Join(homeDir(), ".kube")
 	if err := os.MkdirAll(kubeDir, 0750); err != nil {
 		return err
