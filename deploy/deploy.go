@@ -465,10 +465,10 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	log.Infof("Creating kubeadm cluster with: %v", args)
 	if out, err := run.OutLogCommand("sudo", args...); err != nil {
 		msg := []string{}
-		// Filter output to only show lines relevant to the error message. For kind these are lines
-		// prefixed with "ERROR" or "Command Output".
+		// Filter output to only show lines relevant to the error message. For kubeadm these are lines
+		// containing "error" in any case.
 		for _, line := range strings.Split(string(out), "\n") {
-			if strings.HasPrefix(line, "ERROR") || strings.HasPrefix(line, "Command Output") {
+			if strings.Contains(strings.ToLower(line), "error") {
 				msg = append(msg, line)
 			}
 		}
