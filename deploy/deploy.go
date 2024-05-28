@@ -46,6 +46,7 @@ var (
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
 	healthTimeout   = time.Minute
+	criDocker       = "cri-docker"
 
 	// Stubs for testing.
 	execLookPath       = exec.LookPath
@@ -445,6 +446,15 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	args := []string{"kubeadm", "init"}
 	if k.CRISocket != "" {
 		args = append(args, "--cri-socket", k.CRISocket)
+		// If using cri-docker, then ensure the components are running.
+		if strings.Contains(k.CRISocket, criDocker) {
+			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".socket"); err != nil {
+				return err
+			}
+			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".service"); err != nil {
+				return err
+			}
+		}
 	}
 	if k.PodNetworkCIDR != "" {
 		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
