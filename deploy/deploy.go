@@ -46,6 +46,7 @@ var (
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
 	healthTimeout   = time.Minute
+	criDocker       = "cri-docker"
 
 	// Stubs for testing.
 	execLookPath       = exec.LookPath
@@ -445,6 +446,15 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	args := []string{"kubeadm", "init"}
 	if k.CRISocket != "" {
 		args = append(args, "--cri-socket", k.CRISocket)
+		// If using cri-docker, then ensure the components are running.
+		if strings.Contains(k.CRISocket, criDocker) {
+			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".socket"); err != nil {
+				return err
+			}
+			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".service"); err != nil {
+				return err
+			}
+		}
 	}
 	if k.PodNetworkCIDR != "" {
 		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
@@ -452,9 +462,19 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.TokenTTL != "" {
 		args = append(args, "--token-ttl", k.TokenTTL)
 	}
-	if err := run.LogCommand("sudo", args...); err != nil {
-		return err
+	log.Infof("Creating kubeadm cluster with: %v", args)
+	if out, err := run.OutLogCommand("sudo", args...); err != nil {
+		msg := []string{}
+		// Filter output to only show lines relevant to the error message. For kubeadm these are lines
+		// containing "error" in any case.
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(strings.ToLower(line), "error") {
+				msg = append(msg, line)
+			}
+		}
+		return fmt.Errorf("%w: %v", err, strings.Join(msg, ", "))
 	}
+	log.Infof("Deployed kubeadm cluster")
 	kubeDir := filepath.Join(homeDir(), ".kube")
 	if err := os.MkdirAll(kubeDir, 0750); err != nil {
 		return err
