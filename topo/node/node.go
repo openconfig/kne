@@ -334,7 +334,7 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	switch size := len(data); {
 	case size == 0: // no config data in proto, return a nil volume
 		return nil, nil
-	case size < 1048576*3: // size less than 3MB, use configMap
+	case size < 1048576: // size less than 1MB, use configMap
 		name := fmt.Sprintf("%s-config", n.Proto.Name)
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -356,7 +356,7 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 				},
 			},
 		}
-	default: // size greater than 3MB, use hostPath
+	default: // size greater than 1MB, use hostPath
 		if err := os.MkdirAll(tempCfgDir, 0666); err != nil {
 			return nil, err
 		}
