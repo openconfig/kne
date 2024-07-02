@@ -186,7 +186,13 @@ message CertificateCfg {
     SelfSignedCertCfg self_signed = 1;
     // Additional options will be for loading pregenerated certs.
     // Also support for CSR and generation workflow.
+    CertCfg cert = 2;
   }
+}
+
+message CertCfg {
+  bytes server_cert = 1;
+  bytes client_cert = 2;
 }
 
 message SelfSignedCertCfg {
