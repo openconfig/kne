@@ -515,6 +515,12 @@ func (n *Impl) CreateService(ctx context.Context) error {
 				"app": n.Name(),
 			},
 			Type: "LoadBalancer",
+			// Do not allocate a NodePort for this LoadBalancer. MetalLB
+			// or the equivalent load balancer should handle exposing this service.
+			// Large topologies may try to allocate more NodePorts than are
+			// supported in default clusters.
+			// https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation
+			AllocateLoadBalancerNodePorts: pointer.Bool(false),
 		},
 	}
 	sS, err := n.KubeClient.CoreV1().Services(n.Namespace).Create(ctx, s, metav1.CreateOptions{})
