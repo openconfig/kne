@@ -99,4 +99,3 @@ other vendor software reqiured by the node implementation (e.g., controller or
 operator).  The maintainer should be responsive to community contributions.  In
 the event the maintainer of a particular node implementation is unresponsive a
 new maintainer may take over that implementation.
-
