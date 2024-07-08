@@ -90,7 +90,7 @@ non-deterministic errors.
 ## Support
 
 Vendors are responsible for support of their images.  The maintainer (typically
-the person or organization that provides the associated container images) is
+the person or organization that provides the associated container images) is 
 responsible for the support of the vendor image specific node implementation in
 [kne/topo/node](https://github.com/openconfig/kne/tree/main/topo/node), the
 vendor specific examples in
