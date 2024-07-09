@@ -109,8 +109,8 @@ build {
       "git clone https://github.com/Mirantis/cri-dockerd.git",
       "cd cri-dockerd",
       "PATH=$PATH:/usr/local/go/bin",
-      "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd",
-      "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\"",
+      "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
+      "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\" --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
       "make cri-dockerd",
       "sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd",
       "sudo install packaging/systemd/* /etc/systemd/system",
@@ -146,8 +146,8 @@ build {
       "git clone -b ${var.branch_name} https://github.com/openconfig/kne.git",
       "cd kne",
       "PATH=$PATH:/usr/local/go/bin",
-      "/home/$USER/go/bin/go-licenses check github.com/openconfig/kne/kne_cli",
-      "/home/$USER/go/bin/go-licenses save github.com/openconfig/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\"",
+      "/home/$USER/go/bin/go-licenses check github.com/openconfig/kne/kne_cli --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
+      "/home/$USER/go/bin/go-licenses save github.com/openconfig/kne/kne_cli --save_path=\"../third_party/licenses/kne_cli\" --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
       "cd kne_cli",
       "/usr/local/go/bin/go build -o kne",
       "sudo cp kne /usr/local/bin/",
@@ -162,8 +162,8 @@ build {
       "git clone https://github.com/openconfig/ondatra.git",
       "cd ondatra",
       "PATH=$PATH:/usr/local/go/bin",
-      "/home/$USER/go/bin/go-licenses check github.com/openconfig/ondatra",
-      "/home/$USER/go/bin/go-licenses save github.com/openconfig/ondatra --save_path=\"../third_party/licenses/ondatra\"",
+      "/home/$USER/go/bin/go-licenses check github.com/openconfig/ondatra --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
+      "/home/$USER/go/bin/go-licenses save github.com/openconfig/ondatra --save_path=\"../third_party/licenses/ondatra\" --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
     ]
   }
 
