@@ -9,5 +9,5 @@ kne_cli/kne_cli
 kne_cli/kne
 controller/server/server
 x/webhook/webhook
-wire/client/client
-wire/server/server
+x/wire/client/client
+x/wire/server/server

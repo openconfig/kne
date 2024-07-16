@@ -43,7 +43,6 @@ enum Vendor {
   OPENCONFIG = 10;
   ALPINE = 11;
   DRIVENETS = 12;
-  EXTERNAL = 13;
 }
 
 // Node is a single container inside the topology
