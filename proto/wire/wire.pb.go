@@ -34,6 +34,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Packet is a wrapper around bytes.
 type Packet struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -19,9 +19,12 @@ option go_package = "github.com/openconfig/kne/proto/wire";
 
 // Wire service definition.
 service Wire {
-	rpc Transmit(stream Packet) returns (stream Packet);
+  // Transmit sets up a bidirectional Packet stream.
+  // Metadata can be configured to identify the destination.
+  rpc Transmit(stream Packet) returns (stream Packet);
 }
 
+// Packet is a wrapper around bytes.
 message Packet {
-	bytes data = 1;
+  bytes data = 1;
 }

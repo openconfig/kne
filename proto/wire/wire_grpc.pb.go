@@ -22,6 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WireClient interface {
+	// Transmit sets up a bidirectional Packet stream.
+	// Metadata can be configured to identify the destination.
 	Transmit(ctx context.Context, opts ...grpc.CallOption) (Wire_TransmitClient, error)
 }
 
@@ -68,6 +70,8 @@ func (x *wireTransmitClient) Recv() (*Packet, error) {
 // All implementations must embed UnimplementedWireServer
 // for forward compatibility
 type WireServer interface {
+	// Transmit sets up a bidirectional Packet stream.
+	// Metadata can be configured to identify the destination.
 	Transmit(Wire_TransmitServer) error
 	mustEmbedUnimplementedWireServer()
 }
