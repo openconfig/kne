@@ -218,7 +218,6 @@ func TestImagePullTimeout(t *testing.T) {
 		default:
 			return nil
 		}
-
 	}
 
 	if tm, ok := w.podStart[uid]; ok {
