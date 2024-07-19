@@ -111,7 +111,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 		if k.KindConfigFile != "" {
 			p, err := validatePath(k.KindConfigFile)
 			if err != nil {
-				return nil, fmt.Errorf("failed to validate path %q", p)
+				return nil, fmt.Errorf("failed to validate path %q", k.KindConfigFile)
 			}
 			k.KindConfigFile = p
 		}
