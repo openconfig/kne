@@ -27,8 +27,8 @@ message ForwardConfig {
 message Wire {
   // The a endpoint serves as the client endpoint in the bidirectional stream.
   Endpoint a = 1;
-  // The b endpoint serves as the server endpoint in the bidirectional stream.
-  Endpoint b = 2;
+  // The z endpoint serves as the server endpoint in the bidirectional stream.
+  Endpoint z = 2;
 }
 
 message Endpoint {

@@ -17,21 +17,29 @@ nodes: {
     vendor_data {
       [type.googleapis.com/forward.ForwardConfig] {
         wires: {
-          a: Interface {
-            name: "eth1"
+          a: {
+            interface: {
+              name: "eth1"
+            }
           }
-          z: LocalNode {
-            name: "fwd2"
-            interface: "eth1"
+          z: {
+            local_node: {
+              name: "fwd2"
+              interface: "eth1"
+            }
           }
         }
         wires: {
-          a: LocalNode {
-            name: "fw2"
-            interface: "eth2"
+          a: {
+            local_node: {
+              name: "fw2"
+              interface: "eth2"
+            }
           }
-          z: Interface {
-            name: "eth2"
+          z: {
+            interface: {
+              name: "eth2"
+            }
           }
         }
       }
@@ -46,21 +54,29 @@ nodes: {
     vendor_data {
       [type.googleapis.com/forward.ForwardConfig] {
         wires: {
-          a: Interface {
-            name: "eth2"
+          a: {
+            interface: {
+              name: "eth2"
+            }
           }
-          z: LocalNode {
-            name: "fwd1"
-            interface: "eth2"
+          z: {
+            local_node: {
+              name: "fwd1"
+              interface: "eth2"
+            }
           }
         }
         wires: {
-          a: LocalNode {
-            name: "fw1"
-            interface: "eth1"
+          a: {
+            local_node: {
+              name: "fw1"
+              interface: "eth1"
+            }
           }
-          z: Interface {
-            name: "eth1"
+          z: {
+            interface: {
+              name: "eth1"
+            }
           }
         }
       }
