@@ -22,6 +22,9 @@ import (
 	"io"
 	"os"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/afpacket"
+	"github.com/google/gopacket/layers"
 	wpb "github.com/openconfig/kne/proto/wire"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -32,6 +35,35 @@ import (
 type ReadWriter interface {
 	Read() ([]byte, error)
 	Write([]byte) error
+}
+
+type InterfaceReadWriter struct {
+	handle *afpacket.TPacket
+	ps     *gopacket.PacketSource
+}
+
+func NewInterfaceReadWriter(intf string) (*InterfaceReadWriter, error) {
+	h, err := afpacket.NewTPacket(afpacket.OptInterface(intf))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create packet handle for %q: %v", intf, err)
+	}
+	return &InterfaceReadWriter{handle: h, ps: gopacket.NewPacketSource(h, layers.LinkTypeEthernet)}, nil
+}
+
+func (i *InterfaceReadWriter) Read() ([]byte, error) {
+	p, err := i.ps.NextPacket()
+	if err != nil {
+		return nil, err
+	}
+	return p.Data(), nil
+}
+
+func (i *InterfaceReadWriter) Write(b []byte) error {
+	return i.handle.WritePacketData(b)
+}
+
+func (i *InterfaceReadWriter) Close() {
+	i.handle.Close()
 }
 
 type FileReadWriter struct {
