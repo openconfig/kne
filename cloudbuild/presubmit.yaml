@@ -1,6 +1,6 @@
 steps:
   - id: kne_test
-    name: gcr.io/$PROJECT_ID/remote-builder
+    name: us-west1-docker.pkg.dev/$PROJECT_ID/utilities/remote-builder
     waitFor: ["-"]
     env:
       - USERNAME=user
@@ -11,7 +11,7 @@ steps:
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=source /tmp/workspace/cloudbuild/kne_test.sh 2>&1
   - id: vendors_test
-    name: gcr.io/$PROJECT_ID/remote-builder
+    name: us-west1-docker.pkg.dev/$PROJECT_ID/utilities/remote-builder
     waitFor: ["-"]
     env:
       - USERNAME=user
