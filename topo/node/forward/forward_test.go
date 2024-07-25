@@ -31,7 +31,6 @@ func TestNew(t *testing.T) {
 		},
 		want: &topopb.Node{
 			Config: &topopb.Config{
-				Command:      []string{"/bin/sh", "-c", "sleep 2000000000000"},
 				EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", ""),
 				Image:        "forward:latest",
 				ConfigPath:   "/etc",
