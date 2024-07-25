@@ -209,3 +209,32 @@ func (p *PhysicalEndpoint) NewContext(ctx context.Context) context.Context {
 	})
 	return metadata.NewOutgoingContext(ctx, md)
 }
+
+type InterfaceEndpoint struct {
+	intf string
+}
+
+func NewInterfaceEndpoint(intf string) *InterfaceEndpoint {
+	return &InterfaceEndpoint{intf: intf}
+}
+
+func ParseInterfaceEndpoint(ctx context.Context) (*InterfaceEndpoint, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("no metadata in incoming context")
+	}
+	i := &InterfaceEndpoint{}
+	vals := md.Get("interface")
+	if len(vals) != 1 || vals[0] == "" {
+		return nil, fmt.Errorf("interface key not found")
+	}
+	i.intf = vals[0]
+	return i, nil
+}
+
+func (i *InterfaceEndpoint) NewContext(ctx context.Context) context.Context {
+	md := metadata.New(map[string]string{
+		"interface": i.intf,
+	})
+	return metadata.NewOutgoingContext(ctx, md)
+}

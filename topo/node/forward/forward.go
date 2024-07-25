@@ -16,6 +16,7 @@ package forward
 import (
 	"context"
 	"fmt"
+	"net"
 
 	fpb "github.com/openconfig/kne/proto/forward"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -25,6 +26,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
+)
+
+const (
+	fwdPort = "50058"
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -59,6 +64,48 @@ func (n *Node) Create(ctx context.Context) error {
 	return nil
 }
 
+func interfaceFlag(intf string) string {
+	return fmt.Sprintf("--interfaces=%s", intf)
+}
+
+func endpointFlag(lintf, addr, rintf string) string {
+	return fmt.Sprintf("--endpoints=%s/%s/%s", lintf, addr, rintf)
+}
+
+func wireToArg(wire *fpb.Wire) (string, error) {
+	switch at := wire.A.Endpoint.(type) {
+	case *fpb.Endpoint_Interface:
+		// If A is an interface, then this node should serve as the fwd client for this wire.
+		// Additionally Z should not be an interface.
+		switch zt := wire.Z.Endpoint.(type) {
+		case *fpb.Endpoint_Interface:
+			return "", fmt.Errorf("endpoints A and Z cannot both be interfaces")
+		case *fpb.Endpoint_LocalNode:
+			ln := wire.GetZ().GetLocalNode()
+			//pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, ln.GetName(), metav1.GetOptions{})
+			//if err != nil {
+			//	return "", err
+			//}
+			return endpointFlag(wire.GetA().GetInterface().GetName(), net.JoinHostPort(ln.GetName(), fwdPort), ln.GetInterface()), nil
+		default:
+			return "", fmt.Errorf("endpoint Z type not supported: %T", zt)
+		}
+	case *fpb.Endpoint_LocalNode:
+		// If A is not an interface, then this node should serve as the fwd server for this wire.
+		// Additionally Z should be an interface.
+		switch zt := wire.Z.Endpoint.(type) {
+		case *fpb.Endpoint_Interface:
+			return interfaceFlag(wire.GetZ().GetInterface().GetName()), nil
+		case *fpb.Endpoint_LocalNode:
+			return "", fmt.Errorf("one of endpoints A and Z must be an interface")
+		default:
+			return "", fmt.Errorf("endpoint Z type not supported: %T", zt)
+		}
+	default:
+		return "", fmt.Errorf("endpoint A type not supported: %T", at)
+	}
+}
+
 // CreatePod creates a Pod for the Node based on the underlying proto.
 func (n *Node) CreatePod(ctx context.Context) error {
 	pb := n.Proto
@@ -68,14 +115,22 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		initContainerImage = node.DefaultInitContainerImage
 	}
 
+	fwdArgs := pb.Config.Args
 	if vendorData := pb.Config.GetVendorData(); vendorData != nil {
 		fwdCfg := &fpb.ForwardConfig{}
 		if err := vendorData.UnmarshalTo(fwdCfg); err != nil {
 			return err
 		}
-		// TODO: Validate and use fwdCfg to pass arguments to the container.
 		log.Infof("Got fwdCfg: %v", prototext.Format(fwdCfg))
+		for _, wire := range fwdCfg.GetWires() {
+			arg, err := wireToArg(wire)
+			if err != nil {
+				return err
+			}
+			fwdArgs = append(fwdArgs, arg)
+		}
 	}
+	log.Infof("Using container args: %v", fwdArgs)
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -99,7 +154,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				Name:            pb.Name,
 				Image:           pb.Config.Image,
 				Command:         pb.Config.Command,
-				Args:            pb.Config.Args,
+				Args:            fwdArgs,
 				Env:             node.ToEnvVar(pb.Config.Env),
 				Resources:       node.ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
@@ -161,9 +216,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
-	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{"/bin/sh", "-c", "sleep 2000000000000"}
-	}
+	//if len(pb.GetConfig().GetCommand()) == 0 {
+	//	pb.Config.Command = []string{"/bin/sh", "-c", "sleep 2000000000000"}
+	//}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
