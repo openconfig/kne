@@ -1,0 +1,109 @@
+name: "forward-basic"
+nodes: {
+  name: "r1"
+  vendor: OPENCONFIG
+  model: "LEMMING"
+}
+nodes: {
+  name: "r2"
+  vendor: OPENCONFIG
+  model: "LEMMING"
+}
+nodes: {
+  name: "fwd1"
+  vendor: FORWARD
+  config: {
+    image: "forward:latest"
+    vendor_data {
+      [type.googleapis.com/forward.ForwardConfig] {
+        wires: {
+          a: {
+            interface: {
+              name: "eth1"
+            }
+          }
+          z: {
+            local_node: {
+              name: "fwd2"
+              interface: "eth1"
+            }
+          }
+        }
+        wires: {
+          a: {
+            local_node: {
+              name: "fw2"
+              interface: "eth2"
+            }
+          }
+          z: {
+            interface: {
+              name: "eth2"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+nodes: {
+  name: "fwd2"
+  vendor: FORWARD
+  config: {
+    image: "forward:latest"
+    vendor_data {
+      [type.googleapis.com/forward.ForwardConfig] {
+        wires: {
+          a: {
+            interface: {
+              name: "eth2"
+            }
+          }
+          z: {
+            local_node: {
+              name: "fwd1"
+              interface: "eth2"
+            }
+          }
+        }
+        wires: {
+          a: {
+            local_node: {
+              name: "fw1"
+              interface: "eth1"
+            }
+          }
+          z: {
+            interface: {
+              name: "eth1"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+links: {
+  a_node: "r1"
+  a_int: "eth1"
+  z_node: "fwd1"
+  z_int: "eth1"
+}
+links: {
+  a_node: "fwd2"
+  a_int: "eth1"
+  z_node: "r2"
+  z_int: "eth1"
+}
+links: {
+  a_node: "r2"
+  a_int: "eth2"
+  z_node: "fwd2"
+  z_int: "eth2"
+}
+links: {
+  a_node: "fwd1"
+  a_int: "eth2"
+  z_node: "r1"
+  z_int: "eth2"
+}

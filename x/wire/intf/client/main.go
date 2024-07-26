@@ -33,19 +33,17 @@ var (
 
 func main() {
 	ctx := context.Background()
-	frw1, err := wire.NewFileReadWriter("testdata/fwdxx01sql17src.txt", "testdata/fwdxx01sql17dst.txt")
+	i0, err := wire.NewInterfaceReadWriter("eth0")
 	if err != nil {
-		log.Fatalf("Failed to create file based read/writer: %v", err)
+		log.Fatalf("Failed to create interface read/writer: %v", err)
 	}
-	defer frw1.Close()
-	frw2, err := wire.NewFileReadWriter("testdata/fwdxx02sql17src.txt", "testdata/fwdxx02sql17dst.txt")
+	i1, err := wire.NewInterfaceReadWriter("eth1")
 	if err != nil {
-		log.Fatalf("Failed to create file based read/writer: %v", err)
+		log.Fatalf("Failed to create interface read/writer: %v", err)
 	}
-	defer frw2.Close()
 	endpoints := map[*wire.PhysicalEndpoint]*wire.Wire{
-		wire.NewPhysicalEndpoint("xx01.sql17", "Ethernet0/0/0/0"): wire.NewWire(frw1),
-		wire.NewPhysicalEndpoint("xx02.sql17", "Ethernet0/0/0/1"): wire.NewWire(frw2),
+		wire.NewPhysicalEndpoint("r3", "eth0"): wire.NewWire(i0),
+		wire.NewPhysicalEndpoint("r3", "eth1"): wire.NewWire(i1),
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -54,7 +52,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to dial %q: %v", *addr, err)
 	}
-	defer conn.Close()
 	c := wpb.NewWireClient(conn)
 	g := new(errgroup.Group)
 	for e, w := range endpoints {

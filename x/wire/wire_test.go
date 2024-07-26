@@ -64,9 +64,9 @@ func TestTransmit(t *testing.T) {
 	}
 	rw := NewFakeReadWriter(rwSrc)
 	sSrc := []*wpb.Packet{
-		&wpb.Packet{Data: []byte("sSrc1")},
-		&wpb.Packet{Data: []byte("sSrc2")},
-		&wpb.Packet{Data: []byte("sSrc3")},
+		{Data: []byte("sSrc1")},
+		{Data: []byte("sSrc2")},
+		{Data: []byte("sSrc3")},
 	}
 	s := NewFakeStream(sSrc)
 	w := NewWire(rw)
