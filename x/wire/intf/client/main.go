@@ -37,12 +37,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create interface read/writer: %v", err)
 	}
-	defer i0.Close()
 	i1, err := wire.NewInterfaceReadWriter("eth1")
 	if err != nil {
 		log.Fatalf("Failed to create interface read/writer: %v", err)
 	}
-	defer i1.Close()
 	endpoints := map[*wire.PhysicalEndpoint]*wire.Wire{
 		wire.NewPhysicalEndpoint("r3", "eth0"): wire.NewWire(i0),
 		wire.NewPhysicalEndpoint("r3", "eth1"): wire.NewWire(i1),

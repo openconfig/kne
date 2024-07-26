@@ -126,7 +126,6 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to dial %q: %v", a, err)
 		}
-		defer conn.Close()
 		c := wpb.NewWireClient(conn)
 		for e, w := range m {
 			c := c

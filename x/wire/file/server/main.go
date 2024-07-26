@@ -67,12 +67,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create file based read/writer: %v", err)
 	}
-	defer frw1.Close()
 	frw2, err := wire.NewFileReadWriter("testdata/xx02sql17src.txt", "testdata/xx02sql17dst.txt")
 	if err != nil {
 		log.Fatalf("Failed to create file based read/writer: %v", err)
 	}
-	defer frw2.Close()
 	endpoints := map[wire.PhysicalEndpoint]*wire.Wire{
 		*wire.NewPhysicalEndpoint("xx01.sql17", "Ethernet0/0/0/0"): wire.NewWire(frw1),
 		*wire.NewPhysicalEndpoint("xx02.sql17", "Ethernet0/0/0/1"): wire.NewWire(frw2),

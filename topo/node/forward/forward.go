@@ -82,10 +82,6 @@ func wireToArg(wire *fpb.Wire) (string, error) {
 			return "", fmt.Errorf("endpoints A and Z cannot both be interfaces")
 		case *fpb.Endpoint_LocalNode:
 			ln := wire.GetZ().GetLocalNode()
-			//pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, ln.GetName(), metav1.GetOptions{})
-			//if err != nil {
-			//	return "", err
-			//}
 			return endpointFlag(wire.GetA().GetInterface().GetName(), net.JoinHostPort(ln.GetName(), fwdPort), ln.GetInterface()), nil
 		default:
 			return "", fmt.Errorf("endpoint Z type not supported: %T", zt)
@@ -216,9 +212,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
-	//if len(pb.GetConfig().GetCommand()) == 0 {
-	//	pb.Config.Command = []string{"/bin/sh", "-c", "sleep 2000000000000"}
-	//}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
