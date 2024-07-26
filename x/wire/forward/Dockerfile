@@ -10,4 +10,4 @@ COPY proto/ proto/
 
 RUN go build -o forward x/wire/forward/main.go
 
-ENTRYPOINT ./forward
+ENTRYPOINT ["./forward"]

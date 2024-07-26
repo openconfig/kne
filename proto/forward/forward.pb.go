@@ -83,7 +83,8 @@ func (x *ForwardConfig) GetWires() []*Wire {
 }
 
 // Wire is a connection between two endpoints intended to forward
-// data bidirectionally between them. One of the endpoints must be of type Interface.
+// data bidirectionally between them. One of the endpoints must be
+// of type Interface.
 type Wire struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

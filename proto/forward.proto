@@ -23,7 +23,8 @@ message ForwardConfig {
 }
 
 // Wire is a connection between two endpoints intended to forward
-// data bidirectionally between them. One of the endpoints must be of type Interface.
+// data bidirectionally between them. One of the endpoints must be
+// of type Interface.
 message Wire {
   // The a endpoint serves as the client endpoint in the bidirectional stream.
   Endpoint a = 1;

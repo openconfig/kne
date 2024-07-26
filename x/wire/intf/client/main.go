@@ -52,7 +52,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to dial %q: %v", *addr, err)
 	}
-	defer conn.Close()
 	c := wpb.NewWireClient(conn)
 	g := new(errgroup.Group)
 	for e, w := range endpoints {
