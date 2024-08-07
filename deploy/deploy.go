@@ -707,6 +707,17 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		}
 	}
 
+	// If any additional manifests were provided, there is a chance they started new deployment, e.g.,
+	// a manifest file might deploy a webhook that needs to be running before proceeding with later
+	// stages such as topology creation. Hence, we Wait for any potential deployments to complete.
+	// If no deployments were configured, the waiting status call simply returns immediately with a
+	// "No resources found in default namespace." error message that we should warn about.
+	if len(k.AdditionalManifests) > 0 {
+		log.Infof("Waiting for potential manifest-issued deployments to complete")
+		if err := run.LogCommand("kubectl", "rollout", "status", "deployment", "-w"); err != nil {
+			log.Warningf("Unable to wait for deployments to complete: %w", err)
+		}
+	}
 	return nil
 }
 

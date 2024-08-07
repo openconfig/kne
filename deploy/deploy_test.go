@@ -311,6 +311,7 @@ func TestKindSpec(t *testing.T) {
 			{Cmd: "docker", Args: []string{"tag", "docker", "local"}, OutOfOrder: true},
 			{Cmd: "docker", Args: []string{"pull", "gar"}, OutOfOrder: true},
 			{Cmd: "docker", Args: []string{"tag", "gar", "docker"}, OutOfOrder: true},
+			{Cmd: "kubectl", Args: []string{"rollout", "status", "deployment", "-w"}},
 		},
 	}, {
 		desc: "failed create cluster load containers additional manifests",
