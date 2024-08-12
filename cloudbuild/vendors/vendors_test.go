@@ -22,7 +22,7 @@ func testConfigPush(t *testing.T, dut *ondatra.DUTDevice) {
 		tmpl := "hostname %s"
 		switch dut.Vendor() {
 		case ondatra.JUNIPER:
-			// TODO(alexmasi): Figure out Juniper config.
+			// TODO: Figure out Juniper config.
 		case ondatra.NOKIA:
 			tmpl = "host-name %s"
 		}
@@ -85,7 +85,6 @@ func TestCEOS(t *testing.T) {
 
 func TestNCTPX(t *testing.T) {
 	dut := ondatra.DUT(t, "ncptx")
-	// TODO(alexmasi): Figure out Juniper config.
 	// testConfigPush(t, dut)
 	testGNMI(t, dut)
 	testGNOI(t, dut)
