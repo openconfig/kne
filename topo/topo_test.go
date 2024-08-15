@@ -123,7 +123,7 @@ type resettable struct {
 
 func (r *resettable) ResetCfg(_ context.Context) error {
 	if r.rErr != "" {
-		return fmt.Errorf(r.rErr)
+		return fmt.Errorf("%s", r.rErr)
 	}
 	return nil
 }
@@ -144,7 +144,7 @@ func (c *certable) GetProto() *tpb.Node {
 
 func (c *certable) GenerateSelfSigned(_ context.Context) error {
 	if c.gErr != "" {
-		return fmt.Errorf(c.gErr)
+		return fmt.Errorf("%s", c.gErr)
 	}
 	return nil
 }

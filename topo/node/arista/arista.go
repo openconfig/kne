@@ -160,6 +160,10 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 	log.Infof("Creating new CEosLabDevice CRD for node: %v", n.Name())
 	proto := n.GetProto()
 	config := proto.GetConfig()
+	links, err := node.GetNodeLinks(proto)
+	if err != nil {
+		return err
+	}
 	device := &ceos.CEosLabDevice{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "ceoslab.arista.com/v1alpha1",
@@ -179,7 +183,7 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 			InitContainerImage: config.GetInitImage(),
 			Args:               config.GetArgs(),
 			Resources:          proto.GetConstraints(),
-			NumInterfaces:      int32(len(proto.GetInterfaces())),
+			NumInterfaces:      int32(len(links)),
 			Sleep:              int32(config.GetSleep()),
 		},
 	}

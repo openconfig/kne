@@ -378,11 +378,18 @@ func TestCRD(t *testing.T) {
 			Version: "version-test",
 			Os:      "os-test",
 			Interfaces: map[string]*topopb.Interface{
+				"eth0": {
+					Name: "Management1",
+				},
 				"eth1": {
-					Name: "Ethernet1/1",
+					Name:        "Ethernet1/1",
+					PeerIntName: "eth1",
+					PeerName:    "foo",
 				},
 				"eth2": {
-					Name: "Ethernet1/2",
+					Name:        "Ethernet1/2",
+					PeerIntName: "eth2",
+					PeerName:    "foo",
 				},
 			},
 		},
@@ -423,6 +430,7 @@ func TestCRD(t *testing.T) {
 				}},
 			},
 			IntfMapping: map[string]string{
+				"eth0": "Management1",
 				"eth1": "Ethernet1/1",
 				"eth2": "Ethernet1/2",
 			},

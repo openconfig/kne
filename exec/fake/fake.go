@@ -165,10 +165,10 @@ func (c *Command) Run() error {
 	call.Optional = r.Optional
 
 	if c.stdout != nil && r.Stdout != "" {
-		fmt.Fprintf(c.stdout, r.Stdout)
+		fmt.Fprint(c.stdout, r.Stdout)
 	}
 	if c.stderr != nil && r.Stderr != "" {
-		fmt.Fprintf(c.stderr, r.Stderr)
+		fmt.Fprint(c.stderr, r.Stderr)
 	}
 	switch e := r.Err.(type) {
 	case string:
