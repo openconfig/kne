@@ -5,11 +5,18 @@ nodes: {
   config: {
     file: "ceos.cfg"
   }
+  interfaces: {
+    key: "eth0"
+    value: {
+      name: "Management1"
+    }
+  }
 }
 nodes: {
   name: "ncptx"
   vendor: JUNIPER
   config: {
+    image: "ncptx:ga"
     file: "ncptx.cfg"
   }
   interfaces: {

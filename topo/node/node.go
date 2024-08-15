@@ -172,24 +172,9 @@ func (n *Impl) String() string {
 }
 
 func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
-	proto := n.GetProto()
-
-	var links []topologyv1.Link
-	for ifcName, ifc := range proto.Interfaces {
-		if ifc.PeerIntName == "" {
-			return nil, fmt.Errorf("interface %q PeerIntName canot be empty", ifcName)
-		}
-		if ifc.PeerName == "" {
-			return nil, fmt.Errorf("interface %q PeerName canot be empty", ifcName)
-		}
-		links = append(links, topologyv1.Link{
-			UID:       int(ifc.Uid),
-			LocalIntf: ifcName,
-			PeerIntf:  ifc.PeerIntName,
-			PeerPod:   ifc.PeerName,
-			LocalIP:   "",
-			PeerIP:    "",
-		})
+	links, err := GetNodeLinks(n.Proto)
+	if err != nil {
+		return nil, err
 	}
 
 	// by default each node will result in exactly one topology resource
@@ -197,7 +182,7 @@ func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
 	return []*topologyv1.Topology{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: proto.Name,
+				Name: n.Proto.Name,
 			},
 			Spec: topologyv1.TopologySpec{
 				Links: links,
@@ -393,6 +378,10 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 // CreatePod creates a Pod for the Node based on the underlying proto.
 func (n *Impl) CreatePod(ctx context.Context) error {
 	pb := n.Proto
+	links, err := GetNodeLinks(pb)
+	if err != nil {
+		return err
+	}
 	log.Infof("Creating Pod:\n %+v", pb)
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -411,7 +400,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 				Name:  fmt.Sprintf("init-%s", pb.Name),
 				Image: initContainerImage,
 				Args: []string{
-					fmt.Sprintf("%d", len(n.Proto.Interfaces)+1),
+					fmt.Sprintf("%d", len(links)+1),
 					fmt.Sprintf("%d", pb.Config.Sleep),
 				},
 				ImagePullPolicy: "IfNotPresent",
@@ -752,4 +741,29 @@ func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplin
 // connecting two ports on the same node. By default this is false.
 func (n *Impl) BackToBackLoop() bool {
 	return false
+}
+
+func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
+	var links []topologyv1.Link
+	for ifcName, ifc := range n.Interfaces {
+		if ifcName == "eth0" {
+			log.Infof("Found mgmt interface ignoring for Meshnet: %q", ifcName)
+			continue
+		}
+		if ifc.PeerIntName == "" {
+			return nil, fmt.Errorf("interface %q PeerIntName canot be empty", ifcName)
+		}
+		if ifc.PeerName == "" {
+			return nil, fmt.Errorf("interface %q PeerName canot be empty", ifcName)
+		}
+		links = append(links, topologyv1.Link{
+			UID:       int(ifc.Uid),
+			LocalIntf: ifcName,
+			PeerIntf:  ifc.PeerIntName,
+			PeerPod:   ifc.PeerName,
+			LocalIP:   "",
+			PeerIP:    "",
+		})
+	}
+	return links, nil
 }
