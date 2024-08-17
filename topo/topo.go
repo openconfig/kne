@@ -382,6 +382,11 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 		return nil, err
 	}
 	for _, n := range m.topo.Nodes {
+		pods, ok := r.Pods[n.Name]
+		if !ok || len(pods) == 0 {
+			return nil, fmt.Errorf("pods for node %s not found", n.Name)
+		}
+		n.InsideIp = pods[0].Status.PodIP
 		if len(n.Services) == 0 {
 			continue
 		}
