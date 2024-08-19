@@ -386,7 +386,7 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 		if !ok || len(pods) == 0 {
 			return nil, fmt.Errorf("pods for node %s not found", n.Name)
 		}
-		n.InsideIp = pods[0].Status.PodIP
+		n.PodIp = pods[0].Status.PodIP
 		if len(n.Services) == 0 {
 			continue
 		}

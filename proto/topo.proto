@@ -87,8 +87,10 @@ message Node {
   // Any host constraints required by the node. These may not be required by a
   // vendor, but it can be used to provide requirements for the node.
   repeated HostConstraint host_constraints = 13;
-  // Cluster IP for the node's pod. Assigned by KNE.
-  string inside_ip = 14;
+  // Assigned by KNE.
+  // Cluster-internal IP assigned by Kubernetes for the pod.
+  // This IP comes from the worker node's IP pool.
+  string pod_ip = 14;
 }
 
 // HostConstraint is a constraint on the host where the node is running.

@@ -1032,13 +1032,13 @@ func TestShow(t *testing.T) {
 	}
 
 	wantTopo := proto.Clone(topo).(*tpb.Topology)
-	wantTopo.Nodes[0].InsideIp = "10.0.1.1"
+	wantTopo.Nodes[0].PodIp = "10.0.1.1"
 	wantTopo.Nodes[0].Services[22].Inside = 22
 	wantTopo.Nodes[0].Services[22].InsideIp = "10.1.1.1"
 	wantTopo.Nodes[0].Services[22].Outside = 22
 	wantTopo.Nodes[0].Services[22].OutsideIp = "192.168.16.50"
 	wantTopo.Nodes[0].Services[22].NodePort = 20001
-	wantTopo.Nodes[1].InsideIp = "10.0.1.2"
+	wantTopo.Nodes[1].PodIp = "10.0.1.2"
 	wantTopo.Nodes[1].Services[9337].Inside = 9337
 	wantTopo.Nodes[1].Services[9337].InsideIp = "10.1.1.2"
 	wantTopo.Nodes[1].Services[9337].Outside = 9337
@@ -1049,14 +1049,14 @@ func TestShow(t *testing.T) {
 	wantTopo.Nodes[1].Services[9339].Outside = 9339
 	wantTopo.Nodes[1].Services[9339].OutsideIp = "192.168.16.51"
 	wantTopo.Nodes[1].Services[9339].NodePort = 20003
-	wantTopo.Nodes[2].InsideIp = "10.0.1.3"
+	wantTopo.Nodes[2].PodIp = "10.0.1.3"
 
 	topoRemapPorts := proto.Clone(wantTopo).(*tpb.Topology)
 	topoRemapPorts.Nodes[1].Services[9337].Inside = 9339
 	wantTopoRemapPorts := proto.Clone(topoRemapPorts).(*tpb.Topology)
 
 	wantTopoPodUnhealthy := proto.Clone(wantTopo).(*tpb.Topology)
-	wantTopoPodUnhealthy.Nodes[0].InsideIp = ""
+	wantTopoPodUnhealthy.Nodes[0].PodIp = ""
 
 	tests := []struct {
 		desc       string
