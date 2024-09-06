@@ -17,9 +17,26 @@ package alpine;
 
 option go_package = "github.com/openconfig/kne/proto/alpine";
 
+message Files {
+  // Mount point for the files inside the pod.
+  string mount_dir = 1;
+
+  message FileData  {
+    oneof file_data {
+      // Byte data for the startup configuration file.
+      bytes data = 101;
+      // File is always relative to the topology configuration file.
+      string file = 102;
+    }
+  }
+
+  map<string,FileData> files = 2;
+}
+
 // Alpine specific vendor data for KNE
 message AlpineConfig {
   repeated Container containers = 1;
+  Files files = 2;
 }
 
 message Container {
