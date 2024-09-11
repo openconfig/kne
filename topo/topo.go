@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
+	"github.com/openconfig/kne/exec/run"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	cpb "github.com/openconfig/kne/proto/controller"
@@ -45,6 +47,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 	log "k8s.io/klog/v2"
 
 	_ "github.com/openconfig/kne/topo/node/alpine"
@@ -61,6 +64,7 @@ import (
 )
 
 var (
+	setPIDMaxScript       = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	protojsonUnmarshaller = protojson.UnmarshalOptions{
 		AllowPartial:   true,
 		DiscardUnknown: false,
@@ -484,6 +488,14 @@ func (m *Manager) load() error {
 		uid++
 	}
 	for k, n := range nMap {
+		// Bug: Some vendors incorrectly increase the value of kernel.pid_max which
+		// causes other vendors to have issues. Run this script as a temporary
+		// workaround.
+		if _, err := os.Stat(setPIDMaxScript); err == nil {
+			if err := run.LogCommand(setPIDMaxScript); err != nil {
+				return fmt.Errorf("failed to exec set_pid_max script: %w", err)
+			}
+		}
 		log.Infof("Adding Node: %s:%s", n.Name, n.Vendor)
 		nn, err := node.New(m.topo.Name, n, m.kClient, m.rCfg, m.basePath, m.kubecfg)
 		if err != nil {
