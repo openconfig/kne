@@ -64,7 +64,7 @@ import (
 )
 
 var (
-	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
+	setPIDMaxScript       = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	protojsonUnmarshaller = protojson.UnmarshalOptions{
 		AllowPartial:   true,
 		DiscardUnknown: false,
@@ -488,9 +488,9 @@ func (m *Manager) load() error {
 		uid++
 	}
 	for k, n := range nMap {
-		// If the script is found, then run it. Else silently ignore it.
-		// The set_pid_max script modifies the kernel.pid_max value to
-		// be acceptable for the Cisco 8000e container.
+		// Bug: Some vendors incorrectly increase the value of kernel.pid_max which
+		// causes other vendors to have issues. Run this script as a temporary
+		// workaround.
 		if _, err := os.Stat(setPIDMaxScript); err == nil {
 			if err := run.LogCommand(setPIDMaxScript); err != nil {
 				return fmt.Errorf("failed to exec set_pid_max script: %w", err)
