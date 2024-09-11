@@ -148,6 +148,14 @@ func TestCreatePod(t *testing.T) {
 			Command: []string{"dpCommand"},
 			Args:    []string{"dpArgs"},
 		}},
+		Files: &apb.Files{
+			MountDir: "/files",
+			Files: map[string]*apb.Files_FileData{
+				"test.config": {FileData: &apb.Files_FileData_Data{
+					Data: []byte{'t', 'e', 's', 't'},
+				}},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatalf("cannot marshal AlpineConfig into \"any\" protobuf: %v", err)
@@ -194,6 +202,7 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+			VolumeMounts: []corev1.VolumeMount{{Name: "files", MountPath: "/files"}},
 		},
 	}, {
 		desc: "get all containers with ports",
@@ -238,7 +247,7 @@ func TestCreatePod(t *testing.T) {
 			Name:    "dp",
 			Image:   "dpImage",
 			Command: []string{"dpCommand"},
-			Args:    []string{"dpArgs", "--port_map=Ethernet1/1/1:eth1", "--config_file=/etc/sonic/config_db.json"},
+			Args:    []string{"dpArgs", "--config_file=/etc/sonic/config_db.json"},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{}},
 			ImagePullPolicy: "IfNotPresent",
@@ -246,6 +255,9 @@ func TestCreatePod(t *testing.T) {
 				Privileged: pointer.Bool(true),
 			},
 			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "files",
+				MountPath: "/files",
+			}, {
 				Name:      "startup-config-volume",
 				ReadOnly:  true,
 				MountPath: "/etc/sonic/config_db.json",
