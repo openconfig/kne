@@ -98,7 +98,7 @@ by default.** Additionally the PubSub project and topic the events are published
 to are configurable. If you want to track your own private metrics about your
 KNE usage then that is supported by providing a Cloud PubSub project/topic of
 your choosing. Full details about how/when usage events are published can be
-found in the codebase [here](kne/metrics/metrics.go). We appreciate usage metric
+found in the codebase [here](metrics/metrics.go). We appreciate usage metric
 reporting as it helps us develop a better KNE experience for all of our users.
 Whether that be detecting an abnormally high number of cluster deployment
 failures due to an upgrade to an underlying dependency introduced by a new
