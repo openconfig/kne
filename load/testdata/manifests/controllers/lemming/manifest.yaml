@@ -514,7 +514,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: us-west1-docker.pkg.dev/openconfig-lemming/release/operator:v0.1.0
+        image: us-west1-docker.pkg.dev/openconfig-lemming/release/operator:v0.2.3
         livenessProbe:
           httpGet:
             path: /healthz
