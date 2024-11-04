@@ -715,7 +715,7 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 	if len(k.AdditionalManifests) > 0 {
 		log.Infof("Waiting for potential manifest-issued deployments to complete")
 		if err := run.LogCommand("kubectl", "rollout", "status", "deployment", "-w"); err != nil {
-			log.Warningf("Unable to wait for deployments to complete: %w", err)
+			log.Warningf("Unable to wait for deployments to complete: %v", err)
 		}
 	}
 	return nil
@@ -783,7 +783,7 @@ func (k *KindSpec) loadContainerImages() error {
 				err = fmt.Errorf("container not found: %w", err)
 				break
 			}
-			log.Warningf("Failed to pull %q: %w (will retry %d times)", s, err, retries)
+			log.Warningf("Failed to pull %q: %v (will retry %d times)", s, err, retries)
 			time.Sleep(pullRetryDelay)
 		}
 		if err != nil {
