@@ -77,6 +77,10 @@ build {
       "echo \"fs.inotify.max_user_watches=25600000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"fs.inotify.max_queued_events=13107200\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
+      "sudo modprobe br_netfilter",
+      "sudo echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables",
+      "sudo echo 1 > /proc/sys/net/ipv4/ip_forward",
+      "sudo sysctl --system",
       "sudo sysctl -p",
     ]
   }
