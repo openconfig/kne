@@ -77,6 +77,10 @@ build {
       "echo \"fs.inotify.max_user_watches=25600000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"fs.inotify.max_queued_events=13107200\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
+      "sudo modprobe br_netfilter",
+      "sudo echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables",
+      "sudo echo 1 > /proc/sys/net/ipv4/ip_forward",
+      "sudo sysctl --system",
       "sudo sysctl -p",
     ]
   }
@@ -134,7 +138,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kind...",
-      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.22.0",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.24.0",
       "curl --create-dirs -o third_party/licenses/kind/LICENSE https://raw.githubusercontent.com/kubernetes-sigs/kind/main/LICENSE",
       "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",

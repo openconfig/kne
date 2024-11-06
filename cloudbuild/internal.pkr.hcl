@@ -114,6 +114,11 @@ build {
       "sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd",
       "sudo install packaging/systemd/* /etc/systemd/system",
       "sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service",
+      "sudo modprobe br_netfilter",
+      "sudo echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables",
+      "sudo echo 1 > /proc/sys/net/ipv4/ip_forward",
+      "sudo sysctl --system",
+      "sudo sysctl -p",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable cri-docker.socket",
       "sudo systemctl enable cri-docker.service",
@@ -130,7 +135,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kind...",
-      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.22.0",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.24.0",
       "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",
     ]
