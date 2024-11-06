@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -164,6 +165,14 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	sleep := config.GetSleep()
+	if sleep > math.MaxInt32 {
+		return fmt.Errorf("sleep time %d out of range (max: %d)", sleep, math.MaxInt32)
+	}
+	linksLen := len(links)
+	if linksLen > math.MaxInt32 {
+		return fmt.Errorf("links count %d out of range (max: %d)", linksLen, math.MaxInt32)
+	}
 	device := &ceos.CEosLabDevice{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "ceoslab.arista.com/v1alpha1",
@@ -183,31 +192,43 @@ func (n *Node) CreateCRD(ctx context.Context) error {
 			InitContainerImage: config.GetInitImage(),
 			Args:               config.GetArgs(),
 			Resources:          proto.GetConstraints(),
-			NumInterfaces:      int32(len(links)),
-			Sleep:              int32(config.GetSleep()),
+			NumInterfaces:      int32(linksLen),
+			Sleep:              int32(sleep),
 		},
 	}
 	for label, v := range proto.GetLabels() {
 		device.ObjectMeta.Labels[label] = v
 	}
 	for _, service := range proto.GetServices() {
+		insidePort := service.Inside
+		if insidePort > math.MaxUint16 {
+			return fmt.Errorf("inside port %d out of range (max: %d)", insidePort, math.MaxUint16)
+		}
+		outsidePort := service.Outside
+		if outsidePort > math.MaxUint16 {
+			return fmt.Errorf("outside port %d out of range (max: %d)", outsidePort, math.MaxUint16)
+		}
 		if device.Spec.Services == nil {
 			device.Spec.Services = map[string]ceos.ServiceConfig{}
 		}
 		device.Spec.Services[service.Name] = ceos.ServiceConfig{
 			TCPPorts: []ceos.PortConfig{{
-				In:  int32(service.Inside),
-				Out: int32(service.Outside),
+				In:  int32(insidePort),
+				Out: int32(outsidePort),
 			}},
 		}
 	}
 	if cert := config.GetCert(); cert != nil {
 		if ssCert := cert.GetSelfSigned(); ssCert != nil {
+			ssCertKeySize := ssCert.KeySize
+			if ssCertKeySize > math.MaxInt32 {
+				return fmt.Errorf("ssCert.KeySize %d out of valid range", ssCertKeySize)
+			}
 			certConfig := ceos.CertConfig{
 				SelfSignedCerts: []ceos.SelfSignedCertConfig{{
 					CertName:   ssCert.CertName,
 					KeyName:    ssCert.KeyName,
-					KeySize:    int32(ssCert.KeySize),
+					KeySize:    int32(ssCertKeySize),
 					CommonName: ssCert.CommonName,
 				}},
 			}
