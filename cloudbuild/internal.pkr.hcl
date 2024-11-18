@@ -69,7 +69,7 @@ build {
       "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
       "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
       "sudo apt-get update",
-      "sudo apt-get install docker-ce docker-ce-cli containerd.io build-essential -y",
+      "sudo apt-get install docker-ce=27.2.1 docker-ce-cli=27.2.1 containerd.io=1.7.22 build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
       "sudo apt-get install openvswitch-switch-dpdk -y",   # install openvswitch for cisco containers
