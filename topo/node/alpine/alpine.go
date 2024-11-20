@@ -16,9 +16,11 @@ package alpine
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	apb "github.com/openconfig/kne/proto/alpine"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -29,6 +31,10 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+const (
+	alpineConsoleNodeName = "alpine-console"
+)
+
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
@@ -36,7 +42,10 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl.Proto == nil {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
-	cfg := defaults(nodeImpl.Proto)
+	cfg, err := defaults(nodeImpl.Proto)
+	if err != nil {
+		return nil, fmt.Errorf("fetching alpine default config failed, err: %v", err)
+	}
 	nodeImpl.Proto = cfg
 	n := &Node{
 		Impl: nodeImpl,
@@ -77,10 +86,75 @@ func (n *Node) Create(ctx context.Context) error {
 	return nil
 }
 
+// Taken from https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go
+func outboundIP() (string, error) {
+	// Dial Google DNS using RFC863 (Discard Protocol)
+	// NB this doesn't actually do internet, it's just a trick to give us a
+	// realistic guess of which network interface is the relevant one.
+	// Get preferred outbound ip of this machine.
+	conn, err := net.DialTimeout("udp", "8.8.8.8:80", time.Minute)
+	if err != nil {
+		return "", fmt.Errorf("failed to dial Google DNS: %w", err)
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
+}
+
+// createConsoleCMD uses socat to pipe to the host SSH.
+func createConsoleCMD() ([]string, error) {
+	ip, err := outboundIP()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get local IP: %v", err)
+	}
+	cmd := fmt.Sprintf("socat TCP-LISTEN:2222,fork,reuseaddr TCP4:%v:22", ip)
+	log.Infof("Alpine console: using command ", cmd)
+	return strings.Split(cmd, " "), nil
+}
+
+// createConsolePod creates a SSHable pod for Alpine.
+func (n *Node) createConsolePod(ctx context.Context, topo *tpb.Node) error {
+	log.Infof("Creating Console Pod for Alpine:\n")
+	pb := n.Proto
+	containerSpec := corev1.Container{
+		Name:            "console-container",
+		Image:           pb.Config.Image,
+		Command:         pb.Config.Command,
+		ImagePullPolicy: "IfNotPresent",
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: pointer.Bool(true),
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: topo.Name,
+			Labels: map[string]string{
+				"app":  topo.Name,
+				"topo": n.Namespace,
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers:                    []corev1.Container{containerSpec},
+			TerminationGracePeriodSeconds: pointer.Int64(0),
+			NodeSelector:                  map[string]string{},
+			HostNetwork:                   true,
+		},
+	}
+	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	log.Infof("Alpine console: Pod created:\n%+v\n", sPod)
+	return nil
+}
+
 // CreatePod creates a Pod for the Node based on the underlying proto.
 func (n *Node) CreatePod(ctx context.Context) error {
 	pb := n.Proto
 	log.Infof("Creating Pod:\n %+v", pb)
+	if pb.Name == alpineConsoleNodeName {
+		return n.createConsolePod(ctx, pb)
+	}
 
 	initContainerImage := pb.Config.InitImage
 	if initContainerImage == "" {
@@ -248,9 +322,27 @@ func (n *Node) CreatePod(ctx context.Context) error {
 	return nil
 }
 
-func defaults(pb *tpb.Node) *tpb.Node {
+func consoleDefaults(pb *tpb.Node) (*tpb.Node, error) {
+	if len(pb.GetConfig().Command) == 0 {
+		cmd, err := createConsoleCMD()
+		if err != nil {
+			return pb, fmt.Errorf("createConsoleCMD failed, err: %v", err)
+		}
+		pb.Config.Command = cmd
+	}
+	if pb.Config.GetImage() == "" {
+		// use a light weight image with socat.
+		pb.Config.Image = "alpine/socat"
+	}
+	return pb, nil
+}
+
+func defaults(pb *tpb.Node) (*tpb.Node, error) {
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
+	}
+	if pb.GetName() == alpineConsoleNodeName {
+		return consoleDefaults(pb)
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
 		pb.Config.Command = []string{"go", "run", "main.go"}
@@ -270,8 +362,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	// TODO: Add appropriate default constraints for the Alpine KNE node
-
-	return pb
+	return pb, nil
 }
 
 func init() {
