@@ -91,7 +91,6 @@ func outboundIP() (string, error) {
 	// Dial Google DNS using RFC863 (Discard Protocol)
 	// NB this doesn't actually do internet, it's just a trick to give us a
 	// realistic guess of which network interface is the relevant one.
-	// Get preferred outbound ip of this machine
 	conn, err := net.DialTimeout("udp", "8.8.8.8:80", time.Minute)
 	if err != nil {
 		return "", fmt.Errorf("failed to dial Google DNS: %w", err)
