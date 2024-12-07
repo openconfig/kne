@@ -264,17 +264,13 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 				Names:  []string{"ssh"},
 				Inside: 22,
 			},
-			9339: {
-				Names:  []string{"gnmi", "gnoi", "gnsi"},
-				Inside: 9339,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 9340,
-			},
 			830: {
 				Names:  []string{"netconf"},
 				Inside: 830,
+			},
+			50051: {
+				Names:  []string{"gnmi"},
+				Inside: 50051,
 			},
 		}
 	}
