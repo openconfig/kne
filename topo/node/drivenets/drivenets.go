@@ -260,17 +260,17 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 	if pb.Services == nil {
 		pb.Services = map[uint32]*tpb.Service{
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
-			9339: {
-				Names:  []string{"gnmi", "gnoi", "gnsi"},
+			22: {
+				Names:  []string{"ssh"},
 				Inside: 9339,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 9340,
 			},
 			830: {
 				Names:  []string{"netconf"},
 				Inside: 830,
+			},
+			50051: {
+				Names:  []string{"gnmi"},
+				Inside: 50051,
 			},
 		}
 	}
