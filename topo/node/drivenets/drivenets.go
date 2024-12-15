@@ -122,7 +122,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 			ConfigFile:     config.ConfigFile,
 			InitImage:      config.InitImage,
 			Ports:          ports,
-			InterfaceCount: len(nodeSpec.Interfaces) + 1,
+			InterfaceCount: len(nodeSpec.Interfaces),
 			InitSleep:      int(config.Sleep),
 			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
 			Labels:         nodeSpec.Labels,
