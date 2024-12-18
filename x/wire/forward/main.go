@@ -106,7 +106,7 @@ func main() {
 	s := grpc.NewServer()
 	le, err := localEndpoints(*interfaces)
 	if err != nil {
-		log.Fatalf("Failed to create local endpoints from interfaces: %v")
+		log.Fatalf("Failed to create local endpoints from interfaces: %v", err)
 	}
 	wpb.RegisterWireServer(s, newServer(le))
 	g := new(errgroup.Group)

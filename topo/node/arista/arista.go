@@ -151,7 +151,7 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.V(1).Infof("Server Config Map:\n%v\n", sCM)
+		log.V(1).Infof("Server Config Map:\n%+v\n", sCM)
 	}
 	return nil, nil
 }
