@@ -192,7 +192,7 @@ kubectl apply -f manifests/keysight/ixiatg-operator.yaml
 kubectl apply -f manifests/keysight/ixiatg-configmap.yaml
 ```
 
-With the steps above the Ixia-c nodes will operate in the [Community Edition](https://github.com/open-traffic-generator/ixia-c/blob/mkdocs/docs/licensing.md#license-editions) mode. To enable full capabilities of Ixia-c, a valid Keysight Elastic Network Generator license is required. Use the following additional step to provide the address of the Keysight Licensing Server with the license to the `ixiatg` controller:
+With the steps above the Ixia-c nodes will operate in the [Community Edition](https://github.com/open-traffic-generator/ixia-c/blob/main/docs/licensing.md#license-editions) mode. To enable full capabilities of Ixia-c, a valid Keysight Elastic Network Generator license is required. Use the following additional step to provide the address of the Keysight Licensing Server with the license to the `ixiatg` controller:
 
 ```bash
 kubectl create secret -n ixiatg-op-system generic license-server --from-literal=addresses="<license_server_IP_addresses>"
