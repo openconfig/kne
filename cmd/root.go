@@ -26,7 +26,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/util/homedir"
-	log "k8s.io/klog/v2"
 )
 
 func New() *cobra.Command {
@@ -141,7 +140,6 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	log.Infof(bp)
 	topopb, err := topo.Load(args[0])
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)
