@@ -77,6 +77,7 @@ build {
       "echo \"fs.inotify.max_user_watches=25600000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"fs.inotify.max_queued_events=13107200\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
+      "echo \"br_netfilter\" | sudo tee -a /etc/modules-load.d/br_netfilter.conf",   # ensure br_netfilter module is loaded instead of relying on docker-ce (https://github.com/moby/moby/issues/48948)
       "sudo modprobe br_netfilter",
       "echo \"1\" > sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables",
       "echo \"1\" > sudo tee /proc/sys/net/ipv4/ip_forward",
