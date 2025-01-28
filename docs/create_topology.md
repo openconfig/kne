@@ -248,7 +248,7 @@ Container images can be hosted in multiple locations. For example
 [DockerHub](https://hub.docker.com/) hosts open sourced containers. [Google
 Artifact Registries](https://cloud.google.com/artifact-registry) can be used to
 host images with access control. The [KNE topology
-proto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L117),
+proto](https://github.com/openconfig/kne/blob/main/proto/topo.proto#L117),
 the manifests, and controllers can all specify containers that get pulled from
 their source locations and get used in the cluster.
 
@@ -308,7 +308,7 @@ Global Flags:
 ```
 
 A topology file is a textproto of the `Topology`
-[message](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L26).
+[message](https://github.com/openconfig/kne/blob/main/proto/topo.proto#L26).
 This file specifies all of the nodes and links of your desired topology. In the
 node definitions interfaces, services, and initial configs can be specified.
 
