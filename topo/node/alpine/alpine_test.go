@@ -123,6 +123,23 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
+	}, {
+		desc: "with console",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "alpine-console",
+				Config: &tpb.Config{
+					Command: []string{"ls"},
+				},
+			},
+		},
+		want: &tpb.Node{
+			Name: "alpine-console",
+			Config: &tpb.Config{
+				Image:   "alpine/socat",
+				Command: []string{"ls"},
+			},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -283,6 +300,28 @@ func TestCreatePod(t *testing.T) {
 			Args:    []string{"alpineArgs"},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+	}, {
+		desc: "get alpine console containers",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name:   "alpine-console",
+				Vendor: tpb.Vendor_ALPINE,
+				Config: &tpb.Config{
+					Image:   "alpine/socat",
+					Command: []string{"alpineCommand"},
+				},
+			},
+		},
+		wantAlpineCtr: corev1.Container{
+			Name:            "console-container",
+			Image:           "alpine/socat",
+			Command:         []string{"alpineCommand"},
+			Resources:       corev1.ResourceRequirements{},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
