@@ -3,6 +3,7 @@ package keysight
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	ixclient "github.com/open-traffic-generator/keng-operator/api/clientset/v1beta1"
@@ -37,7 +38,7 @@ type Node struct {
 	*node.Impl
 }
 
-func (n *Node) newCRD() *ixiatg.IxiaTG {
+func (n *Node) newCRD() (*ixiatg.IxiaTG, error) {
 	log.Infof("Creating new ixia CRD for node: %v", n.Name())
 	ixiaCRD := &ixiatg.IxiaTG{
 		TypeMeta: metav1.TypeMeta{
@@ -62,9 +63,17 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 	}
 
 	for _, svc := range n.GetProto().Services {
+		insidePort := svc.Inside
+		if insidePort > math.MaxUint16 {
+			return nil, fmt.Errorf("inside port %d out of range (max: %d)", insidePort, math.MaxUint16)
+		}
+		outsidePort := svc.Outside
+		if outsidePort > math.MaxUint16 {
+			return nil, fmt.Errorf("outside port %d out of range (max: %d)", outsidePort, math.MaxUint16)
+		}
 		ixiaCRD.Spec.ApiEndPoint[svc.Name] = ixiatg.IxiaTGSvcPort{
-			In:  int32(svc.Inside),
-			Out: int32(svc.Outside),
+			In:  int32(insidePort),
+			Out: int32(outsidePort),
 		}
 	}
 	for name, ifc := range n.GetProto().Interfaces {
@@ -74,7 +83,7 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 		})
 	}
 	log.V(2).Infof("Created new ixia CRD for node %s: %+v", n.Name(), ixiaCRD)
-	return ixiaCRD
+	return ixiaCRD, nil
 }
 
 func (n *Node) getCRD(ctx context.Context) (*ixiatg.IxiaTG, error) {
@@ -131,7 +140,10 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 	log.Infof("Getting interfaces for ixia node resource %s ...", n.Name())
 	desiredState := "INITIATED"
 
-	crd := n.newCRD()
+	crd, err := n.newCRD()
+	if err != nil {
+		return nil, err
+	}
 	log.Infof("Creating custom resource for ixia (desiredState=%s) ...", desiredState)
 	c, err := ixclient.NewForConfig(n.RestConfig)
 	if err != nil {
