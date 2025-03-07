@@ -1,7 +1,7 @@
 packer {
   required_plugins {
     googlecompute = {
-      version = ">= 1.1.1"
+      version = "= 1.1.6"
       source  = "github.com/hashicorp/googlecompute"
     }
   }
@@ -52,9 +52,9 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing golang...",
-      "curl -O https://dl.google.com/go/go1.21.3.linux-amd64.tar.gz",
-      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.21.3.linux-amd64.tar.gz",
-      "rm go1.21.3.linux-amd64.tar.gz",
+      "curl -O https://dl.google.com/go/go1.22.11.linux-amd64.tar.gz",
+      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.22.11.linux-amd64.tar.gz",
+      "rm go1.22.11.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",
@@ -77,6 +77,7 @@ build {
       "echo \"fs.inotify.max_user_watches=25600000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"fs.inotify.max_queued_events=13107200\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
+      "echo \"br_netfilter\" | sudo tee -a /etc/modules-load.d/br_netfilter.conf",   # ensure br_netfilter module is loaded instead of relying on docker-ce (https://github.com/moby/moby/issues/48948)
       "sudo sysctl -p",
       "echo Pulling containers...",
       "gcloud auth configure-docker us-west1-docker.pkg.dev -q",      # configure sudoless docker
