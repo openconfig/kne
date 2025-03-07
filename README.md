@@ -1,5 +1,3 @@
-
-
 # Kubernetes Network Emulation
 
 [![Actions Status](https://github.com/openconfig/kne/workflows/Go/badge.svg)](https://github.com/openconfig/kne/actions)
