@@ -192,7 +192,7 @@ kubectl apply -f manifests/keysight/ixiatg-operator.yaml
 kubectl apply -f manifests/keysight/ixiatg-configmap.yaml
 ```
 
-With the steps above the Ixia-c nodes will operate in the [Community Edition](https://github.com/open-traffic-generator/ixia-c/blob/mkdocs/docs/licensing.md#license-editions) mode. To enable full capabilities of Ixia-c, a valid Keysight Elastic Network Generator license is required. Use the following additional step to provide the address of the Keysight Licensing Server with the license to the `ixiatg` controller:
+With the steps above the Ixia-c nodes will operate in the [Community Edition](https://github.com/open-traffic-generator/ixia-c/blob/main/docs/licensing.md#license-editions) mode. To enable full capabilities of Ixia-c, a valid Keysight Elastic Network Generator license is required. Use the following additional step to provide the address of the Keysight Licensing Server with the license to the `ixiatg` controller:
 
 ```bash
 kubectl create secret -n ixiatg-op-system generic license-server --from-literal=addresses="<license_server_IP_addresses>"
@@ -248,7 +248,7 @@ Container images can be hosted in multiple locations. For example
 [DockerHub](https://hub.docker.com/) hosts open sourced containers. [Google
 Artifact Registries](https://cloud.google.com/artifact-registry) can be used to
 host images with access control. The [KNE topology
-proto](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L117),
+proto](https://github.com/openconfig/kne/blob/main/proto/topo.proto#L117),
 the manifests, and controllers can all specify containers that get pulled from
 their source locations and get used in the cluster.
 
@@ -308,7 +308,7 @@ Global Flags:
 ```
 
 A topology file is a textproto of the `Topology`
-[message](https://github.com/openconfig/kne/blob/df91c62eb7e2a1abbf0a803f5151dc365b6f61da/proto/topo.proto#L26).
+[message](https://github.com/openconfig/kne/blob/main/proto/topo.proto#L26).
 This file specifies all of the nodes and links of your desired topology. In the
 node definitions interfaces, services, and initial configs can be specified.
 
