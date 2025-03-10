@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -101,8 +102,15 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 	ports := map[string]cdnosv1.ServicePort{}
 
 	for k, v := range n.Proto.Services {
+		insidePort := v.Inside
+		if insidePort > math.MaxUint16 {
+			return fmt.Errorf("inside port %d out of range (max: %d)", insidePort, math.MaxUint16)
+		}
+		if k > math.MaxUint16 {
+			return fmt.Errorf("outside port %d out of range (max: %d)", k, math.MaxUint16)
+		}
 		ports[v.Name] = cdnosv1.ServicePort{
-			InnerPort: int32(v.Inside),
+			InnerPort: int32(insidePort),
 			OuterPort: int32(k),
 		}
 	}
