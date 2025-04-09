@@ -24,7 +24,6 @@ The following dependencies and required to use KNE:
    export PATH=$PATH:$(go env GOPATH)/bin
    ```
 
-
 ## Install Docker
 
 > NOTE: This will install version `20.10.21` which was known to work with KNE at
