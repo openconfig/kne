@@ -1,7 +1,7 @@
 # Setup KNE
 
 This is part of the How-To guide collection. This guide covers KNE first time
-setup on a Linux machine. The guide has been verified on a Linux host with Debian 6.10.11-1rodete2. 
+setup on a Linux machine. The guide has been verified on a Linux host with Debian 6.10.11-1rodete2.
 Modifications may need to be made to the commands listed below in order
 to work with your Linux distribution.
 
@@ -16,7 +16,7 @@ The following dependencies and required to use KNE:
 ## Install Golang
 
 1. If golang is already installed then check the version using `go version`. If
-   `1.23` or newer then golang installation is complete. Otherwise please follow the [instructions] (https://go.dev/doc/install) 
+   `1.23` or newer then golang installation is complete. Otherwise please follow the [instructions](https://go.dev/doc/install)
    to install golang.
    Please export GOPATH and add the export commands to ~/.bashrc or similar.
 
@@ -49,6 +49,7 @@ The following dependencies and required to use KNE:
 > NOTE: This will install version `1.32.3` which was known to work with KNE at
 > some point in time. You can instead install a newer version if you need new
 > features or are having problems.
+
 1. Follow the installation:
    [instructions](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 
