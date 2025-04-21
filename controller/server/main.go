@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -630,6 +631,8 @@ func main() {
 			PermitWithoutStream: true,
 			MinTime:             time.Second * 10,
 		}),
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+		grpc.MaxSendMsgSize(math.MaxInt32),
 	)
 	cpb.RegisterTopologyManagerServer(s, newServer())
 	log.Infof("Controller server listening at %v", lis.Addr())
