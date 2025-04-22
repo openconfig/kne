@@ -26,6 +26,7 @@ variable "zone" {
 
 source "googlecompute" "kne-image" {
   project_id          = "gep-kne"
+  source_image        = "debian-12-bookworm-v20250113"
   source_image_family = "debian-12"
   disk_size           = 50
   image_name          = "kne-external-${var.build_id}"
