@@ -478,10 +478,17 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		if v.Outside != 0 {
 			log.Warningf("Outside should not be set by user. The key is used as the target external port")
 		}
+		nodePort := v.NodePort
+		if nodePort > math.MaxUint16 {
+			return fmt.Errorf("node port %d out of range (max: %d)", k, math.MaxUint16)
+		}
+		if k > math.MaxUint16 {
+			return fmt.Errorf("service port %d out of range (max: %d)", k, math.MaxUint16)
+		}
 		sp := corev1.ServicePort{
 			Protocol:   "TCP",
 			Port:       int32(k),
-			NodePort:   int32(v.NodePort),
+			NodePort:   int32(nodePort),
 			TargetPort: intstr.FromInt(int(v.Inside)),
 			Name:       v.Name,
 		}

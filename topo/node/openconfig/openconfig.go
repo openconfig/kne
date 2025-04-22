@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
@@ -104,8 +105,15 @@ func (n *Node) lemmingCreate(ctx context.Context) error {
 	ports := map[string]lemmingv1.ServicePort{}
 
 	for k, v := range n.Proto.Services {
+		insidePort := v.Inside
+		if insidePort > math.MaxUint16 {
+			return fmt.Errorf("inside port %d out of range (max: %d)", insidePort, math.MaxUint16)
+		}
+		if k > math.MaxUint16 {
+			return fmt.Errorf("outside port %d out of range (max: %d)", k, math.MaxUint16)
+		}
 		ports[v.Name] = lemmingv1.ServicePort{
-			InnerPort: int32(v.Inside),
+			InnerPort: int32(insidePort),
 			OuterPort: int32(k),
 		}
 	}
