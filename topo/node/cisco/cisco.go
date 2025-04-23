@@ -538,6 +538,7 @@ func (n *Node) SpawnCLIConn() error {
 	// }
 	// var err error
 	opts := []scrapliutil.Option{
+    	scrapliopts.WithAuthBypass(),
 		scrapliopts.WithAuthUsername("cisco"),
 		scrapliopts.WithAuthPassword("cisco123"),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
