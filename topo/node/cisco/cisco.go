@@ -537,8 +537,8 @@ func (n *Node) SpawnCLIConn() error {
 	// 	opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
 	// }
 	// var err error
-	userRegex := regexp.MustCompile(`Username: *$`)
-	passRegex := regexp.MustCompile(`Password: *$`)
+	userRegex := regexp.MustCompile(`.*Username: *$`)
+	passRegex := regexp.MustCompile(`.*Password: *$`)
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthUsername("cisco"),
 		scrapliopts.WithAuthPassword("cisco123"),
