@@ -549,6 +549,8 @@ func (n *Node) SpawnCLIConn() error {
 		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
 	}
 	var err error
+	log.Infof("%s - AA", opts)
+
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
