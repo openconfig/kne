@@ -615,7 +615,7 @@ func processConfig(cfg string) string {
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
-	log.Infof("%s - pushing config", n.Name())
+	log.Infof("%s - pushing config foo", n.Name())
 
 	cfg, err := io.ReadAll(r)
 	if err != nil {
