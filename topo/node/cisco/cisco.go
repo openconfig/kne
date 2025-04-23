@@ -545,6 +545,7 @@ func (n *Node) SpawnCLIConn() error {
 		// scrapliopts.WithAuthPassword("cisco123"),
 		scrapliopts.WithUsernamePattern(userRegex),
 		scrapliopts.WithPasswordPattern(passRegex),
+		scrapliopts.WithTransportType("telnet"),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
 	}
 	// add options defined in test package
