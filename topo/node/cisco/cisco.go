@@ -580,7 +580,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	}
 	defer n.cliConn.Close()
 
-	resp1, err1 := n.cliConn.SendCommand("show version")
+	resp1, _ := n.cliConn.SendCommand("show version")
 	log.Infof("show version output: %s", resp1.Result)
 
 	resp, err := n.cliConn.SendCommand(reset8000eCMD)
@@ -632,7 +632,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	defer n.cliConn.Close()
 
 
-	resp1, err1 := n.cliConn.SendCommand("show version")
+	resp1, _ := n.cliConn.SendCommand("show version")
 	log.Infof("show version output: %s", resp1.Result)
 
 
