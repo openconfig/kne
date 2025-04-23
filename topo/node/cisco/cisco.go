@@ -540,6 +540,8 @@ func (n *Node) SpawnCLIConn() error {
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthUsername("cisco"),
 		scrapliopts.WithAuthPassword("cisco123"),
+		scrapliopts.WithChannelAuthPasswordPattern(".*Password:"),
+		scrapliopts.WithChannelAuthUsernamePattern(".*Username:"),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
 	}
 	// add options defined in test package
