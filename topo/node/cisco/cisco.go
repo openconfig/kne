@@ -631,6 +631,11 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	}
 	defer n.cliConn.Close()
 
+
+	resp, err := n.cliConn.SendCommand("show version")
+	log.Infof("show version output: %s", resp.Result)
+
+
 	resp, err := n.cliConn.SendConfig(cfgs)
 	if err != nil {
 		return err
