@@ -539,6 +539,8 @@ func (n *Node) SpawnCLIConn() error {
 	// var err error
 	userRegex := regexp.MustCompile(`.*Username: *$`)
 	passRegex := regexp.MustCompile(`.*Password: *$`)
+	out, _ := regexp.MatchString(userRegex, "\nUser Access Verification\n\nUsername: ")
+	log.Infof("%s", out)
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthUsername("cisco"),
 		scrapliopts.WithAuthPassword("cisco123"),
