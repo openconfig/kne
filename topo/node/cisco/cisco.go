@@ -537,14 +537,14 @@ func (n *Node) SpawnCLIConn() error {
 	// 	opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
 	// }
 	// var err error
-	userRegex := regexp.MustCompile(`^.*Username:.*$`)
-	passRegex := regexp.MustCompile(`^.*Password:.*$`)
+	// userRegex := regexp.MustCompile(`^.*Username:.*$`)
+	// passRegex := regexp.MustCompile(`^.*Password:.*$`)
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
-		scrapliopts.WithAuthUsername("cisco"),
-		scrapliopts.WithAuthPassword("cisco123"),
-		scrapliopts.WithUsernamePattern(userRegex),
-		scrapliopts.WithPasswordPattern(passRegex),
+		// scrapliopts.WithAuthUsername("cisco"),
+		// scrapliopts.WithAuthPassword("cisco123"),
+		// scrapliopts.WithUsernamePattern(userRegex),
+		// scrapliopts.WithPasswordPattern(passRegex),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
 	}
 	// add options defined in test package
@@ -554,9 +554,9 @@ func (n *Node) SpawnCLIConn() error {
 	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 	log.Infof("%s - BB", opts)
 
-	if n.Proto.Model != ModelXRD {
-		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
-	}
+	// if n.Proto.Model != ModelXRD {
+	// 	opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
+	// }
 	var err error
 	log.Infof("%s - CC", opts)
 
