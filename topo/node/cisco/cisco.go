@@ -540,18 +540,20 @@ func (n *Node) SpawnCLIConn() error {
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthUsername("cisco"),
 		scrapliopts.WithAuthPassword("cisco123"),
-		scrapliopts.WithChannelAuthPasswordPattern(".*Password:"),
-		scrapliopts.WithChannelAuthUsernamePattern(".*Username:"),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
 	}
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
+	log.Infof("%s - AA", opts)
+
 	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
+	log.Infof("%s - BB", opts)
+
 	if n.Proto.Model != ModelXRD {
 		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
 	}
 	var err error
-	log.Infof("%s - AA", opts)
+	log.Infof("%s - CC", opts)
 
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
