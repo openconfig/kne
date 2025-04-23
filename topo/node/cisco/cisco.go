@@ -526,6 +526,17 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 // scrapligo options can be provided to this function for a caller to modify scrapligo platform.
 // For example, mock transport can be set via options
 func (n *Node) SpawnCLIConn() error {
+	// opts := []scrapliutil.Option{
+	// 	scrapliopts.WithAuthBypass(),
+	// 	scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
+	// }
+	// // add options defined in test package
+	// opts = append(opts, n.testOpts...)
+	// opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
+	// if n.Proto.Model != ModelXRD {
+	// 	opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
+	// }
+	// var err error
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
@@ -535,8 +546,6 @@ func (n *Node) SpawnCLIConn() error {
 	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 	if n.Proto.Model != ModelXRD {
 		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
-	} else {
-		opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 	}
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
@@ -570,6 +579,9 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		return err
 	}
 	defer n.cliConn.Close()
+
+	resp, err := n.cliConn.SendCommand("show version")
+	log.Infof("show version output: %s", resp.Result)
 
 	resp, err := n.cliConn.SendCommand(reset8000eCMD)
 	if err != nil {
