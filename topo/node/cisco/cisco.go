@@ -44,6 +44,7 @@ const (
 
 	scrapliPlatformName     = "cisco_iosxr"
 	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
+	resetXRdCMD             = "/pkg/bin/xr_cli \"" + reset8000eCMD + "\""
 	scrapliOperationTimeout = 300 * time.Second
 )
 
@@ -532,9 +533,12 @@ func (n *Node) SpawnCLIConn() error {
 	}
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
-	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 	if n.Proto.Model != ModelXRD {
+		opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
+	} else {
+		opts = append(opts, scrapliopts.WithDefaultDesiredPriv("run"))
+		opts = n.PatchCLIConnOpen("kubectl", []string{"bash"}, opts)
 	}
 	var err error
 
@@ -583,9 +587,6 @@ func endTelnet(d *scraplinetwork.Driver) error {
 }
 
 func (n *Node) ResetCfg(ctx context.Context) error {
-	if n.Proto.Model == ModelXRD {
-		return status.Errorf(codes.Unimplemented, "reset config is not implemented for cisco xrd node")
-	}
 
 	log.Infof("%s resetting config", n.Name())
 	err := n.SpawnCLIConn()
@@ -594,10 +595,22 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	}
 	defer n.cliConn.Close()
 
-	resp1, _ := n.cliConn.SendCommand("show version")
-	log.Infof("show version output: %s", resp1.Result)
+	if n.Proto.Model == ModelXRD {
+		// Copy startup config from mounted location so it can be applied.
+		startup_config := pb.Config.Env["XR_EVERY_BOOT_CONFIG"]
+		if startup_config == "" {
+			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
+		}
+		resp, err := n.cliConn.SendCommand("cp " + startup_config + " /disk0:/startup-config")
+		if err != nil {
+			return err
+		}
+		cmd := resetXRdCMD
+	} else {
+		cmd := reset8000eCMD
+	}
 
-	resp, err := n.cliConn.SendCommand(reset8000eCMD)
+	resp, err := n.cliConn.SendCommand(cmd)
 	if err != nil {
 		return err
 	}
