@@ -598,7 +598,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	var cmd string
 	if n.Proto.Model == ModelXRD {
 		// Copy startup config from mounted location so it can be applied.
-		startup_config := pb.Config.Env["XR_EVERY_BOOT_CONFIG"]
+		startup_config := n.Proto.Config.Env["XR_EVERY_BOOT_CONFIG"]
 		if startup_config == "" {
 			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
 		}
