@@ -554,15 +554,16 @@ func (n *Node) SpawnCLIConn() error {
 	return err
 }
 
+// No op function to override default network on open function
+func (d *network.Driver) no_op() error {
+	return nil
+}
+
 // SpawnCLIConnConf spawns a connection towards a IOSXR configuration CLI for XRd using `kubectl exec` terminal
 // and ensures configuration CLI is ready to accept inputs.
 func (n *Node) SpawnCLIConnConf() error {
 	if n.Proto.Model != ModelXRD {
 		return status.Errorf(codes.Unimplemented, "SpawnCLIConnConf only implemented for Cisco XRd node, for other node types use SpawnCLIConn")
-	}
-
-	func (d *network.Driver) no_op() error {
-		return nil
 	}
 
 	opts := []scrapliutil.Option{
