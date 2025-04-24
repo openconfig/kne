@@ -608,7 +608,8 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		if startup_config == "" {
 			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
 		}
-		resp, err := n.cliConn.SendCommands([]string{"cp " + "/foo" + " /disk0:/startup-config", ""})
+		// Send an additional return command to make sure any error messages are read.
+		resp, err := n.cliConn.SendCommands([]string{"cp " + startup_config + " /disk0:/startup-config", ""})
 		if err != nil {
 			return err
 		}
