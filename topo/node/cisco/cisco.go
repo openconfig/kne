@@ -550,10 +550,8 @@ func (n *Node) SpawnCLIConn() error {
 
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
-	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
-	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
-	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "No such file or directory")
-	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, ".* cannot stat")
+	// n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
+	// n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
 
 	if n.Proto.Model != ModelXRD {
 		n.cliConn.OnClose = endTelnet
@@ -581,9 +579,6 @@ func (n *Node) SpawnCLIConnConf() error {
 	var err error
 
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
-
-	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
-	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
 
 	return err
 }
