@@ -620,7 +620,6 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	}
 
 	resp, err := n.cliConn.SendCommand(cmd)
-	log.Infof("ResetCfg response: %v", resp)
 	if err != nil {
 		return err
 	}
