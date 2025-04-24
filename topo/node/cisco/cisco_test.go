@@ -1088,6 +1088,10 @@ func TestPushCfg(t *testing.T) {
 			}
 			defer fp.Close()
 			err = n.ConfigPush(context.Background(), fp)
+
+			if tt.wantErr && err != "foo" {
+				t.Fatal("Expecting error foo, got error %v \n", err)
+			}
 			if tt.wantErr && err == nil {
 				t.Fatal("Expecting an error, but no error is raised \n")
 			}
