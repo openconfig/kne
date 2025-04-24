@@ -1,3 +1,9 @@
+RP/0/RP0/CPU0:ios(config)#terminal width 512
+                            ^
+% Invalid input detected at '^' marker.
+RP/0/RP0/CPU0:ios(config)#terminal length 0
+                            ^
+% Invalid input detected at '^' marker.
 RP/0/RP0/CPU0:ios(config)#
 RP/0/RP0/CPU0:ios(config)#terminal width 512
 RP/0/RP0/CPU0:ios(config)#terminal length 0 
