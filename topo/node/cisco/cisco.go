@@ -522,6 +522,11 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 	return podIsUpRegex.Match(buf.Bytes())
 }
 
+// No op function to override default network on open function
+func no_op(d *scraplinetwork.Driver) error {
+	return nil
+}
+
 // SpawnCLIConn spawns a CLI connection towards a IOSXR using `kubectl exec` terminal and ensures CLI is ready
 // to accept inputs.
 // scrapligo options can be provided to this function for a caller to modify scrapligo platform.
@@ -553,11 +558,6 @@ func (n *Node) SpawnCLIConn() error {
 	}
 
 	return err
-}
-
-// No op function to override default network on open function
-func no_op(d *scraplinetwork.Driver) error {
-	return nil
 }
 
 // SpawnCLIConnConf spawns a connection towards a IOSXR configuration CLI for XRd using `kubectl exec` terminal

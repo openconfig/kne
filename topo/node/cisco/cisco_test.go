@@ -1032,13 +1032,13 @@ func TestPushCfg(t *testing.T) {
 		testFile string
 		testConf string
 	}{
-		// {
-		// 	desc:     "successful push config for xrd",
-		// 	wantErr:  false,
-		// 	ni:       nodeXRD,
-		// 	testFile: "testdata/xrd_push_config_success",
-		// 	testConf: "testdata/valid_config",
-		// },
+		{
+			desc:     "successful push config for xrd",
+			wantErr:  false,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_push_config_success",
+			testConf: "testdata/valid_config",
+		},
 		{
 			desc:     "failed push config for xrd",
 			wantErr:  true,
@@ -1046,20 +1046,20 @@ func TestPushCfg(t *testing.T) {
 			testFile: "testdata/xrd_push_config_failure",
 			testConf: "testdata/invalid_config",
 		},
-		// {
-		// 	desc:     "successful push config for 8000e",
-		// 	wantErr:  false,
-		// 	ni:       node8000e,
-		// 	testFile: "testdata/push_config_success",
-		// 	testConf: "testdata/valid_config",
-		// },
-		// {
-		// 	desc:     "failed push config for 8000e",
-		// 	wantErr:  true,
-		// 	ni:       node8000e,
-		// 	testFile: "testdata/push_config_failure",
-		// 	testConf: "testdata/invalid_config",
-		// },
+		{
+			desc:     "successful push config for 8000e",
+			wantErr:  false,
+			ni:       node8000e,
+			testFile: "testdata/push_config_success",
+			testConf: "testdata/valid_config",
+		},
+		{
+			desc:     "failed push config for 8000e",
+			wantErr:  true,
+			ni:       node8000e,
+			testFile: "testdata/push_config_failure",
+			testConf: "testdata/invalid_config",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1069,9 +1069,6 @@ func TestPushCfg(t *testing.T) {
 				t.Fatalf("failed creating cisco node")
 			}
 			n, _ := nImpl.(*Node)
-			li, err := scraplilogging.NewInstance(
-				scraplilogging.WithLevel("debug"),
-				scraplilogging.WithLogger(t.Log))
 
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
@@ -1080,7 +1077,6 @@ func TestPushCfg(t *testing.T) {
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
-				scrapliopts.WithLogger(li),
 			}
 			fp, err := os.Open(tt.testConf)
 			if err != nil {
