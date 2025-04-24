@@ -656,7 +656,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	if n.Proto.Model != ModelXRD {
 		err = n.SpawnCLIConn()
 	} else {
-		err = n.SpawnCLIConnConf()
+		err = n.SpawnCLIConn()
 	}
 	if err != nil {
 		return err
