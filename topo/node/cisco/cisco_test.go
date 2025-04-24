@@ -27,7 +27,6 @@ import (
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-	scraplilogging "github.com/scrapli/scrapligo/logging"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -981,34 +980,34 @@ func TestResetCfg(t *testing.T) {
 			ni:       nodeXRD,
 			testFile: "testdata/xrd_reset_config_failure_invalid",
 		},
-		// {
-		// 	// device returns success after applying the startup config
-		// 	desc:    "successful reset for xrd",
-		// 	wantErr: false,
-		// 	ni:      nodeXRD,
-		// 	testFile: "testdata/xrd_reset_config_success",
-		// },
-		// {
-		// 	// device returns error when the startup config is not initialized.
-		// 	desc:     "failed reset for 8000e (not initialized)",
-		// 	wantErr:  true,
-		// 	ni:       node8000e,
-		// 	testFile: "testdata/reset_config_failure",
-		// },
-		// {
-		// 	// device returns error when the startup config is invalid.
-		// 	desc:     "failed reset for 8000e (invalid)",
-		// 	wantErr:  true,
-		// 	ni:       node8000e,
-		// 	testFile: "testdata/reset_config_failure_invalid",
-		// },
-		// {
-		// 	// device returns success after applying the startup config
-		// 	desc:     "successful reset for 8000e",
-		// 	wantErr:  false,
-		// 	ni:       node8000e,
-		// 	testFile: "testdata/reset_config_success",
-		// },
+		{
+			// device returns success after applying the startup config
+			desc:    "successful reset for xrd",
+			wantErr: false,
+			ni:      nodeXRD,
+			testFile: "testdata/xrd_reset_config_success",
+		},
+		{
+			// device returns error when the startup config is not initialized.
+			desc:     "failed reset for 8000e (not initialized)",
+			wantErr:  true,
+			ni:       node8000e,
+			testFile: "testdata/reset_config_failure",
+		},
+		{
+			// device returns error when the startup config is invalid.
+			desc:     "failed reset for 8000e (invalid)",
+			wantErr:  true,
+			ni:       node8000e,
+			testFile: "testdata/reset_config_failure_invalid",
+		},
+		{
+			// device returns success after applying the startup config
+			desc:     "successful reset for 8000e",
+			wantErr:  false,
+			ni:       node8000e,
+			testFile: "testdata/reset_config_success",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1019,9 +1018,6 @@ func TestResetCfg(t *testing.T) {
 			}
 			n, _ := nImpl.(*Node)
 
-			li, err := scraplilogging.NewInstance(
-				scraplilogging.WithLevel("debug"),
-				scraplilogging.WithLogger(t.Log))
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
@@ -1029,7 +1025,6 @@ func TestResetCfg(t *testing.T) {
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
-				scrapliopts.WithLogger(li),
 			}
 			ctx := context.Background()
 			err = n.ResetCfg(ctx)
