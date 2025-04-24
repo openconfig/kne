@@ -974,13 +974,13 @@ func TestResetCfg(t *testing.T) {
 			ni:       nodeXRD,
 			testFile: "testdata/xrd_reset_config_failure",
 		},
-		// {
-		// 	// device returns error when the startup config is invalid.
-		// 	desc:     "failed reset for XRd (invalid)",
-		// 	wantErr:  true,
-		// 	ni:       nodeXRD,
-		// 	testFile: "testdata/xrd_reset_config_failure_invalid",
-		// },
+		{
+			// device returns error when the startup config is invalid.
+			desc:     "failed reset for XRd (invalid)",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_reset_config_failure_invalid",
+		},
 		// {
 		// 	// device returns success after applying the startup config
 		// 	desc:    "successful reset for xrd",
