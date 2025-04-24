@@ -1030,13 +1030,13 @@ func TestPushCfg(t *testing.T) {
 		testFile string
 		testConf string
 	}{
-		// {
-		// 	desc:     "unimplemented push config for xrd",
-		// 	wantErr:  true,
-		// 	ni:       nodeXRD,
-		// 	testFile: "testdata/push_config_success",
-		// 	testConf: "testdata/valid_config",
-		// },
+		{
+			desc:     "unimplemented push config for xrd",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/push_config_success",
+			testConf: "testdata/valid_config",
+		},
 		{
 			desc:     "successful push config for 8000e",
 			wantErr:  false,
