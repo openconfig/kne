@@ -550,8 +550,9 @@ func (n *Node) SpawnCLIConn() error {
 
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
-	// n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
-	// n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "No such file or directory")
 
 	if n.Proto.Model != ModelXRD {
 		n.cliConn.OnClose = endTelnet
@@ -607,7 +608,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		if startup_config == "" {
 			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
 		}
-		resp, err := n.cliConn.SendCommand("cp " + "/foo" + " /disk0:/startup-config")
+		resp, err := n.cliConn.SendCommands([]string{"cp " + "/foo" + " /disk0:/startup-config", ""})
 		if err != nil {
 			return err
 		}
