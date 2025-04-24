@@ -1,9 +1,9 @@
 RP/0/RP0/CPU0:ios(config)#
 RP/0/RP0/CPU0:ios(config)#terminal width 512
-RP/0/RP0/CPU0:ios(config)#terminal length 0 
+RP/0/RP0/CPU0:ios(config)#terminal length 0
 RP/0/RP0/CPU0:ios(config)#wrongconfig
                            ^
 % Invalid input detected at '^' marker.
-RP/0/RP0/CPU0:ios(config)#commit 
+RP/0/RP0/CPU0:ios(config)#commit
 Thu May  4 20:38:26.035 UTC
 No configuration changes to commit.
