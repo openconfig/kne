@@ -537,29 +537,19 @@ func (n *Node) SpawnCLIConn() error {
 	// 	opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
 	// }
 	// var err error
-	userRegex := regexp.MustCompile(`^.*Username:.*$`)
-	passRegex := regexp.MustCompile(`^Password: $`)
 	opts := []scrapliutil.Option{
-		// scrapliopts.WithAuthBypass(),
-		// scrapliopts.WithAuthUsername("cisco"),
-		// scrapliopts.WithAuthPassword("cisco123"),
-		scrapliopts.WithUsernamePattern(userRegex),
-		scrapliopts.WithPasswordPattern(passRegex),
-		scrapliopts.WithTransportType("telnet"),
+		scrapliopts.WithAuthBypass(),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
 	}
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
-	log.Infof("%s - AA", opts)
 
-	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
-	log.Infof("%s - BB", opts)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "config"}, opts)
 
-	// if n.Proto.Model != ModelXRD {
-	// 	opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
-	// }
+	if n.Proto.Model != ModelXRD {
+		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
+	}
 	var err error
-	log.Infof("%s - CC", opts)
 
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
