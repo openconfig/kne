@@ -1015,7 +1015,7 @@ func TestResetCfg(t *testing.T) {
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
-				scrapliopts.WithLogger(li)
+				scrapliopts.WithLogger(li),
 			}
 			ctx := context.Background()
 			err = n.ResetCfg(ctx)
