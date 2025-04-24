@@ -1,8 +1,4 @@
 RP/0/RP0/CPU0:ios(config)#
-RP/0/RP0/CPU0:ios(config)#terminal width 512
-Fri Feb 24 14:59:24.620 UTC
-RP/0/RP0/CPU0:ios(config)#terminal length 0 
-Fri Feb 24 14:59:29.364 UTC
 RP/0/RP0/CPU0:ios(config)#grpc
 RP/0/RP0/CPU0:ios(config-grpc)# dscp cs4
 RP/0/RP0/CPU0:ios(config-grpc)# port 57400
