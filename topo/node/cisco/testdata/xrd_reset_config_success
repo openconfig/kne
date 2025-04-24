@@ -3,10 +3,7 @@
 [node0_RP0_CPU0:~]$/pkg/bin/xr_cli "copy disk0:/startup-config running-config replace"
 
 
-Fri Feb 24 14:50:31.851 UTC
-RP/0/RP0/CPU0:ios#
-RP/0/RP0/CPU0:ios#copy disk0:/startup-config running-config replace
-Tue May  2 18:11:46.345 UTC
+-------------- copy disk0:/startup-config running-config replace --------------
 
 Parsing.
 2286 bytes parsed in 1 sec (2283)bytes/sec
@@ -16,4 +13,4 @@ Prepared commit in 0 sec
 90 items committed in 2 sec (44)items/sec
 Updating.
 Updated Commit database in 1 sec
-RP/0/RP0/CPU0:ios#
+[node0_RP0_CPU0:~]$
