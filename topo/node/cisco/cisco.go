@@ -44,7 +44,7 @@ const (
 
 	scrapliPlatformName     = "cisco_iosxr"
 	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
-	resetXRdCMD             = "/pkg/bin/xr_cli \"" + reset8000eCMD + "\""
+	resetXRdCMD             = "/pkg/bin/xr_cli \"" + reset8000eCMD + "\" ; echo \"\""
 	scrapliOperationTimeout = 300 * time.Second
 )
 
