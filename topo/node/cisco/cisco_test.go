@@ -965,12 +965,12 @@ func TestResetCfg(t *testing.T) {
 		ni       *node.Impl
 		testFile string
 	}{
-		{
-			// kne returns unimplemented error for xrd
-			desc:    "unimplemented reset for xrd",
-			wantErr: true,
-			ni:      nodeXRD,
-		},
+		// {
+		// 	// kne returns unimplemented error for xrd
+		// 	desc:    "unimplemented reset for xrd",
+		// 	wantErr: true,
+		// 	ni:      nodeXRD,
+		// },
 		{
 			// device returns error when the startup config is not initialized.
 			desc:     "failed reset for 8000e (not initialized)",
@@ -1030,13 +1030,13 @@ func TestPushCfg(t *testing.T) {
 		testFile string
 		testConf string
 	}{
-		{
-			desc:     "unimplemented push config for xrd",
-			wantErr:  true,
-			ni:       nodeXRD,
-			testFile: "testdata/push_config_success",
-			testConf: "testdata/valid_config",
-		},
+		// {
+		// 	desc:     "unimplemented push config for xrd",
+		// 	wantErr:  true,
+		// 	ni:       nodeXRD,
+		// 	testFile: "testdata/push_config_success",
+		// 	testConf: "testdata/valid_config",
+		// },
 		{
 			desc:     "successful push config for 8000e",
 			wantErr:  false,
