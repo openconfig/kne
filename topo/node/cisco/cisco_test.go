@@ -1077,8 +1077,8 @@ func TestPushCfg(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(300 * time.Second),
-				scrapliopts.WithTransportReadSize(1),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
+				// scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
 				scrapliopts.WithLogger(li),
