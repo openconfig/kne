@@ -552,6 +552,7 @@ func (n *Node) SpawnCLIConn() error {
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "No such file or directory")
 
 	if n.Proto.Model != ModelXRD {
 		n.cliConn.OnClose = endTelnet
@@ -614,7 +615,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if resp.Failed != nil {
+		if resp.Failed != nil or resp.{
 			return resp.Failed
 		}
 		cmd = resetXRdCMD
