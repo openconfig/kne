@@ -526,27 +526,13 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 // scrapligo options can be provided to this function for a caller to modify scrapligo platform.
 // For example, mock transport can be set via options
 func (n *Node) SpawnCLIConn() error {
-	// opts := []scrapliutil.Option{
-	// 	scrapliopts.WithAuthBypass(),
-	// 	scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
-	// }
-	// // add options defined in test package
-	// opts = append(opts, n.testOpts...)
-	// opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
-	// if n.Proto.Model != ModelXRD {
-	// 	opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
-	// }
-	// var err error
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
-		scrapliopts.WithDefaultDesiredPriv("configuration"),
 	}
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
-
-	opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "config"}, opts)
-
+	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 	if n.Proto.Model != ModelXRD {
 		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
 	}
@@ -560,6 +546,30 @@ func (n *Node) SpawnCLIConn() error {
 	if n.Proto.Model != ModelXRD {
 		n.cliConn.OnClose = endTelnet
 	}
+
+	return err
+}
+
+// SpawnCLIConnConf spawns a connection towards a IOSXR configuration CLI for XRd using `kubectl exec` terminal
+// and ensures configuration CLI is ready to accept inputs.
+func (n *Node) SpawnCLIConnConf() error {
+	if n.Proto.Model != ModelXRD {
+		return status.Errorf(codes.Unimplemented, "SpawnCLIConnConf only implemented for Cisco XRd node, for other node types use SpawnCLIConn")
+	}
+	opts := []scrapliutil.Option{
+		scrapliopts.WithAuthBypass(),
+		scrapliutil.WithDefaultDesiredPriv("configuration"),
+		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
+	}
+	// add options defined in test package
+	opts = append(opts, n.testOpts...)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "config"}, opts)
+	var err error
+
+	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
+
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
 
 	return err
 }
@@ -619,7 +629,7 @@ func processConfig(cfg string) string {
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
-	log.Infof("%s - pushing config foo", n.Name())
+	log.Infof("%s - pushing config", n.Name())
 
 	cfg, err := io.ReadAll(r)
 	if err != nil {
@@ -629,15 +639,15 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	cfgs = processConfig(cfgs)
 	log.V(1).Info(cfgs)
 
-	err = n.SpawnCLIConn()
+	if n.Proto.Model != ModelXRD {
+		err = n.SpawnCLIConn()
+	} else {
+		err = n.SpawnCLIConnConf()
+	}
 	if err != nil {
 		return err
 	}
 	defer n.cliConn.Close()
-
-
-	resp1, _ := n.cliConn.SendCommand("show version")
-	log.Infof("show version output: %s", resp1.Result)
 
 
 	resp, err := n.cliConn.SendConfig(cfgs)
