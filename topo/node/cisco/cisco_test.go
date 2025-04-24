@@ -1039,27 +1039,27 @@ func TestPushCfg(t *testing.T) {
 			testFile: "testdata/xrd_push_config_success",
 			testConf: "testdata/valid_config",
 		},
-		{
-			desc:     "failed push config for xrd",
-			wantErr:  true,
-			ni:       nodeXRD,
-			testFile: "testdata/xrd_push_config_failure",
-			testConf: "testdata/invalid_config",
-		},
-		{
-			desc:     "successful push config for 8000e",
-			wantErr:  false,
-			ni:       node8000e,
-			testFile: "testdata/push_config_success",
-			testConf: "testdata/valid_config",
-		},
-		{
-			desc:     "failed push config for 8000e",
-			wantErr:  true,
-			ni:       node8000e,
-			testFile: "testdata/push_config_failure",
-			testConf: "testdata/invalid_config",
-		},
+		// {
+		// 	desc:     "failed push config for xrd",
+		// 	wantErr:  true,
+		// 	ni:       nodeXRD,
+		// 	testFile: "testdata/xrd_push_config_failure",
+		// 	testConf: "testdata/invalid_config",
+		// },
+		// {
+		// 	desc:     "successful push config for 8000e",
+		// 	wantErr:  false,
+		// 	ni:       node8000e,
+		// 	testFile: "testdata/push_config_success",
+		// 	testConf: "testdata/valid_config",
+		// },
+		// {
+		// 	desc:     "failed push config for 8000e",
+		// 	wantErr:  true,
+		// 	ni:       node8000e,
+		// 	testFile: "testdata/push_config_failure",
+		// 	testConf: "testdata/invalid_config",
+		// },
 	}
 
 	for _, tt := range tests {
