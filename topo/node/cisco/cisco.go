@@ -595,19 +595,20 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	}
 	defer n.cliConn.Close()
 
+	var cmd string
 	if n.Proto.Model == ModelXRD {
 		// Copy startup config from mounted location so it can be applied.
 		startup_config := pb.Config.Env["XR_EVERY_BOOT_CONFIG"]
 		if startup_config == "" {
 			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
 		}
-		resp, err := n.cliConn.SendCommand("cp " + startup_config + " /disk0:/startup-config")
+		_, err := n.cliConn.SendCommand("cp " + startup_config + " /disk0:/startup-config")
 		if err != nil {
 			return err
 		}
-		cmd := resetXRdCMD
+		cmd = resetXRdCMD
 	} else {
-		cmd := reset8000eCMD
+		cmd = reset8000eCMD
 	}
 
 	resp, err := n.cliConn.SendCommand(cmd)
