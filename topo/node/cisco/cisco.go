@@ -538,7 +538,7 @@ func (n *Node) SpawnCLIConn() error {
 		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
 	} else {
 		opts = append(opts, scrapliopts.WithDefaultDesiredPriv("run"))
-		opts = n.PatchCLIConnOpen("kubectl", []string{"bash"}, opts)
+		opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "run"}, opts)
 	}
 	var err error
 
