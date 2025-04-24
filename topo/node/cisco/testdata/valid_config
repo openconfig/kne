@@ -1,8 +1,4 @@
 grpc
- dscp cs4
- port 57400
- max-streams 128
- max-streams-per-user 128
  address-family dual
  max-request-total 256
  max-request-per-user 32
