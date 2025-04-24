@@ -1067,6 +1067,11 @@ func TestPushCfg(t *testing.T) {
 				t.Fatalf("failed creating cisco node")
 			}
 			n, _ := nImpl.(*Node)
+			li, err := scraplilogging.NewInstance(
+				scraplilogging.WithLevel("debug"),
+				scraplilogging.WithLogger(t.Log))
+
+			n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
@@ -1074,6 +1079,7 @@ func TestPushCfg(t *testing.T) {
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
+				scrapliopts.WithLogger(li),
 			}
 			fp, err := os.Open(tt.testConf)
 			if err != nil {
