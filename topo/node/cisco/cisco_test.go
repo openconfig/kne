@@ -27,7 +27,6 @@ import (
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplitransport "github.com/scrapli/scrapligo/transport"
 	scrapliutil "github.com/scrapli/scrapligo/util"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -1017,7 +1016,6 @@ func TestResetCfg(t *testing.T) {
 				t.Fatalf("failed creating cisco node")
 			}
 			n, _ := nImpl.(*Node)
-
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
@@ -1084,7 +1082,6 @@ func TestPushCfg(t *testing.T) {
 				t.Fatalf("failed creating cisco node")
 			}
 			n, _ := nImpl.(*Node)
-
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
@@ -1099,7 +1096,6 @@ func TestPushCfg(t *testing.T) {
 			}
 			defer fp.Close()
 			err = n.ConfigPush(context.Background(), fp)
-
 			if tt.wantErr && err == nil {
 				t.Fatal("Expecting an error, but no error is raised \n")
 			}

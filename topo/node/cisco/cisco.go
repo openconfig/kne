@@ -44,6 +44,8 @@ const (
 
 	scrapliPlatformName     = "cisco_iosxr"
 	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
+	// Add the empty echo to work around a bug where the command doesn't end with a newline if there
+	// is no change in config.
 	resetXRdCMD             = "/pkg/bin/xr_cli \"" + reset8000eCMD + "\" ; echo \"\""
 	scrapliOperationTimeout = 300 * time.Second
 )
@@ -522,7 +524,7 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 	return podIsUpRegex.Match(buf.Bytes())
 }
 
-// No op function to override default network on open function
+// No op function to override default network on open function.
 func no_op(d *scraplinetwork.Driver) error {
 	return nil
 }
@@ -547,7 +549,6 @@ func (n *Node) SpawnCLIConn() error {
 		opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "run"}, opts)
 	}
 	var err error
-
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
@@ -578,7 +579,6 @@ func (n *Node) SpawnCLIConnConf() error {
 	opts = append(opts, n.testOpts...)
 	opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "config"}, opts)
 	var err error
-
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 
 	return err
@@ -672,7 +672,6 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 		return err
 	}
 	defer n.cliConn.Close()
-
 
 	resp, err := n.cliConn.SendConfig(cfgs)
 	if err != nil {
