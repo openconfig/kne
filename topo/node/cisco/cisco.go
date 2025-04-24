@@ -44,6 +44,9 @@ const (
 
 	scrapliPlatformName     = "cisco_iosxr"
 	reset8000eCMD           = "copy disk0:/startup-config running-config replace"
+	// Add the empty echo to work around a bug where the command doesn't end with a newline if there
+	// is no change in config.
+	resetXRdCMD             = "/pkg/bin/xr_cli \"" + reset8000eCMD + "\" ; echo \"\""
 	scrapliOperationTimeout = 300 * time.Second
 )
 
@@ -521,6 +524,11 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 	return podIsUpRegex.Match(buf.Bytes())
 }
 
+// No op function to override default network on open function.
+func no_op(d *scraplinetwork.Driver) error {
+	return nil
+}
+
 // SpawnCLIConn spawns a CLI connection towards a IOSXR using `kubectl exec` terminal and ensures CLI is ready
 // to accept inputs.
 // scrapligo options can be provided to this function for a caller to modify scrapligo platform.
@@ -532,19 +540,46 @@ func (n *Node) SpawnCLIConn() error {
 	}
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
-	opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 	if n.Proto.Model != ModelXRD {
+		opts = n.PatchCLIConnOpen("kubectl", []string{"xr"}, opts)
 		opts = n.PatchCLIConnOpen("kubectl", []string{"telnet", "0", "60000"}, opts)
+	} else {
+		opts = append(opts, scrapliopts.WithDefaultDesiredPriv("run"))
+		opts = append(opts, scrapliopts.WithNetworkOnOpen(no_op))
+		opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "run"}, opts)
 	}
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "No such file or directory")
 
 	if n.Proto.Model != ModelXRD {
 		n.cliConn.OnClose = endTelnet
 	}
+
+	return err
+}
+
+// SpawnCLIConnConf spawns a connection towards a IOSXR configuration CLI for XRd using `kubectl exec` terminal
+// and ensures configuration CLI is ready to accept inputs.
+func (n *Node) SpawnCLIConnConf() error {
+	if n.Proto.Model != ModelXRD {
+		return status.Errorf(codes.Unimplemented, "SpawnCLIConnConf only implemented for Cisco XRd node, for other node types use SpawnCLIConn")
+	}
+
+	opts := []scrapliutil.Option{
+		scrapliopts.WithAuthBypass(),
+		scrapliopts.WithDefaultDesiredPriv("configuration"),
+		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
+		scrapliopts.WithNetworkOnOpen(no_op),
+	}
+	// add options defined in test package
+	opts = append(opts, n.testOpts...)
+	opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "config"}, opts)
+	var err error
+	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 
 	return err
 }
@@ -558,9 +593,6 @@ func endTelnet(d *scraplinetwork.Driver) error {
 }
 
 func (n *Node) ResetCfg(ctx context.Context) error {
-	if n.Proto.Model == ModelXRD {
-		return status.Errorf(codes.Unimplemented, "reset config is not implemented for cisco xrd node")
-	}
 
 	log.Infof("%s resetting config", n.Name())
 	err := n.SpawnCLIConn()
@@ -569,7 +601,27 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	}
 	defer n.cliConn.Close()
 
-	resp, err := n.cliConn.SendCommand(reset8000eCMD)
+	var cmd string
+	if n.Proto.Model == ModelXRD {
+		// Copy startup config from mounted location so it can be applied.
+		startup_config := n.Proto.Config.Env["XR_EVERY_BOOT_CONFIG"]
+		if startup_config == "" {
+			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
+		}
+		// Send an additional return command to make sure any error messages are read.
+		resp, err := n.cliConn.SendCommands([]string{"cp " + startup_config + " /disk0:/startup-config", ""})
+		if err != nil {
+			return err
+		}
+		if resp.Failed != nil {
+			return resp.Failed
+		}
+		cmd = resetXRdCMD
+	} else {
+		cmd = reset8000eCMD
+	}
+
+	resp, err := n.cliConn.SendCommand(cmd)
 	if err != nil {
 		return err
 	}
@@ -600,9 +652,6 @@ func processConfig(cfg string) string {
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
-	if n.Proto.Model == ModelXRD {
-		return status.Errorf(codes.Unimplemented, "config push is not implemented for cisco xrd node")
-	}
 
 	log.Infof("%s - pushing config", n.Name())
 
@@ -614,7 +663,11 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	cfgs = processConfig(cfgs)
 	log.V(1).Info(cfgs)
 
-	err = n.SpawnCLIConn()
+	if n.Proto.Model != ModelXRD {
+		err = n.SpawnCLIConn()
+	} else {
+		err = n.SpawnCLIConnConf()
+	}
 	if err != nil {
 		return err
 	}
