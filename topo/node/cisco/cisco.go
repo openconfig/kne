@@ -540,6 +540,7 @@ func (n *Node) SpawnCLIConn() error {
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
+		scrapliopts.WithDefaultDesiredPriv("configuration"),
 	}
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
