@@ -611,7 +611,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if resp.Failed != nil or resp.{
+		if resp.Failed != nil {
 			return resp.Failed
 		}
 		cmd = resetXRdCMD
