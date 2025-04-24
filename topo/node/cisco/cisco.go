@@ -560,10 +560,16 @@ func (n *Node) SpawnCLIConnConf() error {
 	if n.Proto.Model != ModelXRD {
 		return status.Errorf(codes.Unimplemented, "SpawnCLIConnConf only implemented for Cisco XRd node, for other node types use SpawnCLIConn")
 	}
+
+	func (d *network.Driver) no_op() error {
+		return nil
+	}
+
 	opts := []scrapliutil.Option{
 		scrapliopts.WithAuthBypass(),
 		scrapliopts.WithDefaultDesiredPriv("configuration"),
 		scrapliopts.WithTimeoutOps(scrapliOperationTimeout),
+		scrapliopts.WithNetworkOnOpen(no_op),
 	}
 	// add options defined in test package
 	opts = append(opts, n.testOpts...)
