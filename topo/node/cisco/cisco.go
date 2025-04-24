@@ -553,6 +553,7 @@ func (n *Node) SpawnCLIConn() error {
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "No such file or directory")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, ".* cannot stat")
 
 	if n.Proto.Model != ModelXRD {
 		n.cliConn.OnClose = endTelnet
