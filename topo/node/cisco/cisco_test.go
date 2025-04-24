@@ -1073,7 +1073,6 @@ func TestPushCfg(t *testing.T) {
 				scraplilogging.WithLevel("debug"),
 				scraplilogging.WithLogger(t.Log))
 
-			n.testOpts = append(n.testOpts, scrapliopts.WithLogger(li))
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
