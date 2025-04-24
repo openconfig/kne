@@ -555,7 +555,7 @@ func (n *Node) SpawnCLIConn() error {
 }
 
 // No op function to override default network on open function
-func no_op(d *network.Driver) error {
+func no_op(d *scraplinetwork.Driver) error {
 	return nil
 }
 
