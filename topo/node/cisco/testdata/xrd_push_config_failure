@@ -7,3 +7,4 @@ RP/0/RP0/CPU0:ios(config)#wrongconfig
 RP/0/RP0/CPU0:ios(config)#commit
 Thu May  4 20:38:26.035 UTC
 No configuration changes to commit.
+RP/0/RP0/CPU0:ios(config)#
