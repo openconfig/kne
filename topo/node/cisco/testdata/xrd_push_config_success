@@ -6,10 +6,6 @@ RP/0/RP0/CPU0:ios(config)#terminal length 0
                             ^
 % Invalid input detected at '^' marker.
 RP/0/RP0/CPU0:ios(config)#grpc
-RP/0/RP0/CPU0:ios(config-grpc)# dscp cs4
-RP/0/RP0/CPU0:ios(config-grpc)# port 57400
-RP/0/RP0/CPU0:ios(config-grpc)# max-streams 128
-RP/0/RP0/CPU0:ios(config-grpc)# max-streams-per-user 128
 RP/0/RP0/CPU0:ios(config-grpc)# address-family dual
 RP/0/RP0/CPU0:ios(config-grpc)# max-request-total 256
 RP/0/RP0/CPU0:ios(config-grpc)# max-request-per-user 32
