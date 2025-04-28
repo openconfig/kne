@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	dtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
@@ -932,11 +932,11 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if _, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{}); err != nil {
 		log.Infof("Applying metallb ingress config")
 		// Get Network information from docker.
-		nr, err := m.dClient.NetworkList(ctx, dtypes.NetworkListOptions{})
+		nr, err := m.dClient.NetworkList(ctx, network.ListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get docker network list: %w", err)
 		}
-		var network dtypes.NetworkResource
+		var network network.Inspect
 		for _, v := range nr {
 			name := m.dockerNetworkResourceName
 			if name == "" {

@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.36.1
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/docker/docker v26.1.5+incompatible
+	github.com/docker/docker v28.1.1+incompatible
 	github.com/drivenets/cdnos-controller v1.7.4
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v1.2.1
@@ -93,6 +93,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/spdystream v0.4.0 // indirect
+	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
