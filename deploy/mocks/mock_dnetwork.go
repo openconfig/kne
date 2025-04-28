@@ -8,7 +8,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	types "github.com/docker/docker/api/types"
 	filters "github.com/docker/docker/api/types/filters"
 	network "github.com/docker/docker/api/types/network"
 	gomock "github.com/golang/mock/gomock"
@@ -52,10 +51,10 @@ func (mr *MockNetworkAPIClientMockRecorder) NetworkConnect(arg0, arg1, arg2, arg
 }
 
 // NetworkCreate mocks base method.
-func (m *MockNetworkAPIClient) NetworkCreate(arg0 context.Context, arg1 string, arg2 types.NetworkCreate) (types.NetworkCreateResponse, error) {
+func (m *MockNetworkAPIClient) NetworkCreate(arg0 context.Context, arg1 string, arg2 network.CreateOptions) (network.CreateResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NetworkCreate", arg0, arg1, arg2)
-	ret0, _ := ret[0].(types.NetworkCreateResponse)
+	ret0, _ := ret[0].(network.CreateResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -81,10 +80,10 @@ func (mr *MockNetworkAPIClientMockRecorder) NetworkDisconnect(arg0, arg1, arg2, 
 }
 
 // NetworkInspect mocks base method.
-func (m *MockNetworkAPIClient) NetworkInspect(arg0 context.Context, arg1 string, arg2 types.NetworkInspectOptions) (types.NetworkResource, error) {
+func (m *MockNetworkAPIClient) NetworkInspect(arg0 context.Context, arg1 string, arg2 network.InspectOptions) (network.Inspect, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NetworkInspect", arg0, arg1, arg2)
-	ret0, _ := ret[0].(types.NetworkResource)
+	ret0, _ := ret[0].(network.Inspect)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -96,10 +95,10 @@ func (mr *MockNetworkAPIClientMockRecorder) NetworkInspect(arg0, arg1, arg2 inte
 }
 
 // NetworkInspectWithRaw mocks base method.
-func (m *MockNetworkAPIClient) NetworkInspectWithRaw(arg0 context.Context, arg1 string, arg2 types.NetworkInspectOptions) (types.NetworkResource, []byte, error) {
+func (m *MockNetworkAPIClient) NetworkInspectWithRaw(arg0 context.Context, arg1 string, arg2 network.InspectOptions) (network.Inspect, []byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NetworkInspectWithRaw", arg0, arg1, arg2)
-	ret0, _ := ret[0].(types.NetworkResource)
+	ret0, _ := ret[0].(network.Inspect)
 	ret1, _ := ret[1].([]byte)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -112,10 +111,10 @@ func (mr *MockNetworkAPIClientMockRecorder) NetworkInspectWithRaw(arg0, arg1, ar
 }
 
 // NetworkList mocks base method.
-func (m *MockNetworkAPIClient) NetworkList(arg0 context.Context, arg1 types.NetworkListOptions) ([]types.NetworkResource, error) {
+func (m *MockNetworkAPIClient) NetworkList(arg0 context.Context, arg1 network.ListOptions) ([]network.Inspect, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NetworkList", arg0, arg1)
-	ret0, _ := ret[0].([]types.NetworkResource)
+	ret0, _ := ret[0].([]network.Inspect)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -141,10 +140,10 @@ func (mr *MockNetworkAPIClientMockRecorder) NetworkRemove(arg0, arg1 interface{}
 }
 
 // NetworksPrune mocks base method.
-func (m *MockNetworkAPIClient) NetworksPrune(arg0 context.Context, arg1 filters.Args) (types.NetworksPruneReport, error) {
+func (m *MockNetworkAPIClient) NetworksPrune(arg0 context.Context, arg1 filters.Args) (network.PruneReport, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NetworksPrune", arg0, arg1)
-	ret0, _ := ret[0].(types.NetworksPruneReport)
+	ret0, _ := ret[0].(network.PruneReport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
