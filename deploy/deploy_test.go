@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
@@ -618,7 +617,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 //go:generate mockgen -destination=mocks/mock_dnetwork.go -package=mocks github.com/docker/docker/client  NetworkAPIClient
 
 func TestMetalLBSpec(t *testing.T) {
-	nl := []dtypes.NetworkResource{
+	nl := []network.Inspect{
 		{
 			Name: "kind",
 			IPAM: network.IPAM{
