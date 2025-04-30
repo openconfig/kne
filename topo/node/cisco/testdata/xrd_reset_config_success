@@ -1,0 +1,19 @@
+[node0_RP0_CPU0:~]$
+[node0_RP0_CPU0:~]$cp /startup.cfg /disk0:/startup-config
+[node0_RP0_CPU0:~]$
+[node0_RP0_CPU0:~]$/pkg/bin/xr_cli "copy disk0:/startup-config running-config replace" ; echo ""
+
+
+-------------- copy disk0:/startup-config running-config replace --------------
+
+Parsing.
+2286 bytes parsed in 1 sec (2283)bytes/sec
+Committing.
+Prepared commit in 0 sec
+.
+90 items committed in 2 sec (44)items/sec
+Updating.
+Updated Commit database in 1 sec 
+
+[node0_RP0_CPU0:~]$
+[node0_RP0_CPU0:~]$
