@@ -462,9 +462,16 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	}
 
 	s.topos[topoPb.GetName()] = txtPb
+
+	ti, err := tm.Show(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to validate topology state: %v", err)
+	}
+
 	return &cpb.CreateTopologyResponse{
 		TopologyName: req.Topology.GetName(),
 		State:        cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+		Topology:     ti.GetTopology(),
 	}, nil
 }
 

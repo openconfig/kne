@@ -226,8 +226,10 @@ message CreateTopologyRequest {
 
 // Returns create topology response.
 message CreateTopologyResponse {
-  string topology_name = 1;
+  string topology_name = 1 [deprecated=true];
   TopologyState state = 2;
+  // topology will return the resolved topology and service mappings.
+  topo.Topology topology = 3;
 }
 
 // Request message to delete a topology.
