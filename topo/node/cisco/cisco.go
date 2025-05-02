@@ -139,7 +139,7 @@ func (n *Node) Create(ctx context.Context) error {
 				Image:           pb.Config.Image,
 				Command:         pb.Config.Command,
 				Args:            pb.Config.Args,
-				Tty:             tty,
+				TTY:             tty,
 				Stdin:           stdin,
 				Env:             node.ToEnvVar(pb.Config.Env),
 				Resources:       node.ToResourceRequirements(pb.Constraints),
