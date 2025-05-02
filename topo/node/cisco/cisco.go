@@ -101,6 +101,10 @@ func (n *Node) Create(ctx context.Context) error {
 	secContext := &corev1.SecurityContext{
 		Privileged: pointer.Bool(true),
 	}
+	tty := false
+	stdin := false
+	// XRd requires additional security context and the ability to create a tty
+	// terminal. This is not required for 8000e nodes.
 	if pb.Model == ModelXRD {
 		secContext = &corev1.SecurityContext{
 			Privileged: pointer.Bool(true),
@@ -109,7 +113,15 @@ func (n *Node) Create(ctx context.Context) error {
 				Add: []corev1.Capability{"SYS_ADMIN"},
 			},
 		}
+		tty = true
+		stdin = true
 	}
+	if pb.Model == ModelXRD {
+		stdin := true
+		tty := true
+	} else {
+		stdin := false
+		tty := false
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: n.Name(),
@@ -133,6 +145,8 @@ func (n *Node) Create(ctx context.Context) error {
 				Image:           pb.Config.Image,
 				Command:         pb.Config.Command,
 				Args:            pb.Config.Args,
+				Tty:             tty,
+				Stdin:           stdin,
 				Env:             node.ToEnvVar(pb.Config.Env),
 				Resources:       node.ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
