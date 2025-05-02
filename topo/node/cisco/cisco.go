@@ -116,12 +116,6 @@ func (n *Node) Create(ctx context.Context) error {
 		tty = true
 		stdin = true
 	}
-	if pb.Model == ModelXRD {
-		stdin := true
-		tty := true
-	} else {
-		stdin := false
-		tty := false
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: n.Name(),
