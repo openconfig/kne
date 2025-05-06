@@ -608,7 +608,6 @@ func endTelnet(d *scraplinetwork.Driver) error {
 }
 
 func (n *Node) ResetCfg(ctx context.Context) error {
-
 	log.Infof("%s resetting config", n.Name())
 	err := n.SpawnCLIConn()
 	if err != nil {
@@ -668,7 +667,6 @@ func processConfig(cfg string) string {
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
-
 	log.Infof("%s - pushing config", n.Name())
 
 	cfg, err := io.ReadAll(r)
