@@ -966,10 +966,25 @@ func TestResetCfg(t *testing.T) {
 		testFile string
 	}{
 		{
-			// kne returns unimplemented error for xrd
-			desc:    "unimplemented reset for xrd",
-			wantErr: true,
-			ni:      nodeXRD,
+			// device returns error when the startup config is not initialized.
+			desc:     "failed reset for XRd (not initialized)",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_reset_config_failure",
+		},
+		{
+			// device returns error when the startup config is invalid.
+			desc:     "failed reset for XRd (invalid)",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_reset_config_failure_invalid",
+		},
+		{
+			// device returns success after applying the startup config
+			desc:     "successful reset for xrd",
+			wantErr:  false,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_reset_config_success",
 		},
 		{
 			// device returns error when the startup config is not initialized.
@@ -987,7 +1002,7 @@ func TestResetCfg(t *testing.T) {
 		},
 		{
 			// device returns success after applying the startup config
-			desc:     "successful reset ",
+			desc:     "successful reset for 8000e",
 			wantErr:  false,
 			ni:       node8000e,
 			testFile: "testdata/reset_config_success",
@@ -1031,11 +1046,18 @@ func TestPushCfg(t *testing.T) {
 		testConf string
 	}{
 		{
-			desc:     "unimplemented push config for xrd",
+			desc:     "successful push config for xrd",
+			wantErr:  false,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_push_config_success",
+			testConf: "testdata/valid_config",
+		},
+		{
+			desc:     "failed push config for xrd",
 			wantErr:  true,
 			ni:       nodeXRD,
-			testFile: "testdata/push_config_success",
-			testConf: "testdata/valid_config",
+			testFile: "testdata/xrd_push_config_failure",
+			testConf: "testdata/invalid_config",
 		},
 		{
 			desc:     "successful push config for 8000e",
