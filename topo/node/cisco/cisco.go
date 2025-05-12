@@ -44,6 +44,7 @@ const (
 
 	scrapliPlatformName = "cisco_iosxr"
 	reset8000eCMD       = "copy disk0:/startup-config running-config replace"
+	xrdInterfaceConfig  = "/var/opt/cisco/iosxr/xrd/interface_ip_config.txt"
 	// Add the empty echo to work around the copy command not outputting a newline at the end if there is no
 	// change in config.
 	resetXRdCMD             = "/pkg/bin/xr_cli \"copy disk0:/startup-config running-config replace\" ; echo \"\""
@@ -617,14 +618,16 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 
 	var cmd string
 	if n.Proto.Model == ModelXRD {
-		// Copy startup config from mounted location so it can be applied. This is required since the "copy"
-		// xr_cli command can only access files on disk 0/1.
+		// Copy the snooped management interface config from a know location and the startup config from
+		// the mounted location so it can be applied. This is required to preserve the snooped management
+		// IP addres and since the "copy" xr_cli command can only access files on disk 0/1.
 		startup_config := n.Proto.Config.Env["XR_EVERY_BOOT_CONFIG"]
 		if startup_config == "" {
 			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
 		}
 		// Send an additional return command to make sure any error messages are read.
-		resp, err := n.cliConn.SendCommands([]string{"cp " + startup_config + " /disk0:/startup-config", ""})
+		copyCfgCmd := "cat " + xrdInterfaceConfig + " " + startup_config + " > /disk0:/startup-config"
+		resp, err := n.cliConn.SendCommands([]string{copyCfgCmd, ""})
 		if err != nil {
 			return err
 		}
