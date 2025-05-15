@@ -9,7 +9,7 @@ require (
 	github.com/docker/docker v28.1.1+incompatible
 	github.com/drivenets/cdnos-controller v1.7.4
 	github.com/ghodss/yaml v1.0.0
-	github.com/golang/glog v1.2.1
+	github.com/golang/glog v1.2.4
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/gopacket v1.1.19
