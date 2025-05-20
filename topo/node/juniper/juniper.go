@@ -30,13 +30,13 @@ var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
 var (
 	// For committing a very large config
-	scrapliOperationTimeout = 300 * time.Second
+	scrapliOperationTimeout = 60 * time.Minute
 	// Wait for PKI cert infra
-	certGenTimeout = 10 * time.Minute
+	certGenTimeout = 15 * time.Minute
 	// Time between polls
 	certGenRetrySleep = 30 * time.Second
 	// Wait for config mode
-	configModeTimeout = 10 * time.Minute
+	configModeTimeout = 45 * time.Minute
 	// Time between polls - config mode
 	configModeRetrySleep = 30 * time.Second
 	// Default gRPC port
@@ -50,6 +50,7 @@ const (
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
+	log.Infof("----------test juniper timeout-----------")
 	if nodeImpl == nil {
 		return nil, fmt.Errorf("nodeImpl cannot be nil")
 	}
