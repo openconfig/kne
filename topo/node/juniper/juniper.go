@@ -30,7 +30,7 @@ var ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
 var (
 	// For committing a very large config
-	scrapliOperationTimeout = 300 * time.Second
+	scrapliOperationTimeout = 15 * time.Minute
 	// Wait for PKI cert infra
 	certGenTimeout = 10 * time.Minute
 	// Time between polls
@@ -130,7 +130,7 @@ func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
 	for time.Since(start) < configModeTimeout {
 		multiresp, err := n.cliConn.SendConfigs(configs)
 		if err != nil {
-			if strings.Contains(err.Error(), "errPrivilegeError") {
+			if strings.Contains(err.Error(), "errPrivilegeError") || strings.Contains(err.Error(), "errTimeoutError") {
 				log.Infof("Config mode not ready. Retrying in %v. Node %s, Resp %v", configModeRetrySleep, n.Name(), err)
 			} else {
 				return fmt.Errorf("failed pushing configs: %v", err)
