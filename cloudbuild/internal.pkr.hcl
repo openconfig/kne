@@ -203,4 +203,17 @@ build {
       "sudo apt-get install net-tools iptables nftables -y",
     ]
   }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing Linux kernel 6.12...",
+      "sudo apt-get update",
+      "sudo apt-get install --no-install-recommends -y libssl-dev flex bison",
+      "sudo apt-get install -y build-essential debhelper rsync",
+      "curl -Ls https://github.com/pimlie/ubuntu-mainline-kernel.sh/raw/master/ubuntu-mainline-kernel.sh | sudo bash -s -- --install 6.12.0", # Attempt to install a specific 6.12 version
+      "sudo update-grub",
+      "echo 'Kernel installation complete. Please verify the kernel version after the image is created.'",
+      "uname -r",
+    ]
+  }
 }
