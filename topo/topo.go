@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -570,6 +571,7 @@ func (m *Manager) topologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 
 // push deploys the topology to the cluster.
 func (m *Manager) push(ctx context.Context) error {
+	log.Infof("Validating Node Constraints")
 	for _, n := range m.nodes {
 		if err := n.ValidateConstraints(); err != nil {
 			return fmt.Errorf("failed to validate node %s: %w", n, err)
@@ -597,24 +599,45 @@ func (m *Manager) push(ctx context.Context) error {
 		return fmt.Errorf("failed to create meshnet topologies: %w", err)
 	}
 
-	log.Infof("Creating Node Pods")
+	log.Infof("Creating Node Pods and Generating certs")
+
+	var wg sync.WaitGroup
+	errCh := make(chan error)
+
 	for _, n := range m.nodes {
-		for key, service := range n.GetProto().Services {
-			updateServicePortName(service, key)
-		}
-		if err := n.Create(ctx); err != nil {
-			return fmt.Errorf("failed to create node %s: %w", n, err)
-		}
-		log.Infof("Node %s resource created", n)
+		wg.Add(1)
+		go func(node node.Node) {
+			defer wg.Done()
+
+			for key, service := range node.GetProto().Services {
+				updateServicePortName(service, key)
+			}
+
+			if err := node.Create(ctx); err != nil {
+				errCh <- fmt.Errorf("failed to create node %s: %w", node, err)
+				return
+			}
+			log.Infof("Node %s resource created", node)
+
+			log.Infof("Generating Self-Signed Certificates for node %s", node)
+
+			err := m.GenerateSelfSigned(ctx, node.Name())
+			switch {
+			case err == nil, status.Code(err) == codes.Unimplemented:
+			default:
+				errCh <- fmt.Errorf("failed to generate cert for node %s: %w", node, err)
+			}
+		}(n)
 	}
-	for _, n := range m.nodes {
-		err := m.GenerateSelfSigned(ctx, n.Name())
-		switch {
-		default:
-			return fmt.Errorf("failed to generate cert for node %s: %w", n, err)
-		case err == nil, status.Code(err) == codes.Unimplemented:
-		}
+	go func() {
+		wg.Wait()
+		close(errCh)
+	}()
+
+	for err := range errCh {
+		return err
 	}
+
 	return nil
 }
 
