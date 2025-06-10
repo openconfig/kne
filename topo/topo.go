@@ -571,25 +571,11 @@ func (m *Manager) topologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 
 // push deploys the topology to the cluster.
 func (m *Manager) push(ctx context.Context) error {
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(m.nodes)*2+3) // Buffer the error channel to avoid deadlocks
-
 	log.Infof("Validating Node Constraints")
 	for _, n := range m.nodes {
-		wg.Add(1)
-		go func(nodeToValidate node.Node) {
-			defer wg.Done()
-			if err := nodeToValidate.ValidateConstraints(); err != nil {
-				errCh <- fmt.Errorf("failed to validate node %s: %w", nodeToValidate, err)
-			}
-		}(n)
-	}
-	wg.Wait()
-
-	select {
-	case err := <-errCh:
-		return err
-	default:
+		if err := n.ValidateConstraints(); err != nil {
+			return fmt.Errorf("failed to validate node %s: %w", n, err)
+		}
 	}
 
 	if _, err := m.kClient.CoreV1().Namespaces().Get(ctx, m.topo.Name, metav1.GetOptions{}); err != nil {
@@ -613,55 +599,44 @@ func (m *Manager) push(ctx context.Context) error {
 		return fmt.Errorf("failed to create meshnet topologies: %w", err)
 	}
 
-	log.Infof("Creating Node Pods")
+	log.Infof("Creating Node Pods and Generating certs")
+
+	var wg sync.WaitGroup
+	errCh := make(chan error)
 
 	for _, n := range m.nodes {
 		wg.Add(1)
-		go func(nodeToCreate node.Node) {
+		go func(node node.Node) {
 			defer wg.Done()
 
-			for key, service := range nodeToCreate.GetProto().Services {
+			for key, service := range node.GetProto().Services {
 				updateServicePortName(service, key)
 			}
 
-			if err := nodeToCreate.Create(ctx); err != nil {
-				errCh <- fmt.Errorf("failed to create node %s: %w", nodeToCreate, err)
+			if err := node.Create(ctx); err != nil {
+				errCh <- fmt.Errorf("failed to create node %s: %w", node, err)
 				return
 			}
-			log.Infof("Node %s resource created", nodeToCreate)
-		}(n)
-	}
-	wg.Wait()
+			log.Infof("Node %s resource created", node)
 
-	select {
-	case err := <-errCh:
-		return err
-	default:
-	}
+			log.Infof("Generating Self-Signed Certificates for node %s", node)
 
-	log.Infof("Generating Self-Signed Certificates")
-
-	for _, n := range m.nodes {
-		wg.Add(1)
-		go func(nodeForCert node.Node) {
-			defer wg.Done()
-			err := m.GenerateSelfSigned(ctx, nodeForCert.Name())
+			err := m.GenerateSelfSigned(ctx, node.Name())
 			switch {
 			case err == nil, status.Code(err) == codes.Unimplemented:
 			default:
-				errCh <- fmt.Errorf("failed to generate cert for node %s: %w", nodeForCert, err)
+				errCh <- fmt.Errorf("failed to generate cert for node %s: %w", node, err)
 			}
 		}(n)
 	}
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(errCh)
+	}()
 
-	select {
-	case err := <-errCh:
+	for err := range errCh {
 		return err
-	default:
 	}
-
-	close(errCh)
 
 	return nil
 }
