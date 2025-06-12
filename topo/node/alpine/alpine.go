@@ -33,6 +33,8 @@ import (
 )
 
 var (
+	defaultCPU  = "0.5"
+	defaultMem  = "1Gi"
 	defaultNode = tpb.Node{
 		Config: &tpb.Config{
 			Image:   "alpine:latest",
@@ -43,6 +45,10 @@ var (
 				Name:   "ssh",
 				Inside: 22,
 			},
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultCPU,
+			"memory": defaultMem,
 		},
 	}
 )
@@ -283,9 +289,15 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	if pb.Services == nil {
 		pb.Services = defaultNodeClone.Services
 	}
-	// TODO: Add appropriate default constraints for the Alpine KNE node
+	if pb.Constraints == nil {
+		pb.Constraints = defaultNodeClone.Constraints
+	}
 
 	return pb
+}
+
+func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
+	return node.NodeConstraints{CPU: defaultCPU, Memory: defaultMem}
 }
 
 func init() {
