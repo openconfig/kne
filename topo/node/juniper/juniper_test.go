@@ -736,3 +736,58 @@ func TestNew(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	tests := []struct {
+		name       string
+		node       *Node
+		wantCPU    string
+		wantMemory string
+	}{
+		{
+			name:       "Case: Node.Impl is nil",
+			node:       &Node{Impl: nil},
+			wantCPU:    defaultNCPTXCPU,
+			wantMemory: defaultNCPTXMem,
+		},
+		{
+			name:       "Case: Node.Impl.Proto is nil",
+			node:       &Node{Impl: &node.Impl{Proto: nil}},
+			wantCPU:    defaultNCPTXCPU,
+			wantMemory: defaultNCPTXMem,
+		},
+		{
+			name: "Case: Model is cptx",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{Model: "cptx"},
+				},
+			},
+			wantCPU:    defaultCPTXCPU,
+			wantMemory: defaultCPTXMem,
+		},
+		{
+			name: "Case: Model is empty string",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{},
+				},
+			},
+			wantCPU:    defaultNCPTXCPU,
+			wantMemory: defaultNCPTXMem,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			constraints := tt.node.DefaultNodeConstraints()
+			if constraints.CPU != tt.wantCPU {
+				t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, tt.wantCPU)
+			}
+
+			if constraints.Memory != tt.wantMemory {
+				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
+			}
+		})
+	}
+}
