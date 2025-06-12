@@ -273,8 +273,22 @@ func (n *Node) Create(ctx context.Context) error {
 	return nil
 }
 
-func (n *Node) DefaultNodeSpec() *tpb.Node {
-	return proto.Clone(&defaultCiscoNode).(*tpb.Node)
+// DefaultNodeConstraints returns default node constraints for CISCO.
+// If the model for 8000e is specificied correctly it returns defaults for 8000e.
+// Otherwise, it returns defaults for XRD by default.
+func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
+	constraints := node.NodeConstraints{CPU: defaultXRDCPU, Memory: defaultXRDMem}
+	if n.Impl == nil || n.Impl.Proto == nil {
+		return constraints
+	}
+	switch n.GetProto().Model {
+	case "8201", "8201-32FH", "8202", "8101-32H", "8102-64H":
+		constraints.CPU = default8000eCPU
+		constraints.Memory = default8000eMem
+	default:
+	}
+
+	return constraints
 }
 
 // validateHostConstraints - Validates host contraints through the default node's implementation. It skips the validation optionally

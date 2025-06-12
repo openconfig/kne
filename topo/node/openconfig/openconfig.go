@@ -246,14 +246,12 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	}
 }
 
-func (n *Node) DefaultNodeSpec() *tpb.Node {
+func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
 	switch n.Impl.Proto.Model {
-	case modelMagna:
-		return proto.Clone(&defaultMagnaNode).(*tpb.Node)
 	case modelLemming:
-		return proto.Clone(&defaultLemmingNode).(*tpb.Node)
+		return node.NodeConstraints{CPU: defaultLemmingCPU, Memory: defaultLemmingMem}
 	default:
-		return nil
+		return node.NodeConstraints{}
 	}
 }
 

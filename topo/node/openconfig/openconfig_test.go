@@ -595,3 +595,19 @@ func TestNew(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{
+		Impl: &node.Impl{
+			Proto: &tpb.Node{Model: modelLemming},
+		},
+	}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultLemmingCPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultLemmingCPU)
+	}
+
+	if constraints.Memory != defaultLemmingMem {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultLemmingMem)
+	}
+}

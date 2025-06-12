@@ -18,6 +18,20 @@ import (
 
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/protobuf/proto"
+)
+
+var (
+	defaultNode = tpb.Node{
+		Name: "default_host_node",
+		Config: &tpb.Config{
+			Image:        "alpine:latest",
+			ConfigPath:   "/etc",
+			ConfigFile:   "config",
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", "default_host_node"),
+			Command:      []string{"/bin/sh", "-c", "sleep 2000000000000"},
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -40,23 +54,24 @@ type Node struct {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{"/bin/sh", "-c", "sleep 2000000000000"}
+		pb.Config.Command = defaultNodeClone.Config.Command
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "alpine:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	if pb.Config.ConfigPath == "" {
-		pb.Config.ConfigPath = "/etc"
+		pb.Config.ConfigPath = defaultNodeClone.Config.ConfigPath
 	}
 	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "config"
+		pb.Config.ConfigFile = defaultNodeClone.Config.ConfigFile
 	}
 	return pb
 }

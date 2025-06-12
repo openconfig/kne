@@ -166,8 +166,22 @@ func (n *Node) SpawnCLIConn() error {
 	return err
 }
 
-func (n *Node) DefaultNodeSpec() *tpb.Node {
-	return proto.Clone(&defaultNode).(*tpb.Node)
+// DefaultNodeConstraints returns default node constraints for Juniper.
+// If the model for cptx is specificied correctly it returns defaults for cptx.
+// Otherwise, it returns defaults for ncptx by default.
+func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
+	constraints := node.NodeConstraints{CPU: defaultNCPTXCPU, Memory: defaultNCPTXMem}
+	if n.Impl == nil || n.Impl.Proto == nil {
+		return constraints
+	}
+	switch n.GetProto().Model {
+	case ModelCPTX:
+		constraints.CPU = defaultCPTXCPU
+		constraints.Memory = defaultCPTXMem
+	default:
+	}
+
+	return constraints
 }
 
 // Returns config required to configure gRPC service

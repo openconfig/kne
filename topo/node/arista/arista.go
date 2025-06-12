@@ -508,8 +508,8 @@ func (n *Node) FixInterfaces() error {
 	return nil
 }
 
-func (n *Node) DefaultNodeSpec() *tpb.Node {
-	return proto.Clone(&defaultNode).(*tpb.Node)
+func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
+	return node.NodeConstraints{CPU: defaultCPU, Memory: defaultMem}
 }
 
 func init() {

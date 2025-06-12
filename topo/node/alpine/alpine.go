@@ -288,10 +288,6 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	return pb
 }
 
-func (n *Node) DefaultNodeSpec() *tpb.Node {
-	return proto.Clone(&defaultNode).(*tpb.Node)
-}
-
 func init() {
 	node.Vendor(tpb.Vendor_ALPINE, New)
 }

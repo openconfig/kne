@@ -353,8 +353,8 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	return nil, nil
 }
 
-func (n *Node) DefaultNodeSpec() *tpb.Node {
-	return proto.Clone(&defaultNode).(*tpb.Node)
+func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
+	return node.NodeConstraints{CPU: defaultCPU, Memory: defaultMem}
 }
 
 func (n *Node) Delete(ctx context.Context) error {
