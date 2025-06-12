@@ -362,6 +362,7 @@ func lemmingDefaults(pb *tpb.Node) *tpb.Node {
 }
 
 func magnaDefaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultMagnaNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
@@ -369,15 +370,7 @@ func magnaDefaults(pb *tpb.Node) *tpb.Node {
 		pb.Services = map[uint32]*tpb.Service{}
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{
-			"/app/magna",
-			"-v=2",
-			"-alsologtostderr",
-			"-port=40051",
-			"-telemetry_port=50051",
-			"-certfile=/data/cert.pem",
-			"-keyfile=/data/key.pem",
-		}
+		pb.Config.Command = defaultNodeClone.Config.Command
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
@@ -385,7 +378,7 @@ func magnaDefaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config.Image == "" {
 		// TODO(robjs): add public container location once the first iteration is pushed.
 		// Currently, this image can be built from github.com/openconfig/magna.
-		pb.Config.Image = "magna:latest"
+		pb.Config.Image = defaultMagnaNode.Config.Image
 	}
 
 	if _, ok := pb.Services[40051]; !ok {
