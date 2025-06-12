@@ -32,6 +32,7 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -49,6 +50,63 @@ const (
 	// change in config.
 	resetXRdCMD             = "/pkg/bin/xr_cli \"copy disk0:/startup-config running-config replace\" ; echo \"\""
 	scrapliOperationTimeout = 300 * time.Second
+
+	defaultXRDCPU = "1"
+	defaultXRDMem = "2Gi"
+
+	default8000eCPU = "4"
+	default8000eMem = "20Gi"
+)
+
+var (
+	defaultCiscoNode = tpb.Node{
+		Name: "default_cisco_node",
+		Services: map[uint32]*tpb.Service{
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 22,
+			},
+			9339: {
+				Names:  []string{"gnmi", "gnoi", "gnsi"},
+				Inside: 57400,
+			},
+			9340: {
+				Names:  []string{"gribi"},
+				Inside: 57400,
+			},
+			9559: {
+				Names:  []string{"p4rt"},
+				Inside: 57400,
+			},
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultXRDCPU,
+			"memory": defaultXRDMem,
+		},
+		Os:    "ios-xr",
+		Model: ModelXRD,
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_CISCO.String(),
+			"model":               ModelXRD,
+			"os":                  "ios-xr",
+			node.OndatraRoleLabel: node.OndatraRoleDUT,
+		},
+		Config: &tpb.Config{
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- bash", "default_cisco_node"),
+			ConfigPath:   "/",
+			ConfigFile:   "startup.cfg",
+			Image:        "xrd:latest",
+			Cert: &tpb.CertificateCfg{
+				Config: &tpb.CertificateCfg_SelfSigned{
+					SelfSigned: &tpb.SelfSignedCertCfg{
+						CertName: "ems.pem",
+						KeyName:  "ems.key",
+						KeySize:  2048,
+					},
+				},
+			},
+		},
+	}
 )
 
 var podIsUpRegex = regexp.MustCompile(`Router up`)
@@ -215,6 +273,10 @@ func (n *Node) Create(ctx context.Context) error {
 	return nil
 }
 
+func (n *Node) DefaultNodeSpec() *tpb.Node {
+	return proto.Clone(&defaultCiscoNode).(*tpb.Node)
+}
+
 // validateHostConstraints - Validates host contraints through the default node's implementation. It skips the validation optionally
 // based on skipValidation flag which is useful for unit tests
 func validateHostConstraints(n *Node, skipValidation bool) error {
@@ -235,17 +297,17 @@ func constraints(pb *tpb.Node) *tpb.Node {
 	//nolint:goconst
 	case "8201", "8201-32FH", "8202", "8101-32H", "8102-64H":
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = "4"
+			pb.Constraints["cpu"] = default8000eCPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = "20Gi"
+			pb.Constraints["memory"] = default8000eMem
 		}
 	default:
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = "1"
+			pb.Constraints["cpu"] = defaultXRDCPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = "2Gi"
+			pb.Constraints["memory"] = defaultXRDMem
 		}
 	}
 	return pb
@@ -374,63 +436,39 @@ func getCiscoInterfaceID(pb *tpb.Node, eth string) (string, error) {
 }
 
 func defaults(pb *tpb.Node) (*tpb.Node, error) {
+	defaultNodeClone := proto.Clone(&defaultCiscoNode).(*tpb.Node)
 	if pb == nil {
 		pb = &tpb.Node{
-			Name: "default_cisco_node",
+			Name: defaultNodeClone.Name,
 		}
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "startup.cfg"
+		pb.Config.ConfigFile = defaultNodeClone.Config.ConfigFile
 	}
 	if pb.Config.ConfigPath == "" {
-		pb.Config.ConfigPath = "/"
+		pb.Config.ConfigPath = defaultNodeClone.Config.ConfigPath
 	}
 	if pb.Config.Cert == nil {
-		pb.Config.Cert = &tpb.CertificateCfg{
-			Config: &tpb.CertificateCfg_SelfSigned{
-				SelfSigned: &tpb.SelfSignedCertCfg{
-					CertName: "ems.pem",
-					KeyName:  "ems.key",
-					KeySize:  2048,
-				},
-			},
-		}
+		pb.Config.Cert = defaultCiscoNode.Config.Cert
 	}
 	if pb.Model == "" {
-		pb.Model = ModelXRD
+		pb.Model = defaultNodeClone.Model
 	}
 	if pb.Os == "" {
-		pb.Os = "ios-xr"
+		pb.Os = defaultNodeClone.Os
 	}
 	pb = constraints(pb)
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			22: {
-				Names:  []string{"ssh"},
-				Inside: 22,
-			},
-			9339: {
-				Names:  []string{"gnmi", "gnoi", "gnsi"},
-				Inside: 57400,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 57400,
-			},
-			9559: {
-				Names:  []string{"p4rt"},
-				Inside: 57400,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
 	}
 	if pb.Labels["vendor"] == "" {
-		pb.Labels["vendor"] = tpb.Vendor_CISCO.String()
+		pb.Labels["vendor"] = defaultNodeClone.Labels["vendor"]
 	}
 	if pb.Labels["model"] == "" {
 		pb.Labels["model"] = pb.Model
@@ -439,7 +477,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 		pb.Labels["os"] = pb.Os
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
-		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
+		pb.Labels[node.OndatraRoleLabel] = defaultNodeClone.Labels[node.OndatraRoleLabel]
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- bash", pb.Name)
@@ -452,7 +490,7 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 			return nil, err
 		}
 		if pb.Config.Image == "" {
-			pb.Config.Image = "xrd:latest"
+			pb.Config.Image = defaultNodeClone.Config.Image
 		}
 		if pb.HostConstraints == nil {
 			pb.HostConstraints = append(pb.HostConstraints,

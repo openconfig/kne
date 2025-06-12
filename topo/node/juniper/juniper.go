@@ -17,6 +17,7 @@ import (
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	scraplicfg "github.com/scrapli/scrapligocfg"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,6 +48,71 @@ const (
 	scrapliPlatformName = "juniper_junos"
 	ModelNCPTX          = "ncptx"
 	ModelCPTX           = "cptx"
+
+	defaultNCPTXCPU = "4"
+	defaultNCPTXMem = "4Gi"
+
+	defaultCPTXCPU = "8"
+	defaultCPTXMem = "8Gi"
+)
+
+var (
+	defaultNode = tpb.Node{
+		Name: "default_ncptx_node",
+		Services: map[uint32]*tpb.Service{
+			443: {
+				Names:  []string{"ssl"},
+				Inside: 443,
+			},
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 22,
+			},
+			9339: {
+				Names:  []string{"gnmi", "gnoi", "gnsi"},
+				Inside: 32767,
+			},
+			9340: {
+				Names:  []string{"gribi"},
+				Inside: 32767,
+			},
+			9559: {
+				Names:  []string{"p4rt"},
+				Inside: 32767,
+			},
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultNCPTXCPU,
+			"memory": defaultNCPTXMem,
+		},
+		Os:    "evo",
+		Model: ModelNCPTX,
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_JUNIPER.String(),
+			"model":               ModelNCPTX,
+			"os":                  "evo",
+			node.OndatraRoleLabel: node.OndatraRoleDUT,
+		},
+		Config: &tpb.Config{
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- cli", "default_ncptx_node"),
+			ConfigPath:   "/home/evo/configdisk",
+			ConfigFile:   "juniper.conf",
+			Image:        "ncptx:latest",
+			Cert: &tpb.CertificateCfg{
+				Config: &tpb.CertificateCfg_SelfSigned{
+					SelfSigned: &tpb.SelfSignedCertCfg{
+						CertName: "grpc-server-cert",
+						KeyName:  "my_key",
+						KeySize:  2048,
+					},
+				},
+			},
+			Command: []string{"/sbin/cevoCntrEntryPoint"},
+			Env: map[string]string{
+				"JUNOS_EVOLVED_CONTAINER": "1",
+			},
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -98,6 +164,10 @@ func (n *Node) SpawnCLIConn() error {
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
 
 	return err
+}
+
+func (n *Node) DefaultNodeSpec() *tpb.Node {
+	return proto.Clone(&defaultNode).(*tpb.Node)
 }
 
 // Returns config required to configure gRPC service
@@ -523,16 +593,17 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb == nil {
 		pb = &tpb.Node{
-			Name: "default_cptx_node",
+			Name: defaultNodeClone.Name,
 		}
 	}
 	if pb.Model == "" {
-		pb.Model = ModelNCPTX
+		pb.Model = defaultNodeClone.Model
 	}
 	if pb.Os == "" {
-		pb.Os = "evo"
+		pb.Os = defaultNodeClone.Os
 	}
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
@@ -540,31 +611,29 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	switch pb.Model {
 	case ModelNCPTX:
 		if pb.Constraints == nil {
-			pb.Constraints = map[string]string{}
+			pb.Constraints = defaultNodeClone.Constraints
 		}
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = "4"
+			pb.Constraints["cpu"] = defaultNCPTXCPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = "4Gi"
+			pb.Constraints["memory"] = defaultNCPTXMem
 		}
 		if len(pb.Config.GetCommand()) == 0 {
-			pb.Config.Command = []string{
-				"/sbin/cevoCntrEntryPoint",
-			}
+			pb.Config.Command = defaultNodeClone.Config.Command
 		}
 		if pb.Config.Image == "" {
-			pb.Config.Image = "ncptx:latest"
+			pb.Config.Image = defaultNodeClone.Config.Image
 		}
 	default:
 		if pb.Constraints == nil {
 			pb.Constraints = map[string]string{}
 		}
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = "8"
+			pb.Constraints["cpu"] = defaultCPTXCPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = "8Gi"
+			pb.Constraints["memory"] = defaultCPTXMem
 		}
 		if len(pb.Config.GetCommand()) == 0 {
 			pb.Config.Command = []string{
@@ -576,59 +645,13 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			443: {
-				Names:  []string{"ssl"},
-				Inside: 443,
-			},
-			22: {
-				Names:  []string{"ssh"},
-				Inside: 22,
-			},
-			9339: {
-				Names:  []string{"gnmi", "gnoi", "gnsi"},
-				Inside: 32767,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 32767,
-			},
-			9559: {
-				Names:  []string{"p4rt"},
-				Inside: 32767,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	if pb.Config.Cert == nil {
-		pb.Config.Cert = &tpb.CertificateCfg{
-			Config: &tpb.CertificateCfg_SelfSigned{
-				SelfSigned: &tpb.SelfSignedCertCfg{
-					CertName: "grpc-server-cert",
-					KeyName:  "my_key",
-					KeySize:  2048,
-				},
-			},
-		}
-	}
-	if pb.Labels == nil {
-		pb.Labels = map[string]string{}
-	}
-	if pb.Labels["vendor"] == "" {
-		pb.Labels["vendor"] = tpb.Vendor_JUNIPER.String()
-	}
-	if pb.Labels["model"] == "" {
-		pb.Labels["model"] = pb.Model
-	}
-	if pb.Labels["os"] == "" {
-		pb.Labels["os"] = pb.Os
-	}
-	if pb.Labels[node.OndatraRoleLabel] == "" {
-		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
+		pb.Config.Cert = defaultNodeClone.Config.Cert
 	}
 	if pb.Config.Env == nil {
-		pb.Config.Env = map[string]string{
-			"JUNOS_EVOLVED_CONTAINER": "1",
-		}
+		pb.Config.Env = defaultNodeClone.Config.Env
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- cli", pb.Name)
@@ -638,6 +661,21 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.ConfigFile == "" {
 		pb.Config.ConfigFile = "juniper.conf"
+	}
+	if pb.Labels == nil {
+		pb.Labels = map[string]string{}
+	}
+	if pb.Labels["vendor"] == "" {
+		pb.Labels["vendor"] = defaultNodeClone.Labels["vendor"]
+	}
+	if pb.Labels["model"] == "" {
+		pb.Labels["model"] = pb.Model
+	}
+	if pb.Labels["os"] == "" {
+		pb.Labels["os"] = pb.Os
+	}
+	if pb.Labels[node.OndatraRoleLabel] == "" {
+		pb.Labels[node.OndatraRoleLabel] = defaultNodeClone.Labels[node.OndatraRoleLabel]
 	}
 	return pb
 }

@@ -63,6 +63,8 @@ type Implementation interface {
 	BackToBackLoop() bool
 	// ValidateConstraints validates the host with the node's constraints.
 	ValidateConstraints() error
+	// DefaultNodeSpec exports the node's defaults.
+	DefaultNodeSpec() *tpb.Node
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -260,6 +262,10 @@ func (n *Impl) ValidateConstraints() error {
 	}
 
 	return errorList.Err()
+}
+
+func (n *Impl) DefaultNodeSpec() *tpb.Node {
+	return &tpb.Node{}
 }
 
 // validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,

@@ -20,13 +20,31 @@ import (
 	"path/filepath"
 	"strings"
 
-	apb "github.com/openconfig/kne/proto/alpine"
-	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/protobuf/proto"
+	"k8s.io/utils/pointer"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+
+	apb "github.com/openconfig/kne/proto/alpine"
+	tpb "github.com/openconfig/kne/proto/topo"
+)
+
+var (
+	defaultNode = tpb.Node{
+		Config: &tpb.Config{
+			Image:   "alpine:latest",
+			Command: []string{"go", "run", "main.go"},
+		},
+		Services: map[uint32]*tpb.Service{
+			22: {
+				Name:   "ssh",
+				Inside: 22,
+			},
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -249,29 +267,29 @@ func (n *Node) CreatePod(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{"go", "run", "main.go"}
+		pb.Config.Command = defaultNodeClone.Config.Command
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "alpine:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			22: {
-				Name:   "ssh",
-				Inside: 22,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	// TODO: Add appropriate default constraints for the Alpine KNE node
 
 	return pb
+}
+
+func (n *Node) DefaultNodeSpec() *tpb.Node {
+	return proto.Clone(&defaultNode).(*tpb.Node)
 }
 
 func init() {

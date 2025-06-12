@@ -6,6 +6,9 @@ import (
 	"math"
 	"time"
 
+	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/protobuf/proto"
+
 	ixclient "github.com/open-traffic-generator/keng-operator/api/clientset/v1beta1"
 	ixiatg "github.com/open-traffic-generator/keng-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,7 +17,28 @@ import (
 
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
-	"github.com/openconfig/kne/topo/node"
+)
+
+var (
+	defaultNode = tpb.Node{
+		Services: map[uint32]*tpb.Service{
+			8443: {
+				Name:   "https",
+				Inside: 8443,
+			},
+			40051: {
+				Name:   "grpc",
+				Inside: 40051,
+			},
+			50051: {
+				Name:   "gnmi",
+				Inside: 50051,
+			},
+		},
+		Labels: map[string]string{
+			node.OndatraRoleLabel: node.OndatraRoleATE,
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -341,29 +365,21 @@ func (n *Node) BackToBackLoop() bool {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			8443: {
-				Name:   "https",
-				Inside: 8443,
-			},
-			40051: {
-				Name:   "grpc",
-				Inside: 40051,
-			},
-			50051: {
-				Name:   "gnmi",
-				Inside: 50051,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{}
+		pb.Labels = defaultNodeClone.Labels
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleATE
 	}
 	return pb
+}
+
+func (n *Node) DefaultNodeSpec() *tpb.Node {
+	return proto.Clone(&defaultNode).(*tpb.Node)
 }
 
 func init() {
