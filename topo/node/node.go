@@ -63,6 +63,8 @@ type Implementation interface {
 	BackToBackLoop() bool
 	// ValidateConstraints validates the host with the node's constraints.
 	ValidateConstraints() error
+	// DefaultNodeConstraints exports the node's default constraints.
+	DefaultNodeConstraints() NodeConstraints
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -108,6 +110,11 @@ var (
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
 	tempCfgDir  = "/tmp/kne"
 )
+
+type NodeConstraints struct {
+	CPU    string
+	Memory string
+}
 
 var (
 	// Stubs for testing
@@ -260,6 +267,11 @@ func (n *Impl) ValidateConstraints() error {
 	}
 
 	return errorList.Err()
+}
+
+// DefaultNodeConstraints - Returns default constraints of the node. It returns an empty struct by default.
+func (n *Impl) DefaultNodeConstraints() NodeConstraints {
+	return NodeConstraints{}
 }
 
 // validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,

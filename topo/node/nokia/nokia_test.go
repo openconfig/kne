@@ -141,7 +141,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "4Gi",
 			},
 		},
@@ -194,7 +194,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "4Gi",
 			},
 		},
@@ -490,5 +490,17 @@ func TestConfigPush(t *testing.T) {
 				t.Fatalf("config push failed, error: %+v\n", err)
 			}
 		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultCPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultCPU)
+	}
+
+	if constraints.Memory != defaultMem {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultMem)
 	}
 }

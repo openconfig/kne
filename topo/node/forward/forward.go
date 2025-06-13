@@ -22,6 +22,7 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"
@@ -30,6 +31,18 @@ import (
 
 const (
 	fwdPort = "50058"
+)
+
+var (
+	defaultNode = tpb.Node{
+		Name: "default_forward_node",
+		Config: &tpb.Config{
+			Image:        "forward:latest",
+			ConfigPath:   "/etc",
+			ConfigFile:   "config",
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", "default_forward_node"),
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -209,6 +222,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
@@ -216,13 +230,13 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "forward:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	if pb.Config.ConfigPath == "" {
-		pb.Config.ConfigPath = "/etc"
+		pb.Config.ConfigPath = defaultNodeClone.Config.ConfigPath
 	}
 	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "config"
+		pb.Config.ConfigFile = defaultNodeClone.Config.ConfigFile
 	}
 	return pb
 }
