@@ -149,7 +149,7 @@ func TestNew(t *testing.T) {
 					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
-					"cpu":    "0.5",
+					"cpu":    "500m",
 					"memory": "1Gi",
 				},
 				Services: map[uint32]*topopb.Service{
@@ -237,7 +237,7 @@ func TestNew(t *testing.T) {
 					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
-					"cpu":    "0.5",
+					"cpu":    "500m",
 					"memory": "1Gi",
 				},
 				Services: map[uint32]*topopb.Service{
@@ -370,7 +370,7 @@ func TestCRD(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "2Gb",
 			},
 			Vendor:  topopb.Vendor_ARISTA,
@@ -401,7 +401,7 @@ func TestCRD(t *testing.T) {
 			Image: "test-image",
 			Args:  []string{"arg1", "arg2"},
 			Resources: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "2Gb",
 			},
 			Services: map[string]ceos.ServiceConfig{

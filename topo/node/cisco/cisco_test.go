@@ -100,7 +100,7 @@ func TestNew(t *testing.T) {
 					},
 				},
 				Constraints: map[string]string{
-					"cpu": "2",
+					"cpu": "2000m",
 				},
 			},
 		},
@@ -109,7 +109,7 @@ func TestNew(t *testing.T) {
 			Model: ModelXRD,
 			Os:    "ios-xr",
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -206,7 +206,7 @@ func TestNew(t *testing.T) {
 				"eth3": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "1",
+				"cpu":    "1000m",
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -307,7 +307,7 @@ func TestNew(t *testing.T) {
 				"eth36": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -427,7 +427,7 @@ func TestNew(t *testing.T) {
 				"eth72": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -554,7 +554,7 @@ func TestNew(t *testing.T) {
 				"eth32": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -651,7 +651,7 @@ func TestNew(t *testing.T) {
 				"eth32": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -778,7 +778,7 @@ func TestNew(t *testing.T) {
 				"eth64": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{

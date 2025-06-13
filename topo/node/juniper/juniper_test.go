@@ -440,7 +440,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -518,7 +518,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -596,7 +596,7 @@ func TestNew(t *testing.T) {
 			Os:    "evo",
 			Model: "cptx",
 			Constraints: map[string]string{
-				"cpu":    "8",
+				"cpu":    "8000m",
 				"memory": "8Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -663,7 +663,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{

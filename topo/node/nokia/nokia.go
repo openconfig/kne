@@ -34,7 +34,7 @@ const (
 	configResetCmd = "/tools system configuration checkpoint initial revert"
 	pushCfgFile    = "/home/admin/kne-push-config"
 
-	defaultCPU = "2"
+	defaultCPU = "2000m"
 	defaultMem = "4Gi"
 )
 

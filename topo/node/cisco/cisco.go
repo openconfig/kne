@@ -51,10 +51,10 @@ const (
 	resetXRdCMD             = "/pkg/bin/xr_cli \"copy disk0:/startup-config running-config replace\" ; echo \"\""
 	scrapliOperationTimeout = 300 * time.Second
 
-	defaultXRDCPU = "1"
+	defaultXRDCPU = "1000m"
 	defaultXRDMem = "2Gi"
 
-	default8000eCPU = "4"
+	default8000eCPU = "4000m"
 	default8000eMem = "20Gi"
 )
 

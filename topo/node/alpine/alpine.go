@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	defaultCPU  = "0.5"
+	defaultCPU  = "500m"
 	defaultMem  = "1Gi"
 	defaultNode = tpb.Node{
 		Config: &tpb.Config{

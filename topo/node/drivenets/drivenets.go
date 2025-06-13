@@ -46,7 +46,7 @@ const (
 	// device instance should be created.
 	modelCdnos string = "CDNOS"
 
-	defaultCPU = "0.5"
+	defaultCPU = "500m"
 	defaultMem = "1Gi"
 )
 

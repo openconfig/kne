@@ -63,7 +63,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "1Gi",
 			},
 		},
@@ -90,7 +90,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "1Gi",
 			},
 		},
@@ -131,7 +131,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "1Gi",
 			},
 		},

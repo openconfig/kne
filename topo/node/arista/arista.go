@@ -46,7 +46,7 @@ import (
 const (
 	scrapliPlatformName = "arista_eos"
 
-	defaultCPU = "0.5"
+	defaultCPU = "500m"
 	defaultMem = "1Gi"
 )
 

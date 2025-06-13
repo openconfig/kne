@@ -326,7 +326,7 @@ func TestNew(t *testing.T) {
 				"ondatra-role": "DUT",
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "1Gi",
 			},
 			Services: map[uint32]*tpb.Service{

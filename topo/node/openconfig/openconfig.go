@@ -43,7 +43,7 @@ const (
 	// device instance should be created.
 	modelLemming string = "LEMMING"
 
-	defaultLemmingCPU = "0.5"
+	defaultLemmingCPU = "500m"
 	defaultLemmingMem = "1Gi"
 )
 

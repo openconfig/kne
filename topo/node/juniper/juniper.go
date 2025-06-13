@@ -49,10 +49,10 @@ const (
 	ModelNCPTX          = "ncptx"
 	ModelCPTX           = "cptx"
 
-	defaultNCPTXCPU = "4"
+	defaultNCPTXCPU = "4000m"
 	defaultNCPTXMem = "4Gi"
 
-	defaultCPTXCPU = "8"
+	defaultCPTXCPU = "8000m"
 	defaultCPTXMem = "8Gi"
 )
 
