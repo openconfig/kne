@@ -63,6 +63,14 @@ build {
 
   provisioner "shell" {
     inline = [
+      "echo Installing libpcap-dev...",
+      "sudo apt-get update",
+      "sudo apt-get install libpcap-dev -y",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
       "echo Installing docker...",
       "sudo apt-get update",
       "sudo apt-get install apt-transport-https ca-certificates curl gnupg lsb-release -y",
