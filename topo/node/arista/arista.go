@@ -45,9 +45,6 @@ import (
 
 const (
 	scrapliPlatformName = "arista_eos"
-
-	defaultCPU = "500m"
-	defaultMem = "1Gi"
 )
 
 var (
@@ -55,7 +52,11 @@ var (
 	ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 	// Function to get client, by default this is a proper client. This can be set to a fake
 	// for unit testing.
-	newClient = ceosclient.NewForConfig
+	newClient          = ceosclient.NewForConfig
+	defaultConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
 )
 
 type Node struct {
@@ -102,8 +103,8 @@ var (
 			},
 		},
 		Constraints: map[string]string{
-			"cpu":    defaultCPU,
-			"memory": defaultMem,
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
 		},
 		Os:    "eos",
 		Model: "ceos",
@@ -487,10 +488,10 @@ func constraints(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = map[string]string{}
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = defaultCPU
+		pb.Constraints["cpu"] = defaultConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = defaultMem
+		pb.Constraints["memory"] = defaultConstraints.Memory
 	}
 	return pb
 }
@@ -508,8 +509,8 @@ func (n *Node) FixInterfaces() error {
 	return nil
 }
 
-func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
-	return node.NodeConstraints{CPU: defaultCPU, Memory: defaultMem}
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
 }
 
 func init() {

@@ -33,8 +33,10 @@ import (
 )
 
 var (
-	defaultCPU  = "500m"
-	defaultMem  = "1Gi"
+	defaultConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
 	defaultNode = tpb.Node{
 		Config: &tpb.Config{
 			Image:   "alpine:latest",
@@ -47,8 +49,8 @@ var (
 			},
 		},
 		Constraints: map[string]string{
-			"cpu":    defaultCPU,
-			"memory": defaultMem,
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
 		},
 	}
 )
@@ -296,8 +298,8 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	return pb
 }
 
-func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
-	return node.NodeConstraints{CPU: defaultCPU, Memory: defaultMem}
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
 }
 
 func init() {

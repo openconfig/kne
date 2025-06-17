@@ -603,11 +603,11 @@ func TestDefaultNodeConstraints(t *testing.T) {
 		},
 	}
 	constraints := n.DefaultNodeConstraints()
-	if constraints.CPU != defaultLemmingCPU {
-		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultLemmingCPU)
+	if constraints.CPU != defaultLemmingConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultLemmingConstraints.CPU)
 	}
 
-	if constraints.Memory != defaultLemmingMem {
-		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultLemmingMem)
+	if constraints.Memory != defaultLemmingConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultLemmingConstraints.Memory)
 	}
 }

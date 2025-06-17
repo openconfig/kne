@@ -42,12 +42,13 @@ const (
 	// modelLemming is a string used in the topology to specify that a lemming (github.com/openconfig/lemming)
 	// device instance should be created.
 	modelLemming string = "LEMMING"
-
-	defaultLemmingCPU = "500m"
-	defaultLemmingMem = "1Gi"
 )
 
 var (
+	defaultLemmingConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
 	defaultLemmingNode = tpb.Node{
 		Name: "default_lemming_node",
 		Services: map[uint32]*tpb.Service{
@@ -66,8 +67,8 @@ var (
 			node.OndatraRoleLabel: node.OndatraRoleDUT,
 		},
 		Constraints: map[string]string{
-			"cpu":    defaultLemmingCPU,
-			"memory": defaultLemmingMem,
+			"cpu":    defaultLemmingConstraints.CPU,
+			"memory": defaultLemmingConstraints.Memory,
 		},
 		Config: &tpb.Config{
 			Image:        "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga",
@@ -246,12 +247,12 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	}
 }
 
-func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
+func (n *Node) DefaultNodeConstraints() node.Constraints {
 	switch n.Impl.Proto.Model {
 	case modelLemming:
-		return node.NodeConstraints{CPU: defaultLemmingCPU, Memory: defaultLemmingMem}
+		return defaultLemmingConstraints
 	default:
-		return node.NodeConstraints{}
+		return node.Constraints{}
 	}
 }
 
@@ -340,10 +341,10 @@ func lemmingDefaults(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = defaultNodeClone.Constraints
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = defaultLemmingCPU
+		pb.Constraints["cpu"] = defaultLemmingConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = defaultLemmingMem
+		pb.Constraints["memory"] = defaultLemmingConstraints.Memory
 	}
 	if pb.Labels == nil {
 		pb.Labels = defaultNodeClone.Labels

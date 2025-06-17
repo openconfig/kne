@@ -42,18 +42,22 @@ var (
 	configModeRetrySleep = 30 * time.Second
 	// Default gRPC port
 	defaultGrpcPort = uint32(32767)
+
+	defaultNCPTXConstraints = node.Constraints{
+		CPU:    "4000m", // 4000 milliCPUs
+		Memory: "4Gi",   // 4 GB RAM
+	}
+
+	defaultCPTXConstraints = node.Constraints{
+		CPU:    "8000m", // 8000 milliCPUs
+		Memory: "8Gi",   // 8 GB RAM
+	}
 )
 
 const (
 	scrapliPlatformName = "juniper_junos"
 	ModelNCPTX          = "ncptx"
 	ModelCPTX           = "cptx"
-
-	defaultNCPTXCPU = "4000m"
-	defaultNCPTXMem = "4Gi"
-
-	defaultCPTXCPU = "8000m"
-	defaultCPTXMem = "8Gi"
 )
 
 var (
@@ -82,8 +86,8 @@ var (
 			},
 		},
 		Constraints: map[string]string{
-			"cpu":    defaultNCPTXCPU,
-			"memory": defaultNCPTXMem,
+			"cpu":    defaultNCPTXConstraints.CPU,
+			"memory": defaultNCPTXConstraints.Memory,
 		},
 		Os:    "evo",
 		Model: ModelNCPTX,
@@ -169,19 +173,17 @@ func (n *Node) SpawnCLIConn() error {
 // DefaultNodeConstraints returns default node constraints for Juniper.
 // If the model for cptx is specificied correctly it returns defaults for cptx.
 // Otherwise, it returns defaults for ncptx by default.
-func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
-	constraints := node.NodeConstraints{CPU: defaultNCPTXCPU, Memory: defaultNCPTXMem}
+func (n *Node) DefaultNodeConstraints() node.Constraints {
 	if n.Impl == nil || n.Impl.Proto == nil {
-		return constraints
+		return defaultNCPTXConstraints
 	}
 	switch n.GetProto().Model {
 	case ModelCPTX:
-		constraints.CPU = defaultCPTXCPU
-		constraints.Memory = defaultCPTXMem
+		return defaultCPTXConstraints
 	default:
 	}
 
-	return constraints
+	return defaultNCPTXConstraints
 }
 
 // Returns config required to configure gRPC service
@@ -628,10 +630,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			pb.Constraints = defaultNodeClone.Constraints
 		}
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = defaultNCPTXCPU
+			pb.Constraints["cpu"] = defaultNCPTXConstraints.CPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = defaultNCPTXMem
+			pb.Constraints["memory"] = defaultNCPTXConstraints.Memory
 		}
 		if len(pb.Config.GetCommand()) == 0 {
 			pb.Config.Command = defaultNodeClone.Config.Command
@@ -644,10 +646,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 			pb.Constraints = map[string]string{}
 		}
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = defaultCPTXCPU
+			pb.Constraints["cpu"] = defaultCPTXConstraints.CPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = defaultCPTXMem
+			pb.Constraints["memory"] = defaultCPTXConstraints.Memory
 		}
 		if len(pb.Config.GetCommand()) == 0 {
 			pb.Config.Command = []string{

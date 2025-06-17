@@ -45,12 +45,13 @@ const (
 	// modelCdnos is a string used in the topology to specify that a cdnos
 	// device instance should be created.
 	modelCdnos string = "CDNOS"
-
-	defaultCPU = "500m"
-	defaultMem = "1Gi"
 )
 
 var (
+	defaultConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
 	defaultNode = tpb.Node{
 		Services: map[uint32]*tpb.Service{
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
@@ -74,8 +75,8 @@ var (
 			Command:    []string{"/define_notif_net.sh"},
 		},
 		Constraints: map[string]string{
-			"cpu":    defaultCPU,
-			"memory": defaultMem,
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
 		},
 		Labels: map[string]string{
 			"vendor":              tpb.Vendor_DRIVENETS.String(),
@@ -291,10 +292,10 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = defaultNodeClone.Constraints
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = defaultCPU
+		pb.Constraints["cpu"] = defaultConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = defaultMem
+		pb.Constraints["memory"] = defaultConstraints.Memory
 	}
 	if pb.Labels == nil {
 		pb.Labels = defaultNodeClone.Labels
@@ -312,8 +313,8 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 	return pb
 }
 
-func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
-	return node.NodeConstraints{CPU: defaultCPU, Memory: defaultMem}
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
 }
 
 func init() {

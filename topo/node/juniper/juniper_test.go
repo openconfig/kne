@@ -747,14 +747,14 @@ func TestDefaultNodeConstraints(t *testing.T) {
 		{
 			name:       "Case: Node.Impl is nil",
 			node:       &Node{Impl: nil},
-			wantCPU:    defaultNCPTXCPU,
-			wantMemory: defaultNCPTXMem,
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
 		},
 		{
 			name:       "Case: Node.Impl.Proto is nil",
 			node:       &Node{Impl: &node.Impl{Proto: nil}},
-			wantCPU:    defaultNCPTXCPU,
-			wantMemory: defaultNCPTXMem,
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
 		},
 		{
 			name: "Case: Model is cptx",
@@ -763,8 +763,8 @@ func TestDefaultNodeConstraints(t *testing.T) {
 					Proto: &tpb.Node{Model: "cptx"},
 				},
 			},
-			wantCPU:    defaultCPTXCPU,
-			wantMemory: defaultCPTXMem,
+			wantCPU:    defaultCPTXConstraints.CPU,
+			wantMemory: defaultCPTXConstraints.Memory,
 		},
 		{
 			name: "Case: Model is empty string",
@@ -773,8 +773,8 @@ func TestDefaultNodeConstraints(t *testing.T) {
 					Proto: &tpb.Node{},
 				},
 			},
-			wantCPU:    defaultNCPTXCPU,
-			wantMemory: defaultNCPTXMem,
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
 		},
 	}
 

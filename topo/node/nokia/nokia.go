@@ -33,9 +33,6 @@ const (
 	// configuration reset is therefore done by reverting to this checkpoint
 	configResetCmd = "/tools system configuration checkpoint initial revert"
 	pushCfgFile    = "/home/admin/kne-push-config"
-
-	defaultCPU = "2000m"
-	defaultMem = "4Gi"
 )
 
 var (
@@ -45,6 +42,11 @@ var (
 	// newSrlinuxClient returns a controller-runtime client for srlinux
 	// resources. This can be set to a fake for unit testing.
 	newSrlinuxClient = newSrlinuxClientWithSchema
+
+	defaultConstraints = node.Constraints{
+		CPU:    "2000m", // 2000 milliCPUs
+		Memory: "4Gi",   // 4 GB RAM
+	}
 )
 
 var (
@@ -82,8 +84,8 @@ var (
 			Image: "ghcr.io/nokia/srlinux:latest",
 		},
 		Constraints: map[string]string{
-			"cpu":    defaultCPU,
-			"memory": defaultMem,
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
 		},
 	}
 )
@@ -353,8 +355,8 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	return nil, nil
 }
 
-func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
-	return node.NodeConstraints{CPU: defaultCPU, Memory: defaultMem}
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
 }
 
 func (n *Node) Delete(ctx context.Context) error {
@@ -422,10 +424,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = map[string]string{}
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = defaultCPU
+		pb.Constraints["cpu"] = defaultConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = defaultMem
+		pb.Constraints["memory"] = defaultConstraints.Memory
 	}
 	return pb
 }

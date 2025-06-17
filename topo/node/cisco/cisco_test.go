@@ -1126,14 +1126,14 @@ func TestDefaultNodeConstraints(t *testing.T) {
 		{
 			name:       "Case: Node.Impl is nil",
 			node:       &Node{Impl: nil},
-			wantCPU:    defaultXRDCPU,
-			wantMemory: defaultXRDMem,
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
 		},
 		{
 			name:       "Case: Node.Impl.Proto is nil",
 			node:       &Node{Impl: &node.Impl{Proto: nil}},
-			wantCPU:    defaultXRDCPU,
-			wantMemory: defaultXRDMem,
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
 		},
 		{
 			name: "Case: Model is '8201'",
@@ -1142,8 +1142,8 @@ func TestDefaultNodeConstraints(t *testing.T) {
 					Proto: &tpb.Node{Model: "8201"},
 				},
 			},
-			wantCPU:    default8000eCPU,
-			wantMemory: default8000eMem,
+			wantCPU:    default8000eConstraints.CPU,
+			wantMemory: default8000eConstraints.Memory,
 		},
 		{
 			name: "Case: Model is empty string",
@@ -1152,8 +1152,8 @@ func TestDefaultNodeConstraints(t *testing.T) {
 					Proto: &tpb.Node{},
 				},
 			},
-			wantCPU:    defaultXRDCPU,
-			wantMemory: defaultXRDMem,
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
 		},
 	}
 

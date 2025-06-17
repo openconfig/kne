@@ -50,15 +50,18 @@ const (
 	// change in config.
 	resetXRdCMD             = "/pkg/bin/xr_cli \"copy disk0:/startup-config running-config replace\" ; echo \"\""
 	scrapliOperationTimeout = 300 * time.Second
-
-	defaultXRDCPU = "1000m"
-	defaultXRDMem = "2Gi"
-
-	default8000eCPU = "4000m"
-	default8000eMem = "20Gi"
 )
 
 var (
+	defaultXRDConstraints = node.Constraints{
+		CPU:    "1000m", // 1000 milliCPUs
+		Memory: "2Gi",   // 2 GB RAM
+	}
+
+	default8000eConstraints = node.Constraints{
+		CPU:    "4000m", // 4000 milliCPUs
+		Memory: "20Gi",  // 20 GB RAM
+	}
 	defaultCiscoNode = tpb.Node{
 		Name: "default_cisco_node",
 		Services: map[uint32]*tpb.Service{
@@ -80,8 +83,8 @@ var (
 			},
 		},
 		Constraints: map[string]string{
-			"cpu":    defaultXRDCPU,
-			"memory": defaultXRDMem,
+			"cpu":    defaultXRDConstraints.CPU,
+			"memory": defaultXRDConstraints.Memory,
 		},
 		Os:    "ios-xr",
 		Model: ModelXRD,
@@ -276,19 +279,17 @@ func (n *Node) Create(ctx context.Context) error {
 // DefaultNodeConstraints returns default node constraints for CISCO.
 // If the model for 8000e is specificied correctly it returns defaults for 8000e.
 // Otherwise, it returns defaults for XRD by default.
-func (n *Node) DefaultNodeConstraints() node.NodeConstraints {
-	constraints := node.NodeConstraints{CPU: defaultXRDCPU, Memory: defaultXRDMem}
+func (n *Node) DefaultNodeConstraints() node.Constraints {
 	if n.Impl == nil || n.Impl.Proto == nil {
-		return constraints
+		return defaultXRDConstraints
 	}
 	switch n.GetProto().Model {
 	case "8201", "8201-32FH", "8202", "8101-32H", "8102-64H":
-		constraints.CPU = default8000eCPU
-		constraints.Memory = default8000eMem
+		return default8000eConstraints
 	default:
 	}
 
-	return constraints
+	return defaultXRDConstraints
 }
 
 // validateHostConstraints - Validates host contraints through the default node's implementation. It skips the validation optionally
@@ -311,17 +312,17 @@ func constraints(pb *tpb.Node) *tpb.Node {
 	//nolint:goconst
 	case "8201", "8201-32FH", "8202", "8101-32H", "8102-64H":
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = default8000eCPU
+			pb.Constraints["cpu"] = default8000eConstraints.CPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = default8000eMem
+			pb.Constraints["memory"] = default8000eConstraints.Memory
 		}
 	default:
 		if pb.Constraints["cpu"] == "" {
-			pb.Constraints["cpu"] = defaultXRDCPU
+			pb.Constraints["cpu"] = defaultXRDConstraints.CPU
 		}
 		if pb.Constraints["memory"] == "" {
-			pb.Constraints["memory"] = defaultXRDMem
+			pb.Constraints["memory"] = defaultXRDConstraints.Memory
 		}
 	}
 	return pb
