@@ -149,7 +149,7 @@ func TestNew(t *testing.T) {
 					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
-					"cpu":    "0.5",
+					"cpu":    "500m",
 					"memory": "1Gi",
 				},
 				Services: map[uint32]*topopb.Service{
@@ -237,7 +237,7 @@ func TestNew(t *testing.T) {
 					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
-					"cpu":    "0.5",
+					"cpu":    "500m",
 					"memory": "1Gi",
 				},
 				Services: map[uint32]*topopb.Service{
@@ -370,7 +370,7 @@ func TestCRD(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "2Gb",
 			},
 			Vendor:  topopb.Vendor_ARISTA,
@@ -401,7 +401,7 @@ func TestCRD(t *testing.T) {
 			Image: "test-image",
 			Args:  []string{"arg1", "arg2"},
 			Resources: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "2Gb",
 			},
 			Services: map[string]ceos.ServiceConfig{
@@ -630,5 +630,17 @@ func TestStatus(t *testing.T) {
 				t.Errorf("New() CEosLabDevice CRDs unexpected diff (-want +got):\n%s", s)
 			}
 		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultConstraints.CPU)
+	}
+
+	if constraints.Memory != defaultConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
 	}
 }

@@ -33,6 +33,7 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -51,7 +52,11 @@ var (
 	ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 	// Function to get client, by default this is a proper client. This can be set to a fake
 	// for unit testing.
-	newClient = ceosclient.NewForConfig
+	newClient          = ceosclient.NewForConfig
+	defaultConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
 )
 
 type Node struct {
@@ -70,6 +75,62 @@ var (
 
 	ethIntfRe  = regexp.MustCompile(`^Ethernet\d+(?:/\d+)?(?:/\d+)?$`)
 	mgmtIntfRe = regexp.MustCompile(`^Management\d+(?:/\d+)?$`)
+)
+
+var (
+	defaultNode = tpb.Node{
+		Name: "default_ceos_node",
+		Services: map[uint32]*tpb.Service{
+			443: {
+				Names:  []string{"ssl"},
+				Inside: 443,
+			},
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 22,
+			},
+			6030: {
+				Names:  []string{"gnmi", "gnoi"},
+				Inside: 6030,
+			},
+			9340: {
+				Names:  []string{"gribi"},
+				Inside: 9340,
+			},
+			9559: {
+				Names:  []string{"p4rt"},
+				Inside: 9559,
+			},
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
+		},
+		Os:    "eos",
+		Model: "ceos",
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_ARISTA.String(),
+			"model":               "ceos",
+			"os":                  "eos",
+			"version":             "",
+			node.OndatraRoleLabel: node.OndatraRoleDUT,
+		},
+		Config: &tpb.Config{
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", "default_ceos_node"),
+			ConfigPath:   "/mnt/flash",
+			ConfigFile:   "startup-config",
+			Image:        "ceos:latest",
+			Cert: &tpb.CertificateCfg{
+				Config: &tpb.CertificateCfg_SelfSigned{
+					SelfSigned: &tpb.SelfSignedCertCfg{
+						CertName: "gnmiCert.pem",
+						KeyName:  "gnmiCertKey.pem",
+						KeySize:  4096,
+					},
+				},
+			},
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -367,41 +428,21 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb == nil {
 		pb = &tpb.Node{
-			Name: "default_ceos_node",
+			Name: defaultNodeClone.Name,
 		}
 	}
 	pb = constraints(pb)
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			443: {
-				Names:  []string{"ssl"},
-				Inside: 443,
-			},
-			22: {
-				Names:  []string{"ssh"},
-				Inside: 22,
-			},
-			6030: {
-				Names:  []string{"gnmi", "gnoi"},
-				Inside: 6030,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 9340,
-			},
-			9559: {
-				Names:  []string{"p4rt"},
-				Inside: 9559,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	if pb.Os == "" {
-		pb.Os = "eos"
+		pb.Os = defaultNodeClone.Os
 	}
 	if pb.Model == "" {
-		pb.Model = "ceos"
+		pb.Model = defaultNodeClone.Model
 	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
@@ -428,24 +469,16 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- Cli", pb.Name)
 	}
 	if pb.Config.ConfigPath == "" {
-		pb.Config.ConfigPath = "/mnt/flash"
+		pb.Config.ConfigPath = defaultNodeClone.Config.ConfigPath
 	}
 	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "startup-config"
+		pb.Config.ConfigFile = defaultNodeClone.Config.ConfigFile
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "ceos:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	if pb.Config.Cert == nil {
-		pb.Config.Cert = &tpb.CertificateCfg{
-			Config: &tpb.CertificateCfg_SelfSigned{
-				SelfSigned: &tpb.SelfSignedCertCfg{
-					CertName: "gnmiCert.pem",
-					KeyName:  "gnmiCertKey.pem",
-					KeySize:  4096,
-				},
-			},
-		}
+		pb.Config.Cert = defaultNodeClone.Config.Cert
 	}
 	return pb
 }
@@ -455,10 +488,10 @@ func constraints(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = map[string]string{}
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = "0.5"
+		pb.Constraints["cpu"] = defaultConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = "1Gi"
+		pb.Constraints["memory"] = defaultConstraints.Memory
 	}
 	return pb
 }
@@ -474,6 +507,10 @@ func (n *Node) FixInterfaces() error {
 		}
 	}
 	return nil
+}
+
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
 }
 
 func init() {

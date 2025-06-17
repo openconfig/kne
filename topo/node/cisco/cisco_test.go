@@ -100,7 +100,7 @@ func TestNew(t *testing.T) {
 					},
 				},
 				Constraints: map[string]string{
-					"cpu": "2",
+					"cpu": "2000m",
 				},
 			},
 		},
@@ -109,7 +109,7 @@ func TestNew(t *testing.T) {
 			Model: ModelXRD,
 			Os:    "ios-xr",
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -206,7 +206,7 @@ func TestNew(t *testing.T) {
 				"eth3": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "1",
+				"cpu":    "1000m",
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -307,7 +307,7 @@ func TestNew(t *testing.T) {
 				"eth36": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -427,7 +427,7 @@ func TestNew(t *testing.T) {
 				"eth72": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -554,7 +554,7 @@ func TestNew(t *testing.T) {
 				"eth32": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -651,7 +651,7 @@ func TestNew(t *testing.T) {
 				"eth32": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -778,7 +778,7 @@ func TestNew(t *testing.T) {
 				"eth64": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -1113,5 +1113,60 @@ func TestGenerateSelfSigned(t *testing.T) {
 	want := codes.Unimplemented
 	if s, ok := status.FromError(err); !ok || s.Code() != want {
 		t.Fatalf("GenerateSelfSigned() unexpected error get %v, want %v", s, want)
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	tests := []struct {
+		name       string
+		node       *Node
+		wantCPU    string
+		wantMemory string
+	}{
+		{
+			name:       "Case: Node.Impl is nil",
+			node:       &Node{Impl: nil},
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
+		},
+		{
+			name:       "Case: Node.Impl.Proto is nil",
+			node:       &Node{Impl: &node.Impl{Proto: nil}},
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
+		},
+		{
+			name: "Case: Model is '8201'",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{Model: "8201"},
+				},
+			},
+			wantCPU:    default8000eConstraints.CPU,
+			wantMemory: default8000eConstraints.Memory,
+		},
+		{
+			name: "Case: Model is empty string",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{},
+				},
+			},
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			constraints := tt.node.DefaultNodeConstraints()
+			if constraints.CPU != tt.wantCPU {
+				t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, tt.wantCPU)
+			}
+
+			if constraints.Memory != tt.wantMemory {
+				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
+			}
+		})
 	}
 }

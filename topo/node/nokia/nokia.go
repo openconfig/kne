@@ -17,6 +17,7 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	srlinuxv1 "github.com/srl-labs/srl-controller/api/v1"
 	"github.com/srl-labs/srlinux-scrapli"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -41,6 +42,52 @@ var (
 	// newSrlinuxClient returns a controller-runtime client for srlinux
 	// resources. This can be set to a fake for unit testing.
 	newSrlinuxClient = newSrlinuxClientWithSchema
+
+	defaultConstraints = node.Constraints{
+		CPU:    "2000m", // 2000 milliCPUs
+		Memory: "4Gi",   // 4 GB RAM
+	}
+)
+
+var (
+	defaultNode = tpb.Node{
+		Name: "default_srlinux_node",
+		Services: map[uint32]*tpb.Service{
+			443: {
+				Names:  []string{"ssl"},
+				Inside: 443,
+			},
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 22,
+			},
+			9339: {
+				Names:  []string{"gnmi", "gnoi", "gnsi"},
+				Inside: 57400,
+			},
+			9340: {
+				Names:  []string{"gribi"},
+				Inside: 57401,
+			},
+			9559: {
+				Names:  []string{"p4rt"},
+				Inside: 9559,
+			},
+		},
+		Model: "ixrd2",
+		Os:    "nokia_srlinux",
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_NOKIA.String(),
+			node.OndatraRoleLabel: node.OndatraRoleDUT,
+		},
+		Config: &tpb.Config{
+			Image: "ghcr.io/nokia/srlinux:latest",
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -308,6 +355,10 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	return nil, nil
 }
 
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
+}
+
 func (n *Node) Delete(ctx context.Context) error {
 	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
 		ObjectMeta: metav1.ObjectMeta{
@@ -328,35 +379,15 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			443: {
-				Names:  []string{"ssl"},
-				Inside: 443,
-			},
-			22: {
-				Names:  []string{"ssh"},
-				Inside: 22,
-			},
-			9339: {
-				Names:  []string{"gnmi", "gnoi", "gnsi"},
-				Inside: 57400,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 57401,
-			},
-			9559: {
-				Names:  []string{"p4rt"},
-				Inside: 9559,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	if pb.Model == "" {
-		pb.Model = "ixrd2"
+		pb.Model = defaultNodeClone.Model
 	}
 	if pb.Os == "" {
-		pb.Os = "nokia_srlinux"
+		pb.Os = defaultNodeClone.Os
 	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
@@ -377,7 +408,7 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "ghcr.io/nokia/srlinux:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	// SR Linux default name for config file is either config.json or config.cli.
 	// This depends on the extension of the provided startup-config file.
@@ -393,10 +424,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = map[string]string{}
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = "2"
+		pb.Constraints["cpu"] = defaultConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = "4Gi"
+		pb.Constraints["memory"] = defaultConstraints.Memory
 	}
 	return pb
 }
