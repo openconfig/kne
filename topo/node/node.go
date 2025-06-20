@@ -202,7 +202,7 @@ func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
 }
 
 const (
-	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga"
+	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga"
 )
 
 func ToEnvVar(kv map[string]string) []corev1.EnvVar {

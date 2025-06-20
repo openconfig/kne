@@ -219,6 +219,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				Args: []string{
 					fmt.Sprintf("%d", len(n.Proto.Interfaces)+1),
 					fmt.Sprintf("%d", pb.Config.Sleep),
+					"1", // Disable IPv6 and ARP for all alpine nodes
 				},
 				ImagePullPolicy: "IfNotPresent",
 			}},
