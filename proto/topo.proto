@@ -44,6 +44,7 @@ enum Vendor {
   ALPINE = 11;
   DRIVENETS = 12;
   FORWARD = 13;
+  CIENA = 14;
 }
 
 // Node is a single container inside the topology
@@ -65,6 +66,7 @@ message Node {
     CISCO_XRD = 12;
     CISCO_E8000 = 13;
     LEMMING = 14;
+    CIENA_SAOS = 15;
   }
   string name = 1;  // Name of the node in the topology. Must be unique.
   Type type = 2 [deprecated = true];

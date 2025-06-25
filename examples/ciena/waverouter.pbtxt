@@ -1,0 +1,34 @@
+name: "waverouter-saos-example"
+nodes: {
+    name: "wr-1"
+    vendor: CIENA
+    model: "waverouter"
+    config: {
+        # when `image` is not specified under `config`, the "artifactory.ciena.com/psa/rw-containerlab:latest" container image is used by default
+        vendor_data {
+            [type.googleapis.com/ciena.CienaConfig] {
+                system_equipment: {
+                    equipment_json: "wr13_example.json"
+                }
+            }
+        }
+    }
+}
+nodes: {
+    name: "saos-1"
+    vendor: CIENA
+    model: "5132"
+    # when `image` is not specified under `config`, the "artifactory.ciena.com/psa/saos-containerlab:latest" container image is used by default
+}
+links: {
+    a_node: "saos-1"
+    a_int: "1"
+    z_node: "wr-1"
+    z_int: "1/5/1"
+}
+links: {
+    a_node: "saos-1"
+    a_int: "2"
+    z_node: "wr-1"
+    z_int: "1/5/2"
+}
