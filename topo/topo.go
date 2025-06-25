@@ -53,6 +53,7 @@ import (
 
 	_ "github.com/openconfig/kne/topo/node/alpine"
 	_ "github.com/openconfig/kne/topo/node/arista"
+	_ "github.com/openconfig/kne/topo/node/ciena"
 	_ "github.com/openconfig/kne/topo/node/cisco"
 	_ "github.com/openconfig/kne/topo/node/drivenets"
 	_ "github.com/openconfig/kne/topo/node/forward"
@@ -267,7 +268,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		}
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	// Watch the container status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
