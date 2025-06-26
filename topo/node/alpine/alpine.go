@@ -222,6 +222,9 @@ func (n *Node) CreatePod(ctx context.Context) error {
 					"1", // Disable IPv6 and ARP for all alpine nodes
 				},
 				ImagePullPolicy: "IfNotPresent",
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: pointer.Bool(true),
+				},
 			}},
 			Containers:                    alpineContainers,
 			TerminationGracePeriodSeconds: pointer.Int64(0),
