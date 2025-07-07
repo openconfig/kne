@@ -39,7 +39,8 @@ done
 
 if [ "$DISABLE_IPV6" -ne 0 ]; then
     # shellcheck disable=2010
-    for i in $(ls -1v /sys/class/net/ | grep 'eth\|ens\|eno\|^e[0-9]'); do
+    # Remove eth0 from disable list
+    for i in $(ls -1v /sys/class/net/ | grep 'eth\|ens\|eno\|^e[0-9]' | grep -v '^eth0'); do
       sysctl net.ipv6.conf."$i".disable_ipv6=1
       ip link set dev "$i" arp off
     done
