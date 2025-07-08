@@ -64,14 +64,12 @@ func TestKubeadmSpec(t *testing.T) {
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
 	}, {
-		desc: "use cri-docker",
+		desc: "use containerd",
 		k: &KubeadmSpec{
-			CRISocket: "unix:///var/run/cri-dockerd.sock",
+			CRISocket: "unix:///var/run/containerd/containerd.sock",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"systemctl", "enable", "--now", "cri-docker.socket"}},
-			{Cmd: "sudo", Args: []string{"systemctl", "enable", "--now", "cri-docker.service"}},
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--cri-socket", "unix:///var/run/cri-dockerd.sock"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--cri-socket", "unix:///var/run/containerd/containerd.sock"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
