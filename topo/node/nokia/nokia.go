@@ -103,13 +103,6 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		Impl: nodeImpl,
 	}
 
-	c, err := newSrlinuxClient(n.RestConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	n.ControllerClient = c
-
 	return n, nil
 }
 
@@ -292,8 +285,13 @@ func (n *Node) Create(ctx context.Context) error {
 			Version:     n.GetProto().GetVersion(),
 		},
 	}
+	c, err := newSrlinuxClient(n.RestConfig)
+	if err != nil {
+		return err
+	}
 
-	err := n.ControllerClient.Create(ctx, srl)
+	n.ControllerClient = c
+	err = n.ControllerClient.Create(ctx, srl)
 	if err != nil {
 		return err
 	}
