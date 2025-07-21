@@ -132,6 +132,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			Network:                     req.GetKubeadm().Network,
 			AllowControlPlaneScheduling: req.GetKubeadm().AllowControlPlaneScheduling,
 			CredentialProviderConfig:    req.GetKubeadm().CredentialProviderConfig,
+			ImageRepository:             req.GetKubeadm().ImageRepository,
 		}
 		switch t := req.GetKubeadm().GetPodNetworkAddOnManifest().GetManifestData().(type) {
 		case *cpb.Manifest_Data:

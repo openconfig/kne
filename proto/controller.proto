@@ -73,6 +73,7 @@ message KubeadmSpec {
   string network = 5; // name of the docker network to use for ingress
   bool allow_control_plane_scheduling = 6;
   string credential_provider_config = 7;
+  string image_repository = 8;
 }
 
 // External cluster specifications

@@ -89,6 +89,7 @@ func TestNewDeployment(t *testing.T) {
 					TokenTtl:                    "0",
 					AllowControlPlaneScheduling: true,
 					Network:                     "my-network",
+					ImageRepository:             "us-west1-docker.pkg.dev/kne-external/kne",
 				},
 			},
 			IngressSpec: &cpb.CreateClusterRequest_Metallb{
@@ -119,6 +120,7 @@ func TestNewDeployment(t *testing.T) {
 				TokenTTL:                    "0",
 				AllowControlPlaneScheduling: true,
 				Network:                     "my-network",
+				ImageRepository:             "us-west1-docker.pkg.dev/kne-external/kne",
 			},
 			Ingress: &deploy.MetalLBSpec{
 				Manifest: testFile.Name(),
