@@ -452,6 +452,7 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.TokenTTL != "" {
 		args = append(args, "--token-ttl", k.TokenTTL)
 	}
+	args = append(args, "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne")
 	log.Infof("Creating kubeadm cluster with: %v", args)
 	if out, err := run.OutLogCommand("sudo", args...); err != nil {
 		msg := []string{}
