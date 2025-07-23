@@ -31,7 +31,7 @@ require (
 	github.com/srl-labs/srlinux-scrapli v0.6.0
 	github.com/wI2L/jsondiff v0.5.1
 	go.universe.tf/metallb v0.14.8
-	golang.org/x/oauth2 v0.21.0
+	golang.org/x/oauth2 v0.27.0
 	golang.org/x/sync v0.12.0
 	google.golang.org/api v0.169.0
 	google.golang.org/grpc v1.65.0
