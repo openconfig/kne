@@ -134,6 +134,8 @@ build {
       "bazel build cmd/auth-provider-gcp",
       "sudo mkdir -p /etc/kubernetes/bin/",
       "sudo cp bazel-bin/cmd/auth-provider-gcp/auth-provider-gcp_/auth-provider-gcp /etc/kubernetes/bin/",
+      # Test install of default 'pause' image
+      "sudo sed -i 's/registry.k8s.io/us-west1-docker.pkg.dev\\/kne-external\\/kne/g' /etc/containerd/config.toml",
     ]
   }
 
