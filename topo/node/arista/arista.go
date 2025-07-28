@@ -120,6 +120,7 @@ var (
 			ConfigPath:   "/mnt/flash",
 			ConfigFile:   "startup-config",
 			Image:        "ceos:latest",
+			InitImage:    node.DefaultInitContainerImage,
 			Cert: &tpb.CertificateCfg{
 				Config: &tpb.CertificateCfg_SelfSigned{
 					SelfSigned: &tpb.SelfSignedCertCfg{
@@ -476,6 +477,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.Image == "" {
 		pb.Config.Image = defaultNodeClone.Config.Image
+	}
+	if pb.Config.InitImage == "" {
+		pb.Config.InitImage = defaultNodeClone.Config.InitImage
 	}
 	if pb.Config.Cert == nil {
 		pb.Config.Cert = defaultNodeClone.Config.Cert
