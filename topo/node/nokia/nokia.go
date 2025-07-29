@@ -81,7 +81,8 @@ var (
 			node.OndatraRoleLabel: node.OndatraRoleDUT,
 		},
 		Config: &tpb.Config{
-			Image: "ghcr.io/nokia/srlinux:latest",
+			Image:     "ghcr.io/nokia/srlinux:latest",
+			InitImage: node.DefaultInitContainerImage,
 		},
 		Constraints: map[string]string{
 			"cpu":    defaultConstraints.CPU,
@@ -407,6 +408,9 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.Image == "" {
 		pb.Config.Image = defaultNodeClone.Config.Image
+	}
+	if pb.Config.InitImage == "" {
+		pb.Config.InitImage = defaultNodeClone.Config.InitImage
 	}
 	// SR Linux default name for config file is either config.json or config.cli.
 	// This depends on the extension of the provided startup-config file.
