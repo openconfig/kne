@@ -78,6 +78,9 @@ func (n *Node) newCRD() (*ixiatg.IxiaTG, error) {
 			DesiredState: "INITIATED",
 			ApiEndPoint:  map[string]ixiatg.IxiaTGSvcPort{},
 			Interfaces:   []ixiatg.IxiaTGIntf{},
+			InitContainer: ixiatg.IxiaTGInitContainer{
+				Image: node.DefaultInitContainerImage,
+			},
 		},
 	}
 
