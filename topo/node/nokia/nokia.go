@@ -360,12 +360,11 @@ func (n *Node) DefaultNodeConstraints() node.Constraints {
 
 func (n *Node) Delete(ctx context.Context) error {
 	if n.ControllerClient != nil {
-		err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
+		if err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: n.GetNamespace(), Name: n.Name(),
 			},
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
