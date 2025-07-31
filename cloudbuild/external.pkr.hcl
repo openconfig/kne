@@ -124,9 +124,12 @@ build {
       "sudo sysctl -p",
       "sudo mkdir -p /etc/containerd",
       "sudo containerd config default | sudo tee /etc/containerd/config.toml",
+      // TODO: config.toml edits should be generated using a TOML parsing library.
       "sudo sed -i 's/^disabled_plugins = \\[\"cri\"\\]/#disabled_plugins = \\[\"cri\"\\]/' /etc/containerd/config.toml",
       "echo \"Setting containerd to use systemd cgroup driver...\"",
       "sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml",
+      "echo \"Setting containerd to default to 'kne-external' repo for the sandbox image...\"",
+      "sudo sed -i 's/registry.k8s.io/us-west1-docker.pkg.dev\\/kne-external\\/kne/g' /etc/containerd/config.toml",
       "sudo systemctl restart containerd",
       "cd $HOME",
       "git clone https://github.com/kubernetes/cloud-provider-gcp.git",

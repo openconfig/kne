@@ -89,6 +89,7 @@ func TestNew(t *testing.T) {
 			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
+				InitImage:  "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 				ConfigFile: "config.cli",
 			},
 			Labels: map[string]string{
@@ -142,6 +143,7 @@ func TestNew(t *testing.T) {
 			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
+				InitImage:  "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 				ConfigFile: "config.json",
 			},
 			Labels: map[string]string{

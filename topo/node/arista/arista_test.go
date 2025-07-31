@@ -131,6 +131,7 @@ func TestNew(t *testing.T) {
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
 					Image:        "ceos:latest",
+					InitImage:    "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 					Cert: &topopb.CertificateCfg{
 						Config: &topopb.CertificateCfg_SelfSigned{
 							SelfSigned: &topopb.SelfSignedCertCfg{
@@ -211,6 +212,7 @@ func TestNew(t *testing.T) {
 				Config: &topopb.Config{
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
 					Image:        "foo",
+					InitImage:    "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
 					Env: map[string]string{

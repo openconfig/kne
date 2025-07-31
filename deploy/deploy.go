@@ -41,6 +41,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const defaultKubeadmImageRepository = "us-west1-docker.pkg.dev/kne-external/kne"
+
 var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	pullRetryDelay  = time.Second
@@ -425,6 +427,7 @@ type KubeadmSpec struct {
 	TokenTTL                    string `yaml:"tokenTTL"`
 	Network                     string `yaml:"network"`
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
+	ImageRepository             string `yaml:"imageRepository"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -452,6 +455,11 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.TokenTTL != "" {
 		args = append(args, "--token-ttl", k.TokenTTL)
 	}
+	imageRepository := defaultKubeadmImageRepository
+	if k.ImageRepository != "" {
+		imageRepository = k.ImageRepository
+	}
+	args = append(args, "--image-repository", imageRepository)
 	log.Infof("Creating kubeadm cluster with: %v", args)
 	if out, err := run.OutLogCommand("sudo", args...); err != nil {
 		msg := []string{}
