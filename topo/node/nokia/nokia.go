@@ -359,13 +359,15 @@ func (n *Node) DefaultNodeConstraints() node.Constraints {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: n.GetNamespace(), Name: n.Name(),
-		},
-	})
-	if err != nil {
-		return err
+	if n.ControllerClient != nil {
+		err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: n.GetNamespace(), Name: n.Name(),
+			},
+		})
+		if err != nil {
+			return err
+		}
 	}
 	if err := n.DeleteService(ctx); err != nil {
 		return err
