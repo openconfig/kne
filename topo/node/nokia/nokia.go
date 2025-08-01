@@ -126,8 +126,6 @@ type Node struct {
 
 	// scrapli options used in testing
 	testOpts []scrapliutil.Option
-
-	ControllerClient ctrlclient.Client
 }
 
 // Add validations for interfaces the node provides
@@ -290,9 +288,7 @@ func (n *Node) Create(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	n.ControllerClient = c
-	err = n.ControllerClient.Create(ctx, srl)
+	c.Create(ctx, srl)
 	if err != nil {
 		return err
 	}
@@ -359,7 +355,11 @@ func (n *Node) DefaultNodeConstraints() node.Constraints {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
+	c, err := newSrlinuxClient(n.RestConfig)
+	if err != nil {
+		return err
+	}
+	err = c.Delete(ctx, &srlinuxv1.Srlinux{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: n.GetNamespace(), Name: n.Name(),
 		},
