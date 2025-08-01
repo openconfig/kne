@@ -288,8 +288,8 @@ func (n *Node) Create(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.Create(ctx, srl)
-	if err != nil {
+
+	if err := c.Create(ctx, srl); err != nil {
 		return err
 	}
 
