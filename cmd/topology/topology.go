@@ -244,7 +244,7 @@ func generateRingFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal new topology: %w", err)
 	}
-	if err := os.WriteFile(outFileName, b, 0644); err != nil {
+	if err := os.WriteFile(outFileName, b, 0600); err != nil {
 		return fmt.Errorf("failed to write output topology file: %w", err)
 	}
 	log.Infof("Successfully wrote new topology to %q", outFileName)
