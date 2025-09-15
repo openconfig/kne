@@ -207,16 +207,16 @@ func (n *Node) GRPCConfig() []string {
 	}
 	// In newer Juniper releases such as D47, hot reloading and PKI support is enabled by default. On these systems, the legacy
 	// syntax below is mutually exclusive with the new gRPC service config. Attempting to configure both will cause the config
-	// commit to fail. Therefore, if configuring gRPC services via CLI on a release from D47 onwards, a KNE Node label of 
+	// commit to fail. Therefore, if configuring gRPC services via CLI on a release from D47 onwards, a KNE Node label of
 	// `legacy_grpc_server_config`` should be set to `disabled.`
 	if n.GetProto().GetLabels()["legacy_grpc_server_config"] != "disabled" {
-	   legacyConf := []string{
-		 "set system services extension-service request-response grpc ssl hot-reloading",
-		 "set system services extension-service request-response grpc ssl use-pki",  
-	   }
-	   conf = append(legacyConf, conf...)
+		legacyConf := []string{
+			"set system services extension-service request-response grpc ssl hot-reloading",
+			"set system services extension-service request-response grpc ssl use-pki",
+		}
+		conf = append(legacyConf, conf...)
 	}
-    return conf
+	return conf
 }
 
 // Waits and retries until CLI config mode is up and config is applied
