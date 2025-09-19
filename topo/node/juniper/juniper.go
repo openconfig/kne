@@ -33,11 +33,11 @@ var (
 	// For committing a very large config
 	scrapliOperationTimeout = 300 * time.Second
 	// Wait for PKI cert infra
-	certGenTimeout = 10 * time.Minute
+	certGenTimeout = 15 * time.Minute
 	// Time between polls
 	certGenRetrySleep = 30 * time.Second
 	// Wait for config mode
-	configModeTimeout = 10 * time.Minute
+	configModeTimeout = 15 * time.Minute
 	// Time between polls - config mode
 	configModeRetrySleep = 30 * time.Second
 	// Default gRPC port
@@ -196,9 +196,7 @@ func (n *Node) GRPCConfig() []string {
 	}
 	log.Infof("gNMI Port %d", port)
 	portConfig := fmt.Sprintf("set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port %d", port)
-	return []string{
-		"set system services extension-service request-response grpc ssl hot-reloading",
-		"set system services extension-service request-response grpc ssl use-pki",
+	conf := []string{
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
 		portConfig,
@@ -207,6 +205,18 @@ func (n *Node) GRPCConfig() []string {
 		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
 		"commit",
 	}
+	// In newer Juniper releases such as D47, hot reloading and PKI support is enabled by default. On these systems, the legacy
+	// syntax below is mutually exclusive with the new gRPC service config. Attempting to configure both will cause the config
+	// commit to fail. Therefore, if configuring gRPC services via CLI on a release from D47 onwards, a KNE Node label of
+	// `legacy_grpc_server_config`` should be set to `disabled.`
+	if n.GetProto().GetLabels()["legacy_grpc_server_config"] != "disabled" {
+		legacyConf := []string{
+			"set system services extension-service request-response grpc ssl hot-reloading",
+			"set system services extension-service request-response grpc ssl use-pki",
+		}
+		conf = append(legacyConf, conf...)
+	}
+	return conf
 }
 
 // Waits and retries until CLI config mode is up and config is applied
@@ -216,7 +226,7 @@ func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
 	for time.Since(start) < configModeTimeout {
 		multiresp, err := n.cliConn.SendConfigs(configs)
 		if err != nil {
-			if strings.Contains(err.Error(), "errPrivilegeError") {
+			if strings.Contains(err.Error(), "errPrivilegeError") || strings.Contains(err.Error(), "errTimeoutError") {
 				log.Infof("Config mode not ready. Retrying in %v. Node %s, Resp %v", configModeRetrySleep, n.Name(), err)
 			} else {
 				return fmt.Errorf("failed pushing configs: %v", err)
