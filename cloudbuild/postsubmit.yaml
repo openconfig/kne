@@ -31,7 +31,7 @@ steps:
     ]
     waitFor: [packer_init_internal]
 
-timeout: 5400s
+timeout: 3600s
 
 substitutions:
   _ZONE: us-central1-b # default value
