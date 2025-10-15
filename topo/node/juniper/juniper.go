@@ -195,28 +195,31 @@ func (n *Node) GRPCConfig() []string {
 		}
 	}
 	log.Infof("gNMI Port %d", port)
-	portConfig := fmt.Sprintf("set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port %d", port)
-	conf := []string{
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-		portConfig,
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
-		"commit",
-	}
 	// In newer Juniper releases such as D47, hot reloading and PKI support is enabled by default. On these systems, the legacy
 	// syntax below is mutually exclusive with the new gRPC service config. Attempting to configure both will cause the config
 	// commit to fail. Therefore, if configuring gRPC services via CLI on a release from D47 onwards, a KNE Node label of
 	// `legacy_grpc_server_config`` should be set to `disabled.`
 	if n.GetProto().GetLabels()["legacy_grpc_server_config"] != "disabled" {
-		legacyConf := []string{
+		return []string{
 			"set system services extension-service request-response grpc ssl hot-reloading",
 			"set system services extension-service request-response grpc ssl use-pki",
+			"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
+			"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
+			fmt.Sprintf("set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port %d", port),
+			"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
+			"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
+			"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+			"commit",
 		}
-		conf = append(legacyConf, conf...)
 	}
-	return conf
+	return []string{
+		"set system services http servers server grpc-server",
+		fmt.Sprintf("set system services http servers server grpc-server port %d", port),
+		"set system services http servers server grpc-server grpc gnmi",
+		"set system services http servers server grpc-server grpc tls local-certificate grpc-server-cert",
+		"set system services http servers server grpc-server listen-address 0.0.0.0",
+		"commit",
+	}
 }
 
 // Waits and retries until CLI config mode is up and config is applied
