@@ -198,7 +198,7 @@ func (n *Node) GRPCConfig() []string {
 	return []string{
 		"set system services http servers server grpc-server",
 		fmt.Sprintf("set system services http servers server grpc-server port %d", port),
-		"set system services http servers server grpc-server grpc gnmi",
+		"set system services http servers server grpc-server grpc all",
 		"set system services http servers server grpc-server tls local-certificate grpc-server-cert",
 		"set system services http servers server grpc-server listen-address 0.0.0.0",
 		"commit",
