@@ -288,7 +288,7 @@ func TestGRPCConfig(t *testing.T) {
 			want: []string{
 				"set system services http servers server grpc-server",
 				"set system services http servers server grpc-server port 32767",
-				"set system services http servers server grpc-server grpc all",
+				"set system services http servers server grpc-server grpc all-grpc",
 				"set system services http servers server grpc-server tls local-certificate grpc-server-cert",
 				"set system services http servers server grpc-server listen-address 0.0.0.0",
 				"commit",
