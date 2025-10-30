@@ -195,7 +195,6 @@ func (n *Node) GRPCConfig() []string {
 		}
 	}
 	log.Infof("gNMI Port %d", port)
-	portConfig := fmt.Sprintf("set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port %d", port)
 	return []string{
 		"set system services http servers server grpc-server",
 		fmt.Sprintf("set system services http servers server grpc-server port %d", port),
