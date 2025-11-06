@@ -237,32 +237,6 @@ func TestGRPCConfig(t *testing.T) {
 		want []string
 	}{
 		{
-			desc: "legacy grpc server config",
-			ni: &node.Impl{
-				KubeClient: fake.NewSimpleClientset(),
-				Namespace:  "test",
-				Proto: &tpb.Node{
-					Name:   "pod1",
-					Vendor: tpb.Vendor_JUNIPER,
-					Config: &tpb.Config{
-						ConfigFile: "foo",
-						ConfigPath: "/",
-						ConfigData: &tpb.Config_Data{
-							Data: []byte("config file data"),
-						},
-					},
-				},
-			},
-			want: []string{
-				"set system services extension-service request-response grpc ssl hot-reloading",
-				"set system services extension-service request-response grpc ssl use-pki",
-				"set system services extension-service request-response grpc ssl address 0.0.0.0",
-				"set system services extension-service request-response grpc ssl port 32767",
-				"set system services extension-service request-response grpc ssl local-certificate grpc-server-cert",
-				"commit",
-			},
-		},
-		{
 			desc: "new grpc server config",
 			ni: &node.Impl{
 				KubeClient: fake.NewSimpleClientset(),
