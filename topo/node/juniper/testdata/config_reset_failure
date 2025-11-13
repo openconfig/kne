@@ -37,35 +37,23 @@ Entering configuration mode
 
 [edit]
 root@cptx2#
-root@cptx2# set system services extension-service request-response grpc ssl hot-reloading
+root@cptx2# set system services http servers server grpc-server
 
 [edit]
 root@cptx2#
-root@cptx2# set system services extension-service request-response grpc ssl use-pki
+root@cptx2# set system services http servers server grpc-server port 32767
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI
+root@cptx2# set system services http servers server grpc-server grpc all-grpc
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true
+root@cptx2# set system services http servers server grpc-server tls local-certificate grpc-server-cert
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767
-
-[edit]
-root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true
-
-[edit]
-root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert
-
-[edit]
-root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0
+root@cptx2# set system services http servers server grpc-server listen-address 0.0.0.0
 
 [edit]
 root@cptx2#
