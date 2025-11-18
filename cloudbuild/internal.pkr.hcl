@@ -52,9 +52,9 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing golang...",
-      "curl -O https://dl.google.com/go/go1.24.2.linux-amd64.tar.gz",
-      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.24.2.linux-amd64.tar.gz",
-      "rm go1.24.2.linux-amd64.tar.gz",
+      "curl -O https://dl.google.com/go/go1.25.4.linux-amd64.tar.gz",
+      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.25.4.linux-amd64.tar.gz",
+      "rm go1.25.4.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",
