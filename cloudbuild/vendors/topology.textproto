@@ -15,6 +15,13 @@ nodes: {
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga"
     file: "juniper.cfg"
+    cert: {
+      self_signed: {
+        cert_name: "grpc-server-cert"
+        key_name: "N/A"
+        key_size: 4096
+      }
+    }
   }
   interfaces: {
     key: "eth5"
