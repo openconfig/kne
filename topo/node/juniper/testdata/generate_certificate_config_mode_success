@@ -49,6 +49,10 @@ root@cptx2# set system services http servers server grpc-server listen-address 0
 
 [edit]
 root@cptx2#
+root@cptx2# set system services http servers server grpc-server grpc all-grpc max-connections 300
+
+[edit]
+root@cptx2#
 root@cptx2# commit
 commit complete
 
