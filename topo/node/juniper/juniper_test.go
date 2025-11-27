@@ -237,35 +237,6 @@ func TestGRPCConfig(t *testing.T) {
 		want []string
 	}{
 		{
-			desc: "legacy grpc server config",
-			ni: &node.Impl{
-				KubeClient: fake.NewSimpleClientset(),
-				Namespace:  "test",
-				Proto: &tpb.Node{
-					Name:   "pod1",
-					Vendor: tpb.Vendor_JUNIPER,
-					Config: &tpb.Config{
-						ConfigFile: "foo",
-						ConfigPath: "/",
-						ConfigData: &tpb.Config_Data{
-							Data: []byte("config file data"),
-						},
-					},
-				},
-			},
-			want: []string{
-				"set system services extension-service request-response grpc ssl hot-reloading",
-				"set system services extension-service request-response grpc ssl use-pki",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
-				"commit",
-			},
-		},
-		{
 			desc: "new grpc server config",
 			ni: &node.Impl{
 				KubeClient: fake.NewSimpleClientset(),
@@ -286,12 +257,12 @@ func TestGRPCConfig(t *testing.T) {
 				},
 			},
 			want: []string{
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+				"set system services http servers server grpc-server",
+				"set system services http servers server grpc-server port 32767",
+				"set system services http servers server grpc-server grpc all-grpc",
+				"set system services http servers server grpc-server tls local-certificate grpc-server-cert",
+				"set system services http servers server grpc-server listen-address 0.0.0.0",
+				"set system services http servers server grpc-server grpc all-grpc max-connections 300",
 				"commit",
 			},
 		},
