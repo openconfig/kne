@@ -518,15 +518,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -596,15 +596,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -674,15 +674,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -741,15 +741,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
