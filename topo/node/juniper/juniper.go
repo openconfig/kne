@@ -202,7 +202,6 @@ func (n *Node) GRPCConfig() []string {
 		"set system services http servers server grpc-server tls local-certificate grpc-server-cert",
 		"set system services http servers server grpc-server listen-address 0.0.0.0",
 		"set system services http servers server grpc-server grpc all-grpc max-connections 300",
-                // server to listen on Port 9339
 		"set system services http servers server grpc-server-9339",
 		"set system services http servers server grpc-server-9339 port 9339",
 		"set system services http servers server grpc-server-9339 grpc gnmi",
@@ -211,14 +210,12 @@ func (n *Node) GRPCConfig() []string {
 		"set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert",
 		"set system services http servers server grpc-server-9339 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300",
-                // server to listen on Port 9340
 		"set system services http servers server grpc-server-9340",
 		"set system services http servers server grpc-server-9340 port 9340",
 		"set system services http servers server grpc-server-9340 grpc gribi",
 		"set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert",
 		"set system services http servers server grpc-server-9340 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300",
-                // server to listen on Port 9559
 		"set system services http servers server grpc-server-9559",
 		"set system services http servers server grpc-server-9559 port 9559",
 		"set system services http servers server grpc-server-9559 grpc p4",

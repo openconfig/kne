@@ -61,6 +61,86 @@ root@cptx2# set system services http servers server grpc-server grpc all-grpc ma
 
 [edit]
 root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339 port 9339
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339 grpc gnmi
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339 grpc gnoi
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339 grpc gnsi
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339 listen-address 0.0.0.0
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 port 9340
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 grpc gribi
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 listen-address 0.0.0.0
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 port 9559
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 grpc p4
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 tls local-certificate grpc-server-cert
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 listen-address 0.0.0.0
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 grpc all-grpc max-connections 300
+
+[edit]
+root@cptx2#
 root@cptx2# commit
 commit complete
 
