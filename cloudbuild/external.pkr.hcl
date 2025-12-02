@@ -156,6 +156,8 @@ build {
     inline = [
       "echo Cloning openconfig/kne github repo...",
       "sudo apt-get install git -y",
+      "echo \"BRANCH_NAME: ${var.branch_name}\"", // Added to verify branch name
+      "echo \"RUNNING: git clone -b ${var.branch_name} https://github.com/openconfig/kne.git\"", // Added to verify full command
       "git clone -b ${var.branch_name} https://github.com/openconfig/kne.git",
       "cd kne",
       "PATH=$PATH:/usr/local/go/bin",
