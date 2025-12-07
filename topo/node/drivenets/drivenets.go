@@ -57,7 +57,7 @@ var (
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			22: {
 				Names:  []string{"ssh"},
-				Inside: 9339,
+				Inside: 22,
 			},
 			830: {
 				Names:  []string{"netconf"},
