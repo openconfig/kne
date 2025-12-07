@@ -62,6 +62,7 @@ import (
 	_ "github.com/openconfig/kne/topo/node/keysight"
 	_ "github.com/openconfig/kne/topo/node/nokia"
 	_ "github.com/openconfig/kne/topo/node/openconfig"
+	_ "github.com/openconfig/kne/topo/node/ciena"
 )
 
 var (
