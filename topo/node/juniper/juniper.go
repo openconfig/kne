@@ -196,14 +196,8 @@ func (n *Node) GRPCConfig() []string {
 	}
 	log.Infof("gNMI Port %d", port)
 	return []string{
-		"set system services http servers server grpc-server",
-		fmt.Sprintf("set system services http servers server grpc-server port %d", port),
-		"set system services http servers server grpc-server grpc all-grpc",
-		"set system services http servers server grpc-server tls local-certificate grpc-server-cert",
-		"set system services http servers server grpc-server listen-address 0.0.0.0",
-		"set system services http servers server grpc-server grpc all-grpc max-connections 300",
 		"set system services http servers server grpc-server-9339",
-		"set system services http servers server grpc-server-9339 port 9339",
+                fmt.Sprintf("set system services http servers server grpc-server-9339 port %d", port),
 		"set system services http servers server grpc-server-9339 grpc gnmi",
 		"set system services http servers server grpc-server-9339 grpc gnoi",
 		"set system services http servers server grpc-server-9339 grpc gnsi",
