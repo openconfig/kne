@@ -3,7 +3,7 @@ module github.com/openconfig/kne
 go 1.23.0
 
 require (
-	cloud.google.com/go/pubsub v1.36.1
+	cloud.google.com/go/pubsub/v2 v2.3.0
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/docker/docker v28.1.1+incompatible
@@ -16,7 +16,7 @@ require (
 	github.com/kr/pretty v0.3.1
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
 	github.com/open-traffic-generator/keng-operator v0.3.34
-	github.com/open-traffic-generator/snappi/gosnappi v0.13.7
+	github.com/open-traffic-generator/snappi/gosnappi v1.42.1
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/lemming/operator v0.2.0
 	github.com/openconfig/ondatra v0.5.8
