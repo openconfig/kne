@@ -25,35 +25,83 @@ Entering configuration mode
 
 [edit]
 root@cptx2#
-root@cptx2# set system services extension-service request-response grpc ssl hot-reloading
+root@cptx2# set system services http servers server grpc-server-9339
 
 [edit]
 root@cptx2#
-root@cptx2# set system services extension-service request-response grpc ssl use-pki
+root@cptx2# set system services http servers server grpc-server-9339 port 9339
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI
+root@cptx2# set system services http servers server grpc-server-9339 grpc gnmi
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true
+root@cptx2# set system services http servers server grpc-server-9339 grpc gnoi
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767
+root@cptx2# set system services http servers server grpc-server-9339 grpc gnsi
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true
+root@cptx2# set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert
+root@cptx2# set system services http servers server grpc-server-9339 listen-address 0.0.0.0
 
 [edit]
 root@cptx2#
-root@cptx2# set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0
+root@cptx2# set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 port 9340
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 grpc gribi
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 listen-address 0.0.0.0
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 port 9559
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 grpc p4
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 tls local-certificate grpc-server-cert
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 listen-address 0.0.0.0
+
+[edit]
+root@cptx2#
+root@cptx2# set system services http servers server grpc-server-9559 grpc all-grpc max-connections 300
 
 [edit]
 root@cptx2#
