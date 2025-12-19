@@ -41,7 +41,7 @@ var (
 	// Time between polls - config mode
 	configModeRetrySleep = 30 * time.Second
 	// Default gRPC port
-	defaultGrpcPort = uint32(32767)
+	defaultGrpcPort = uint32(9339)
 
 	defaultNCPTXConstraints = node.Constraints{
 		CPU:    "4000m", // 4000 milliCPUs
@@ -197,7 +197,7 @@ func (n *Node) GRPCConfig() []string {
 	log.Infof("gNMI Port %d", port)
 	return []string{
 		"set system services http servers server grpc-server-9339",
-                fmt.Sprintf("set system services http servers server grpc-server-9339 port %d", port),
+		fmt.Sprintf("set system services http servers server grpc-server-9339 port %d", port),
 		"set system services http servers server grpc-server-9339 grpc gnmi",
 		"set system services http servers server grpc-server-9339 grpc gnoi",
 		"set system services http servers server grpc-server-9339 grpc gnsi",
