@@ -12,6 +12,12 @@ nodes: {
   name: "ncptx"
   vendor: JUNIPER
   model: "ncptx"
+  # Disables the legacy gRPC server config that configures hot reloading
+  # and PKI support. These are now configured by default in D47 and onwards.
+  labels: {
+    key: "legacy_grpc_server_config"
+    value: "disabled"
+  }
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga"
     file: "juniper.cfg"
