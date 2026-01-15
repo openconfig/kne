@@ -104,7 +104,7 @@ nodes: {
   model: "xrd"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga"
-    file: "cisco.cfg"
+    file: "cisco_xrd.cfg"
   }
   interfaces: {
     key: "eth1"
@@ -149,7 +149,7 @@ nodes: {
   model: "8201"
   config: {
     image: "us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga"
-    file: "cisco.cfg"
+    file: "cisco_8000e.cfg"
   }
   interfaces: {
     key: "eth1"

@@ -4,7 +4,7 @@
 cluster:
   kind: Kubeadm
   spec:
-    criSocket: unix:///var/run/cri-dockerd.sock
+    criSocket: unix:///var/run/containerd/containerd.sock
     podNetworkCIDR: 10.244.0.0/16
     tokenTTL: 0 # no timeout
     podNetworkAddOnManifest: ../../manifests/flannel/manifest.yaml

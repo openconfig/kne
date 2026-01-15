@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
@@ -60,19 +59,27 @@ func TestKubeadmSpec(t *testing.T) {
 		desc: "create cluster",
 		k:    &KubeadmSpec{},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
 	}, {
-		desc: "use cri-docker",
+		desc: "use containerd",
 		k: &KubeadmSpec{
-			CRISocket: "unix:///var/run/cri-dockerd.sock",
+			CRISocket: "unix:///var/run/containerd/containerd.sock",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"systemctl", "enable", "--now", "cri-docker.socket"}},
-			{Cmd: "sudo", Args: []string{"systemctl", "enable", "--now", "cri-docker.service"}},
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--cri-socket", "unix:///var/run/cri-dockerd.sock"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--cri-socket", "unix:///var/run/containerd/containerd.sock", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "custom image repository",
+		k: &KubeadmSpec{
+			ImageRepository: "registry.k8s.io",
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "registry.k8s.io"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
@@ -82,7 +89,7 @@ func TestKubeadmSpec(t *testing.T) {
 			AllowControlPlaneScheduling: true,
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
@@ -93,7 +100,7 @@ func TestKubeadmSpec(t *testing.T) {
 			PodNetworkAddOnManifestData: []byte("manifest yaml"),
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"apply", "-f", "-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
@@ -104,7 +111,7 @@ func TestKubeadmSpec(t *testing.T) {
 			Network: "my-network",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 		},
 	}}
@@ -618,7 +625,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 //go:generate mockgen -destination=mocks/mock_dnetwork.go -package=mocks github.com/docker/docker/client  NetworkAPIClient
 
 func TestMetalLBSpec(t *testing.T) {
-	nl := []dtypes.NetworkResource{
+	nl := []network.Inspect{
 		{
 			Name: "kind",
 			IPAM: network.IPAM{

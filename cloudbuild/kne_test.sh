@@ -92,7 +92,7 @@ kubectl get pods -A
 $cli teardown kne/deploy/kne/kubeadm.yaml
 
 ## Create a kubeadm single node cluster
-sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock --pod-network-cidr 10.244.0.0/16
+sudo kubeadm init --cri-socket unix:///var/run/containerd/containerd.sock --pod-network-cidr 10.244.0.0/16
 mkdir -p "$HOME"/.kube
 sudo cp /etc/kubernetes/admin.conf "$HOME"/.kube/config
 sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config

@@ -20,13 +20,39 @@ import (
 	"path/filepath"
 	"strings"
 
-	apb "github.com/openconfig/kne/proto/alpine"
-	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/protobuf/proto"
+	"k8s.io/utils/pointer"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+
+	apb "github.com/openconfig/kne/proto/alpine"
+	tpb "github.com/openconfig/kne/proto/topo"
+)
+
+var (
+	defaultConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
+	defaultNode = tpb.Node{
+		Config: &tpb.Config{
+			Image:   "alpine:latest",
+			Command: []string{"go", "run", "main.go"},
+		},
+		Services: map[uint32]*tpb.Service{
+			22: {
+				Name:   "ssh",
+				Inside: 22,
+			},
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -193,8 +219,12 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				Args: []string{
 					fmt.Sprintf("%d", len(n.Proto.Interfaces)+1),
 					fmt.Sprintf("%d", pb.Config.Sleep),
+					"1", // Disable IPv6 and ARP for all alpine nodes
 				},
 				ImagePullPolicy: "IfNotPresent",
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: pointer.Bool(true),
+				},
 			}},
 			Containers:                    alpineContainers,
 			TerminationGracePeriodSeconds: pointer.Int64(0),
@@ -249,29 +279,31 @@ func (n *Node) CreatePod(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{"go", "run", "main.go"}
+		pb.Config.Command = defaultNodeClone.Config.Command
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "alpine:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			22: {
-				Name:   "ssh",
-				Inside: 22,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
-	// TODO: Add appropriate default constraints for the Alpine KNE node
+	if pb.Constraints == nil {
+		pb.Constraints = defaultNodeClone.Constraints
+	}
 
 	return pb
+}
+
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
 }
 
 func init() {

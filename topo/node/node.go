@@ -63,6 +63,8 @@ type Implementation interface {
 	BackToBackLoop() bool
 	// ValidateConstraints validates the host with the node's constraints.
 	ValidateConstraints() error
+	// DefaultNodeConstraints exports the node's default constraints.
+	DefaultNodeConstraints() Constraints
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -108,6 +110,14 @@ var (
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
 	tempCfgDir  = "/tmp/kne"
 )
+
+// Constraints struct holds the values for node constraints like CPU, Memory.
+// The constraints are represented as strings grok format.
+// For example, CPU: "1000m" or "500m" , etc. Memory: "1Gi" or "2Gi" etc.
+type Constraints struct {
+	CPU    string
+	Memory string
+}
 
 var (
 	// Stubs for testing
@@ -192,7 +202,7 @@ func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
 }
 
 const (
-	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga"
+	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga"
 )
 
 func ToEnvVar(kv map[string]string) []corev1.EnvVar {
@@ -260,6 +270,11 @@ func (n *Impl) ValidateConstraints() error {
 	}
 
 	return errorList.Err()
+}
+
+// DefaultNodeConstraints - Returns default constraints of the node. It returns an empty struct by default.
+func (n *Impl) DefaultNodeConstraints() Constraints {
+	return Constraints{}
 }
 
 // validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,
@@ -478,10 +493,17 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		if v.Outside != 0 {
 			log.Warningf("Outside should not be set by user. The key is used as the target external port")
 		}
+		nodePort := v.NodePort
+		if nodePort > math.MaxUint16 {
+			return fmt.Errorf("node port %d out of range (max: %d)", k, math.MaxUint16)
+		}
+		if k > math.MaxUint16 {
+			return fmt.Errorf("service port %d out of range (max: %d)", k, math.MaxUint16)
+		}
 		sp := corev1.ServicePort{
 			Protocol:   "TCP",
 			Port:       int32(k),
-			NodePort:   int32(v.NodePort),
+			NodePort:   int32(nodePort),
 			TargetPort: intstr.FromInt(int(v.Inside)),
 			Name:       v.Name,
 		}

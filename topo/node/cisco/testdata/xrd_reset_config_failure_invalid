@@ -1,0 +1,21 @@
+[node0_RP0_CPU0:~]$
+[node0_RP0_CPU0:~]$cat /var/opt/cisco/iosxr/xrd/interface_ip_config.txt /startup.cfg > /disk0:/startup-config
+[node0_RP0_CPU0:~]$
+[node0_RP0_CPU0:~]$/pkg/bin/xr_cli "copy disk0:/startup-config running-config replace" ; echo ""
+
+
+-------------- copy disk0:/startup-config running-config replace --------------
+
+Parsing.
+2288 bytes parsed in 1 sec (2286)bytes/sec
+
+% Syntax/Authorization errors in one or more commands. Please use 'show configuration failed' to view the errors.
+Committing.
+Prepared commit in 0 sec
+.
+89 items committed in 2 sec (44)items/sec
+Updating.
+% Failed to commit one or more configuration items. Please issue 'show configuration failed [inheritance]' from this session to view the errors
+
+[node0_RP0_CPU0:~]$
+[node0_RP0_CPU0:~]$
