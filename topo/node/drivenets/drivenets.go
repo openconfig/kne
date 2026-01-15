@@ -25,6 +25,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/drivenets/cdnos-controller/api/v1/clientset"
 	"github.com/openconfig/kne/topo/node"
@@ -174,7 +175,6 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 			InterfaceCount: len(nodeSpec.Interfaces),
 			InitSleep:      int(config.Sleep),
 			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
-			Labels:         nodeSpec.Labels,
 		},
 	}
 	if config.Cert != nil {
@@ -196,7 +196,56 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 	if _, err := cs.CdnosV1alpha1().Cdnoss(n.Namespace).Create(ctx, dut, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create cdnos: %v", err)
 	}
+	// Best-effort: annotate the controller-created Service with Azure LB annotations.
+	if err := n.annotateCdnosService(ctx); err != nil {
+		log.Warningf("failed to annotate service for %s: %v", n.Name(), err)
+	}
 	return nil
+}
+
+// annotateCdnosService waits for the controller-created Service named "service-<node>"
+// and adds Azure LoadBalancer annotations required by the user.
+func (n *Node) annotateCdnosService(ctx context.Context) error {
+	if !node.IsAzureAKS(n.KubeClient) {
+		return nil
+	}
+	log.Infof("Azure AKS detected; annotating Service managed by controller for %q", n.Name())
+	svcName := fmt.Sprintf("service-%s", n.Name())
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for service %q", svcName)
+		}
+		s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, svcName, metav1.GetOptions{})
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		if s.Annotations == nil {
+			s.Annotations = map[string]string{}
+		}
+		desired := map[string]string{
+			"service.beta.kubernetes.io/azure-load-balancer-internal": "true",
+			"service.beta.kubernetes.io/port_22_no_probe_rule":        "true",
+			"service.beta.kubernetes.io/port_830_no_probe_rule":       "true",
+			"service.beta.kubernetes.io/port_50051_no_probe_rule":     "true",
+		}
+		changed := false
+		for k, v := range desired {
+			if s.Annotations[k] != v {
+				s.Annotations[k] = v
+				changed = true
+			}
+		}
+		if !changed {
+			return nil
+		}
+		if _, err := n.KubeClient.CoreV1().Services(n.Namespace).Update(ctx, s, metav1.UpdateOptions{}); err != nil {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		return nil
+	}
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
