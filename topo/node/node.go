@@ -509,16 +509,6 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		}
 		servicePorts = append(servicePorts, sp)
 	}
-	var annotations map[string]string
-	if IsAzureAKS(n.KubeClient) {
-		log.Infof("Azure AKS detected; applying Azure LB annotations to service %q", fmt.Sprintf("service-%s", n.Name()))
-		annotations = map[string]string{
-			"service.beta.kubernetes.io/azure-load-balancer-internal": "true",
-			"service.beta.kubernetes.io/port_22_no_probe_rule":        "true",
-			"service.beta.kubernetes.io/port_830_no_probe_rule":       "true",
-			"service.beta.kubernetes.io/port_50051_no_probe_rule":     "true",
-		}
-	}
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -529,7 +519,6 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			Labels: map[string]string{
 				"pod": n.Name(),
 			},
-			Annotations: annotations,
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: servicePorts,
@@ -799,27 +788,4 @@ func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
 		})
 	}
 	return links, nil
-}
-
-// IsAzureAKS attempts to detect whether the current cluster is Azure AKS.
-// It returns true if any node has a providerID starting with "azure://"
-// or has any label prefixed with "kubernetes.azure.com/".
-func IsAzureAKS(k kubernetes.Interface) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	nodes, err := k.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil || len(nodes.Items) == 0 {
-		return false
-	}
-	for _, n := range nodes.Items {
-		if strings.HasPrefix(n.Spec.ProviderID, "azure://") {
-			return true
-		}
-		for key := range n.Labels {
-			if strings.HasPrefix(key, "kubernetes.azure.com/") {
-				return true
-			}
-		}
-	}
-	return false
 }
