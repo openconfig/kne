@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	dtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	dclient "github.com/docker/docker/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
@@ -41,12 +41,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const defaultKubeadmImageRepository = "us-west1-docker.pkg.dev/kne-external/kne"
+
 var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
 	healthTimeout   = time.Minute
-	criDocker       = "cri-docker"
 
 	// Stubs for testing.
 	execLookPath       = exec.LookPath
@@ -426,6 +427,7 @@ type KubeadmSpec struct {
 	TokenTTL                    string `yaml:"tokenTTL"`
 	Network                     string `yaml:"network"`
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
+	ImageRepository             string `yaml:"imageRepository"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -446,15 +448,6 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	args := []string{"kubeadm", "init"}
 	if k.CRISocket != "" {
 		args = append(args, "--cri-socket", k.CRISocket)
-		// If using cri-docker, then ensure the components are running.
-		if strings.Contains(k.CRISocket, criDocker) {
-			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".socket"); err != nil {
-				return err
-			}
-			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".service"); err != nil {
-				return err
-			}
-		}
 	}
 	if k.PodNetworkCIDR != "" {
 		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
@@ -462,6 +455,11 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.TokenTTL != "" {
 		args = append(args, "--token-ttl", k.TokenTTL)
 	}
+	imageRepository := defaultKubeadmImageRepository
+	if k.ImageRepository != "" {
+		imageRepository = k.ImageRepository
+	}
+	args = append(args, "--image-repository", imageRepository)
 	log.Infof("Creating kubeadm cluster with: %v", args)
 	if out, err := run.OutLogCommand("sudo", args...); err != nil {
 		msg := []string{}
@@ -614,7 +612,7 @@ func (k *KindSpec) checkDependencies() error {
 			return fmt.Errorf("kind version check failed: %w", err)
 		}
 		if gotV.LT(wantV) {
-			return fmt.Errorf("kind version check failed: got %s, want %s. install with `go install sigs.k8s.io/kind@%s`", gotV, wantV, wantV)
+			return fmt.Errorf("kind version check failed: got %s, want %s. install with `go install sigs.k8s.io/kind@v%s`", gotV, wantV, wantV)
 		}
 		log.Infof("kind version valid: got %s want %s", gotV, wantV)
 	}
@@ -707,6 +705,17 @@ func (k *KindSpec) Deploy(ctx context.Context) error {
 		}
 	}
 
+	// If any additional manifests were provided, there is a chance they started new deployment, e.g.,
+	// a manifest file might deploy a webhook that needs to be running before proceeding with later
+	// stages such as topology creation. Hence, we Wait for any potential deployments to complete.
+	// If no deployments were configured, the waiting status call simply returns immediately with a
+	// "No resources found in default namespace." error message that we should warn about.
+	if len(k.AdditionalManifests) > 0 {
+		log.Infof("Waiting for potential manifest-issued deployments to complete")
+		if err := run.LogCommand("kubectl", "rollout", "status", "deployment", "-w"); err != nil {
+			log.Warningf("Unable to wait for deployments to complete: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -772,7 +781,7 @@ func (k *KindSpec) loadContainerImages() error {
 				err = fmt.Errorf("container not found: %w", err)
 				break
 			}
-			log.Warningf("Failed to pull %q: %w (will retry %d times)", s, err, retries)
+			log.Warningf("Failed to pull %q: %v (will retry %d times)", s, err, retries)
 			time.Sleep(pullRetryDelay)
 		}
 		if err != nil {
@@ -921,11 +930,11 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if _, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{}); err != nil {
 		log.Infof("Applying metallb ingress config")
 		// Get Network information from docker.
-		nr, err := m.dClient.NetworkList(ctx, dtypes.NetworkListOptions{})
+		nr, err := m.dClient.NetworkList(ctx, network.ListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get docker network list: %w", err)
 		}
-		var network dtypes.NetworkResource
+		var network network.Inspect
 		for _, v := range nr {
 			name := m.dockerNetworkResourceName
 			if name == "" {

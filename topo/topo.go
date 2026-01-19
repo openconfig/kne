@@ -19,7 +19,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -29,6 +31,7 @@ import (
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
+	"github.com/openconfig/kne/exec/run"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	cpb "github.com/openconfig/kne/proto/controller"
@@ -45,12 +48,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 	log "k8s.io/klog/v2"
 
 	_ "github.com/openconfig/kne/topo/node/alpine"
 	_ "github.com/openconfig/kne/topo/node/arista"
 	_ "github.com/openconfig/kne/topo/node/cisco"
 	_ "github.com/openconfig/kne/topo/node/drivenets"
+	_ "github.com/openconfig/kne/topo/node/forward"
 	_ "github.com/openconfig/kne/topo/node/gobgp"
 	_ "github.com/openconfig/kne/topo/node/host"
 	_ "github.com/openconfig/kne/topo/node/juniper"
@@ -60,6 +65,7 @@ import (
 )
 
 var (
+	setPIDMaxScript       = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	protojsonUnmarshaller = protojson.UnmarshalOptions{
 		AllowPartial:   true,
 		DiscardUnknown: false,
@@ -381,6 +387,11 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 		return nil, err
 	}
 	for _, n := range m.topo.Nodes {
+		pods, ok := r.Pods[n.Name]
+		if !ok || len(pods) == 0 {
+			return nil, fmt.Errorf("pods for node %s not found", n.Name)
+		}
+		n.PodIp = pods[0].Status.PodIP
 		if len(n.Services) == 0 {
 			continue
 		}
@@ -478,6 +489,14 @@ func (m *Manager) load() error {
 		uid++
 	}
 	for k, n := range nMap {
+		// Bug: Some vendors incorrectly increase the value of kernel.pid_max which
+		// causes other vendors to have issues. Run this script as a temporary
+		// workaround.
+		if _, err := os.Stat(setPIDMaxScript); err == nil {
+			if err := run.LogCommand(setPIDMaxScript); err != nil {
+				return fmt.Errorf("failed to exec set_pid_max script: %w", err)
+			}
+		}
 		log.Infof("Adding Node: %s:%s", n.Name, n.Vendor)
 		nn, err := node.New(m.topo.Name, n, m.kClient, m.rCfg, m.basePath, m.kubecfg)
 		if err != nil {
@@ -552,6 +571,7 @@ func (m *Manager) topologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 
 // push deploys the topology to the cluster.
 func (m *Manager) push(ctx context.Context) error {
+	log.Infof("Validating Node Constraints")
 	for _, n := range m.nodes {
 		if err := n.ValidateConstraints(); err != nil {
 			return fmt.Errorf("failed to validate node %s: %w", n, err)
@@ -579,24 +599,45 @@ func (m *Manager) push(ctx context.Context) error {
 		return fmt.Errorf("failed to create meshnet topologies: %w", err)
 	}
 
-	log.Infof("Creating Node Pods")
+	log.Infof("Creating Node Pods and Generating certs")
+
+	var wg sync.WaitGroup
+	errCh := make(chan error)
+
 	for _, n := range m.nodes {
-		for key, service := range n.GetProto().Services {
-			updateServicePortName(service, key)
-		}
-		if err := n.Create(ctx); err != nil {
-			return fmt.Errorf("failed to create node %s: %w", n, err)
-		}
-		log.Infof("Node %s resource created", n)
+		wg.Add(1)
+		go func(node node.Node) {
+			defer wg.Done()
+
+			for key, service := range node.GetProto().Services {
+				updateServicePortName(service, key)
+			}
+
+			if err := node.Create(ctx); err != nil {
+				errCh <- fmt.Errorf("failed to create node %s: %w", node, err)
+				return
+			}
+			log.Infof("Node %s resource created", node)
+
+			log.Infof("Generating Self-Signed Certificates for node %s", node)
+
+			err := m.GenerateSelfSigned(ctx, node.Name())
+			switch {
+			case err == nil, status.Code(err) == codes.Unimplemented:
+			default:
+				errCh <- fmt.Errorf("failed to generate cert for node %s: %w", node, err)
+			}
+		}(n)
 	}
-	for _, n := range m.nodes {
-		err := m.GenerateSelfSigned(ctx, n.Name())
-		switch {
-		default:
-			return fmt.Errorf("failed to generate cert for node %s: %w", n, err)
-		case err == nil, status.Code(err) == codes.Unimplemented:
-		}
+	go func() {
+		wg.Wait()
+		close(errCh)
+	}()
+
+	for err := range errCh {
+		return err
 	}
+
 	return nil
 }
 

@@ -131,6 +131,7 @@ func TestNew(t *testing.T) {
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
 					Image:        "ceos:latest",
+					InitImage:    "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 					Cert: &topopb.CertificateCfg{
 						Config: &topopb.CertificateCfg_SelfSigned{
 							SelfSigned: &topopb.SelfSignedCertCfg{
@@ -149,7 +150,7 @@ func TestNew(t *testing.T) {
 					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
-					"cpu":    "0.5",
+					"cpu":    "500m",
 					"memory": "1Gi",
 				},
 				Services: map[uint32]*topopb.Service{
@@ -211,6 +212,7 @@ func TestNew(t *testing.T) {
 				Config: &topopb.Config{
 					EntryCommand: fmt.Sprintf("kubectl exec -it %s -- Cli", ""),
 					Image:        "foo",
+					InitImage:    "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
 					Env: map[string]string{
@@ -237,7 +239,7 @@ func TestNew(t *testing.T) {
 					"ondatra-role": "DUT",
 				},
 				Constraints: map[string]string{
-					"cpu":    "0.5",
+					"cpu":    "500m",
 					"memory": "1Gi",
 				},
 				Services: map[uint32]*topopb.Service{
@@ -370,7 +372,7 @@ func TestCRD(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "2Gb",
 			},
 			Vendor:  topopb.Vendor_ARISTA,
@@ -378,11 +380,18 @@ func TestCRD(t *testing.T) {
 			Version: "version-test",
 			Os:      "os-test",
 			Interfaces: map[string]*topopb.Interface{
+				"eth0": {
+					Name: "Management1",
+				},
 				"eth1": {
-					Name: "Ethernet1/1",
+					Name:        "Ethernet1/1",
+					PeerIntName: "eth1",
+					PeerName:    "foo",
 				},
 				"eth2": {
-					Name: "Ethernet1/2",
+					Name:        "Ethernet1/2",
+					PeerIntName: "eth2",
+					PeerName:    "foo",
 				},
 			},
 		},
@@ -394,7 +403,7 @@ func TestCRD(t *testing.T) {
 			Image: "test-image",
 			Args:  []string{"arg1", "arg2"},
 			Resources: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "2Gb",
 			},
 			Services: map[string]ceos.ServiceConfig{
@@ -423,6 +432,7 @@ func TestCRD(t *testing.T) {
 				}},
 			},
 			IntfMapping: map[string]string{
+				"eth0": "Management1",
 				"eth1": "Ethernet1/1",
 				"eth2": "Ethernet1/2",
 			},
@@ -622,5 +632,17 @@ func TestStatus(t *testing.T) {
 				t.Errorf("New() CEosLabDevice CRDs unexpected diff (-want +got):\n%s", s)
 			}
 		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultConstraints.CPU)
+	}
+
+	if constraints.Memory != defaultConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
 	}
 }

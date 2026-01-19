@@ -3,7 +3,11 @@ package keysight
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
+
+	"github.com/openconfig/kne/topo/node"
+	"google.golang.org/protobuf/proto"
 
 	ixclient "github.com/open-traffic-generator/keng-operator/api/clientset/v1beta1"
 	ixiatg "github.com/open-traffic-generator/keng-operator/api/v1beta1"
@@ -13,7 +17,28 @@ import (
 
 	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
-	"github.com/openconfig/kne/topo/node"
+)
+
+var (
+	defaultNode = tpb.Node{
+		Services: map[uint32]*tpb.Service{
+			8443: {
+				Name:   "https",
+				Inside: 8443,
+			},
+			40051: {
+				Name:   "grpc",
+				Inside: 40051,
+			},
+			50051: {
+				Name:   "gnmi",
+				Inside: 50051,
+			},
+		},
+		Labels: map[string]string{
+			node.OndatraRoleLabel: node.OndatraRoleATE,
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -37,7 +62,7 @@ type Node struct {
 	*node.Impl
 }
 
-func (n *Node) newCRD() *ixiatg.IxiaTG {
+func (n *Node) newCRD() (*ixiatg.IxiaTG, error) {
 	log.Infof("Creating new ixia CRD for node: %v", n.Name())
 	ixiaCRD := &ixiatg.IxiaTG{
 		TypeMeta: metav1.TypeMeta{
@@ -53,6 +78,9 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 			DesiredState: "INITIATED",
 			ApiEndPoint:  map[string]ixiatg.IxiaTGSvcPort{},
 			Interfaces:   []ixiatg.IxiaTGIntf{},
+			InitContainer: ixiatg.IxiaTGInitContainer{
+				Image: node.DefaultInitContainerImage,
+			},
 		},
 	}
 
@@ -62,9 +90,17 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 	}
 
 	for _, svc := range n.GetProto().Services {
+		insidePort := svc.Inside
+		if insidePort > math.MaxUint16 {
+			return nil, fmt.Errorf("inside port %d out of range (max: %d)", insidePort, math.MaxUint16)
+		}
+		outsidePort := svc.Outside
+		if outsidePort > math.MaxUint16 {
+			return nil, fmt.Errorf("outside port %d out of range (max: %d)", outsidePort, math.MaxUint16)
+		}
 		ixiaCRD.Spec.ApiEndPoint[svc.Name] = ixiatg.IxiaTGSvcPort{
-			In:  int32(svc.Inside),
-			Out: int32(svc.Outside),
+			In:  int32(insidePort),
+			Out: int32(outsidePort),
 		}
 	}
 	for name, ifc := range n.GetProto().Interfaces {
@@ -74,7 +110,7 @@ func (n *Node) newCRD() *ixiatg.IxiaTG {
 		})
 	}
 	log.V(2).Infof("Created new ixia CRD for node %s: %+v", n.Name(), ixiaCRD)
-	return ixiaCRD
+	return ixiaCRD, nil
 }
 
 func (n *Node) getCRD(ctx context.Context) (*ixiatg.IxiaTG, error) {
@@ -131,7 +167,10 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 	log.Infof("Getting interfaces for ixia node resource %s ...", n.Name())
 	desiredState := "INITIATED"
 
-	crd := n.newCRD()
+	crd, err := n.newCRD()
+	if err != nil {
+		return nil, err
+	}
 	log.Infof("Creating custom resource for ixia (desiredState=%s) ...", desiredState)
 	c, err := ixclient.NewForConfig(n.RestConfig)
 	if err != nil {
@@ -329,24 +368,12 @@ func (n *Node) BackToBackLoop() bool {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			8443: {
-				Name:   "https",
-				Inside: 8443,
-			},
-			40051: {
-				Name:   "grpc",
-				Inside: 40051,
-			},
-			50051: {
-				Name:   "gnmi",
-				Inside: 50051,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{}
+		pb.Labels = defaultNodeClone.Labels
 	}
 	if pb.Labels[node.OndatraRoleLabel] == "" {
 		pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleATE

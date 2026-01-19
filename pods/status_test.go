@@ -200,6 +200,50 @@ func TestUpdatePod(t *testing.T) {
 	}
 }
 
+func TestImagePullTimeout(t *testing.T) {
+	var buf strings.Builder
+
+	cancel := func() {}
+	stop := func() {}
+
+	w := newWatcher(context.TODO(), cancel, nil, stop)
+	w.stdout = &buf
+	w.SetProgress(true)
+	const uid = types.UID("uid1")
+
+	getErr := func() error {
+		select {
+		case err := <-w.errCh:
+			return err
+		default:
+			return nil
+		}
+	}
+
+	if tm, ok := w.podStart[uid]; ok {
+		t.Fatalf("w.podStart[%v] is %v, want unset", uid, tm)
+	}
+	ps := &PodStatus{Name: "pod", UID: uid, Namespace: "ns", Phase: PodPending,
+		Containers: []ContainerStatus{{Name: "cont", Reason: "ErrImagePull"}},
+	}
+	w.updatePod(ps)
+	if err := getErr(); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	if _, ok := w.podStart[uid]; !ok {
+		t.Fatalf("w.podStart[%v] is not set", uid)
+	}
+	w.updatePod(ps)
+	if err := getErr(); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	w.podStart[uid] = w.podStart[uid].Add(-(MaxPullTime + 1))
+	w.updatePod(ps)
+	if s := errdiff.Check(getErr(), "pull timed out after"); s != "" {
+		t.Error(s)
+	}
+}
+
 func TestStop(t *testing.T) {
 	canceled := false
 	cancel := func() { canceled = true }

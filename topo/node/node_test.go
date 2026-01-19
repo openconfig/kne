@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 )
 
 func NewNR(impl *Impl) (Node, error) {
@@ -252,8 +253,9 @@ func TestService(t *testing.T) {
 					TargetPort: intstr.FromInt(22),
 					NodePort:   0,
 				}},
-				Selector: map[string]string{"app": "dev1"},
-				Type:     "LoadBalancer",
+				Selector:                      map[string]string{"app": "dev1"},
+				Type:                          "LoadBalancer",
+				AllocateLoadBalancerNodePorts: pointer.Bool(false),
 			},
 		}},
 	}, {
@@ -297,8 +299,9 @@ func TestService(t *testing.T) {
 					TargetPort: intstr.FromInt(9339),
 					NodePort:   0,
 				}},
-				Selector: map[string]string{"app": "dev2"},
-				Type:     "LoadBalancer",
+				Selector:                      map[string]string{"app": "dev2"},
+				Type:                          "LoadBalancer",
+				AllocateLoadBalancerNodePorts: pointer.Bool(false),
 			},
 		}},
 	}, {

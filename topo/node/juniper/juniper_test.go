@@ -142,6 +142,18 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}()
 	configModeRetrySleep = time.Millisecond
 
+	origCertGenTimeout := certGenTimeout
+	defer func() {
+		certGenTimeout = origCertGenTimeout
+	}()
+	certGenTimeout = time.Second * 10
+
+	origConfigModeTimeout := configModeTimeout
+	defer func() {
+		configModeTimeout = origConfigModeTimeout
+	}()
+	configModeTimeout = time.Second * 10
+
 	tests := []struct {
 		desc     string
 		wantErr  bool
@@ -213,6 +225,87 @@ func TestGenerateSelfSigned(t *testing.T) {
 			err = n.GenerateSelfSigned(ctx)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestGRPCConfig(t *testing.T) {
+	tests := []struct {
+		desc string
+		ni   *node.Impl
+		want []string
+	}{
+		{
+			desc: "legacy grpc server config",
+			ni: &node.Impl{
+				KubeClient: fake.NewSimpleClientset(),
+				Namespace:  "test",
+				Proto: &tpb.Node{
+					Name:   "pod1",
+					Vendor: tpb.Vendor_JUNIPER,
+					Config: &tpb.Config{
+						ConfigFile: "foo",
+						ConfigPath: "/",
+						ConfigData: &tpb.Config_Data{
+							Data: []byte("config file data"),
+						},
+					},
+				},
+			},
+			want: []string{
+				"set system services extension-service request-response grpc ssl hot-reloading",
+				"set system services extension-service request-response grpc ssl use-pki",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+				"commit",
+			},
+		},
+		{
+			desc: "new grpc server config",
+			ni: &node.Impl{
+				KubeClient: fake.NewSimpleClientset(),
+				Namespace:  "test",
+				Proto: &tpb.Node{
+					Name:   "pod1",
+					Vendor: tpb.Vendor_JUNIPER,
+					Config: &tpb.Config{
+						ConfigFile: "foo",
+						ConfigPath: "/",
+						ConfigData: &tpb.Config_Data{
+							Data: []byte("config file data"),
+						},
+					},
+					Labels: map[string]string{
+						"legacy_grpc_server_config": "disabled",
+					},
+				},
+			},
+			want: []string{
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
+				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+				"commit",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+			if err != nil {
+				t.Fatalf("failed creating kne juniper node")
+			}
+			n, _ := nImpl.(*Node)
+			got := n.GRPCConfig()
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("GRPCConfig() returned unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -440,7 +533,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -518,7 +611,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -596,7 +689,7 @@ func TestNew(t *testing.T) {
 			Os:    "evo",
 			Model: "cptx",
 			Constraints: map[string]string{
-				"cpu":    "8",
+				"cpu":    "8000m",
 				"memory": "8Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -663,7 +756,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -732,6 +825,61 @@ func TestNew(t *testing.T) {
 			err = n.Create(context.Background())
 			if s := errdiff.Check(err, tt.cErr); s != "" {
 				t.Fatalf("Unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	tests := []struct {
+		name       string
+		node       *Node
+		wantCPU    string
+		wantMemory string
+	}{
+		{
+			name:       "Case: Node.Impl is nil",
+			node:       &Node{Impl: nil},
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
+		},
+		{
+			name:       "Case: Node.Impl.Proto is nil",
+			node:       &Node{Impl: &node.Impl{Proto: nil}},
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
+		},
+		{
+			name: "Case: Model is cptx",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{Model: "cptx"},
+				},
+			},
+			wantCPU:    defaultCPTXConstraints.CPU,
+			wantMemory: defaultCPTXConstraints.Memory,
+		},
+		{
+			name: "Case: Model is empty string",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{},
+				},
+			},
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			constraints := tt.node.DefaultNodeConstraints()
+			if constraints.CPU != tt.wantCPU {
+				t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, tt.wantCPU)
+			}
+
+			if constraints.Memory != tt.wantMemory {
+				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
 			}
 		})
 	}

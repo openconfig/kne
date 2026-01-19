@@ -33,9 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type fakeWatch struct {
@@ -64,25 +62,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return eCh
 }
 
-// patchSrlinuxClient patches newSrlinuxClient function to use a fake no-op client for tests.
-// Returns a function to restore the original newSrlinuxClient function.
-func patchSrlinuxClient() func() {
-	origNewSrlinuxClient := newSrlinuxClient
-
-	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
-	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
-		return nil, nil
-	}
-
-	return func() {
-		newSrlinuxClient = origNewSrlinuxClient
-	}
-}
-
 func TestNew(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	tests := []struct {
 		desc    string
 		nImpl   *node.Impl
@@ -109,6 +89,7 @@ func TestNew(t *testing.T) {
 			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
+				InitImage:  "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 				ConfigFile: "config.cli",
 			},
 			Labels: map[string]string{
@@ -141,7 +122,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "4Gi",
 			},
 		},
@@ -162,6 +143,7 @@ func TestNew(t *testing.T) {
 			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
+				InitImage:  "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 				ConfigFile: "config.json",
 			},
 			Labels: map[string]string{
@@ -194,7 +176,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "4Gi",
 			},
 		},
@@ -216,9 +198,6 @@ func TestNew(t *testing.T) {
 	}
 }
 func TestGenerateSelfSigned(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -322,9 +301,6 @@ func TestGenerateSelfSigned(t *testing.T) {
 }
 
 func TestResetCfg(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -404,9 +380,6 @@ func TestResetCfg(t *testing.T) {
 }
 
 func TestConfigPush(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -490,5 +463,17 @@ func TestConfigPush(t *testing.T) {
 				t.Fatalf("config push failed, error: %+v\n", err)
 			}
 		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultConstraints.CPU)
+	}
+
+	if constraints.Memory != defaultConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
 	}
 }

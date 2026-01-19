@@ -14,6 +14,10 @@ import (
 	log "k8s.io/klog/v2"
 )
 
+// MaxPullTime is how long we will give a pod to start after seeing
+// ErrImagePull.
+var MaxPullTime = time.Minute * 15
+
 // A Watcher watches pod and container updates.
 type Watcher struct {
 	ctx       context.Context
@@ -21,6 +25,7 @@ type Watcher struct {
 	wstop     func()
 	cancel    func()
 	podStates map[types.UID]string
+	podStart  map[types.UID]time.Time
 	cStates   map[string]string
 	ch        chan *PodStatus
 	stdout    io.Writer
@@ -54,6 +59,7 @@ func newWatcher(ctx context.Context, cancel func(), ch chan *PodStatus, stop fun
 		cancel:    cancel,
 		stdout:    os.Stdout,
 		podStates: map[types.UID]string{},
+		podStart:  map[types.UID]time.Time{},
 		cStates:   map[string]string{},
 		warningf:  log.Warningf,
 	}
@@ -194,6 +200,17 @@ func (w *Watcher) updatePod(s *PodStatus) bool {
 			w.cancel()
 			return false
 		case c.Reason == "ErrImagePull":
+			if t, ok := w.podStart[s.UID]; ok {
+				if t.Add(MaxPullTime).Before(time.Now()) {
+					showContainer(s, &c, "PULL TIMED OUT")
+					w.warningf("%s: pull timed out after %v", fullName, MaxPullTime)
+					w.errCh <- fmt.Errorf("%s IMAGE:%s pull timed out after %v", fullName, c.Image, MaxPullTime)
+					w.cancel()
+					return false
+				}
+			} else {
+				w.podStart[s.UID] = time.Now()
+			}
 			showContainer(s, &c, c.Reason)
 			log.Infof("%s in ErrImagePull", fullName)
 		case c.Reason == "ImagePullBackOff":
