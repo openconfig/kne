@@ -41,7 +41,7 @@ var (
 	// Time between polls - config mode
 	configModeRetrySleep = 30 * time.Second
 	// Default gRPC port
-	defaultGrpcPort = uint32(32767)
+	defaultGrpcPort = uint32(9339)
 
 	defaultNCPTXConstraints = node.Constraints{
 		CPU:    "4000m", // 4000 milliCPUs
@@ -74,15 +74,15 @@ var (
 			},
 			9339: {
 				Names:  []string{"gnmi", "gnoi", "gnsi"},
-				Inside: 32767,
+				Inside: 9339,
 			},
 			9340: {
 				Names:  []string{"gribi"},
-				Inside: 32767,
+				Inside: 9340,
 			},
 			9559: {
 				Names:  []string{"p4rt"},
-				Inside: 32767,
+				Inside: 9559,
 			},
 		},
 		Constraints: map[string]string{
@@ -195,28 +195,29 @@ func (n *Node) GRPCConfig() []string {
 		}
 	}
 	log.Infof("gNMI Port %d", port)
-	portConfig := fmt.Sprintf("set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port %d", port)
-	conf := []string{
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-		portConfig,
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
-		"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+	return []string{
+		"set system services http servers server grpc-server-9339",
+		fmt.Sprintf("set system services http servers server grpc-server-9339 port %d", port),
+		"set system services http servers server grpc-server-9339 grpc gnmi",
+		"set system services http servers server grpc-server-9339 grpc gnoi",
+		"set system services http servers server grpc-server-9339 grpc gnsi",
+		"set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert",
+		"set system services http servers server grpc-server-9339 listen-address 0.0.0.0",
+		"set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300",
+		"set system services http servers server grpc-server-9340",
+		"set system services http servers server grpc-server-9340 port 9340",
+		"set system services http servers server grpc-server-9340 grpc gribi",
+		"set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert",
+		"set system services http servers server grpc-server-9340 listen-address 0.0.0.0",
+		"set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300",
+		"set system services http servers server grpc-server-9559",
+		"set system services http servers server grpc-server-9559 port 9559",
+		"set system services http servers server grpc-server-9559 grpc p4",
+		"set system services http servers server grpc-server-9559 tls local-certificate grpc-server-cert",
+		"set system services http servers server grpc-server-9559 listen-address 0.0.0.0",
+		"set system services http servers server grpc-server-9559 grpc all-grpc max-connections 300",
 		"commit",
 	}
-	// In newer Juniper releases such as D47, hot reloading and PKI support is enabled by default. On these systems, the legacy
-	// syntax below is mutually exclusive with the new gRPC service config. Attempting to configure both will cause the config
-	// commit to fail. Therefore, if configuring gRPC services via CLI on a release from D47 onwards, a KNE Node label of
-	// `legacy_grpc_server_config`` should be set to `disabled.`
-	if n.GetProto().GetLabels()["legacy_grpc_server_config"] != "disabled" {
-		legacyConf := []string{
-			"set system services extension-service request-response grpc ssl hot-reloading",
-			"set system services extension-service request-response grpc ssl use-pki",
-		}
-		conf = append(legacyConf, conf...)
-	}
-	return conf
 }
 
 // Waits and retries until CLI config mode is up and config is applied

@@ -237,35 +237,6 @@ func TestGRPCConfig(t *testing.T) {
 		want []string
 	}{
 		{
-			desc: "legacy grpc server config",
-			ni: &node.Impl{
-				KubeClient: fake.NewSimpleClientset(),
-				Namespace:  "test",
-				Proto: &tpb.Node{
-					Name:   "pod1",
-					Vendor: tpb.Vendor_JUNIPER,
-					Config: &tpb.Config{
-						ConfigFile: "foo",
-						ConfigPath: "/",
-						ConfigData: &tpb.Config_Data{
-							Data: []byte("config file data"),
-						},
-					},
-				},
-			},
-			want: []string{
-				"set system services extension-service request-response grpc ssl hot-reloading",
-				"set system services extension-service request-response grpc ssl use-pki",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
-				"commit",
-			},
-		},
-		{
 			desc: "new grpc server config",
 			ni: &node.Impl{
 				KubeClient: fake.NewSimpleClientset(),
@@ -286,12 +257,26 @@ func TestGRPCConfig(t *testing.T) {
 				},
 			},
 			want: []string{
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config services GNMI",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config enable true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config port 32767",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config transport-security true",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config certificate-id grpc-server-cert",
-				"set openconfig-system:system openconfig-system-grpc:grpc-servers grpc-server grpc-server config listen-addresses 0.0.0.0",
+				"set system services http servers server grpc-server-9339",
+				"set system services http servers server grpc-server-9339 port 9339",
+				"set system services http servers server grpc-server-9339 grpc gnmi",
+				"set system services http servers server grpc-server-9339 grpc gnoi",
+				"set system services http servers server grpc-server-9339 grpc gnsi",
+				"set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert",
+				"set system services http servers server grpc-server-9339 listen-address 0.0.0.0",
+				"set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300",
+				"set system services http servers server grpc-server-9340",
+				"set system services http servers server grpc-server-9340 port 9340",
+				"set system services http servers server grpc-server-9340 grpc gribi",
+				"set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert",
+				"set system services http servers server grpc-server-9340 listen-address 0.0.0.0",
+				"set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300",
+				"set system services http servers server grpc-server-9559",
+				"set system services http servers server grpc-server-9559 port 9559",
+				"set system services http servers server grpc-server-9559 grpc p4",
+				"set system services http servers server grpc-server-9559 tls local-certificate grpc-server-cert",
+				"set system services http servers server grpc-server-9559 listen-address 0.0.0.0",
+				"set system services http servers server grpc-server-9559 grpc all-grpc max-connections 300",
 				"commit",
 			},
 		},
@@ -547,15 +532,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -625,15 +610,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -703,15 +688,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -770,15 +755,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
