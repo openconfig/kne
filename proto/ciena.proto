@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ciena;
+
+option go_package = "github.com/openconfig/kne/proto/ciena";
+
+message SystemEquipment {
+  // Mount point for the files inside the pod.
+  string mount_dir = 1;
+  string equipment_json = 2;
+}
+
+// Ciena specific vendor data for KNE
+message CienaConfig {
+  SystemEquipment system_equipment = 1;
+}

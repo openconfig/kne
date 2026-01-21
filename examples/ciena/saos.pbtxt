@@ -1,0 +1,25 @@
+name: "saos-example"
+nodes: {
+    name: "saos-1"
+    vendor: CIENA
+    model: "5132"
+    # when `image` is not specified under `config`, the "artifactory.ciena.com/psa/saos-containerlab:latest" container image is used by default
+}
+nodes: {
+    name: "saos-2"
+    vendor: CIENA
+    model: "5132"
+    # when `image` is not specified under `config`, the "artifactory.ciena.com/psa/saos-containerlab:latest" container image is used by default
+}
+links: {
+    a_node: "saos-1"
+    a_int: "1"
+    z_node: "saos-2"
+    z_int: "1"
+}
+links: {
+    a_node: "saos-1"
+    a_int: "2"
+    z_node: "saos-2"
+    z_int: "2"
+}
