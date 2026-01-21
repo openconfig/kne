@@ -25,12 +25,15 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/drivenets/cdnos-controller/api/v1/clientset"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	cdnosv1 "github.com/drivenets/cdnos-controller/api/v1"
@@ -57,7 +60,7 @@ var (
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			22: {
 				Names:  []string{"ssh"},
-				Inside: 9339,
+				Inside: 22,
 			},
 			830: {
 				Names:  []string{"netconf"},
@@ -174,7 +177,6 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 			InterfaceCount: len(nodeSpec.Interfaces),
 			InitSleep:      int(config.Sleep),
 			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
-			Labels:         nodeSpec.Labels,
 		},
 	}
 	if config.Cert != nil {
@@ -196,7 +198,56 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 	if _, err := cs.CdnosV1alpha1().Cdnoss(n.Namespace).Create(ctx, dut, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create cdnos: %v", err)
 	}
+	// Best-effort: annotate the controller-created Service with Azure LB annotations.
+	if err := n.annotateCdnosService(ctx); err != nil {
+		log.Warningf("failed to annotate service for %s: %v", n.Name(), err)
+	}
 	return nil
+}
+
+// annotateCdnosService waits for the controller-created Service named "service-<node>"
+// and adds Azure LoadBalancer annotations required by the user.
+func (n *Node) annotateCdnosService(ctx context.Context) error {
+	if !isAzureAKS(n.KubeClient) {
+		return nil
+	}
+	log.Infof("Azure AKS detected; annotating Service managed by controller for %q", n.Name())
+	svcName := fmt.Sprintf("service-%s", n.Name())
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for service %q", svcName)
+		}
+		s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, svcName, metav1.GetOptions{})
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		if s.Annotations == nil {
+			s.Annotations = map[string]string{}
+		}
+		desired := map[string]string{
+			"service.beta.kubernetes.io/azure-load-balancer-internal": "true",
+			"service.beta.kubernetes.io/port_22_no_probe_rule":        "true",
+			"service.beta.kubernetes.io/port_830_no_probe_rule":       "true",
+			"service.beta.kubernetes.io/port_50051_no_probe_rule":     "true",
+		}
+		changed := false
+		for k, v := range desired {
+			if s.Annotations[k] != v {
+				s.Annotations[k] = v
+				changed = true
+			}
+		}
+		if !changed {
+			return nil
+		}
+		if _, err := n.KubeClient.CoreV1().Services(n.Namespace).Update(ctx, s, metav1.UpdateOptions{}); err != nil {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		return nil
+	}
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
@@ -319,6 +370,29 @@ func (n *Node) DefaultNodeConstraints() node.Constraints {
 
 func init() {
 	node.Vendor(tpb.Vendor_DRIVENETS, New)
+}
+
+// isAzureAKS attempts to detect whether the current cluster is Azure AKS.
+// It returns true if any node has a providerID starting with "azure://"
+// or has any label prefixed with "kubernetes.azure.com/".
+func isAzureAKS(k kubernetes.Interface) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	nodes, err := k.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil || len(nodes.Items) == 0 {
+		return false
+	}
+	for _, n := range nodes.Items {
+		if strings.HasPrefix(n.Spec.ProviderID, "azure://") {
+			return true
+		}
+		for key := range n.Labels {
+			if strings.HasPrefix(key, "kubernetes.azure.com/") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
