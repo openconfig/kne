@@ -107,7 +107,7 @@ var (
 					SelfSigned: &tpb.SelfSignedCertCfg{
 						CertName: "grpc-server-cert",
 						KeyName:  "my_key",
-						KeySize:  2048,
+						KeySize:  4096,
 					},
 				},
 			},
