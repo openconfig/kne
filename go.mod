@@ -3,47 +3,47 @@ module github.com/openconfig/kne
 go 1.24.0
 
 require (
-	cloud.google.com/go/pubsub v1.36.1
+	cloud.google.com/go/pubsub v1.50.1
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/docker/docker v28.1.1+incompatible
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/drivenets/cdnos-controller v1.7.4
 	github.com/ghodss/yaml v1.0.0
-	github.com/golang/glog v1.2.4
+	github.com/golang/glog v1.2.5
 	github.com/golang/mock v1.6.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
 	github.com/kr/pretty v0.3.1
-	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
+	github.com/networkop/meshnet-cni v0.4.0
 	github.com/open-traffic-generator/keng-operator v0.3.34
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.7
-	github.com/openconfig/gnmi v0.10.0
-	github.com/openconfig/lemming/operator v0.2.0
-	github.com/openconfig/ondatra v0.5.8
+	github.com/openconfig/gnmi v0.14.1
+	github.com/openconfig/lemming/operator v0.2.4
+	github.com/openconfig/ondatra v0.14.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.3.2
+	github.com/scrapli/scrapligo v1.3.3
 	github.com/scrapli/scrapligocfg v1.0.0
-	github.com/spf13/cobra v1.8.1
-	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.17.0
-	github.com/srl-labs/srl-controller v0.6.1
+	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
+	github.com/spf13/viper v1.21.0
+	github.com/srl-labs/srl-controller v0.7.1
 	github.com/srl-labs/srlinux-scrapli v0.6.0
-	github.com/wI2L/jsondiff v0.5.1
-	go.universe.tf/metallb v0.14.8
-	golang.org/x/oauth2 v0.27.0
-	golang.org/x/sync v0.18.0
-	google.golang.org/api v0.169.0
-	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	github.com/wI2L/jsondiff v0.7.0
+	go.universe.tf/metallb v0.15.3
+	golang.org/x/oauth2 v0.34.0
+	golang.org/x/sync v0.19.0
+	google.golang.org/api v0.263.0
+	google.golang.org/grpc v1.78.0
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.31.2
 	k8s.io/apimachinery v0.31.2
 	k8s.io/client-go v0.31.2
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/utils v0.0.0-20240902221715-702e33fdd3c3
-	sigs.k8s.io/controller-runtime v0.19.0
-	sigs.k8s.io/yaml v1.4.0
+	k8s.io/utils 914a6e750570
+	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
