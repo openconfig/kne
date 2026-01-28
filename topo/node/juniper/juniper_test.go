@@ -565,7 +565,7 @@ func TestNew(t *testing.T) {
 						SelfSigned: &tpb.SelfSignedCertCfg{
 							CertName: "grpc-server-cert",
 							KeyName:  "my_key",
-							KeySize:  4096,
+							KeySize:  2048,
 						},
 					},
 				},
@@ -646,7 +646,7 @@ func TestNew(t *testing.T) {
 						SelfSigned: &tpb.SelfSignedCertCfg{
 							CertName: "grpc-server-cert",
 							KeyName:  "my_key",
-							KeySize:  4096,
+							KeySize:  2048,
 						},
 					},
 				},
@@ -724,7 +724,7 @@ func TestNew(t *testing.T) {
 						SelfSigned: &tpb.SelfSignedCertCfg{
 							CertName: "grpc-server-cert",
 							KeyName:  "my_key",
-							KeySize:  4096,
+							KeySize:  2048,
 						},
 					},
 				},
@@ -788,7 +788,7 @@ func TestNew(t *testing.T) {
 						SelfSigned: &tpb.SelfSignedCertCfg{
 							CertName: "grpc-server-cert",
 							KeyName:  "my_key",
-							KeySize:  4096,
+							KeySize:  2048,
 						},
 					},
 				},
