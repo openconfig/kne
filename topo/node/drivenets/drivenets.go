@@ -25,6 +25,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/drivenets/cdnos-controller/api/v1/clientset"
 	"github.com/openconfig/kne/topo/node"
@@ -47,17 +48,55 @@ const (
 	modelCdnos string = "CDNOS"
 )
 
+// extractNodeSelector extracts nodeSelector from constraints map.
+// Supports two formats:
+// - Node selector via key prefix "nodeSelector.<labelKey>" => "<value>"
+// - Node selector via key "nodeSelector" => "key1=val1,key2=val2"
+func extractNodeSelector(constraints map[string]string) map[string]string {
+	if constraints == nil {
+		return nil
+	}
+	nodeSelector := make(map[string]string)
+	// nodeSelector.<key>: value
+	for k, v := range constraints {
+		if strings.HasPrefix(k, "nodeSelector.") {
+			labelKey := strings.TrimPrefix(k, "nodeSelector.")
+			if labelKey != "" {
+				nodeSelector[labelKey] = v
+			}
+		}
+	}
+	// nodeSelector: "k1=v1,k2=val2"
+	if raw := constraints["nodeSelector"]; raw != "" {
+		pairs := strings.Split(raw, ",")
+		for _, p := range pairs {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			kv := strings.SplitN(p, "=", 2)
+			if len(kv) == 2 {
+				nodeSelector[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+			}
+		}
+	}
+	if len(nodeSelector) == 0 {
+		return nil
+	}
+	return nodeSelector
+}
+
 var (
 	defaultConstraints = node.Constraints{
-		CPU:    "500m", // 500 milliCPUs
-		Memory: "1Gi",  // 1 GB RAM
+		CPU:    "2",
+		Memory: "4Gi",
 	}
 	defaultNode = tpb.Node{
 		Services: map[uint32]*tpb.Service{
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			22: {
 				Names:  []string{"ssh"},
-				Inside: 9339,
+				Inside: 22,
 			},
 			830: {
 				Names:  []string{"netconf"},
@@ -175,6 +214,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 			InitSleep:      int(config.Sleep),
 			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
 			Labels:         nodeSpec.Labels,
+			NodeSelector:   extractNodeSelector(nodeSpec.Constraints),
 		},
 	}
 	if config.Cert != nil {

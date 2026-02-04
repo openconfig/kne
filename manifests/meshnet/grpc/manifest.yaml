@@ -298,10 +298,10 @@ spec:
         name: meshnet
         resources:
           limits:
-            memory: 10G
+            memory: 512Mi
           requests:
-            cpu: 200m
-            memory: 1G
+            cpu: 50m
+            memory: 256Mi
         securityContext:
           privileged: true
         volumeMounts:
