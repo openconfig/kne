@@ -42,11 +42,23 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
-const (
-	// modelCdnos is a string used in the topology to specify that a cdnos
-	// device instance should be created.
-	modelCdnos string = "CDNOS"
+var (
+	// modelCdnos is a list of model names that should be treated as cdnos devices.
+	// Accept both CDNOS and MCDNOS (case-insensitive).
+	modelCdnos = []string{"CDNOS", "MCDNOS"}
 )
+
+// isModelCdnos returns true if the provided model is one of the supported
+// cdnos-family models (cdnos or mcdnos), case-insensitive.
+func isModelCdnos(model string) bool {
+	upper := strings.ToUpper(model)
+	for _, m := range modelCdnos {
+		if upper == m {
+			return true
+		}
+	}
+	return false
+}
 
 // extractNodeSelector extracts nodeSelector from constraints map.
 // Supports two formats:
@@ -133,7 +145,7 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 		return nil, fmt.Errorf("nodeImpl.Proto cannot be nil")
 	}
 
-	if nodeImpl.Proto.Model != modelCdnos {
+	if !isModelCdnos(nodeImpl.Proto.Model) {
 		return nil, fmt.Errorf("unknown model")
 	}
 
@@ -160,7 +172,7 @@ var clientFn = func(c *rest.Config) (clientset.Interface, error) {
 }
 
 func (n *Node) Create(ctx context.Context) error {
-	if n.Impl.Proto.Model != modelCdnos {
+	if !isModelCdnos(n.Impl.Proto.Model) {
 		return fmt.Errorf("cannot create an instance of an unknown model")
 	}
 	return n.cdnosCreate(ctx)
@@ -195,11 +207,18 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 		}
 	}
 
+	// Add model to labels so the controller can access it
+	labels := make(map[string]string)
+	for k, v := range nodeSpec.Labels {
+		labels[k] = v
+	}
+	labels["model"] = strings.ToUpper(nodeSpec.Model)
+
 	dut := &cdnosv1.Cdnos{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nodeSpec.Name,
 			Namespace: n.Namespace,
-			Labels:    nodeSpec.Labels,
+			Labels:    labels,
 		},
 		Spec: cdnosv1.CdnosSpec{
 			Image:          config.Image,
@@ -240,7 +259,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
-	if n.Impl.Proto.Model != modelCdnos {
+	if !isModelCdnos(n.Impl.Proto.Model) {
 		return node.StatusUnknown, fmt.Errorf("invalid model specified")
 	}
 	return n.cdnosStatus(ctx)
@@ -268,7 +287,7 @@ func (n *Node) cdnosStatus(ctx context.Context) (node.Status, error) {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	if n.Impl.Proto.Model != modelCdnos {
+	if !isModelCdnos(n.Impl.Proto.Model) {
 		return fmt.Errorf("unknown model")
 	}
 	return n.cdnosDelete(ctx)
