@@ -270,6 +270,8 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
 		w.SetProgress(m.progress)
+		// Only watch pods in this topology's namespace to avoid unrelated failures.
+		w.AllowNamespaces(m.topo.Name)
 		defer func() {
 			cancel()
 			rerr = w.Cleanup(rerr)

@@ -35,6 +35,7 @@ type Watcher struct {
 	progress         bool
 	currentNamespace string
 	currentPod       types.UID
+	allowedNS        map[string]struct{}
 }
 
 // NewWatcher returns a Watcher on the provided client or an error.  The cancel
@@ -76,6 +77,24 @@ func (w *Watcher) SetProgress(value bool) {
 	w.mu.Lock()
 	w.progress = value
 	w.mu.Unlock()
+}
+
+// AllowNamespaces restricts the watcher to only consider pods in the provided namespaces.
+// If no namespaces are provided, all namespaces are considered.
+func (w *Watcher) AllowNamespaces(namespaces ...string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if len(namespaces) == 0 {
+		w.allowedNS = nil
+		return
+	}
+	w.allowedNS = make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		if ns == "" {
+			continue
+		}
+		w.allowedNS[ns] = struct{}{}
+	}
 }
 
 func (w *Watcher) stop() {
@@ -128,6 +147,16 @@ func (w *Watcher) display(format string, v ...any) {
 }
 
 func (w *Watcher) updatePod(s *PodStatus) bool {
+	// If allowed namespaces are configured, ignore pods outside them.
+	w.mu.Lock()
+	allowed := w.allowedNS
+	w.mu.Unlock()
+	if allowed != nil {
+		if _, ok := allowed[s.Namespace]; !ok {
+			return true
+		}
+	}
+
 	newNamespace := s.Namespace != w.currentNamespace
 	var newState string
 

@@ -224,6 +224,18 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
 		w.SetProgress(d.Progress)
+		// Restrict watcher to known namespaces managed during deployment to avoid noise
+		// from unrelated user workloads in other namespaces.
+		w.AllowNamespaces(
+			"kube-system",
+			"metallb-system",
+			"meshnet",
+			"arista-ceoslab-operator-system",
+			"lemming-operator",
+			"srlinux-controller-system",
+			"ixiatg-op-system",
+			"cdnos-controller-system",
+		)
 		defer func() {
 			cancel()
 			rerr = w.Cleanup(rerr)
