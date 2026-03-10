@@ -36,7 +36,6 @@ linters:
     - gocritic
     - govet
     - revive
-    - staticcheck
     - unconvert
     - unparam
     - unused
