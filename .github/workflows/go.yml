@@ -18,4 +18,17 @@ jobs:
       go-versions: "['1.21']"
 
   linter:
-    uses: openconfig/common-ci/.github/workflows/linter.yml@v0.2.0
+    name: Lint Code Base
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62.2
+          args: --config=.github/linters/.golangci.yml
