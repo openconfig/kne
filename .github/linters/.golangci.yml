@@ -1,52 +1,50 @@
----
-#########################
-#########################
-## Golang Linter rules ##
-#########################
-#########################
-
-# configure golangci-lint
-# see https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
-run:
-  timeout: 10m
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - gosec
-        - goconst
-    - linters:
-      - revive
-      text: "var-naming: don't use leading k"
-    - linters:
-      - staticcheck
-      text: "SA1019:"
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - gosec
     - unconvert
-    - goimports
-    - gofmt
     - gocritic
     - govet
     - revive
     - staticcheck
-    - unconvert
     - unparam
     - unused
     - wastedassign
     - whitespace
-linters-settings:
-  errcheck:
-    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
-    # default is false: such cases aren't reported by default.
-    check-blank: true
-  gocritic:
-    disabled-checks:
-      - singleCaseSwitch
-      - appendAssign
-  revive:
-    ignore-generated-header: true
-    severity: warning
+  settings:
+    errcheck:
+      check-blank: true
+    gocritic:
+      disabled-checks:
+        - singleCaseSwitch
+        - appendAssign
+    revive:
+      rules:
+        - name: generated-header
+          disabled: true
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - dupl
+          - gosec
+          - goconst
+        path: _test\.go
+      - linters:
+          - revive
+        text: "var-naming: don't use leading k"
+      - linters:
+          - staticcheck
+        text: "SA1019:"
+    paths:
+      # Exclude heavy directories here to prevent Github Actions timeout
+      - examples
+      - api
+      - topo/node/testdata
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
