@@ -135,12 +135,12 @@ build {
       "sudo systemctl restart containerd",
       "cd $HOME",
       "git clone https://github.com/kubernetes/cloud-provider-gcp.git",
-      "curl -Lo bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 && sudo install bazel /usr/local/bin/",
       "cd cloud-provider-gcp",
       "curl --create-dirs -o third_party/licenses/cloud-provider-gcp/LICENSE https://raw.githubusercontent.com/kubernetes/cloud-provider-gcp/master/LICENSE",
-      "bazel build cmd/auth-provider-gcp",
+      "make auth-provider-gcp-linux-amd64",
       "sudo mkdir -p /etc/kubernetes/bin/",
-      "sudo cp bazel-bin/cmd/auth-provider-gcp/auth-provider-gcp_/auth-provider-gcp /etc/kubernetes/bin/",
+      # Directory is derived from same commands as in the cloud-provider-gcp Makefile
+      "sudo cp release/`git describe --tags --always --dirty | sed 's|.*/||'`/auth-provider-gcp/linux/amd64/auth-provider-gcp /etc/kubernetes/bin/",
     ]
   }
 
