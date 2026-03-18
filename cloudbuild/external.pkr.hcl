@@ -93,8 +93,8 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kubectl...",
-      "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg",
-      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+      "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg",
+      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get update",
       // kube-proxy requires conntrack to route traffic, and kubeadm v1.31+ enforces it in preflight checks
       "sudo apt-get install conntrack -y",
@@ -135,12 +135,13 @@ build {
       "sudo systemctl restart containerd",
       "cd $HOME",
       "git clone https://github.com/kubernetes/cloud-provider-gcp.git",
-      "curl -Lo bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 && sudo install bazel /usr/local/bin/",
       "cd cloud-provider-gcp",
       "curl --create-dirs -o third_party/licenses/cloud-provider-gcp/LICENSE https://raw.githubusercontent.com/kubernetes/cloud-provider-gcp/master/LICENSE",
-      "bazel build cmd/auth-provider-gcp",
+      "export PATH=$PATH:/usr/local/go/bin",
+      "make auth-provider-gcp-linux-amd64",
       "sudo mkdir -p /etc/kubernetes/bin/",
-      "sudo cp bazel-bin/cmd/auth-provider-gcp/auth-provider-gcp_/auth-provider-gcp /etc/kubernetes/bin/",
+      # Directory is derived from same commands as in the cloud-provider-gcp Makefile
+      "sudo cp release/`git describe --tags --always --dirty | sed 's|.*/||'`/auth-provider-gcp/linux/amd64/auth-provider-gcp /etc/kubernetes/bin/",
     ]
   }
 
