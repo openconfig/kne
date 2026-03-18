@@ -137,6 +137,7 @@ build {
       "git clone https://github.com/kubernetes/cloud-provider-gcp.git",
       "cd cloud-provider-gcp",
       "curl --create-dirs -o third_party/licenses/cloud-provider-gcp/LICENSE https://raw.githubusercontent.com/kubernetes/cloud-provider-gcp/master/LICENSE",
+      "export PATH=$PATH:/usr/local/go/bin",
       "make auth-provider-gcp-linux-amd64",
       "sudo mkdir -p /etc/kubernetes/bin/",
       # Directory is derived from same commands as in the cloud-provider-gcp Makefile
