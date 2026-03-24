@@ -57,15 +57,23 @@ var (
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			22: {
 				Names:  []string{"ssh"},
-				Inside: 9339,
+				Inside: 22,
 			},
 			830: {
 				Names:  []string{"netconf"},
 				Inside: 830,
 			},
 			50051: {
-				Names:  []string{"gnmi"},
+				Names:  []string{"grpc"},
 				Inside: 50051,
+			},
+			51337: {
+				Names:  []string{"gnmi"},
+				Inside: 51337,
+			},
+			52443: {
+				Names:  []string{"gnmi-ssl"},
+				Inside: 52443,
 			},
 		},
 		Config: &tpb.Config{
@@ -171,7 +179,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 			ConfigFile:     config.ConfigFile,
 			InitImage:      config.InitImage,
 			Ports:          ports,
-			InterfaceCount: len(nodeSpec.Interfaces),
+			InterfaceCount: len(nodeSpec.Interfaces) + 1,
 			InitSleep:      int(config.Sleep),
 			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
 			Labels:         nodeSpec.Labels,
