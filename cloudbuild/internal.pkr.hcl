@@ -134,7 +134,7 @@ build {
       "echo \"Configuring containerd registry mirrors...\"",
       "sudo sed -i 's/config_path = .*/config_path = \"\\/etc\\/containerd\\/certs.d\"/' /etc/containerd/config.toml",
       "sudo mkdir -p /etc/containerd/certs.d/registry.k8s.io",
-      "echo 'server = \"https://registry.k8s.io\"\n\n[host.\"https://us-west1-docker.pkg.dev/v2/gep-kne/kne\"]\n  capabilities = [\"pull\", \"resolve\"]\n  override_path = true' | sudo tee /etc/containerd/certs.d/registry.k8s.io/hosts.toml",
+      "echo 'server = \"https://registry.k8s.io\"\n\n[host.\"https://us-west1-docker.pkg.dev/v2/kne-external/kne\"]\n  capabilities = [\"pull\", \"resolve\"]\n  override_path = true' | sudo tee /etc/containerd/certs.d/registry.k8s.io/hosts.toml",
       "sudo systemctl restart containerd",
       "cd $HOME",
       "git clone https://github.com/kubernetes/cloud-provider-gcp.git",
