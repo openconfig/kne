@@ -80,9 +80,10 @@ func defaults(pb *tpb.Node) {
 		return
 	}
 	peerIPLabel := pb.Labels["peer-ip"]
+	peerPrefixLabel := pb.Labels["peer-prefix"]
 	targetPort := pb.Labels["target-port"]
-	if peerIPLabel != "" && targetPort != "" && len(pb.Services) == 1 {
-		staticIPWithMask, peerIPStr, isV6, err := calculateStaticIP(peerIPLabel)
+	if peerIPLabel != "" && peerPrefixLabel != "" && targetPort != "" && len(pb.Services) == 1 {
+		staticIPWithMask, peerIPStr, isV6, err := calculateStaticIP(fmt.Sprintf("%s/%s", peerIPLabel, peerPrefixLabel))
 		if err == nil {
 			var insidePort uint32
 			for k := range pb.Services {
@@ -132,13 +133,14 @@ func (n *Node) validate() error {
 	}
 
 	peerIPLabel := pb.Labels["peer-ip"]
+	peerPrefixLabel := pb.Labels["peer-prefix"]
 	targetPort := pb.Labels["target-port"]
-	if peerIPLabel != "" || targetPort != "" {
-		if peerIPLabel == "" || targetPort == "" {
-			return fmt.Errorf("node %s: both 'peer-ip' and 'target-port' labels must be provided together for automatic socat generation", n.Name())
+	if peerIPLabel != "" || peerPrefixLabel != "" || targetPort != "" {
+		if peerIPLabel == "" || peerPrefixLabel == "" || targetPort == "" {
+			return fmt.Errorf("node %s: 'peer-ip', 'peer-prefix', and 'target-port' labels must be provided together for automatic socat generation", n.Name())
 		}
-		if _, _, _, err := calculateStaticIP(peerIPLabel); err != nil {
-			return fmt.Errorf("node %s: invalid 'peer-ip' label: %v", n.Name(), err)
+		if _, _, _, err := calculateStaticIP(fmt.Sprintf("%s/%s", peerIPLabel, peerPrefixLabel)); err != nil {
+			return fmt.Errorf("node %s: invalid 'peer-ip' or 'peer-prefix' label: %v", n.Name(), err)
 		}
 	} else {
 		// Warning if socat is not in command/args and generation is skipped
