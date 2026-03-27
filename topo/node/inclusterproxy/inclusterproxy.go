@@ -42,7 +42,10 @@ type Node struct {
 	*node.Impl
 }
 
-func calculateStaticIP(cidr string) (string, string, bool, error) {
+// deriveAdjacentIP calculates the static IP for the proxy side of a point-to-point link.
+// It assumes a /31 mask for IPv4 or /127 mask for IPv6, where there are only two addresses
+// in the subnet. Flipping the last bit of the peer IP gives the adjacent IP for the other side of the link.
+func deriveAdjacentIP(cidr string) (string, string, bool, error) {
 	ip, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return "", "", false, err
@@ -80,9 +83,10 @@ func defaults(pb *tpb.Node) {
 		return
 	}
 	peerIPLabel := pb.Labels["peer-ip"]
+	peerPrefixLabel := pb.Labels["peer-prefix"]
 	targetPort := pb.Labels["target-port"]
-	if peerIPLabel != "" && targetPort != "" && len(pb.Services) == 1 {
-		staticIPWithMask, peerIPStr, isV6, err := calculateStaticIP(peerIPLabel)
+	if peerIPLabel != "" && peerPrefixLabel != "" && targetPort != "" && len(pb.Services) == 1 {
+		staticIPWithMask, peerIPStr, isV6, err := deriveAdjacentIP(fmt.Sprintf("%s/%s", peerIPLabel, peerPrefixLabel))
 		if err == nil {
 			var insidePort uint32
 			for k := range pb.Services {
@@ -132,13 +136,14 @@ func (n *Node) validate() error {
 	}
 
 	peerIPLabel := pb.Labels["peer-ip"]
+	peerPrefixLabel := pb.Labels["peer-prefix"]
 	targetPort := pb.Labels["target-port"]
-	if peerIPLabel != "" || targetPort != "" {
-		if peerIPLabel == "" || targetPort == "" {
-			return fmt.Errorf("node %s: both 'peer-ip' and 'target-port' labels must be provided together for automatic socat generation", n.Name())
+	if peerIPLabel != "" || peerPrefixLabel != "" || targetPort != "" {
+		if peerIPLabel == "" || peerPrefixLabel == "" || targetPort == "" {
+			return fmt.Errorf("node %s: 'peer-ip', 'peer-prefix', and 'target-port' labels must be provided together for automatic socat generation", n.Name())
 		}
-		if _, _, _, err := calculateStaticIP(peerIPLabel); err != nil {
-			return fmt.Errorf("node %s: invalid 'peer-ip' label: %v", n.Name(), err)
+		if _, _, _, err := deriveAdjacentIP(fmt.Sprintf("%s/%s", peerIPLabel, peerPrefixLabel)); err != nil {
+			return fmt.Errorf("node %s: invalid 'peer-ip' or 'peer-prefix' label: %v", n.Name(), err)
 		}
 	} else {
 		// Warning if socat is not in command/args and generation is skipped

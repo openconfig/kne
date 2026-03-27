@@ -144,7 +144,8 @@ func TestNew(t *testing.T) {
 				Name: "test_node",
 				Labels: map[string]string{
 					"proxy-pool-for": "dut1",
-					"peer-ip":        "192.168.100.1/31",
+					"peer-ip":        "192.168.100.1",
+					"peer-prefix":    "31",
 					"target-port":    "179",
 				},
 				Interfaces: map[string]*topopb.Interface{
@@ -159,7 +160,8 @@ func TestNew(t *testing.T) {
 			Name: "test_node",
 			Labels: map[string]string{
 				"proxy-pool-for": "dut1",
-				"peer-ip":        "192.168.100.1/31",
+				"peer-ip":        "192.168.100.1",
+				"peer-prefix":    "31",
 				"target-port":    "179",
 			},
 			Config: &topopb.Config{
@@ -181,7 +183,8 @@ func TestNew(t *testing.T) {
 				Name: "test_node",
 				Labels: map[string]string{
 					"proxy-pool-for": "dut1",
-					"peer-ip":        "2001:db8::1/127",
+					"peer-ip":        "2001:db8::1",
+					"peer-prefix":    "127",
 					"target-port":    "179",
 				},
 				Interfaces: map[string]*topopb.Interface{
@@ -196,7 +199,8 @@ func TestNew(t *testing.T) {
 			Name: "test_node",
 			Labels: map[string]string{
 				"proxy-pool-for": "dut1",
-				"peer-ip":        "2001:db8::1/127",
+				"peer-ip":        "2001:db8::1",
+				"peer-prefix":    "127",
 				"target-port":    "179",
 			},
 			Config: &topopb.Config{
@@ -218,7 +222,8 @@ func TestNew(t *testing.T) {
 				Name: "test_node",
 				Labels: map[string]string{
 					"proxy-pool-for": "dut1",
-					"peer-ip":        "invalid-cidr",
+					"peer-ip":        "invalid-ip",
+					"peer-prefix":    "31",
 					"target-port":    "179",
 				},
 				Interfaces: map[string]*topopb.Interface{
@@ -227,7 +232,7 @@ func TestNew(t *testing.T) {
 				Services: map[uint32]*topopb.Service{1: {Inside: 1}},
 			},
 		},
-		wantErr: "invalid 'peer-ip' label",
+		wantErr: "invalid 'peer-ip' or 'peer-prefix' label",
 	}, {
 		desc: "invalid peer-ip mask v4",
 		ni: &node.Impl{
@@ -235,7 +240,8 @@ func TestNew(t *testing.T) {
 				Name: "test_node",
 				Labels: map[string]string{
 					"proxy-pool-for": "dut1",
-					"peer-ip":        "192.168.100.1/24",
+					"peer-ip":        "192.168.100.1",
+					"peer-prefix":    "24",
 					"target-port":    "179",
 				},
 				Interfaces: map[string]*topopb.Interface{
@@ -252,7 +258,8 @@ func TestNew(t *testing.T) {
 				Name: "test_node",
 				Labels: map[string]string{
 					"proxy-pool-for": "dut1",
-					"peer-ip":        "2001:db8::1/64",
+					"peer-ip":        "2001:db8::1",
+					"peer-prefix":    "64",
 					"target-port":    "179",
 				},
 				Interfaces: map[string]*topopb.Interface{

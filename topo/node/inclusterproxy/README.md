@@ -24,11 +24,12 @@ To pass static validation, the node **must** meet the following conditions:
 | Label Key | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | `proxy-pool-for` | String | **Yes** | Name of the target node this proxy is mediating. |
-| `peer-ip` | CIDR | No (Opt-in) | IP address configuration of the peer (DUT) connected over `eth1` (e.g. `192.168.100.1/31` or `2001:db8::1/127`). |
+| `peer-ip` | IP | No (Opt-in) | IP address of the peer (DUT) connected over `eth1` (e.g. `192.168.100.1` or `2001:db8::1`). |
+| `peer-prefix` | String | No (Opt-in) | Prefix length of the peer IP (e.g. `31` or `127`). |
 | `target-port` | Integer | No (Opt-in) | Port on the peer node to forward proxy streams to. |
 
 > **Note on Opt-in Automatic Setup**: 
-> If **both** `peer-ip` and `target-port` are provided, the controller will automatically calculate the inverse IP (your side of the `/31` or `/127` link) and generate full commands addressing `socat`. If omitted, users must configure `command` and `args` in `.Config` structures manually.
+> If **all three of** `peer-ip`, `peer-prefix`, and `target-port` are provided, the controller will automatically calculate the inverse IP (your side of the `/31` or `/127` link) and generate full commands addressing `socat`. If omitted, users must configure `command` and `args` in `.Config` structures manually.
 
 ---
 
@@ -46,7 +47,11 @@ nodes: {
   }
   labels: {
     key: "peer-ip"
-    value: "192.168.100.1/31"
+    value: "192.168.100.1"
+  }
+  labels: {
+    key: "peer-prefix"
+    value: "31"
   }
   labels: {
     key: "target-port"
