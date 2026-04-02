@@ -266,6 +266,7 @@ func (n *Node) Create(ctx context.Context) error {
 				Command:           n.GetProto().GetConfig().GetCommand(),
 				Args:              n.GetProto().GetConfig().GetArgs(),
 				Image:             n.GetProto().GetConfig().GetImage(),
+				InitImage:         n.GetProto().GetConfig().GetInitImage(),
 				Env:               n.GetProto().GetConfig().GetEnv(),
 				EntryCommand:      n.GetProto().GetConfig().GetEntryCommand(),
 				ConfigPath:        n.GetProto().GetConfig().GetConfigPath(),
