@@ -84,6 +84,7 @@ func defaults(pb *tpb.Node) {
 	}
 	peerIPLabel := pb.Labels["peer-ip"]
 	peerPrefixLabel := pb.Labels["peer-prefix"]
+	peerPrefixLabel := pb.Labels["peer-prefix"]
 	targetPort := pb.Labels["target-port"]
 	if peerIPLabel != "" && peerPrefixLabel != "" && targetPort != "" && len(pb.Services) == 1 {
 		staticIPWithMask, peerIPStr, isV6, err := deriveAdjacentIP(fmt.Sprintf("%s/%s", peerIPLabel, peerPrefixLabel))
@@ -137,7 +138,11 @@ func (n *Node) validate() error {
 
 	peerIPLabel := pb.Labels["peer-ip"]
 	peerPrefixLabel := pb.Labels["peer-prefix"]
+	peerPrefixLabel := pb.Labels["peer-prefix"]
 	targetPort := pb.Labels["target-port"]
+	if peerIPLabel != "" || peerPrefixLabel != "" || targetPort != "" {
+		if peerIPLabel == "" || peerPrefixLabel == "" || targetPort == "" {
+			return fmt.Errorf("node %s: 'peer-ip', 'peer-prefix', and 'target-port' labels must be provided together for automatic socat generation", n.Name())
 	if peerIPLabel != "" || peerPrefixLabel != "" || targetPort != "" {
 		if peerIPLabel == "" || peerPrefixLabel == "" || targetPort == "" {
 			return fmt.Errorf("node %s: 'peer-ip', 'peer-prefix', and 'target-port' labels must be provided together for automatic socat generation", n.Name())
