@@ -206,7 +206,7 @@ func TestNew(t *testing.T) {
 			Config: &topopb.Config{
 				Image:   "nicolaka/netshoot:latest",
 				Command: []string{"/bin/sh", "-c"},
-				Args:    []string{"ip addr add 2001:db8::0/127 dev eth1 && ip link set eth1 up && sleep 2 && /usr/bin/socat -d -d TCP6-LISTEN:1790,reuseaddr,fork TCP6:2001:db8::1:179"},
+				Args:    []string{"ip addr add 2001:db8::/127 dev eth1 && ip link set eth1 up && sleep 2 && /usr/bin/socat -d -d TCP6-LISTEN:1790,reuseaddr,fork TCP6:2001:db8::1:179"},
 			},
 			Interfaces: map[string]*topopb.Interface{
 				"eth1": {PeerName: "dut1"},
