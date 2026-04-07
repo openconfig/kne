@@ -4,9 +4,9 @@ The `IN_CLUSTER_PROXY` node type is a specialized KNE node designed to act as a 
 
 ## Features
 
--   **Automatic Command Generation**: Automatically computes static IP address sizing for sidecar point-to-point subnets and generates `socat` listener scriptlets directly without writing bash boilerplate.
--   **Cross-Stack Support**: Transparently supports both point-to-point **IPv4 (`/31`)** and **IPv6 (`/127`)** addressing setups.
--   **Static Topology Integrity Verification**: Proactively verifies that `eth1` connects directly to the declared target node backplane before attempting to load or deploy.
+- **Automatic Command Generation**: Automatically computes static IP address sizing for sidecar point-to-point subnets and generates `socat` listener scriptlets directly without writing bash boilerplate.
+- **Cross-Stack Support**: Transparently supports both point-to-point **IPv4 (`/31`)** and **IPv6 (`/127`)** addressing setups.
+- **Static Topology Integrity Verification**: Proactively verifies that `eth1` connects directly to the declared target node backplane before attempting to load or deploy.
 
 ## Node Constraints
 
@@ -28,7 +28,7 @@ To pass static validation, the node **must** meet the following conditions:
 | `peer-prefix` | String | No (Opt-in) | Prefix length of the peer IP (e.g. `31` or `127`). |
 | `target-port` | Integer | No (Opt-in) | Port on the peer node to forward proxy streams to. |
 
-> **Note on Opt-in Automatic Setup**: 
+> **Note on Opt-in Automatic Setup**:
 > If **all three of** `peer-ip`, `peer-prefix`, and `target-port` are provided, the controller will automatically calculate the inverse IP (your side of the `/31` or `/127` link) and generate full commands addressing `socat`. If omitted, users must configure `command` and `args` in `.Config` structures manually.
 
 ---
@@ -75,5 +75,6 @@ links: {
 ```
 
 In this example, the proxy container will automatically spin up to:
-1.  Assign `192.168.100.0/31` to its `eth1` interface.
-2.  Run `socat` forwarding any stream sent to port `1790` out to `192.168.100.1:179` across the wire.
+
+1. Assign `192.168.100.0/31` to its `eth1` interface.
+2. Run `socat` forwarding any stream sent to port `1790` out to `192.168.100.1:179` across the wire.
