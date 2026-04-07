@@ -58,6 +58,7 @@ import (
 	_ "github.com/openconfig/kne/topo/node/forward"
 	_ "github.com/openconfig/kne/topo/node/gobgp"
 	_ "github.com/openconfig/kne/topo/node/host"
+	_ "github.com/openconfig/kne/topo/node/inclusterproxy"
 	_ "github.com/openconfig/kne/topo/node/juniper"
 	_ "github.com/openconfig/kne/topo/node/keysight"
 	_ "github.com/openconfig/kne/topo/node/nokia"
