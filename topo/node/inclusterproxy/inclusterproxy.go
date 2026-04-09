@@ -119,15 +119,9 @@ func (n *Node) validate() error {
 	if len(pb.Interfaces) != 1 {
 		return fmt.Errorf("node %s: exactly one interface is required, found %d", n.Name(), len(pb.Interfaces))
 	}
-	eth1, ok := pb.Interfaces["eth1"]
+	_, ok := pb.Interfaces["eth1"]
 	if !ok {
 		return fmt.Errorf("node %s: interface must be 'eth1'", n.Name())
-	}
-
-	// Enforce link to target node
-	peerNodeName := pb.Labels["proxy-pool-for"]
-	if eth1.PeerName != peerNodeName {
-		return fmt.Errorf("node %s: eth1 must be connected to %s, found %s", n.Name(), peerNodeName, eth1.PeerName)
 	}
 
 	// Ensure exactly 1 service

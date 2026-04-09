@@ -74,21 +74,6 @@ func TestNew(t *testing.T) {
 		},
 		wantErr: "interface must be 'eth1'",
 	}, {
-		desc: "mismatched peer name",
-		ni: &node.Impl{
-			Proto: &topopb.Node{
-				Name: "test_node",
-				Labels: map[string]string{
-					"proxy-pool-for": "dut1",
-				},
-				Interfaces: map[string]*topopb.Interface{
-					"eth1": {PeerName: "wrong_dut"},
-				},
-				Services: map[uint32]*topopb.Service{1: {Inside: 1}},
-			},
-		},
-		wantErr: "eth1 must be connected to dut1, found wrong_dut",
-	}, {
 		desc: "multiple services not allowed",
 		ni: &node.Impl{
 			Proto: &topopb.Node{
