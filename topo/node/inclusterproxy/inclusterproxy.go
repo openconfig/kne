@@ -119,11 +119,10 @@ func (n *Node) validate() error {
 	if len(pb.Interfaces) != 1 {
 		return fmt.Errorf("node %s: exactly one interface is required, found %d", n.Name(), len(pb.Interfaces))
 	}
-	eth1, ok := pb.Interfaces["eth1"]
+	_, ok := pb.Interfaces["eth1"]
 	if !ok {
 		return fmt.Errorf("node %s: interface must be 'eth1'", n.Name())
 	}
-
 
 	// Ensure exactly 1 service
 	if len(pb.Services) != 1 {
