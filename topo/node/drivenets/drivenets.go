@@ -57,15 +57,23 @@ var (
 			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
 			22: {
 				Names:  []string{"ssh"},
-				Inside: 9339,
+				Inside: 22,
 			},
 			830: {
 				Names:  []string{"netconf"},
 				Inside: 830,
 			},
 			50051: {
-				Names:  []string{"gnmi"},
+				Names:  []string{"grpc"},
 				Inside: 50051,
+			},
+			51337: {
+				Names:  []string{"gnmi"},
+				Inside: 51337,
+			},
+			52443: {
+				Names:  []string{"gnmi-ssl"},
+				Inside: 52443,
 			},
 		},
 		Config: &tpb.Config{
@@ -121,7 +129,7 @@ var clientFn = func(c *rest.Config) (clientset.Interface, error) {
 }
 
 func (n *Node) Create(ctx context.Context) error {
-	if n.Impl.Proto.Model != modelCdnos {
+	if n.Proto.Model != modelCdnos {
 		return fmt.Errorf("cannot create an instance of an unknown model")
 	}
 	return n.cdnosCreate(ctx)
@@ -171,7 +179,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 			ConfigFile:     config.ConfigFile,
 			InitImage:      config.InitImage,
 			Ports:          ports,
-			InterfaceCount: len(nodeSpec.Interfaces),
+			InterfaceCount: len(nodeSpec.Interfaces) + 1,
 			InitSleep:      int(config.Sleep),
 			Resources:      node.ToResourceRequirements(nodeSpec.Constraints),
 			Labels:         nodeSpec.Labels,
@@ -200,7 +208,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
-	if n.Impl.Proto.Model != modelCdnos {
+	if n.Proto.Model != modelCdnos {
 		return node.StatusUnknown, fmt.Errorf("invalid model specified")
 	}
 	return n.cdnosStatus(ctx)
@@ -228,7 +236,7 @@ func (n *Node) cdnosStatus(ctx context.Context) (node.Status, error) {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	if n.Impl.Proto.Model != modelCdnos {
+	if n.Proto.Model != modelCdnos {
 		return fmt.Errorf("unknown model")
 	}
 	return n.cdnosDelete(ctx)
