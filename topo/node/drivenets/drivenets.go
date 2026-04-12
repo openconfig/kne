@@ -129,7 +129,7 @@ var clientFn = func(c *rest.Config) (clientset.Interface, error) {
 }
 
 func (n *Node) Create(ctx context.Context) error {
-	if n.Impl.Proto.Model != modelCdnos {
+	if n.Proto.Model != modelCdnos {
 		return fmt.Errorf("cannot create an instance of an unknown model")
 	}
 	return n.cdnosCreate(ctx)
@@ -208,7 +208,7 @@ func (n *Node) cdnosCreate(ctx context.Context) error {
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
-	if n.Impl.Proto.Model != modelCdnos {
+	if n.Proto.Model != modelCdnos {
 		return node.StatusUnknown, fmt.Errorf("invalid model specified")
 	}
 	return n.cdnosStatus(ctx)
@@ -236,7 +236,7 @@ func (n *Node) cdnosStatus(ctx context.Context) (node.Status, error) {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	if n.Impl.Proto.Model != modelCdnos {
+	if n.Proto.Model != modelCdnos {
 		return fmt.Errorf("unknown model")
 	}
 	return n.cdnosDelete(ctx)
