@@ -1,0 +1,90 @@
+name: "ncptx-bx-ncptx-bx"
+nodes: {
+    name: "ncptx-bx1"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        config_path: "/home/evo/configdisk/"
+        config_file: "juniper.conf"
+        file: "juniper_channelized.config"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+        env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+}
+nodes: {
+    name: "ncptx-bx2"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        config_path: "/home/evo/configdisk/"
+        config_file: "juniper.conf"
+        file: "juniper_channelized.config"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+        env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+}
+
+links: {
+    a_node: "ncptx-bx1"
+    a_int: "eth5"
+    z_node: "ncptx-bx2"
+    z_int: "eth5"
+}
+links: {
+    a_node: "ncptx-bx1"
+    a_int: "eth13"
+    z_node: "ncptx-bx2"
+    z_int: "eth13"
+}

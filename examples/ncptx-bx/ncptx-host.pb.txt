@@ -1,0 +1,80 @@
+name: "ncptx-bx-host"
+nodes: {
+    name: "ncptx-bx"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        config_path: "/home/evo/configdisk/"
+        config_file: "juniper.conf"
+        file: "juniper.config"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+        env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+          name: "et-0/0/1"
+        }
+    }
+}
+nodes: {
+    name: "vm-1"
+    vendor: HOST
+    config: {
+        image: "ubuntu:latest"
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+nodes: {
+    name: "vm-2"
+    vendor: HOST
+    config: {
+        image: "ubuntu:latest"
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+}
+
+links: {
+    a_node: "vm-1"
+    a_int: "eth1"
+    z_node: "ncptx-bx"
+    z_int: "eth5"
+}
+links: {
+    a_node: "vm-2"
+    a_int: "eth1"
+    z_node: "ncptx-bx"
+    z_int: "eth6"
+}
