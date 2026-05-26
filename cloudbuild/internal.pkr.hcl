@@ -101,8 +101,8 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kubectl...",
-      "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg",
-      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+      "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg",
+      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get update",
       // kube-proxy requires conntrack to route traffic, and kubeadm v1.31+ enforces it in preflight checks
       "sudo apt-get install conntrack -y",
@@ -131,14 +131,19 @@ build {
       "sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml",
       "echo \"Setting containerd to default to 'kne-external' repo for the sandbox image...\"",
       "sudo sed -i 's/registry.k8s.io/us-west1-docker.pkg.dev\\/kne-external\\/kne/g' /etc/containerd/config.toml",
+      "echo \"Configuring containerd registry mirrors...\"",
+      "sudo sed -i 's/config_path = .*/config_path = \"\\/etc\\/containerd\\/certs.d\"/' /etc/containerd/config.toml",
+      "sudo mkdir -p /etc/containerd/certs.d/registry.k8s.io",
+      "echo 'server = \"https://registry.k8s.io\"\n\n[host.\"https://us-west1-docker.pkg.dev/v2/kne-external/kne\"]\n  capabilities = [\"pull\", \"resolve\"]\n  override_path = true' | sudo tee /etc/containerd/certs.d/registry.k8s.io/hosts.toml",
       "sudo systemctl restart containerd",
       "cd $HOME",
       "git clone https://github.com/kubernetes/cloud-provider-gcp.git",
-      "curl -Lo bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 && sudo install bazel /usr/local/bin/",
       "cd cloud-provider-gcp",
-      "bazel build cmd/auth-provider-gcp",
+      "export PATH=$PATH:/usr/local/go/bin",
+      "make auth-provider-gcp-linux-amd64",
       "sudo mkdir -p /etc/kubernetes/bin/",
-      "sudo cp bazel-bin/cmd/auth-provider-gcp/auth-provider-gcp_/auth-provider-gcp /etc/kubernetes/bin/",
+      # Directory is derived from same commands as in the cloud-provider-gcp Makefile
+      "sudo cp release/`git describe --tags --always --dirty | sed 's|.*/||'`/auth-provider-gcp/linux/amd64/auth-provider-gcp /etc/kubernetes/bin/",
     ]
   }
 

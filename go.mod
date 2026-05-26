@@ -11,7 +11,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v1.2.4
 	github.com/golang/mock v1.6.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
 	github.com/kr/pretty v0.3.1
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
@@ -22,12 +22,12 @@ require (
 	github.com/openconfig/ondatra v0.5.8
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.3.2
+	github.com/scrapli/scrapligo v1.3.3
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.17.0
-	github.com/srl-labs/srl-controller v0.6.1
+	github.com/srl-labs/srl-controller v0.7.1
 	github.com/srl-labs/srlinux-scrapli v0.6.0
 	github.com/wI2L/jsondiff v0.5.1
 	go.universe.tf/metallb v0.14.8
@@ -35,7 +35,7 @@ require (
 	golang.org/x/sync v0.18.0
 	google.golang.org/api v0.169.0
 	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.36.7
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.31.2
 	k8s.io/apimachinery v0.31.2
@@ -55,7 +55,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/creack/pty v1.1.21 // indirect
+	github.com/creack/pty v1.1.23 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -65,7 +65,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
