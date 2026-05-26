@@ -8,14 +8,40 @@ on:
     branches: [main]
 
 jobs:
-  go:
-    uses: openconfig/common-ci/.github/workflows/go.yml@v0.2.0
-    with:
-      coverage-excludes-regex: /cloudbuild
-      tests-excludes-regex: /cloudbuild
-      race-tests-excludes-regex: /cloudbuild
-      skip-race-tests: true
-      go-versions: "['1.21']"
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.25']
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Go Mod should be tidy
+        run: |
+          go mod tidy
+          diff -u <(echo -n) <(git diff)
+
+      - name: Build packages
+        run: go build -v ./...
+
+      - name: Run Tests
+        # Exclude:
+        # - /cloudbuild         needs gcloud + project credentials
+        # - /topo/node/cisco    upstream scrapli test hangs without a real device
+        # - /topo/node/juniper  upstream scrapli test hangs without a real device
+        run: go test -v $(go list ./... | grep -E -v '/cloudbuild|/topo/node/cisco|/topo/node/juniper')
 
   linter:
     uses: openconfig/common-ci/.github/workflows/linter.yml@v0.2.0

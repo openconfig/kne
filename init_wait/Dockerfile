@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 FROM alpine:3.22.2
+RUN addgroup -S kne && adduser -S -G kne -s /sbin/nologin kne
 COPY entrypoint.sh /
+USER kne
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD []

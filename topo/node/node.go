@@ -357,7 +357,7 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 			},
 		}
 	default: // size greater than 1MB, use hostPath
-		if err := os.MkdirAll(tempCfgDir, 0666); err != nil {
+		if err := os.MkdirAll(tempCfgDir, 0750); err != nil {
 			return nil, err
 		}
 		f, err := os.CreateTemp(tempCfgDir, fmt.Sprintf("kne-%s-config-*.cfg", n.Proto.Name))

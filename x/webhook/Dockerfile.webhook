@@ -1,7 +1,6 @@
-FROM golang:latest
+FROM gcr.io/distroless/static-debian12:nonroot
 
-RUN mkdir /launcher
-COPY webhook /launcher
+COPY webhook /launcher/webhook
 WORKDIR /launcher
 
 EXPOSE 8080

@@ -633,7 +633,7 @@ func (k *KindSpec) checkDependencies() error {
 
 func (k *KindSpec) create() error {
 	// Create a KNE dir under /tmp intended to hold files to be mounted into the kind cluster.
-	if err := os.MkdirAll("/tmp/kne", os.ModePerm); err != nil {
+	if err := os.MkdirAll("/tmp/kne", 0750); err != nil {
 		return err
 	}
 	if k.Recycle {

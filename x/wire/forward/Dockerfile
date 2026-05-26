@@ -1,4 +1,4 @@
-FROM golang:1.21
+FROM golang:1.25.8 AS build
 
 WORKDIR /app
 
@@ -8,6 +8,8 @@ RUN go mod download
 COPY x/wire/ x/wire/
 COPY proto/ proto/
 
-RUN go build -o forward x/wire/forward/main.go
+RUN CGO_ENABLED=0 go build -o forward x/wire/forward/main.go
 
-ENTRYPOINT ["./forward"]
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /app/forward /forward
+ENTRYPOINT ["/forward"]
