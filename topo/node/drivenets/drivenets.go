@@ -641,7 +641,16 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 		data = v.Data
 	}
 	if data == nil {
-		return nil, nil
+		// No startup config was supplied. If the controller-managed Pod
+		// will nevertheless mount a config ConfigMap (because ConfigPath
+		// + ConfigFile are populated - typically by cdnosDefaults), we
+		// must still create an empty ConfigMap so the mount succeeds.
+		// Otherwise the Pod sits forever in PodInitializing with
+		// `configmap "<name>-config" not found`.
+		if pb.Config.GetConfigPath() == "" || pb.Config.GetConfigFile() == "" {
+			return nil, nil
+		}
+		data = []byte{}
 	}
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
