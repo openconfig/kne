@@ -554,6 +554,19 @@ func (m *Manager) topologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 	// replace node name with pod name, for peer pod attribute in each link
 	for nodeName, specs := range nodeSpecs {
 		for _, spec := range specs {
+			// Skip Topology CRs with no links: meshnetd's Get RPC
+			// treats a missing `spec.links` field as an error
+			// (`could not find 'Link' array in pod's spec`) and the
+			// CNI plugin then aborts pod sandbox creation with a
+			// misleading `meshnetd provided no HOST_IP` message.
+			// For unconnected nodes we simply don't create the CR;
+			// the meshnet CNI plugin already handles "no Topology
+			// CR" gracefully and falls through to the next plugin
+			// in the chain.
+			if len(spec.Spec.Links) == 0 {
+				log.V(1).Infof("Skipping empty Topology spec for node %s (no links)", nodeName)
+				continue
+			}
 			for l := range spec.Spec.Links {
 				link := &spec.Spec.Links[l]
 				peerSpecs, ok := nodeSpecs[link.PeerPod]
