@@ -1,0 +1,91 @@
+name: Release
+
+# Build kne_cli binaries for linux + darwin (amd64 + arm64) and attach them
+# to a GitHub Release.
+#
+# Triggers:
+#   * push of any tag matching v*  -> creates / updates the matching release
+#   * manual dispatch with a tag input -> rebuilds & re-uploads for that tag
+#     (useful for historical tags or when assets need to be regenerated)
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build a release for (e.g. v0.4.0-dn)'
+        required: true
+
+permissions:
+  contents: write   # required to create / update a GitHub Release
+
+jobs:
+  release:
+    name: Build & publish ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out tag ${{ steps.tag.outputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.ref }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build cross-platform binaries
+        env:
+          CGO_ENABLED: '0'
+          TAG: ${{ steps.tag.outputs.ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # commit & date come from the checked-out tag so they're stable
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git show -s --format=%cI HEAD)
+          LDFLAGS="-s -w -X main.version=${TAG} -X main.commit=${COMMIT} -X main.date=${DATE}"
+
+          for combo in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            os="${combo%/*}"
+            arch="${combo#*/}"
+            bin="kne"
+            out_dir="dist/kne_${TAG}_${os}_${arch}"
+            mkdir -p "${out_dir}"
+            echo "==> Building ${out_dir}/${bin} (GOOS=${os} GOARCH=${arch})"
+            GOOS="${os}" GOARCH="${arch}" \
+              go build -trimpath -ldflags="${LDFLAGS}" \
+                       -o "${out_dir}/${bin}" ./kne_cli
+            cp LICENSE "${out_dir}/" 2>/dev/null || true
+            cp README.md "${out_dir}/" 2>/dev/null || true
+            tar -C dist -czf "dist/kne_${TAG}_${os}_${arch}.tar.gz" \
+              "$(basename "${out_dir}")"
+            rm -rf "${out_dir}"
+          done
+
+          ( cd dist && sha256sum *.tar.gz > SHA256SUMS )
+          ls -lh dist/
+          echo "---"
+          cat dist/SHA256SUMS
+
+      - name: Create / update GitHub Release with assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.ref }}
+          name: ${{ steps.tag.outputs.ref }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS

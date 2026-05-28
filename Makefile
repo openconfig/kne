@@ -4,7 +4,9 @@ KNE_CLI_BIN := kne
 INSTALL_DIR := /usr/local/bin
 
 COMMIT := $(shell git describe --dirty --always)
-TAG := $(shell git describe --tags --abbrev=0 || echo latest)
+# Allow overriding TAG via env (e.g. `TAG=v0.4.0-dn make dist`) so release
+# builds aren't pinned to whatever `git describe` happens to return.
+TAG ?= $(shell git describe --tags --abbrev=0 || echo latest)
 
 
 include .mk/kind.mk
@@ -38,3 +40,27 @@ build:
 ## Install kne cli binary to user's local bin dir
 install: build
 	sudo mv $(KNE_CLI_BIN) $(INSTALL_DIR)
+
+.PHONY: dist
+## Cross-build kne_cli for linux+darwin (amd64+arm64) into ./dist
+## Mirrors what .github/workflows/release.yml does so releases are reproducible locally.
+dist:
+	@rm -rf dist && mkdir -p dist
+	@COMMIT=$$(git rev-parse --short HEAD); \
+	 DATE=$$(git show -s --format=%cI HEAD); \
+	 LDFLAGS="-s -w -X main.version=$(TAG) -X main.commit=$$COMMIT -X main.date=$$DATE"; \
+	 for combo in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do \
+	   os=$${combo%/*}; arch=$${combo#*/}; \
+	   out=dist/kne_$(TAG)_$${os}_$${arch}; \
+	   mkdir -p "$$out"; \
+	   echo "==> $$out (GOOS=$$os GOARCH=$$arch)"; \
+	   CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch \
+	     go build -trimpath -ldflags="$$LDFLAGS" \
+	              -o "$$out/$(KNE_CLI_BIN)" ./kne_cli; \
+	   cp LICENSE "$$out/" 2>/dev/null || true; \
+	   cp README.md "$$out/" 2>/dev/null || true; \
+	   tar -C dist -czf "dist/kne_$(TAG)_$${os}_$${arch}.tar.gz" "$$(basename $$out)"; \
+	   rm -rf "$$out"; \
+	 done; \
+	 ( cd dist && sha256sum *.tar.gz > SHA256SUMS )
+	@ls -lh dist/
