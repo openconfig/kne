@@ -62,5 +62,5 @@ dist:
 	   tar -C dist -czf "dist/kne_$(TAG)_$${os}_$${arch}.tar.gz" "$$(basename $$out)"; \
 	   rm -rf "$$out"; \
 	 done; \
-	 ( cd dist && sha256sum *.tar.gz > SHA256SUMS )
+	 ( cd dist && sha256sum -- *.tar.gz > SHA256SUMS )
 	@ls -lh dist/

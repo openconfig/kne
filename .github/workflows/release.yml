@@ -1,3 +1,4 @@
+---
 name: Release
 
 # Build kne_cli binaries for linux + darwin (amd64 + arm64) and attach them
@@ -74,7 +75,7 @@ jobs:
             rm -rf "${out_dir}"
           done
 
-          ( cd dist && sha256sum *.tar.gz > SHA256SUMS )
+          ( cd dist && sha256sum -- *.tar.gz > SHA256SUMS )
           ls -lh dist/
           echo "---"
           cat dist/SHA256SUMS
