@@ -63,6 +63,7 @@ import (
 	_ "github.com/openconfig/kne/topo/node/keysight"
 	_ "github.com/openconfig/kne/topo/node/nokia"
 	_ "github.com/openconfig/kne/topo/node/openconfig"
+	_ "github.com/openconfig/kne/topo/node/sonic"
 )
 
 var (
@@ -422,13 +423,21 @@ func (m *Manager) Watch(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer watcher.Stop()
 	ch := watcher.ResultChan()
-	for e := range ch {
-		fmt.Println(e.Type)
-		pretty.Print(e.Object)
-		fmt.Println("")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case e, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			fmt.Println(e.Type)
+			pretty.Print(e.Object)
+			fmt.Println("")
+		}
 	}
-	return nil
 }
 
 // Nodes returns a map of node names to implementations in the current topology.

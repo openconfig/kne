@@ -45,6 +45,7 @@ enum Vendor {
   DRIVENETS = 12;
   FORWARD = 13;
   IN_CLUSTER_PROXY = 14;
+  SONIC = 15;
 }
 
 // Node is a single container inside the topology
