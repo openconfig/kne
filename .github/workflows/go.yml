@@ -7,15 +7,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 jobs:
   go:
     uses: openconfig/common-ci/.github/workflows/go.yml@v0.3.0
-    with:
-      coverage-excludes-regex: /cloudbuild
-      tests-excludes-regex: /cloudbuild
-      race-tests-excludes-regex: /cloudbuild
-      skip-race-tests: true
-      go-versions: "['1.21']"
+    permissions:
+      contents: read
+      packages: read
 
-  linter:
+  lint:
     uses: openconfig/common-ci/.github/workflows/linter.yml@v0.3.0
+    permissions:
+      contents: read
+      packages: read

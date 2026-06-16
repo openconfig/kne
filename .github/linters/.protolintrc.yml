@@ -1,7 +1,0 @@
-lint:
-  rules:
-    remove: # TODO: fix proto files and remove these.
-      - ENUM_FIELD_NAMES_PREFIX
-      - ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
-      - REPEATED_FIELD_NAMES_PLURALIZED
-      - SERVICE_NAMES_UPPER_CAMEL_CASE
