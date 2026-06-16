@@ -51,7 +51,7 @@ func deriveAdjacentIP(cidr string) (string, string, bool, error) {
 		return "", "", false, err
 	}
 	ones, _ := ipNet.Mask.Size()
-	
+
 	ip4 := ip.To4()
 	if ip4 != nil {
 		if ones != 31 {
@@ -62,7 +62,7 @@ func deriveAdjacentIP(cidr string) (string, string, bool, error) {
 		staticIP[3] ^= 1
 		return fmt.Sprintf("%s/31", staticIP.String()), ip.String(), false, nil
 	}
-	
+
 	if ones != 127 {
 		return "", "", false, fmt.Errorf("only /127 mask is supported for IPv6 static IP calculation")
 	}
@@ -109,7 +109,7 @@ func defaults(pb *tpb.Node) {
 
 func (n *Node) validate() error {
 	pb := n.GetProto()
-	
+
 	// Enforce proxy-pool-for label
 	if pb.Labels == nil || pb.Labels["proxy-pool-for"] == "" {
 		return fmt.Errorf("node %s: label 'proxy-pool-for' is required", n.Name())

@@ -20,12 +20,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnmi/errdiff"
-	apb "github.com/openconfig/kne/proto/alpine"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kfake "k8s.io/client-go/kubernetes/fake"
@@ -153,152 +151,134 @@ func TestNew(t *testing.T) {
 }
 
 func TestCreatePod(t *testing.T) {
-	vendorData, err := anypb.New(&apb.AlpineConfig{
-		Containers: []*apb.Container{{
-			Name:    "dp",
-			Image:   "dpImage",
-			Command: []string{"dpCommand"},
-			Args:    []string{"dpArgs"},
-		}},
-		Files: &apb.Files{
-			MountDir: "/files",
-			Files: map[string]*apb.Files_FileData{
-				"test.config": {FileData: &apb.Files_FileData_Data{
-					Data: []byte{'t', 'e', 's', 't'},
-				}},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("cannot marshal AlpineConfig into \"any\" protobuf: %v", err)
-	}
 	tests := []struct {
-		desc          string
-		nImpl         *node.Impl
-		wantAlpineCtr corev1.Container
-		wantDpCtr     corev1.Container
-		wantErr       string
+		desc         string
+		nImpl        *node.Impl
+		wantInitCtr  corev1.Container
+		wantSonicCtr corev1.Container
+		wantErr      string
 	}{{
-		desc: "get all containers",
+		desc: "simple sonic container",
 		nImpl: &node.Impl{
 			Proto: &tpb.Node{
-				Name: "alpine",
+				Name: "sonic-node",
 				Config: &tpb.Config{
-					Image:      "alpineImage",
-					Command:    []string{"alpineCommand"},
-					Args:       []string{"alpineArgs"},
-					VendorData: vendorData,
+					Image:   "sonicImage",
+					Command: []string{"sonicCommand"},
+					Args:    []string{"sonicArgs"},
+					Sleep:   10,
 				},
 			},
 		},
-		wantAlpineCtr: corev1.Container{
-			Name:    "alpine",
-			Image:   "alpineImage",
-			Command: []string{"alpineCommand"},
-			Args:    []string{"alpineArgs"},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{}},
+		wantInitCtr: corev1.Container{
+			Name:  "init-sonic-node",
+			Image: node.DefaultInitContainerImage,
+			Args:  []string{"1", "10", "1"},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
 		},
-		wantDpCtr: corev1.Container{
-			Name:    "dp",
-			Image:   "dpImage",
-			Command: []string{"dpCommand"},
-			Args:    []string{"dpArgs"},
+		wantSonicCtr: corev1.Container{
+			Name:    "sonic-node",
+			Image:   "sonicImage",
+			Command: []string{"sonicCommand"},
+			Args:    []string{"sonicArgs"},
 			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{}},
+				Requests: corev1.ResourceList{},
+			},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
-			VolumeMounts: []corev1.VolumeMount{{Name: "files", MountPath: "/files"}},
 		},
 	}, {
-		desc: "get all containers with ports",
+		desc: "sonic container with custom init image and interfaces",
 		nImpl: &node.Impl{
 			Proto: &tpb.Node{
-				Name: "alpine",
+				Name: "sonic-node",
 				Config: &tpb.Config{
-					Image:      "alpineImage",
-					Command:    []string{"alpineCommand"},
-					Args:       []string{"alpineArgs"},
-					VendorData: vendorData,
-					ConfigData: &tpb.Config_Data{Data: []byte{'h', 'i'}},
-					ConfigPath: "/etc/sonic",
-					ConfigFile: "config_db.json",
+					InitImage: "customInitImage",
+					Image:     "sonicImage",
+					Command:   []string{"sonicCommand"},
+					Args:      []string{"sonicArgs"},
+					Sleep:     5,
 				},
 				Interfaces: map[string]*tpb.Interface{
 					"eth1": {
 						IntName: "Ethernet1/1/1",
 					},
+					"eth2": {
+						IntName: "Ethernet1/1/2",
+					},
 				},
 			},
 		},
-		wantAlpineCtr: corev1.Container{
-			Name:    "alpine",
-			Image:   "alpineImage",
-			Command: []string{"alpineCommand"},
-			Args:    []string{"alpineArgs", "--config_file=/etc/sonic/config_db.json"},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{}},
+		wantInitCtr: corev1.Container{
+			Name:  "init-sonic-node",
+			Image: "customInitImage",
+			Args:  []string{"3", "5", "1"},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
-			VolumeMounts: []corev1.VolumeMount{{
-				Name:      "startup-config-volume",
-				ReadOnly:  true,
-				MountPath: "/etc/sonic/config_db.json",
-				SubPath:   "config_db.json",
-			}},
 		},
-		wantDpCtr: corev1.Container{
-			Name:    "dp",
-			Image:   "dpImage",
-			Command: []string{"dpCommand"},
-			Args:    []string{"dpArgs", "--config_file=/etc/sonic/config_db.json"},
+		wantSonicCtr: corev1.Container{
+			Name:    "sonic-node",
+			Image:   "sonicImage",
+			Command: []string{"sonicCommand"},
+			Args:    []string{"sonicArgs"},
 			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{}},
+				Requests: corev1.ResourceList{},
+			},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
-			VolumeMounts: []corev1.VolumeMount{{
-				Name:      "files",
-				MountPath: "/files",
-			}, {
-				Name:      "startup-config-volume",
-				ReadOnly:  true,
-				MountPath: "/etc/sonic/config_db.json",
-				SubPath:   "config_db.json",
-			}},
 		},
 	}, {
-		desc: "get only alpine containers",
+		desc: "sonic container with config data",
 		nImpl: &node.Impl{
 			Proto: &tpb.Node{
-				Name: "alpine",
+				Name: "sonic-node",
 				Config: &tpb.Config{
-					Image:   "alpineImage",
-					Command: []string{"alpineCommand"},
-					Args:    []string{"alpineArgs"},
+					Image:      "sonicImage",
+					Command:    []string{"sonicCommand"},
+					Args:       []string{"sonicArgs"},
+					ConfigData: &tpb.Config_Data{Data: []byte{'h', 'i'}},
+					ConfigPath: "/etc/sonic",
+					ConfigFile: "config_db.json",
+					Sleep:      10,
 				},
 			},
 		},
-		wantAlpineCtr: corev1.Container{
-			Name:    "alpine",
-			Image:   "alpineImage",
-			Command: []string{"alpineCommand"},
-			Args:    []string{"alpineArgs"},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{}},
+		wantInitCtr: corev1.Container{
+			Name:  "init-sonic-node",
+			Image: node.DefaultInitContainerImage,
+			Args:  []string{"1", "10", "1"},
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+		},
+		wantSonicCtr: corev1.Container{
+			Name:    "sonic-node",
+			Image:   "sonicImage",
+			Command: []string{"sonicCommand"},
+			Args:    []string{"sonicArgs", "--config_file=/etc/sonic/config_db.json"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{},
+			},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "startup-config-volume",
+				ReadOnly:  true,
+				MountPath: "/etc/sonic/config_db.json",
+				SubPath:   "config_db.json",
+			}},
 		},
 	}}
 	for _, tt := range tests {
@@ -314,23 +294,27 @@ func TestCreatePod(t *testing.T) {
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: got %v, want %s", err, s)
 			}
+			if tt.wantErr != "" {
+				return
+			}
 			pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(context.Background(), n.Name(), metav1.GetOptions{})
 			if err != nil {
 				t.Fatalf("Could not get the pod: %v", err)
 			}
+			initContainers := pod.Spec.InitContainers
+			if len(initContainers) != 1 {
+				t.Fatalf("Num init containers mismatch: want: 1 got: %v", len(initContainers))
+			}
+			if s := cmp.Diff(tt.wantInitCtr, initContainers[0]); s != "" {
+				t.Fatalf("Init Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, initContainers[0], tt.wantInitCtr)
+			}
+
 			containers := pod.Spec.Containers
-			if len(containers) < 1 || len(containers) > 2 {
-				t.Fatalf("Num containers mismatch: want: 1 or 2 got:%v", len(containers))
+			if len(containers) != 1 {
+				t.Fatalf("Num containers mismatch: want: 1 got: %v", len(containers))
 			}
-			alpineCtr := containers[0]
-			if s := cmp.Diff(tt.wantAlpineCtr, alpineCtr); s != "" {
-				t.Fatalf("Alpine Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, alpineCtr, tt.wantAlpineCtr)
-			}
-			if len(containers) == 2 {
-				dpCtr := containers[1]
-				if s := cmp.Diff(tt.wantDpCtr, dpCtr); s != "" {
-					t.Fatalf("DP Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, dpCtr, tt.wantDpCtr)
-				}
+			if s := cmp.Diff(tt.wantSonicCtr, containers[0]); s != "" {
+				t.Fatalf("Sonic Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, containers[0], tt.wantSonicCtr)
 			}
 		})
 	}

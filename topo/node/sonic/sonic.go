@@ -123,7 +123,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			Privileged: pointer.Bool(true),
 		},
 	}}
-	
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pb.Name,
