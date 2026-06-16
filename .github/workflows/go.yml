@@ -19,3 +19,18 @@ jobs:
 
   linter:
     uses: openconfig/common-ci/.github/workflows/linter.yml@v0.2.0
+
+  runner-specs:
+    name: Runner Specs and Disk Utilization
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Log hardware specifications and disk usage
+        run: |
+          echo "=== CPU Info ==="
+          nproc
+          lscpu | grep -E "Model name|CPU\(s\):|Thread\(s\) per core|Core\(s\) per socket"
+          echo "=== Memory Info ==="
+          free -h
+          echo "=== Disk Info ==="
+          df -h
