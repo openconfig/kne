@@ -35,8 +35,12 @@ jobs:
         with:
           go-version: 'stable'
 
-      - name: Start background resource monitor
+      - name: Run golangci-lint with background resource monitor
         run: |
+          # 1. Install golangci-lint
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b . v1.64.8
+          
+          # 2. Log hardware specifications and start background monitor
           echo "=== CPU Info ==="
           nproc
           lscpu | grep -E "Model name|CPU\(s\):|Thread\(s\) per core|Core\(s\) per socket"
@@ -44,23 +48,21 @@ jobs:
           free -h
           df -h
           
-          # Start background monitor
+          # Start background monitor (directing output to stderr so it flushes immediately)
           while true; do
-            echo "[MONITOR] Memory usage:"
-            free -h
-            echo "[MONITOR] Disk usage:"
-            df -h
+            echo "[MONITOR] Memory usage:" >&2
+            free -h >&2
+            echo "[MONITOR] Disk usage:" >&2
+            df -h >&2
             sleep 10
           done &
-          echo "MONITOR_PID=$!" >> $GITHUB_ENV
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --config=.github/linters/.golangci.yml
-
-      - name: Stop resource monitor
-        if: always()
-        run: |
-          kill ${{ env.MONITOR_PID }} || true
+          MONITOR_PID=$!
+          
+          # 3. Run golangci-lint
+          ./golangci-lint run --config=.github/linters/.golangci.yml
+          LINT_EXIT_CODE=$?
+          
+          # 4. Stop monitor
+          kill $MONITOR_PID || true
+          
+          exit $LINT_EXIT_CODE
