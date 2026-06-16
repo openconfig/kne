@@ -7,62 +7,49 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  GOMEMLIMIT: 12GiB
+
 jobs:
-  go:
-    uses: openconfig/common-ci/.github/workflows/go.yml@v0.2.0
-    with:
-      coverage-excludes-regex: /cloudbuild
-      tests-excludes-regex: /cloudbuild
-      race-tests-excludes-regex: /cloudbuild
-      skip-race-tests: true
-      go-versions: "['1.21']"
-
-  linter:
-    uses: openconfig/common-ci/.github/workflows/linter.yml@v0.2.0
-
-  local-lint:
-    name: Lint with Resource Monitoring
+  build_and_test:
+    name: Build and Test
     runs-on: ubuntu-latest
-    if: always()
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Get dependencies
+        run: |
+          go mod download
+
+      - name: Build packages
+        run: go build -v ./...
+
+      - name: Run Tests
+        run: |
+          go test -v ./...
+
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
         with:
           fetch-depth: '0'
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 'stable'
 
-      - name: Run golangci-lint with background resource monitor
-        run: |
-          # 1. Install golangci-lint
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b . v1.64.8
-          
-          # 2. Log hardware specifications and start background monitor
-          echo "=== CPU Info ==="
-          nproc
-          lscpu | grep -E "Model name|CPU\(s\):|Thread\(s\) per core|Core\(s\) per socket"
-          echo "=== Initial Memory & Disk ==="
-          free -h
-          df -h
-          
-          # Start background monitor (directing output to stderr so it flushes immediately)
-          while true; do
-            echo "[MONITOR] Memory usage:" >&2
-            free -h >&2
-            echo "[MONITOR] Disk usage:" >&2
-            df -h >&2
-            sleep 10
-          done &
-          MONITOR_PID=$!
-          
-          # 3. Run golangci-lint
-          ./golangci-lint run --config=.github/linters/.golangci.yml
-          LINT_EXIT_CODE=$?
-          
-          # 4. Stop monitor
-          kill $MONITOR_PID || true
-          
-          exit $LINT_EXIT_CODE
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --config=.github/linters/.golangci.yml
