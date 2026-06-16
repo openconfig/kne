@@ -1,35 +1,9 @@
----
-#########################
-#########################
-## Golang Linter rules ##
-#########################
-#########################
-
-# configure golangci-lint
-# see https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
-run:
-  timeout: 10m
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - gosec
-        - goconst
-    - linters:
-      - revive
-      text: "var-naming: don't use leading k"
-    - linters:
-      - staticcheck
-      text: "SA1019:"
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
-    - gosec
-    - unconvert
-    - goimports
-    - gofmt
     - gocritic
+    - gosec
     - govet
     - revive
     - staticcheck
@@ -38,15 +12,45 @@ linters:
     - unused
     - wastedassign
     - whitespace
-linters-settings:
-  errcheck:
-    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
-    # default is false: such cases aren't reported by default.
-    check-blank: true
-  gocritic:
-    disabled-checks:
-      - singleCaseSwitch
-      - appendAssign
-  revive:
-    ignore-generated-header: true
-    severity: warning
+  settings:
+    errcheck:
+      check-blank: true
+    gocritic:
+      disabled-checks:
+        - singleCaseSwitch
+        - appendAssign
+    revive:
+      severity: warning
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - goconst
+          - gosec
+        path: _test\.go
+      - linters:
+          - revive
+        text: 'var-naming: don''t use leading k'
+      - linters:
+          - staticcheck
+        text: 'SA1019:'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

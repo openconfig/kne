@@ -7,49 +7,15 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  GOMEMLIMIT: 12GiB
-
 jobs:
-  build_and_test:
-    name: Build and Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
+  go:
+    uses: openconfig/common-ci/.github/workflows/go.yml@v0.3.0
+    with:
+      coverage-excludes-regex: /cloudbuild
+      tests-excludes-regex: /cloudbuild
+      race-tests-excludes-regex: /cloudbuild
+      skip-race-tests: true
+      go-versions: "['1.21']"
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
-
-      - name: Get dependencies
-        run: |
-          go mod download
-
-      - name: Build packages
-        run: go build -v ./...
-
-      - name: Run Tests
-        run: |
-          go test -v ./...
-
-  golangci:
-    name: lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: '0'
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
-          args: --config=.github/linters/.golangci.yml
+  linter:
+    uses: openconfig/common-ci/.github/workflows/linter.yml@v0.3.0
