@@ -2061,3 +2061,49 @@ func TestUpdateServicePortName(t *testing.T) {
 		}
 	}
 }
+
+func TestOptions(t *testing.T) {
+	m := &Manager{}
+	WithKubecfg("kubeconfig")(m)
+	if m.kubecfg != "kubeconfig" {
+		t.Errorf("WithKubecfg failed, got %q", m.kubecfg)
+	}
+
+	WithBasePath("/base/path")(m)
+	if m.basePath != "/base/path" {
+		t.Errorf("WithBasePath failed, got %q", m.basePath)
+	}
+
+	WithProgress(true)(m)
+	if !m.progress {
+		t.Errorf("WithProgress failed, got %v", m.progress)
+	}
+
+	WithSkipDeleteWait(true)(m)
+	if !m.skipDeleteWait {
+		t.Errorf("WithSkipDeleteWait failed, got %v", m.skipDeleteWait)
+	}
+}
+
+func TestWatch(t *testing.T) {
+	tf, err := tfake.NewSimpleClientset(&topologyv1.Topology{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	})
+	if err != nil {
+		t.Fatalf("cannot create fake topology clientset: %v", err)
+	}
+	m := &Manager{
+		tClient: tf,
+		topo: &tpb.Topology{
+			Name: "test",
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if err := m.Watch(ctx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Watch() unexpected error: %v", err)
+	}
+}
+
