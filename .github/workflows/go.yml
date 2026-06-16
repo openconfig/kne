@@ -20,17 +20,47 @@ jobs:
   linter:
     uses: openconfig/common-ci/.github/workflows/linter.yml@v0.2.0
 
-  runner-specs:
-    name: Runner Specs and Disk Utilization
+  local-lint:
+    name: Lint with Resource Monitoring
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Log hardware specifications and disk usage
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: '0'
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 'stable'
+
+      - name: Start background resource monitor
         run: |
           echo "=== CPU Info ==="
           nproc
           lscpu | grep -E "Model name|CPU\(s\):|Thread\(s\) per core|Core\(s\) per socket"
-          echo "=== Memory Info ==="
+          echo "=== Initial Memory & Disk ==="
           free -h
-          echo "=== Disk Info ==="
           df -h
+          
+          # Start background monitor
+          while true; do
+            echo "[MONITOR] Memory usage:"
+            free -h
+            echo "[MONITOR] Disk usage:"
+            df -h
+            sleep 10
+          done &
+          echo "MONITOR_PID=$!" >> $GITHUB_ENV
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --config=.github/linters/.golangci.yml
+
+      - name: Stop resource monitor
+        if: always()
+        run: |
+          kill ${{ env.MONITOR_PID }} || true
