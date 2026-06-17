@@ -1,0 +1,9 @@
+skip-framework:
+  - cloudformation
+skip-path:
+  - manifests
+  - load
+  - deploy
+  - x/webhook
+  - x/wire
+  - init_wait
