@@ -43,3 +43,9 @@ for those images.
 KNE utilizes many aspects of Kubernetes. This document is a primer on k8s
 concepts and how they are used in KNE by running through an example topology
 creation.
+
+## Support for AlpineVS in KNE
+[AlpineVS](https://github.com/sonic-net/sonic-alpine/blob/master/README.md) (AVS) is a SONiC Virtual Switch with dataplane deployed as a k8s Pod within KNE. It provides switch capabilities in a simulated environment with following key features:
+*   **Dual-Container Architecture:** Encloses a SwitchStack container (running SONiC VM) and an ASIC Simulation container through vendor node definition for [alpine](../topo/node/alpine/alpine.go).
+*   **Multiple Dataplanes:** Integrates with Lucius (default gRPC-based SAI implementation) as well as vendor ASIC simulations.
+*   **Natively in KNE:** Runs natively in KNE with simple [2-switch topologies](https://github.com/sonic-net/sonic-alpine/blob/master/src/deploy/kne/twodut-alpine-vs.pb.txt) and scaled topologies for automated testing of the SONiC stack.
