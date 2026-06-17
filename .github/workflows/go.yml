@@ -11,14 +11,14 @@ permissions: {}
 
 jobs:
   go:
-    uses: openconfig/common-ci/.github/workflows/go.yml@v0.3.0
+    uses: openconfig/common-ci/.github/workflows/go.yml@abb79c974d34c0ec6cda3bcfcb2edb6679d197e1 # v0.3.0
     permissions:
       contents: read
       packages: read
       statuses: write
 
   lint:
-    uses: openconfig/common-ci/.github/workflows/linter.yml@v0.3.0
+    uses: openconfig/common-ci/.github/workflows/linter.yml@abb79c974d34c0ec6cda3bcfcb2edb6679d197e1 # v0.3.0
     permissions:
       contents: read
       packages: read
