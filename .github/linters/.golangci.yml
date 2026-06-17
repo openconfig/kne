@@ -1,1 +1,4 @@
 version: "2"
+
+issues:
+  new-from-rev: origin/main
