@@ -16,6 +16,10 @@ jobs:
       contents: read
       packages: read
       statuses: write
+    with:
+      coverage-excludes-regex: /cloudbuild
+      tests-excludes-regex: /cloudbuild
+      race-tests-excludes-regex: /cloudbuild
 
   lint:
     uses: openconfig/common-ci/.github/workflows/linter.yml@abb79c974d34c0ec6cda3bcfcb2edb6679d197e1 # v0.3.0
