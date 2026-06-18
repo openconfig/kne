@@ -11,7 +11,7 @@ permissions: {}
 
 jobs:
   go:
-    uses: openconfig/common-ci/.github/workflows/go.yml@abb79c974d34c0ec6cda3bcfcb2edb6679d197e1 # v0.3.0
+    uses: openconfig/common-ci/.github/workflows/go.yml@857df491097bf7b7260afb6661be1d616f67faa2 # v0.4.0
     permissions:
       contents: read
       packages: read
@@ -23,7 +23,7 @@ jobs:
       skip-race-tests: true
 
   lint:
-    uses: openconfig/common-ci/.github/workflows/linter.yml@abb79c974d34c0ec6cda3bcfcb2edb6679d197e1 # v0.3.0
+    uses: openconfig/common-ci/.github/workflows/linter.yml@857df491097bf7b7260afb6661be1d616f67faa2 # v0.4.0
     permissions:
       contents: read
       packages: read
