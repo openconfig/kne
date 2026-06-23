@@ -311,7 +311,7 @@ func TestL2AdvertisementUnstructured(t *testing.T) {
 			}
 			uObj1 := &metallbv1.L2Advertisement{}
 			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(got.Object, uObj1); err != nil {
-				t.Fatalf("failed to turn reponse into a topology: %v", err)
+				t.Fatalf("failed to turn response into a topology: %v", err)
 			}
 			if s := cmp.Diff(uObj1, tt.want); s != "" {
 				t.Fatalf("Unstructured(%q) failed: %s", tt.in, s)
