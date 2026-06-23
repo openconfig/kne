@@ -17,6 +17,7 @@ jobs:
       packages: read
       statuses: write
     with:
+      go-versions: "['1.26']"
       coverage-excludes-regex: /cloudbuild
       tests-excludes-regex: /cloudbuild
       race-tests-excludes-regex: /cloudbuild
