@@ -214,7 +214,7 @@ func TestIPAdressPoolList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(metallbv1.IPAddressPoolList{}, "TypeMeta")); s != "" {
+			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(metallbv1.IPAddressPoolList{}, "TypeMeta"), cmpopts.IgnoreFields(metav1.ListMeta{}, "ResourceVersion")); s != "" {
 				t.Fatalf("List() failed: %s", s)
 			}
 		})

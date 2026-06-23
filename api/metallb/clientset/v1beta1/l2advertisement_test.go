@@ -125,7 +125,7 @@ func TestL2AdvertisementList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(metallbv1.L2AdvertisementList{}, "TypeMeta")); s != "" {
+			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(metallbv1.L2AdvertisementList{}, "TypeMeta"), cmpopts.IgnoreFields(metav1.ListMeta{}, "ResourceVersion")); s != "" {
 				t.Fatalf("List() failed: %s", s)
 			}
 		})
