@@ -90,11 +90,14 @@ build {
       "echo Pulling containers...",
       "gcloud auth configure-docker us-west1-docker.pkg.dev -q",      # configure sudoless docker
       "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure docker with sudo
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga &",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga &",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga &",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga &",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga &",
+      "echo 'Waiting for all docker pulls to complete...'",
+      "wait",
+      "echo 'All docker images pulled successfully.'",
     ]
   }
 
