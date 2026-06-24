@@ -205,3 +205,50 @@ func TestReportCreateTopologyEnd(t *testing.T) {
 		t.Errorf("event has wrong error message, got %v, want %v", te.Error, eventErr.Error())
 	}
 }
+
+func TestNewReporter(t *testing.T) {
+	ctx := context.Background()
+	srv := pstest.NewServer()
+	defer srv.Close()
+
+	// Test missing topic
+	conn1, err := grpc.Dial(srv.Addr, grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("failed to dial fake PubSub server: %v", err)
+	}
+	_, err = NewReporter(ctx, "test-project", "missing-topic", option.WithGRPCConn(conn1))
+	if err == nil {
+		t.Fatalf("expected error for missing topic, got nil")
+	}
+
+	// Create default topic for default project/topic test
+	conn2, err := grpc.Dial(srv.Addr, grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("failed to dial fake PubSub server: %v", err)
+	}
+	client, err := pubsub.NewClient(ctx, defaultProjectID, option.WithGRPCConn(conn2))
+	if err != nil {
+		conn2.Close()
+		t.Fatalf("failed to create client: %v", err)
+	}
+	_, err = client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+		Name: fmt.Sprintf("projects/%s/topics/%s", defaultProjectID, defaultTopicID),
+	})
+	if err != nil {
+		client.Close()
+		t.Fatalf("failed to create topic: %v", err)
+	}
+	client.Close()
+
+	// Test NewReporter success with default project/topic
+	conn3, err := grpc.Dial(srv.Addr, grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("failed to dial fake PubSub server: %v", err)
+	}
+	r, err := NewReporter(ctx, "", "", option.WithGRPCConn(conn3))
+	if err != nil {
+		conn3.Close()
+		t.Fatalf("NewReporter with default project/topic failed: %v", err)
+	}
+	r.Close()
+}

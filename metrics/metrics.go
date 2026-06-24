@@ -23,6 +23,7 @@ import (
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	epb "github.com/openconfig/kne/proto/event"
 	"github.com/pborman/uuid"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -43,14 +44,14 @@ type Reporter struct {
 
 // NewReporter creates a new Reporter with a PubSub client for the given
 // project and topic.
-func NewReporter(ctx context.Context, projectID, topicID string) (*Reporter, error) {
+func NewReporter(ctx context.Context, projectID, topicID string, opts ...option.ClientOption) (*Reporter, error) {
 	if projectID == "" {
 		projectID = defaultProjectID
 	}
 	if topicID == "" {
 		topicID = defaultTopicID
 	}
-	c, err := pubsub.NewClient(ctx, projectID)
+	c, err := pubsub.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new pubsub client: %w", err)
 	}
@@ -58,6 +59,7 @@ func NewReporter(ctx context.Context, projectID, topicID string) (*Reporter, err
 		Topic: fmt.Sprintf("projects/%s/topics/%s", projectID, topicID),
 	})
 	if err != nil {
+		c.Close()
 		if status.Code(err) == codes.NotFound {
 			return nil, fmt.Errorf("topic %q does not exist in project %q", topicID, projectID)
 		}
