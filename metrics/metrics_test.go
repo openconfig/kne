@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"testing"
 
-	"cloud.google.com/go/pubsub"
-	"cloud.google.com/go/pubsub/pstest"
+	pubsub "cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	pstest "cloud.google.com/go/pubsub/v2/pstest"
 	epb "github.com/openconfig/kne/proto/event"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -47,13 +48,16 @@ func newTestReporter(t *testing.T, ctx context.Context) (*Reporter, *pstest.Serv
 		srv.Close()
 		t.Fatalf("failed to create fake PubSub client: %v", err)
 	}
-	topic, err := client.CreateTopic(ctx, "test-topic")
+	_, err = client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+		Name: "projects/test-project/topics/test-topic",
+	})
 	if err != nil {
 		client.Close()
 		conn.Close()
 		srv.Close()
 		t.Fatalf("failed to create fake PubSub topic: %v", err)
 	}
+	topic := client.Publisher("test-topic")
 	return &Reporter{client: client, topic: topic}, srv, func() {
 		conn.Close()
 		srv.Close()
