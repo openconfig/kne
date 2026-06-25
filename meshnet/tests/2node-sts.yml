@@ -1,0 +1,67 @@
+
+---
+apiVersion: networkop.co.uk/v1beta1
+kind: Topology
+metadata:
+  name: r1-0
+spec:
+  links:
+  - uid: 1
+    peer_pod: r2-0
+    local_intf: eth1
+    local_ip: 12.12.12.1/24
+    peer_intf: eth1
+    peer_ip: 12.12.12.2/24
+---
+apiVersion: networkop.co.uk/v1beta1
+kind: Topology
+metadata:
+  name: r2-0
+spec:
+  links:
+  - uid: 1
+    peer_pod: r1-0
+    local_intf: eth1
+    local_ip: 12.12.12.2/24
+    peer_intf: eth1
+    peer_ip: 12.12.12.1/24
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: r1
+spec:
+  selector:
+    matchLabels:
+      topo: r1
+  replicas: 1
+  serviceName: r2
+  template:
+    metadata:
+      labels:
+        topo: r1
+    spec:
+      containers:
+      - image: alpine
+        name: pod
+        command:  ["/bin/sh", "-c", "sleep 2000000000000"]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: r2
+spec:
+  selector:
+    matchLabels:
+      topo: r2
+  replicas: 1
+  serviceName: r2
+  template:
+    metadata:
+      labels:
+        topo: r2
+    spec:
+      containers:
+      - image: alpine
+        name: pod
+        command:  ["/bin/sh", "-c", "sleep 2000000000000"]

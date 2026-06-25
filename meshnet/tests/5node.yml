@@ -1,0 +1,175 @@
+---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: networkop.co.uk/v1beta1
+  kind: Topology
+  metadata:
+    name: r1
+  spec:
+    links:
+    - uid: 1
+      peer_pod: r2
+      local_intf: eth1
+      peer_intf: eth1
+      local_ip: 12.12.12.1/24
+      peer_ip: 12.12.12.2/24
+    - uid: 2
+      peer_pod: r3
+      local_intf: eth2
+      peer_intf: eth2
+      local_ip: 13.13.13.1/24
+      peer_ip: 13.13.13.3/24
+    - uid: 3
+      peer_pod: r5
+      local_intf: eth3
+      peer_intf: eth1
+      local_ip: 15.15.15.1/24
+      peer_ip: 15.15.15.5/24
+- apiVersion: networkop.co.uk/v1beta1
+  kind: Topology
+  metadata:
+    name: r2
+  spec: 
+    links:
+    - uid: 1
+      peer_pod: r1
+      local_intf: eth1
+      peer_intf: eth1
+      local_ip: 12.12.12.2/24
+      peer_ip: 12.12.12.1/24
+    - uid: 4
+      peer_pod: r4
+      local_intf: eth2
+      peer_intf: eth1
+      local_ip: 24.24.24.2/24
+      peer_ip: 24.24.24.4/24
+    - uid: 5
+      peer_pod: r5
+      local_intf: eth3
+      peer_intf: eth2
+      local_ip: 25.25.25.2/24
+      peer_ip: 25.25.25.5/24
+- apiVersion: networkop.co.uk/v1beta1
+  kind: Topology
+  metadata:
+    name: r3
+  spec: 
+    links:
+    - uid: 2
+      peer_pod: r1
+      local_intf: eth2
+      peer_intf: eth2
+      local_ip: 13.13.13.3/24
+      peer_ip: 13.13.13.1/24
+    - uid: 6
+      peer_pod: r4
+      local_intf: eth1
+      peer_intf: eth2
+      local_ip: 34.34.34.3/24
+      peer_ip: 34.34.34.4/24
+    - uid: 8
+      peer_pod: r5
+      local_intf: eth3
+      peer_intf: eth3
+      local_ip: 35.35.35.3/24
+      peer_ip: 35.35.35.5/24
+- apiVersion: networkop.co.uk/v1beta1
+  kind: Topology
+  metadata:
+    name: r4
+  spec: 
+    links:
+    - uid: 4
+      peer_pod: r2
+      local_intf: eth1
+      peer_intf: eth2
+      local_ip: 24.24.24.4/24
+      peer_ip: 24.24.24.2/24
+    - uid: 6
+      peer_pod: r3
+      local_intf: eth2
+      peer_intf: eth1
+      local_ip: 34.34.34.4/24
+      peer_ip: 34.34.34.3/24
+    - uid: 7
+      peer_pod: r5
+      local_intf: eth3
+      peer_intf: eth4
+      local_ip: 45.45.45.4/24
+      peer_ip: 45.45.45.5/24
+- apiVersion: networkop.co.uk/v1beta1
+  kind: Topology
+  metadata:
+    name: r5
+  spec: 
+    links:
+    - uid: 3
+      peer_pod: r1
+      local_intf: eth1
+      peer_intf: eth3
+      local_ip: 15.15.15.5/24
+      peer_ip: 15.15.15.1/24
+    - uid: 5
+      peer_pod: r2
+      local_intf: eth2
+      peer_intf: eth3
+      local_ip: 25.25.25.5/24
+      peer_ip: 25.25.25.2/24
+    - uid: 7
+      peer_pod: r4
+      local_intf: eth4
+      peer_intf: eth3
+      local_ip: 45.45.45.5/24
+      peer_ip: 45.45.45.4/24
+    - uid: 8
+      peer_pod: r3
+      local_intf: eth3
+      peer_intf: eth3
+      local_ip: 35.35.35.5/24
+      peer_ip: 35.35.35.3/24
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: r1
+  spec: 
+    containers: 
+    - image: alpine
+      name: pod
+      command:  ["/bin/sh", "-c", "sleep 2000000000000"]
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: r2
+  spec: 
+    containers: 
+    - image: alpine
+      name: pod
+      command:  ["/bin/sh", "-c", "sleep 2000000000000"]
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: r3
+  spec: 
+    containers: 
+    - image: alpine
+      name: pod
+      command:  ["/bin/sh", "-c", "sleep 2000000000000"]
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: r4
+  spec: 
+    containers: 
+    - image: alpine
+      name: pod
+      command:  ["/bin/sh", "-c", "sleep 2000000000000"]
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: r5
+  spec: 
+    containers: 
+    - image: alpine
+      name: pod
+      command:  ["/bin/sh", "-c", "sleep 2000000000000"]

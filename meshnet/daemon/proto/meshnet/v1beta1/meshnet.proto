@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package meshnet.v1beta1;
+
+// The Go package name is the version.
+option go_package = "github.com/networkop/meshnet/v1beta1";
+
+message Pod {
+  string name = 1;
+  string src_ip = 2;
+  string net_ns = 3;
+  string kube_ns = 4;
+  repeated Link links = 5;
+  string node_ip = 6;
+  string node_intf = 7;
+  string container_id = 8;
+}
+
+message Link {
+  string peer_pod = 1;
+  string local_intf = 2;
+  string peer_intf = 3;
+  string local_ip = 4;
+  string peer_ip = 5;
+  int64 uid = 6;
+}
+
+message PodQuery {
+  string name = 1;
+  string kube_ns = 2;
+}
+
+message SkipQuery {
+  string pod = 1;  
+  string peer = 2;
+  string kube_ns = 3;
+  int64 link_id = 4;  
+}
+
+message BoolResponse {
+  bool response = 1;
+}
+
+message RemotePod {
+  string net_ns = 1;
+  string intf_name = 2;
+  string intf_ip = 3;
+  string peer_vtep = 4;
+  string kube_ns = 5;
+  int64 vni = 6;
+  string node_intf = 7;
+}
+
+// The proto describes both end of a grpc-wire, the local end and the remote
+// end.
+message WireDef {
+  // The remote machine interface id, to which this wire is connected to.
+  //  When local machine sends a packet to remote machine over grpc-wire,
+  //  then along with the packet data, local machine also sends the interface id 
+  //  to which this packet needs to delivered in remote machine. It avoids any 
+  //  per packet interface lookup at the remote end. Packet delivery becomes
+  //  an O(1) operation at remote end.
+  int64 wire_if_id_on_peer_node = 1;
+
+  // The remote machine interface IP, to which this grpc wire is connected to.
+  string peer_node_ip = 2;
+
+  // Interface name, which comes from topology definition and to be put
+  // inside container.
+  // This filed is used when grpc-wire to be created.
+  string intf_name_in_pod = 3;    
+
+  // Network name space of the local pod which is connected to this
+  // grpc-wire
+  string local_pod_net_ns = 4;  
+    
+  // Each meshnet link has a uid.
+  int64 link_uid = 5;
+
+  // Name of the local pod where this wire is getting added.
+  string local_pod_name = 6;
+
+  // Every interface inside a pod is one end of a veth pair. The other end of
+  // the veth pair is with the local node. This is the name of  veth end, which
+  // is with the node. Packets coming from the pod will be picked up from this
+  // veth end and will be transported to the remote node over grpc wire.
+  string wire_if_name_on_local_node = 7;
+
+  string topo_ns = 8;
+
+  string local_pod_ip = 9;
+  
+}
+
+message WireCreateResponse {
+  bool response = 1;
+  // the interface id, that was created.
+  int64 peer_intf_id = 2;
+}
+
+message WireDownResponse {
+  bool response = 1;
+}
+
+message Packet {
+  // the remote machine interface id, to which this packet should be delivered. 
+  int64 remot_intf_id = 1;   
+  bytes frame = 2;
+}
+
+message GenerateNodeInterfaceNameRequest {
+  string pod_intf_name = 1;
+  string pod_name = 2;
+}
+
+
+message GenerateNodeInterfaceNameResponse {
+  bool ok = 1;
+  string node_intf_name = 2;   
+}
+
+service Local {
+  rpc Get (PodQuery) returns (Pod);
+  rpc SetAlive (Pod) returns (BoolResponse);
+  rpc SkipReverse (SkipQuery) returns (BoolResponse);
+  rpc Skip (SkipQuery) returns (BoolResponse);
+  rpc IsSkipped (SkipQuery) returns (BoolResponse);
+
+  rpc GRPCWireExists(WireDef) returns (WireCreateResponse); 
+  rpc AddGRPCWireLocal(WireDef) returns (BoolResponse);
+  rpc RemGRPCWire(WireDef) returns (BoolResponse);
+
+  // A node is going to hold multiple veth to connect to multiple containers. 
+  // Each veth name must be unique with in a node. Daemon generates an ID that 
+  // is unique in this node.
+  rpc GenerateNodeInterfaceName(GenerateNodeInterfaceNameRequest) returns (GenerateNodeInterfaceNameResponse);
+}
+
+service Remote {
+  rpc Update (RemotePod) returns (BoolResponse);
+  rpc AddGRPCWireRemote(WireDef) returns (WireCreateResponse);
+  rpc GRPCWireDownRemote(WireDef) returns (WireDownResponse);
+}
+
+service WireProtocol {
+  rpc SendToOnce (Packet) returns (BoolResponse);
+  rpc SendToStream (stream Packet) returns (BoolResponse);
+}
