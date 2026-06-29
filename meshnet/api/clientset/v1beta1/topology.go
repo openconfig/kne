@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	topologyv1 "github.com/openconfig/kne/meshnet/api/types/v1beta1"
 )
 
 // TopologyInterface provides access to the Topology CRD.

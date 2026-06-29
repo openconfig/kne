@@ -9,7 +9,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/google/go-cmp/cmp"
-	grpcwirev1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	grpcwirev1 "github.com/openconfig/kne/meshnet/api/types/v1beta1"
 	"github.com/vishvananda/netlink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

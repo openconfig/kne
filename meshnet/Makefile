@@ -1,4 +1,4 @@
-DOCKER_IMAGE := networkop/meshnet
+DOCKER_IMAGE := openconfig/meshnet
 GOPATH ?= ${HOME}/go
 ARCHS := "linux/amd64,linux/arm64"
 #ARCHS := "linux/amd64"
@@ -20,13 +20,13 @@ test:
 
 ## Run unit tests for Reconciliation
 recon-test:
-	sudo go test -count=1 -v -run '' github.com/networkop/meshnet-cni/daemon/grpcwire
-	#sudo go test -count=1 -run '' github.com/networkop/meshnet-cni/daemon/grpcwire
+	sudo go test -count=1 -v -run '' github.com/openconfig/kne/meshnet/daemon/grpcwire
+	#sudo go test -count=1 -run '' github.com/openconfig/kne/meshnet/daemon/grpcwire
 
 # Build local binaries
 local-build:
-	CGO_ENABLED=0 GOOS=linux go build -o meshnet github.com/networkop/meshnet-cni/plugin 
-	CGO_ENABLED=1 GOOS=linux go build -o meshnetd github.com/networkop/meshnet-cni/daemon
+	CGO_ENABLED=0 GOOS=linux go build -o meshnet github.com/openconfig/kne/meshnet/plugin 
+	CGO_ENABLED=1 GOOS=linux go build -o meshnetd github.com/openconfig/kne/meshnet/daemon
 
 # Remove local binaries
 local-clean:

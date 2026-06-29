@@ -1,10 +1,10 @@
-[![Actions Status](https://github.com/networkop/meshnet-cni/workflows/CI/badge.svg)](https://github.com/networkop/meshnet-cni/actions)
-[![Docker Pulls](https://img.shields.io/docker/pulls/networkop/meshnet.svg)](https://img.shields.io/docker/pulls/networkop/meshnet)
-[![Go Report Card](https://goreportcard.com/badge/github.com/networkop/meshnet-cni)](https://goreportcard.com/report/github.com/networkop/meshnet-cni)
-[![GoDoc](https://godoc.org/istio.io/istio?status.svg)](https://pkg.go.dev/github.com/networkop/meshnet-cni)
-[![License: BSD](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+# meshnet CNI (KNE Fork)
 
-# meshnet CNI 
+> [!NOTE]
+> This directory contains a fork of the archived [networkop/meshnet-cni](https://github.com/networkop/meshnet-cni) project, now integrated and maintained directly within the OpenConfig KNE repository. 
+> 
+> Future development, bug fixes, and CI/CD testing are managed as part of the parent [KNE project](https://github.com/openconfig/kne). Please file any issues or pull requests in the main KNE repository.
+
 
 **meshnet** is a (K8s) CNI plugin to create arbitrary network topologies out of point-to-point links with the help of [koko](https://github.com/redhat-nfvpe/koko). Heavily inspired by [Ratchet-CNI](https://github.com/dougbtv/ratchet-cni), [kokonet](https://github.com/s1061123/kokonet) and [Multus](https://github.com/intel/multus-cni).
 
@@ -115,13 +115,13 @@ Clone this project and build a local 3-node Kubernetes cluster
 make up
 ```
 
-Build the meshnet-cni docker image
+Build the meshnet docker image
 
 ```sh
 make docker
 ```
 
-Install meshnet-cni plugin
+Install meshnet plugin
 
 ```sh
 # install meshnet with VXLAN link

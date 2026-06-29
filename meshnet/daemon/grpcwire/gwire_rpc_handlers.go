@@ -9,8 +9,8 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/google/gopacket/pcap"
-	mpb "github.com/networkop/meshnet-cni/daemon/proto/meshnet/v1beta1"
-	"github.com/networkop/meshnet-cni/utils/wireutil"
+	mpb "github.com/openconfig/kne/meshnet/daemon/proto/meshnet/v1beta1"
+	"github.com/openconfig/kne/meshnet/utils/wireutil"
 	koko "github.com/redhat-nfvpe/koko/api"
 )
 

@@ -8,8 +8,8 @@ import (
 	"reflect"
 
 	"github.com/google/gopacket/pcap"
-	grpcwirev1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
-	mpb "github.com/networkop/meshnet-cni/daemon/proto/meshnet/v1beta1"
+	grpcwirev1 "github.com/openconfig/kne/meshnet/api/types/v1beta1"
+	mpb "github.com/openconfig/kne/meshnet/daemon/proto/meshnet/v1beta1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

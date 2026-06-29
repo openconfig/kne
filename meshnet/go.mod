@@ -1,4 +1,4 @@
-module github.com/networkop/meshnet-cni
+module github.com/openconfig/kne/meshnet
 
 go 1.19
 
@@ -77,4 +77,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/networkop/meshnet-cni => ./
+replace github.com/openconfig/kne/meshnet => ./
