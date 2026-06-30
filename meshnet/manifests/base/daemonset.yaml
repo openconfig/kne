@@ -26,7 +26,7 @@ spec:
         - name: meshnet
           securityContext:
             privileged: true
-          image: networkop/meshnet:latest
+          image: openconfig/meshnet:latest
           imagePullPolicy: IfNotPresent
           command: ["./entrypoint.sh"]
           resources:
