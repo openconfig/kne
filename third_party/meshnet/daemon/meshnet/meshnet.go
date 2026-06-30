@@ -21,10 +21,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	topologyclientv1 "github.com/openconfig/kne/meshnet/api/clientset/v1beta1"
-	"github.com/openconfig/kne/meshnet/utils/wireutil"
+	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 
-	mpb "github.com/openconfig/kne/meshnet/daemon/proto/meshnet/v1beta1"
+	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 )
 
 type Config struct {

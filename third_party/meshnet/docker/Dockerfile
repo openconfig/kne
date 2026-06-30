@@ -18,7 +18,7 @@ RUN buf lint && buf generate -v
 FROM golang:1.25.11 AS build_base
 
 
-WORKDIR /go/src/github.com/openconfig/kne/meshnet
+WORKDIR /go/src/github.com/openconfig/kne/third_party/meshnet
 ENV CGO_ENABLED=0
 COPY go.mod .
 COPY go.sum .
@@ -60,8 +60,8 @@ RUN apt-get update; \
 
 # apt-get install -y libpcap-dev; \  
 
-COPY --from=build /go/src/github.com/openconfig/kne/meshnet/meshnet /
-COPY --from=build /go/src/github.com/openconfig/kne/meshnet/meshnetd /
+COPY --from=build /go/src/github.com/openconfig/kne/third_party/meshnet/meshnet /
+COPY --from=build /go/src/github.com/openconfig/kne/third_party/meshnet/meshnetd /
 #COPY etc/cni/net.d/meshnet.conf /
 COPY docker/new-entrypoint.sh /entrypoint.sh
 COPY LICENSE /

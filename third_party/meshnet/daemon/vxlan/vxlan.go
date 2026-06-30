@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
-	mpb "github.com/openconfig/kne/meshnet/daemon/proto/meshnet/v1beta1"
+	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 )
 
 var vxLanOvrlyLogger *log.Entry = nil

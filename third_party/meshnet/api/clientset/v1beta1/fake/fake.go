@@ -14,8 +14,8 @@
 package fake
 
 import (
-	toplogyv1client "github.com/openconfig/kne/meshnet/api/clientset/v1beta1"
-	topologyv1 "github.com/openconfig/kne/meshnet/api/types/v1beta1"
+	toplogyv1client "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	dfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"

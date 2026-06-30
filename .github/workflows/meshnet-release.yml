@@ -28,5 +28,5 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PWD }}
       - name: Build and Push container images
-        working-directory: ./meshnet
+        working-directory: ./third_party/meshnet
         run: make release

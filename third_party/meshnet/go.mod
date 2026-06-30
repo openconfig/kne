@@ -1,4 +1,4 @@
-module github.com/openconfig/kne/meshnet
+module github.com/openconfig/kne/third_party/meshnet
 
 go 1.25.0
 
@@ -73,4 +73,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/openconfig/kne/meshnet => ./
+replace github.com/openconfig/kne/third_party/meshnet => ./

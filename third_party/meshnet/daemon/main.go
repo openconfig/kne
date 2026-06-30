@@ -5,11 +5,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/openconfig/kne/meshnet/daemon/cni"
-	"github.com/openconfig/kne/meshnet/daemon/grpcwire"
-	"github.com/openconfig/kne/meshnet/daemon/meshnet"
-	"github.com/openconfig/kne/meshnet/daemon/vxlan"
-	"github.com/openconfig/kne/meshnet/utils/wireutil"
+	"github.com/openconfig/kne/third_party/meshnet/daemon/cni"
+	"github.com/openconfig/kne/third_party/meshnet/daemon/grpcwire"
+	"github.com/openconfig/kne/third_party/meshnet/daemon/meshnet"
+	"github.com/openconfig/kne/third_party/meshnet/daemon/vxlan"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 	log "github.com/sirupsen/logrus"
 )
 

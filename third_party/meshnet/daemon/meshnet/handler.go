@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 
-	"github.com/openconfig/kne/meshnet/api/types/v1beta1"
-	"github.com/openconfig/kne/meshnet/daemon/grpcwire"
-	"github.com/openconfig/kne/meshnet/daemon/vxlan"
+	"github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/daemon/grpcwire"
+	"github.com/openconfig/kne/third_party/meshnet/daemon/vxlan"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 
-	mpb "github.com/openconfig/kne/meshnet/daemon/proto/meshnet/v1beta1"
+	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 )
 
 func (m *Meshnet) getPod(ctx context.Context, name, ns string) (*unstructured.Unstructured, error) {

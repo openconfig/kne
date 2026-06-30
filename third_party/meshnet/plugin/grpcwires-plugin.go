@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	mpb "github.com/openconfig/kne/meshnet/daemon/proto/meshnet/v1beta1"
-	"github.com/openconfig/kne/meshnet/utils/wireutil"
+	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 	koko "github.com/redhat-nfvpe/koko/api"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"

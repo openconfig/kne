@@ -16,8 +16,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	mpb "github.com/openconfig/kne/meshnet/daemon/proto/meshnet/v1beta1"
-	"github.com/openconfig/kne/meshnet/utils/wireutil"
+	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 )
 
 var grpcOvrlyLogger *log.Entry = nil
