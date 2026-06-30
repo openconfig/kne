@@ -4,7 +4,7 @@
 .PHONY: buf-ensure 
 buf-ensure: 
 	@which buf >/dev/null 2>&1 || \
-		echo 'Install buf with "go get github.com/bufbuild/buf/cmd/buf@latest"'
+		echo 'Install buf with "go install github.com/bufbuild/buf/cmd/buf@latest"'
 
 .PHONY: lint
 buf-lint: buf-ensure 
