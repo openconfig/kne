@@ -56,8 +56,8 @@ message RemotePod {
 message WireDef {
   // The remote machine interface id, to which this wire is connected to.
   //  When local machine sends a packet to remote machine over grpc-wire,
-  //  then along with the packet data, local machine also sends the interface id 
-  //  to which this packet needs to delivered in remote machine. It avoids any 
+  //  then along with the packet data, local machine also sends the interface id
+  //  to which this packet needs to delivered in remote machine. It avoids any
   //  per packet interface lookup at the remote end. Packet delivery becomes
   //  an O(1) operation at remote end.
   int64 wire_if_id_on_peer_node = 1;
@@ -130,10 +130,11 @@ service Local {
   rpc AddGRPCWireLocal(WireDef) returns (BoolResponse);
   rpc RemGRPCWire(WireDef) returns (BoolResponse);
 
-  // A node is going to hold multiple veth to connect to multiple containers. 
-  // Each veth name must be unique with in a node. Daemon generates an ID that 
+  // A node is going to hold multiple veth to connect to multiple containers.
+  // Each veth name must be unique with in a node. Daemon generates an ID that
   // is unique in this node.
-  rpc GenerateNodeInterfaceName(GenerateNodeInterfaceNameRequest) returns (GenerateNodeInterfaceNameResponse);
+  rpc GenerateNodeInterfaceName(GenerateNodeInterfaceNameRequest)
+      returns (GenerateNodeInterfaceNameResponse);
 }
 
 service Remote {
