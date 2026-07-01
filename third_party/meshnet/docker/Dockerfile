@@ -48,6 +48,8 @@ RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o meshnet plugin/meshnet.go 
 
 
 #----------------------------------------------------- Final Container ---------------------------------
+# checkov:skip=CKV_DOCKER_2: CNI daemon image does not require healthcheck
+# checkov:skip=CKV_DOCKER_3: CNI daemon must run as root to configure host network namespaces
 FROM debian:13-slim
 # hadolint ignore=DL3008
 RUN apt-get update && \
