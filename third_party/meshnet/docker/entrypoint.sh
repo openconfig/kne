@@ -2,28 +2,28 @@
 
 echo "Distributing files"
 if [ -d "/opt/cni/bin/" ] && [ -f "./meshnet" ]; then
-  cp ./meshnet /opt/cni/bin/
+	cp ./meshnet /opt/cni/bin/
 fi
 
 if [ -d "/etc/cni/net.d/" ] && [ -f "./meshnet.conf" ]; then
-  cp ./meshnet.conf /etc/cni/net.d/
+	cp ./meshnet.conf /etc/cni/net.d/
 fi
 
 if [ ! -f /etc/cni/net.d/00-meshnet.conf ]; then
-  echo "Merging existing CNI configuration with meshnet"
-  existing=$(find /etc/cni/net.d/ -maxdepth 1 -type f | grep -E "flannel|weave|bridge|calico|contiv|cilium|cni|kindnet" | head -n1)
-  has_plugin_section=$(jq 'has("plugins")' "$existing")
-  if [ "$has_plugin_section" = true ]; then
-    jq -s '.[1].delegate = (.[0].plugins[0])' "$existing" /etc/cni/net.d/meshnet.conf | jq '.[1]' > /etc/cni/net.d/00-meshnet.conf
-  else
-    jq -s '.[1].delegate = (.[0])' "$existing" /etc/cni/net.d/meshnet.conf | jq '.[1]' > /etc/cni/net.d/00-meshnet.conf
-  fi
+	echo "Merging existing CNI configuration with meshnet"
+	existing=$(find /etc/cni/net.d/ -maxdepth 1 -type f | grep -E "flannel|weave|bridge|calico|contiv|cilium|cni|kindnet" | head -n1)
+	has_plugin_section=$(jq 'has("plugins")' "$existing")
+	if [ "$has_plugin_section" = true ]; then
+		jq -s '.[1].delegate = (.[0].plugins[0])' "$existing" /etc/cni/net.d/meshnet.conf | jq '.[1]' >/etc/cni/net.d/00-meshnet.conf
+	else
+		jq -s '.[1].delegate = (.[0])' "$existing" /etc/cni/net.d/meshnet.conf | jq '.[1]' >/etc/cni/net.d/00-meshnet.conf
+	fi
 else
-  echo "Reusing existing CNI config"
+	echo "Reusing existing CNI config"
 fi
 
 echo 'Making sure the name is set for the master plugin'
-jq '.delegate.name = "masterplugin"' /etc/cni/net.d/00-meshnet.conf > /tmp/cni.conf && mv /tmp/cni.conf /etc/cni/net.d/00-meshnet.conf
+jq '.delegate.name = "masterplugin"' /etc/cni/net.d/00-meshnet.conf >/tmp/cni.conf && mv /tmp/cni.conf /etc/cni/net.d/00-meshnet.conf
 
 echo "Starting meshnetd daemon"
 /meshnetd
