@@ -1,6 +1,0 @@
-# Skip scanning third_party test topologies and CNI manifests:
-# - tests/.* contains local integration test topologies that lack production resource limits and security profiles.
-# - manifests/.* contains CNI daemonsets that inherently require privileged containers, host networking, and root filesystem mounts.
-skip-path:
-  - "third_party/meshnet/tests/.*"
-  - "third_party/meshnet/manifests/.*"
