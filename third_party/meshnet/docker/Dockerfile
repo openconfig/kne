@@ -53,7 +53,7 @@ RUN GOOS=${TARGETOS} CGO_ENABLED=1 GOARCH=${TARGETARCH} go build -ldflags="-s -w
 # RUN apk update; \
 #     apk add --no-cache jq
 
-FROM ubuntu:20.04
+FROM debian:13-slim
 RUN apt-get update; \ 
     apt-get install -y jq; \
     apt-get install -y libpcap-dev
