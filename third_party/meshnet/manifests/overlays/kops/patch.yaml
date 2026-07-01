@@ -8,6 +8,6 @@ spec:
   template:
     spec:
       volumes:
-      - name: cni-bin
-        hostPath:
-          path: /home/kubernetes/bin
+        - name: cni-bin
+          hostPath:
+            path: /home/kubernetes/bin

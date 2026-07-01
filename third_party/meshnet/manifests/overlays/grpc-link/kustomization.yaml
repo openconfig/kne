@@ -1,18 +1,18 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 patches:
-- patch: |-
-    - op: replace
-      path: /spec/template/spec/containers/0/env/1
-      value:
-        name: INTER_NODE_LINK_TYPE
-        value: GRPC
-  target:
-    kind: DaemonSet
-    name: meshnet
-    namespace: meshnet
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1
+        value:
+          name: INTER_NODE_LINK_TYPE
+          value: GRPC
+    target:
+      kind: DaemonSet
+      name: meshnet
+      namespace: meshnet
 resources:
-- ../../base/
+  - ../../base/
 images:
-- name: openconfig/meshnet
-  newTag: d0ebd1f-dirty
+  - name: openconfig/meshnet
+    newTag: d0ebd1f-dirty

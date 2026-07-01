@@ -48,4 +48,3 @@ jobs:
       - name: Run Go tests
         working-directory: ./third_party/meshnet
         run: make test
-

@@ -54,7 +54,7 @@ spec:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.namespace              
+                  fieldPath: metadata.namespace
           volumeMounts:
             - name: cni-cfg
               mountPath: /etc/cni/net.d
