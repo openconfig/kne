@@ -3,9 +3,9 @@ FROM golang:1.25.11 AS proto_base
 
 WORKDIR /src
 
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-RUN go install github.com/bufbuild/buf/cmd/buf@v1.13.1
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11 && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1 && \
+    go install github.com/bufbuild/buf/cmd/buf@v1.13.1
 
 COPY daemon/proto .
 COPY buf.gen.yaml .
@@ -22,14 +22,13 @@ WORKDIR /go/src/github.com/openconfig/kne/third_party/meshnet
 ENV CGO_ENABLED=0
 COPY go.mod .
 COPY go.sum .
-RUN go mod download; \
-    apt-get update -y; \
-    apt-get install -y libpcap-dev; \
-    apt-get install -y libsystemd-dev;
- 
-    # apt-get install -y libmnl; \
-    # apt-get install -y libmnl-dev; \
-    # go get github.com/chamaken/cgolmnl
+# hadolint ignore=DL3008
+RUN go mod download && \
+    apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        libpcap-dev \
+        libsystemd-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 FROM --platform=${BUILDPLATFORM:-linux/amd64} build_base AS build
 
@@ -44,29 +43,23 @@ COPY utils/ utils/
 COPY --from=proto_base /src/ .
 
 
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o meshnet plugin/meshnet.go plugin/grpcwires-plugin.go 
-RUN GOOS=${TARGETOS} CGO_ENABLED=1 GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o meshnetd daemon/main.go; 
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o meshnet plugin/meshnet.go plugin/grpcwires-plugin.go && \
+    GOOS=${TARGETOS} CGO_ENABLED=1 GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o meshnetd daemon/main.go
 
 
 #----------------------------------------------------- Final Conatiner ---------------------------------
-# FROM alpine:latest
-# RUN apk update; \
-#     apk add --no-cache jq
-
 FROM debian:13-slim
-RUN apt-get update; \ 
-    apt-get install -y jq; \
-    apt-get install -y libpcap-dev
-
-# apt-get install -y libpcap-dev; \  
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        jq \
+        libpcap-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /go/src/github.com/openconfig/kne/third_party/meshnet/meshnet /
 COPY --from=build /go/src/github.com/openconfig/kne/third_party/meshnet/meshnetd /
-#COPY etc/cni/net.d/meshnet.conf /
 COPY docker/new-entrypoint.sh /entrypoint.sh
 COPY LICENSE /
-RUN chmod +x ./entrypoint.sh
-RUN chmod +x /meshnetd
-#RUN mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
+RUN chmod +x ./entrypoint.sh /meshnetd
 
-ENTRYPOINT ./entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
