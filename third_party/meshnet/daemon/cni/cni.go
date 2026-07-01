@@ -78,7 +78,7 @@ func loadConfList() (map[string]interface{}, error) {
 
 		// only pre-parse the top of the CNI file without using the types.NetConfList
 		// this is because some generic types do not define the complete config struct
-		// e.g. IPAM config will not be parsed at all beyong the `type`
+		// e.g. IPAM config will not be parsed at all beyond the `type`
 		var conf map[string]interface{}
 		err = json.Unmarshal(confList.Bytes, &conf)
 

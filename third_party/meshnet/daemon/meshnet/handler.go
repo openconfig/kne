@@ -185,7 +185,7 @@ func (m *Meshnet) SkipReverse(ctx context.Context, skip *mpb.SkipQuery) (*mpb.Bo
 		podName = peerPod.GetName()
 
 		// Extracting peer pod's skipped list and insert this pod's name in it.
-		// This is needed as in future this pod comes back agin, it will find out that it has
+		// This is needed as in future this pod comes back again, it will find out that it has
 		// been skipped by the peer. As a result this pod will re-initiate link creation.
 		peerSkipped, found, err := unstructured.NestedSlice(peerPod.Object, "status", "skipped")
 		if found && err != nil {

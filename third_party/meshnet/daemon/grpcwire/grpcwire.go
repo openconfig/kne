@@ -288,7 +288,7 @@ func GenNodeIfaceName(podName string, podIfaceName string) (string, error) {
 	//      1K interfaces per node under the current naming scheme. This is too small.
 	//      Using 14 digit random number and checking if any interface with generated name exists and if
 	//      exists then generate another random number (try 3 times before giving up). This will make it robust.
-	//      This reduces the readability and corelation between the “pod-interface” and corresponding
+	//      This reduces the readability and correlation between the “pod-interface” and corresponding
 	//      “node-interface”, for example eth1host1-<3-digit-index> will become "12345678901234".
 	id := NextIndex()
 

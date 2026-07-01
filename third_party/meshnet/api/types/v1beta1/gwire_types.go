@@ -65,7 +65,7 @@ type GWireStatus struct {
 	// The interface(name) in the local node and is connected with local pod
 	WireIfaceNameOnLocalNode string `json:"wire_iface_name_on_local_node"`
 	// +optional
-	// The interface id, in the peer node adn is connected with remote pod.
+	// The interface id, in the peer node and is connected with remote pod.
 	// This is used for de-multiplexing received packet from grpcwire
 	WireIfaceIdOnPeerNode int64 `json:"wire_iface_id_on_peer_node"`
 	// +optional

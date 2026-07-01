@@ -1,0 +1,2 @@
+[codespell]
+skip = *.pdf,*.png,*.jpg,*.gif,*.ico,go.sum

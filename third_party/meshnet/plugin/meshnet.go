@@ -437,7 +437,7 @@ func cmdDel(args *skel.CmdArgs) error {
 
 	log.Infof("Del: Retrieving pod's (%s@%s) metadata from meshnet daemon", string(cniArgs.K8S_POD_NAME), string(cniArgs.K8S_POD_NAMESPACE))
 	localPod, err := meshnetClient.Get(ctx, &mpb.PodQuery{
-		Name:   string(cniArgs.K8S_POD_NAME), // getting deatils of the current pod.
+		Name:   string(cniArgs.K8S_POD_NAME), // getting details of the current pod.
 		KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
 	})
 	if err != nil {
@@ -477,7 +477,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	for _, link := range localPod.Links { // Iterate over each link of the local pod
 		linkType := "veth"
 		// Initialising peer pod's metadata. Peer pod information is needed to determine if a link is of type GRPC or VxLAN.
-		// For GRPC link type there is some addtional cleanup work nedd to be perfromed.
+		// For GRPC link type there is some additional cleanup work needs to be performed.
 		log.Infof("Del: Pod %s is retrieving peer pod %s information from meshnet daemon", string(cniArgs.K8S_POD_NAME), link.PeerPod)
 		peerPod, _ := meshnetClient.Get(ctx, &mpb.PodQuery{
 			Name:   link.PeerPod, // getting peer pod detail.

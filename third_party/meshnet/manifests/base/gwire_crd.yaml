@@ -85,7 +85,7 @@ spec:
                         type: string
                       local_pod_net_ns:
                         description:
-                          Netwokr namespace of the local pod holding the
+                          Network namespace of the local pod holding the
                           wire end
                         type: string
                       node_name:
@@ -96,7 +96,7 @@ spec:
                         type: string
                       wire_iface_id_on_peer_node:
                         description:
-                          The interface id, in the peer node adn is connected
+                          The interface id, in the peer node and is connected
                           with remote pod. This is used for de-multiplexing received
                           packet from grpcwire
                         format: int64

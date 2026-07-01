@@ -69,7 +69,7 @@ proto: buf-generate
 up: kind-start
 
 .PHONY: down
-## Desroy test environment
+## Destroy test environment
 down: kind-stop
 
 .PHONY: e2e
@@ -82,7 +82,7 @@ e2e: wait-for-meshnet
 	kubectl exec r2 -- ping -c 1 23.23.23.3
 
 .PHONY: e2e-mlink
-## Run the end-to-end test with multi-links betwwen a pair of nodes. 
+## Run the end-to-end test with multi-links between a pair of nodes. 
 e2e-mlink: wait-for-meshnet
 	kubectl apply -f tests/3node-mlink.yml
 	kubectl wait --timeout=120s --for condition=Ready pod -l test=3node-mlink --namespace=mlink

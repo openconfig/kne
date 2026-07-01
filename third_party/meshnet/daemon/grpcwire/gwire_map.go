@@ -83,7 +83,7 @@ func (w *wireMap) DeleteWoLock(wire *GRPCWire) error {
 /* A grpc-wire creation (between pod A and pod B) can be triggered by either host hosting pod A, B. They
  * can even trigger it simultaneously. Irrespective of who triggers, successful wire creation needs
  * activities at both hosts end. Our intention is to finish the wire creation at the first trigger.
- * This map keeps the list of wires which are already crated and must not be recreated, if any second
+ * This map keeps the list of wires which are already created and must not be recreated, if any second
  * trigger is received. This situation occurs when both the host triggers wire creation almost simultaneously.
  */
 var wires = &wireMap{

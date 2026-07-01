@@ -13,7 +13,7 @@ COPY buf.yaml .
 
 RUN buf lint && buf generate -v
 
-#---------------------------------------------- Stage 2: Build Base : Build mesnet binraries (Plugin & daemon) - ---------------------------------
+#---------------------------------------------- Stage 2: Build Base : Build meshnet binaries (Plugin & daemon) - ---------------------------------
 # Building the binaries
 FROM golang:1.25.11 AS build_base
 
@@ -47,7 +47,7 @@ RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o meshnet plugin/meshnet.go 
     GOOS=${TARGETOS} CGO_ENABLED=1 GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o meshnetd daemon/main.go
 
 
-#----------------------------------------------------- Final Conatiner ---------------------------------
+#----------------------------------------------------- Final Container ---------------------------------
 FROM debian:13-slim
 # hadolint ignore=DL3008
 RUN apt-get update && \

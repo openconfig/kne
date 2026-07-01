@@ -19,7 +19,7 @@ if [ ! -f /etc/cni/net.d/00-meshnet.conf ]; then
     jq -s '.[1].delegate = (.[0])' "$existing" /etc/cni/net.d/meshnet.conf | jq '.[1]' > /etc/cni/net.d/00-meshnet.conf
   fi
 else
-  echo "Re-using existing CNI config"
+  echo "Reusing existing CNI config"
 fi
 
 echo 'Making sure the name is set for the master plugin'
