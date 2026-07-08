@@ -7,3 +7,5 @@ skip-path:
   - x/webhook
   - x/wire
   - init_wait
+  - "third_party/meshnet/tests/.*"
+  - "third_party/meshnet/manifests/.*"
