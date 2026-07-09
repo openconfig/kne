@@ -3,8 +3,8 @@ GOPATH ?= ${HOME}/go
 KNE_CLI_BIN := kne
 INSTALL_DIR := /usr/local/bin
 
-COMMIT := $(shell git describe --dirty --always)
-TAG := $(shell git describe --tags --abbrev=0 || echo latest)
+COMMIT := $(shell git describe --dirty --always 2>/dev/null || echo unknown)
+TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo latest)
 
 
 include .mk/kind.mk

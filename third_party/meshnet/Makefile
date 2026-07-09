@@ -3,8 +3,8 @@ GOPATH ?= ${HOME}/go
 ARCHS := "linux/amd64,linux/arm64"
 #ARCHS := "linux/amd64"
 
-COMMIT := $(shell git describe --dirty --always)
-TAG := $(shell git describe --tags --abbrev=0 || echo latest)
+COMMIT := $(shell git describe --dirty --always 2>/dev/null || echo unknown)
+TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo latest)
 
 include .mk/kind.mk
 include .mk/ci.mk
