@@ -79,12 +79,16 @@ const (
 )
 
 // triggerBuild runs a cloud build trigger at the given tag if set, or the main branch if unset.
-func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool) error {
+func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool) (rErr error) {
 	c, err := cloudbuild.NewClient(ctx, option.WithEndpoint(cloudBuildEndpoint))
 	if err != nil {
 		return err
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil && rErr == nil {
+			rErr = err
+		}
+	}()
 
 	src := &cloudbuildpb.RepoSource{
 		Revision: &cloudbuildpb.RepoSource_CommitSha{
