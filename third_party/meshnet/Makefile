@@ -1,4 +1,4 @@
-DOCKER_IMAGE := openconfig/meshnet
+DOCKER_IMAGE ?= us-west1-docker.pkg.dev/kne-external/kne/meshnet
 GOPATH ?= ${HOME}/go
 ARCHS := "linux/amd64,linux/arm64"
 #ARCHS := "linux/amd64"

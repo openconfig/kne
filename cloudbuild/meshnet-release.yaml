@@ -1,0 +1,15 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-west1-docker.pkg.dev/${PROJECT_ID}/${_IMAGE_REPO}:${_IMAGE_TAG}', 'third_party/meshnet', '-f', 'third_party/meshnet/docker/Dockerfile']
+    env:
+      - "DOCKER_BUILDKIT=1"
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['tag', 'us-west1-docker.pkg.dev/${PROJECT_ID}/${_IMAGE_REPO}:${_IMAGE_TAG}', 'us-west1-docker.pkg.dev/${PROJECT_ID}/${_IMAGE_REPO}:ga']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-west1-docker.pkg.dev/${PROJECT_ID}/${_IMAGE_REPO}:ga']
+images: ['us-west1-docker.pkg.dev/${PROJECT_ID}/${_IMAGE_REPO}:${_IMAGE_TAG}']
+substitutions:
+  _IMAGE_REPO: 'kne/meshnet'
+  _IMAGE_TAG: 'latest'
+options:
+  machineType: 'E2_HIGHCPU_8'
