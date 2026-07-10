@@ -26,8 +26,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
-	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"

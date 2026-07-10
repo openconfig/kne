@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
+	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"

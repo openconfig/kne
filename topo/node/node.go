@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	tpb "github.com/openconfig/kne/proto/topo"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"

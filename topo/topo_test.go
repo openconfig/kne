@@ -25,8 +25,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"

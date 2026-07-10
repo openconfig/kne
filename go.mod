@@ -15,10 +15,10 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
 	github.com/kr/pretty v0.3.1
-	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
 	github.com/open-traffic-generator/keng-operator v0.4.2
 	github.com/open-traffic-generator/snappi/gosnappi v1.57.1
 	github.com/openconfig/gnmi v0.14.1
+	github.com/openconfig/kne/third_party/meshnet v0.0.0-00010101000000-000000000000
 	github.com/openconfig/lemming/operator v0.2.7
 	github.com/openconfig/ondatra v0.14.5
 	github.com/pborman/uuid v1.2.1
@@ -170,3 +170,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
 )
+
+replace github.com/openconfig/kne/third_party/meshnet => ./third_party/meshnet

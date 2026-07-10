@@ -109,4 +109,4 @@ helpful tool for the KNE developers.
 ## Thanks
 
 This project is mainly based on the k8s-topo from github.com/networkop/k8s-topo
-and meshnet-cni plugin from github.com/networkop/meshnet-cni.
+and meshnet-cni plugin originally from github.com/networkop/meshnet-cni.
