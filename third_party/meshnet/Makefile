@@ -108,6 +108,16 @@ e2e-1500links: wait-for-meshnet
 	kubectl exec p2 -n 1500links -- ping -c 1 10.10.0.1
 	kubectl exec p2 -n 1500links -- ping -c 1 10.10.23.109
 
+.PHONY: e2e-1500links-multinode
+## Run the end-to-end test with 1500 links between two pods on distinct nodes (VXLAN overlay).
+e2e-1500links-multinode: wait-for-meshnet
+	kubectl apply -f tests/2node-1500links-multinode.yml
+	kubectl wait --timeout=300s --for condition=Ready pod -l test=2node-1500links-multinode --namespace=1500links-multinode
+	kubectl exec p1 -n 1500links-multinode -- ping -c 1 10.10.0.2
+	kubectl exec p1 -n 1500links-multinode -- ping -c 1 10.10.23.110
+	kubectl exec p2 -n 1500links-multinode -- ping -c 1 10.10.0.1
+	kubectl exec p2 -n 1500links-multinode -- ping -c 1 10.10.23.109
+
 wait-for-meshnet:
 	kubectl wait --for condition=Ready pod -l name=meshnet -n meshnet   
 	sleep 5
