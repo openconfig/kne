@@ -2,6 +2,7 @@ package meshnet
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
@@ -18,11 +19,17 @@ import (
 )
 
 func (m *Meshnet) getPod(ctx context.Context, name, ns string) (*unstructured.Unstructured, error) {
-	mnetdLogger.Infof("Reading pod %s from K8s", name)
+	if m.tClient == nil {
+		return nil, fmt.Errorf("topology client not initialized")
+	}
+	mnetdLogger.Debugf("Reading pod %s from K8s", name)
 	return m.tClient.Topology(ns).Unstructured(ctx, name, metav1.GetOptions{})
 }
 
 func (m *Meshnet) updateStatus(ctx context.Context, obj *unstructured.Unstructured, ns string) error {
+	if m.tClient == nil {
+		return fmt.Errorf("topology client not initialized")
+	}
 	mnetdLogger.Infof("Update pod status %s from K8s", obj.GetName())
 	_, err := m.tClient.Topology(ns).Update(ctx, obj, metav1.UpdateOptions{})
 	return err
@@ -100,7 +107,11 @@ func (m *Meshnet) SetAlive(ctx context.Context, pod *mpb.Pod) (*mpb.BoolResponse
 			mnetdLogger.Errorf("Failed to update pod's container_id")
 		}
 
-		return m.updateStatus(ctx, result, pod.KubeNs)
+		err = m.updateStatus(ctx, result, pod.KubeNs)
+		if err == nil {
+			m.triggerReconcile()
+		}
+		return err
 	})
 
 	if retryErr != nil {

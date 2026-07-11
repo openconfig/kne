@@ -43,6 +43,8 @@ type Meshnet struct {
 	rCfg           *rest.Config
 	s              *grpc.Server
 	lis            net.Listener
+	nodeIP         string
+	dirtyChan      chan struct{}
 }
 
 var mnetdLogger *log.Entry = nil
@@ -110,6 +112,8 @@ func New(cfg Config) (*Meshnet, error) {
 		GWireDynClient: gwireDynClient,
 		lis:            lis,
 		s:              svr,
+		nodeIP:         os.Getenv("HOST_IP"),
+		dirtyChan:      make(chan struct{}, 1),
 	}
 	mpb.RegisterLocalServer(m.s, m)
 	mpb.RegisterRemoteServer(m.s, m)
