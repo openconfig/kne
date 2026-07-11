@@ -18042,6 +18042,12 @@ items:
                       values:
                         - p2
                 topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: init-wait
+          image: us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga
+          imagePullPolicy: IfNotPresent
+          args:
+            - "1500"
       containers:
         - image: alpine
           name: pod
@@ -18065,6 +18071,12 @@ items:
                     values:
                       - p1
               topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: init-wait
+          image: us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga
+          imagePullPolicy: IfNotPresent
+          args:
+            - "1500"
       containers:
         - image: alpine
           name: pod
