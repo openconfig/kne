@@ -7,11 +7,13 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/cni/pkg/version"
+	"github.com/containernetworking/plugins/pkg/ns"
 	koko "github.com/redhat-nfvpe/koko/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -213,6 +215,35 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 
 	log.Infof("Add[%s]: Successfully registered pod alive status with meshnet daemon", string(cniArgs.K8S_POD_NAME))
+
+	if len(localPod.Links) > 0 {
+		waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
+			ticker := time.NewTicker(50 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				ready := true
+				for _, link := range localPod.Links {
+					if _, err := netlink.LinkByName(link.LocalIntf); err != nil {
+						ready = false
+						break
+					}
+				}
+				if ready {
+					log.Infof("Add[%s]: All %d interfaces ready in container namespace", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
+					return nil
+				}
+				select {
+				case <-waitCtx.Done():
+					log.Infof("Add[%s]: Bounded readiness wait expired (%d links); asynchronous completion will continue", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
+					return nil
+				case <-ticker.C:
+				}
+			}
+		})
+	}
+
 	return types.PrintResult(result, n.CNIVersion)
 }
 
