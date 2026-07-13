@@ -21,6 +21,8 @@ type PodLinkConfig struct {
 	KubeNs      string // Kubernetes namespace (e.g. "1500links")
 	LocalIntf   string // Target interface name inside local pod (e.g. "eth14")
 	LocalIP     string // Local CIDR (e.g. "10.10.0.1/30")
+	PeerIntf    string // Target interface name inside peer pod (e.g. "eth14")
+	PeerIP      string // Peer CIDR (e.g. "10.10.0.2/30")
 	MTU         int    // Interface MTU (default 1500 if <= 0)
 }
 
