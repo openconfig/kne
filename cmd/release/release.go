@@ -17,6 +17,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,7 +45,21 @@ func meshnet() *cobra.Command {
 			fmt.Println("Validating working directory")
 			sha, err := validateWorkDir()
 			if err != nil {
-				return err
+				var uncleanErr *UncleanWorkDirError
+				if errors.As(err, &uncleanErr) {
+					for _, r := range uncleanErr.Reasons {
+						fmt.Println(r)
+					}
+					ok, pErr := promptBool("Are you sure you want to continue")
+					if pErr != nil {
+						return pErr
+					}
+					if !ok {
+						return fmt.Errorf("repository in invalid state")
+					}
+				} else {
+					return err
+				}
 			}
 			fmt.Println("Running prerelease tests")
 			if err := triggerBuild(cmd.Context(), "kne-test", sha, false); err != nil {
@@ -127,6 +142,14 @@ func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool) (rErr
 	return nil
 }
 
+type UncleanWorkDirError struct {
+	Reasons []string
+}
+
+func (e *UncleanWorkDirError) Error() string {
+	return fmt.Sprintf("unclean working directory: %s", strings.Join(e.Reasons, ", "))
+}
+
 // validateWorkDir checks the status of the working dir to make sure it is clean state.
 func validateWorkDir() (string, error) {
 	stOut, err := exec.Command("git", "status", "--porcelain").CombinedOutput()
@@ -144,23 +167,15 @@ func validateWorkDir() (string, error) {
 		return "", err
 	}
 	sha := strings.TrimSpace(string(revOut))
-	ready := true
+	var reasons []string
 	if branch != "main" {
-		fmt.Println("Not on main branch")
-		ready = false
+		reasons = append(reasons, "Not on main branch")
 	}
 	if status != "" {
-		fmt.Println("Working directory dirty")
-		ready = false
+		reasons = append(reasons, "Working directory dirty")
 	}
-	if !ready {
-		ok, err := promptBool("Are you sure you want to continue")
-		if err != nil {
-			return "", err
-		}
-		if !ok {
-			return "", fmt.Errorf("repository in invalid state")
-		}
+	if len(reasons) > 0 {
+		return sha, &UncleanWorkDirError{Reasons: reasons}
 	}
 	return sha, nil
 }
