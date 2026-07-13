@@ -100,12 +100,8 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 		// Then we simply create a new one
 		vxLanOvrlyLogger.Infof("Creating a VXLAN link: %v; inside the pod: %v", vxlan, veth)
 		if err = api.MakeVxLan(veth, vxlan); err != nil {
-			if strings.Contains(err.Error(), "file exists") {
-				vxLanOvrlyLogger.Warnf(" MESHNETD: Error when creating a Vxlan interface with koko, file exists")
-			} else {
-				vxLanOvrlyLogger.Errorf(" MESHNETD: Error when creating a new Vxlan interface with koko: %s", err)
-				return err
-			}
+			vxLanOvrlyLogger.Errorf(" MESHNETD: Error when creating a new Vxlan interface with koko: %s", err)
+			return err
 		}
 	}
 

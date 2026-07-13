@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/util/retry"
 )
 
 // toUnstructured converts any Kubernetes object into *unstructured.Unstructured.
@@ -87,8 +88,26 @@ func parsePodLinks(topo *unstructured.Unstructured) ([]wireutil.PodLinkConfig, e
 }
 
 // ReconcilePodLinks reconciles network interface plumbing for an active pod scheduled on this node.
-// For all active same-node peer pods, it invokes wireutil.ConfigurePodLinks.
+// It wraps reconcilePodLinksInternal and records any configuration error in the Topology resource's status.
 func (m *Meshnet) ReconcilePodLinks(ctx context.Context, topo *unstructured.Unstructured) error {
+	if topo == nil {
+		return nil
+	}
+	err := m.reconcilePodLinksInternal(ctx, topo)
+	if err != nil {
+		if statusErr := m.updatePlumbingErrorStatus(ctx, topo, err.Error()); statusErr != nil {
+			mnetdLogger.Warnf("ReconcilePodLinks: failed to update plumbing error status: %v", statusErr)
+		}
+		return err
+	}
+	if err := m.updatePlumbingErrorStatus(ctx, topo, ""); err != nil {
+		mnetdLogger.Warnf("ReconcilePodLinks: failed to clear plumbing error status: %v", err)
+	}
+	return nil
+}
+
+// reconcilePodLinksInternal performs the actual network interface plumbing work.
+func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructured.Unstructured) error {
 	if topo == nil {
 		return nil
 	}
@@ -424,4 +443,32 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 		}
 		m.triggerReconcile()
 	}
+}
+
+// updatePlumbingErrorStatus writes the provided plumbing error message (or clears it if empty) 
+// to the Topology resource's status.plumbing_error field.
+func (m *Meshnet) updatePlumbingErrorStatus(ctx context.Context, topo *unstructured.Unstructured, errMsg string) error {
+	if m.tClient == nil {
+		return fmt.Errorf("topology client not initialized")
+	}
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latestTopo, err := m.tClient.Topology(topo.GetNamespace()).Unstructured(ctx, topo.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if errMsg == "" {
+			unstructured.RemoveNestedField(latestTopo.Object, "status", "plumbing_error")
+		} else {
+			if err := unstructured.SetNestedField(latestTopo.Object, errMsg, "status", "plumbing_error"); err != nil {
+				return err
+			}
+		}
+
+		_, err = m.tClient.Topology(latestTopo.GetNamespace()).Update(ctx, latestTopo, metav1.UpdateOptions{})
+		return err
+	})
+
+	return err
 }

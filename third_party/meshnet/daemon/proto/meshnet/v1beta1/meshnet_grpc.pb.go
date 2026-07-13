@@ -36,8 +36,11 @@ const (
 type LocalClient interface {
 	Get(ctx context.Context, in *PodQuery, opts ...grpc.CallOption) (*Pod, error)
 	SetAlive(ctx context.Context, in *Pod, opts ...grpc.CallOption) (*BoolResponse, error)
+	// Deprecated: Do not use.
 	SkipReverse(ctx context.Context, in *SkipQuery, opts ...grpc.CallOption) (*BoolResponse, error)
+	// Deprecated: Do not use.
 	Skip(ctx context.Context, in *SkipQuery, opts ...grpc.CallOption) (*BoolResponse, error)
+	// Deprecated: Do not use.
 	IsSkipped(ctx context.Context, in *SkipQuery, opts ...grpc.CallOption) (*BoolResponse, error)
 	GRPCWireExists(ctx context.Context, in *WireDef, opts ...grpc.CallOption) (*WireCreateResponse, error)
 	AddGRPCWireLocal(ctx context.Context, in *WireDef, opts ...grpc.CallOption) (*BoolResponse, error)
@@ -76,6 +79,7 @@ func (c *localClient) SetAlive(ctx context.Context, in *Pod, opts ...grpc.CallOp
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *localClient) SkipReverse(ctx context.Context, in *SkipQuery, opts ...grpc.CallOption) (*BoolResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BoolResponse)
@@ -86,6 +90,7 @@ func (c *localClient) SkipReverse(ctx context.Context, in *SkipQuery, opts ...gr
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *localClient) Skip(ctx context.Context, in *SkipQuery, opts ...grpc.CallOption) (*BoolResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BoolResponse)
@@ -96,6 +101,7 @@ func (c *localClient) Skip(ctx context.Context, in *SkipQuery, opts ...grpc.Call
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *localClient) IsSkipped(ctx context.Context, in *SkipQuery, opts ...grpc.CallOption) (*BoolResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BoolResponse)
@@ -152,8 +158,11 @@ func (c *localClient) GenerateNodeInterfaceName(ctx context.Context, in *Generat
 type LocalServer interface {
 	Get(context.Context, *PodQuery) (*Pod, error)
 	SetAlive(context.Context, *Pod) (*BoolResponse, error)
+	// Deprecated: Do not use.
 	SkipReverse(context.Context, *SkipQuery) (*BoolResponse, error)
+	// Deprecated: Do not use.
 	Skip(context.Context, *SkipQuery) (*BoolResponse, error)
+	// Deprecated: Do not use.
 	IsSkipped(context.Context, *SkipQuery) (*BoolResponse, error)
 	GRPCWireExists(context.Context, *WireDef) (*WireCreateResponse, error)
 	AddGRPCWireLocal(context.Context, *WireDef) (*BoolResponse, error)
