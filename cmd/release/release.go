@@ -145,8 +145,8 @@ func validateWorkDir() (string, error) {
 	}
 	sha := strings.TrimSpace(string(revOut))
 	ready := true
-	if branch != "main" && branch != "master" {
-		fmt.Println("Not on main or master branch")
+	if branch != "main" {
+		fmt.Println("Not on main branch")
 		ready = false
 	}
 	if status != "" {
