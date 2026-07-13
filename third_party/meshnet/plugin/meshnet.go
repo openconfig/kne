@@ -146,16 +146,6 @@ func makeVeth(netNS, linkName string, ip string) (*koko.VEth, error) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Creates koko.Vxlan from ParentIF, destination IP and VNI
-func makeVxlan(srcIntf string, peerIP string, idx int64) *koko.VxLan {
-	return &koko.VxLan{
-		ParentIF: srcIntf,
-		IPAddr:   net.ParseIP(peerIP),
-		ID:       int(vxlanBase + idx),
-	}
-}
-
-// -------------------------------------------------------------------------------------------------
 // Adds interfaces to a POD. the POD name and the POD Namespace is passed as arguments.
 func cmdAdd(args *skel.CmdArgs) error {
 	ctx, cancel := context.WithCancel(context.Background())

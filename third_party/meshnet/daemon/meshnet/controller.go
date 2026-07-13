@@ -256,7 +256,7 @@ func (m *Meshnet) ReconcilePodLinks(ctx context.Context, topo *unstructured.Unst
 					IntfName: link.LocalIntf,
 					IntfIp:   link.LocalIP,
 					PeerVtep: peerSrcIP,
-					Vni:      link.LinkUID + 5000,
+					Vni:      link.LinkUID + wireutil.NamespaceVNIOffset(link.KubeNs),
 					KubeNs:   link.KubeNs,
 				}
 				mnetdLogger.Infof("ReconcilePodLinks: configuring remote VXLAN link for pod %s interface %s (peer %s on VTEP %s, VNI %d)",
