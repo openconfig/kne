@@ -18,7 +18,7 @@ require (
 	github.com/open-traffic-generator/keng-operator v0.4.2
 	github.com/open-traffic-generator/snappi/gosnappi v1.57.1
 	github.com/openconfig/gnmi v0.14.1
-	github.com/openconfig/kne/third_party/meshnet v0.0.0-00010101000000-000000000000
+	github.com/openconfig/kne/third_party/meshnet v0.3.3
 	github.com/openconfig/lemming/operator v0.2.7
 	github.com/openconfig/ondatra v0.14.5
 	github.com/pborman/uuid v1.2.1
