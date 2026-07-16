@@ -207,7 +207,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	log.Infof("Add[%s]: Successfully registered pod alive status with meshnet daemon", string(cniArgs.K8S_POD_NAME))
 
 	if len(localPod.Links) > 0 {
-		waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		waitCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 			ticker := time.NewTicker(50 * time.Millisecond)
