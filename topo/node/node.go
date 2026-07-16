@@ -773,10 +773,10 @@ func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
 			continue
 		}
 		if ifc.PeerIntName == "" {
-			return nil, fmt.Errorf("interface %q PeerIntName canot be empty", ifcName)
+			return nil, fmt.Errorf("interface %q PeerIntName cannot be empty", ifcName)
 		}
 		if ifc.PeerName == "" {
-			return nil, fmt.Errorf("interface %q PeerName canot be empty", ifcName)
+			return nil, fmt.Errorf("interface %q PeerName cannot be empty", ifcName)
 		}
 		links = append(links, topologyv1.Link{
 			UID:       int(ifc.Uid),

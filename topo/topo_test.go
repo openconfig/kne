@@ -678,7 +678,7 @@ func TestDelete(t *testing.T) {
 			Type: watch.Deleted,
 			Object: &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "dne",
+					Name: "nonexistent",
 				},
 			},
 		},
@@ -1796,7 +1796,7 @@ func TestConfigPush(t *testing.T) {
 		wantErr: "does not implement ConfigPusher interface",
 	}, {
 		desc:    "node not found",
-		name:    "dne",
+		name:    "nonexistent",
 		wantErr: "not found",
 	}}
 	for _, tt := range tests {
@@ -1834,7 +1834,7 @@ func TestResetCfg(t *testing.T) {
 		wantErr: "does not implement Resetter interface",
 	}, {
 		desc:    "node not found",
-		name:    "dne",
+		name:    "nonexistent",
 		wantErr: "not found",
 	}}
 	for _, tt := range tests {
@@ -1901,7 +1901,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 		name: "no_info",
 	}, {
 		desc:    "node not found",
-		name:    "dne",
+		name:    "nonexistent",
 		wantErr: "not found",
 	}}
 	for _, tt := range tests {

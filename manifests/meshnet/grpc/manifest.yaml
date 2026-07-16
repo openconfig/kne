@@ -23,100 +23,110 @@ spec:
     singular: gwirekobj
   scope: Namespaced
   versions:
-  - name: v1beta1
-    schema:
-      openAPIV3Schema:
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            properties:
-              apiVersion:
-                description: 'APIVersion defines the versioned schema of this representation
-                  of an object. Servers should convert recognized schemas to the latest
-                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-                type: string
-              kind:
-                description: 'Kind is a string value representing the REST resource
-                  this object represents. Servers may infer this from the endpoint
-                  the client submits requests to. Cannot be updated. In CamelCase.
-                  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                type: string
-              uids:
-                description: unique link id
-                items:
-                  type: integer
-                type: array
-            type: object
-          status:
-            properties:
-              apiVersion:
-                description: 'APIVersion defines the versioned schema of this representation
-                  of an object. Servers should convert recognized schemas to the latest
-                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-                type: string
-              grpcWireItems:
-                items:
-                  properties:
-                    gwire_peer_node_ip:
-                      description: peer node IP address
-                      type: string
-                    link_id:
-                      description: Unique link id as assigned by meshnet
-                      format: int64
-                      type: integer
-                    local_pod_iface_name:
-                      description: Local pod interface name that is specified in topology
-                        CR and is created by meshnet
-                      type: string
-                    local_pod_ip:
-                      description: Local pod ip as specified in topology CR
-                      type: string
-                    local_pod_name:
-                      description: Local pod name as specified in topology CR
-                      type: string
-                    local_pod_net_ns:
-                      description: Netwokr namespace of the local pod holding the
-                        wire end
-                      type: string
-                    node_name:
-                      description: Name of the node holding the wire end
-                      type: string
-                    topo_namespace:
-                      description: The topology namespace.
-                      type: string
-                    wire_iface_id_on_peer_node:
-                      description: The interface id, in the peer node adn is connected
-                        with remote pod. This is used for de-multiplexing received
-                        packet from grpcwire
-                      format: int64
-                      type: integer
-                    wire_iface_name_on_local_node:
-                      description: The interface(name) in the local node and is connected
-                        with local pod
-                      type: string
-                  type: object
-                type: array
-              kind:
-                description: 'Kind is a string value representing the REST resource
-                  this object represents. Servers may infer this from the endpoint
-                  the client submits requests to. Cannot be updated. In CamelCase.
-                  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                type: string
-            type: object
-        type: object
-    served: true
-    storage: true
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description:
+                "APIVersion defines the versioned schema of this representation
+                of an object. Servers should convert recognized schemas to the latest
+                internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources"
+              type: string
+            kind:
+              description:
+                "Kind is a string value representing the REST resource this
+                object represents. Servers may infer this from the endpoint the client
+                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                apiVersion:
+                  description:
+                    "APIVersion defines the versioned schema of this representation
+                    of an object. Servers should convert recognized schemas to the latest
+                    internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources"
+                  type: string
+                kind:
+                  description:
+                    "Kind is a string value representing the REST resource
+                    this object represents. Servers may infer this from the endpoint
+                    the client submits requests to. Cannot be updated. In CamelCase.
+                    More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+                  type: string
+                uids:
+                  description: unique link id
+                  items:
+                    type: integer
+                  type: array
+              type: object
+            status:
+              properties:
+                apiVersion:
+                  description:
+                    "APIVersion defines the versioned schema of this representation
+                    of an object. Servers should convert recognized schemas to the latest
+                    internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources"
+                  type: string
+                grpcWireItems:
+                  items:
+                    properties:
+                      gwire_peer_node_ip:
+                        description: peer node IP address
+                        type: string
+                      link_id:
+                        description: Unique link id as assigned by meshnet
+                        format: int64
+                        type: integer
+                      local_pod_iface_name:
+                        description:
+                          Local pod interface name that is specified in topology
+                          CR and is created by meshnet
+                        type: string
+                      local_pod_ip:
+                        description: Local pod ip as specified in topology CR
+                        type: string
+                      local_pod_name:
+                        description: Local pod name as specified in topology CR
+                        type: string
+                      local_pod_net_ns:
+                        description:
+                          Netwokr namespace of the local pod holding the
+                          wire end
+                        type: string
+                      node_name:
+                        description: Name of the node holding the wire end
+                        type: string
+                      topo_namespace:
+                        description: The topology namespace.
+                        type: string
+                      wire_iface_id_on_peer_node:
+                        description:
+                          The interface id, in the peer node and is connected
+                          with remote pod. This is used for de-multiplexing received
+                          packet from grpcwire
+                        format: int64
+                        type: integer
+                      wire_iface_name_on_local_node:
+                        description:
+                          The interface(name) in the local node and is connected
+                          with local pod
+                        type: string
+                    type: object
+                  type: array
+                kind:
+                  description:
+                    "Kind is a string value representing the REST resource
+                    this object represents. Servers may infer this from the endpoint
+                    the client submits requests to. Cannot be updated. In CamelCase.
+                    More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+                  type: string
+              type: object
+          type: object
+      served: true
+      storage: true
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -130,75 +140,75 @@ spec:
     kind: Topology
     plural: topologies
     shortNames:
-    - topo
+      - topo
     singular: topology
   scope: Namespaced
   versions:
-  - name: v1beta1
-    schema:
-      openAPIV3Schema:
-        properties:
-          spec:
-            properties:
-              links:
-                items:
-                  description: A complete definition of a p2p link
-                  properties:
-                    local_intf:
-                      description: Local interface name
-                      type: string
-                    local_ip:
-                      description: (Optional) Peer IP address
-                      type: string
-                    peer_intf:
-                      description: Peer interface name
-                      type: string
-                    peer_ip:
-                      description: (Optional) Local IP address
-                      type: string
-                    peer_pod:
-                      description: Name of the peer pod
-                      type: string
-                    uid:
-                      description: Unique identified of a p2p link
-                      type: integer
-                  required:
-                  - uid
-                  - peer_pod
-                  - local_intf
-                  - peer_intf
-                  type: object
-                type: array
-            type: object
-          status:
-            properties:
-              container_id:
-                description: Sandbox ID of the POD
-                type: string
-              net_ns:
-                description: Network namespace of the POD
-                type: string
-              skipped:
-                description: List of pods/interfaces that are skipped by local pod
-                items:
-                  properties:
-                    link_id:
-                      format: int64
-                      type: integer
-                    pod_name:
-                      description: peer pod name
-                      type: string
-                  type: object
-                type: array
-              src_ip:
-                description: Source IP of the POD
-                type: string
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            spec:
+              properties:
+                links:
+                  items:
+                    description: A complete definition of a p2p link
+                    properties:
+                      local_intf:
+                        description: Local interface name
+                        type: string
+                      local_ip:
+                        description: (Optional) Peer IP address
+                        type: string
+                      peer_intf:
+                        description: Peer interface name
+                        type: string
+                      peer_ip:
+                        description: (Optional) Local IP address
+                        type: string
+                      peer_pod:
+                        description: Name of the peer pod
+                        type: string
+                      uid:
+                        description: Unique identified of a p2p link
+                        type: integer
+                    required:
+                      - uid
+                      - peer_pod
+                      - local_intf
+                      - peer_intf
+                    type: object
+                  type: array
+              type: object
+            status:
+              properties:
+                container_id:
+                  description: Sandbox ID of the POD
+                  type: string
+                net_ns:
+                  description: Network namespace of the POD
+                  type: string
+                skipped:
+                  description: List of pods/interfaces that are skipped by local pod
+                  items:
+                    properties:
+                      link_id:
+                        format: int64
+                        type: integer
+                      pod_name:
+                        description: peer pod name
+                        type: string
+                    type: object
+                  type: array
+                src_ip:
+                  description: Source IP of the POD
+                  type: string
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
 status:
   acceptedNames:
     kind: ""
@@ -221,21 +231,21 @@ metadata:
     app: meshnet
   name: meshnet-clusterrole
 rules:
-- apiGroups:
-  - networkop.co.uk
-  resources:
-  - topologies
-  - gwirekobjs
-  verbs:
-  - '*'
-- apiGroups:
-  - networkop.co.uk
-  resources:
-  - topologies/status
-  - gwirekobjs/spec
-  - gwirekobjs/status
-  verbs:
-  - '*'
+  - apiGroups:
+      - networkop.co.uk
+    resources:
+      - topologies
+      - gwirekobjs
+    verbs:
+      - "*"
+  - apiGroups:
+      - networkop.co.uk
+    resources:
+      - topologies/status
+      - gwirekobjs/spec
+      - gwirekobjs/status
+    verbs:
+      - "*"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -248,9 +258,9 @@ roleRef:
   kind: ClusterRole
   name: meshnet-clusterrole
 subjects:
-- kind: ServiceAccount
-  name: meshnet
-  namespace: meshnet
+  - kind: ServiceAccount
+    name: meshnet
+    namespace: meshnet
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -272,46 +282,46 @@ spec:
         name: meshnet
     spec:
       containers:
-      - command:
-        - ./entrypoint.sh
-        env:
-        - name: HOST_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.hostIP
-        - name: INTER_NODE_LINK_TYPE
-          value: GRPC
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        image: us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga
-        imagePullPolicy: IfNotPresent
-        name: meshnet
-        resources:
-          limits:
-            memory: 10G
-          requests:
-            cpu: 200m
-            memory: 1G
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /etc/cni/net.d
-          name: cni-cfg
-        - mountPath: /opt/cni/bin
-          name: cni-bin
-        - mountPath: /var/run/netns
-          mountPropagation: Bidirectional
-          name: var-run-netns
+        - command:
+            - ./entrypoint.sh
+          env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: INTER_NODE_LINK_TYPE
+              value: GRPC
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          image: us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga
+          imagePullPolicy: IfNotPresent
+          name: meshnet
+          resources:
+            limits:
+              memory: 10G
+            requests:
+              cpu: 200m
+              memory: 1G
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /etc/cni/net.d
+              name: cni-cfg
+            - mountPath: /opt/cni/bin
+              name: cni-bin
+            - mountPath: /var/run/netns
+              mountPropagation: Bidirectional
+              name: var-run-netns
       hostIPC: true
       hostNetwork: true
       hostPID: true
@@ -320,15 +330,15 @@ spec:
       serviceAccountName: meshnet
       terminationGracePeriodSeconds: 30
       tolerations:
-      - effect: NoSchedule
-        operator: Exists
+        - effect: NoSchedule
+          operator: Exists
       volumes:
-      - hostPath:
-          path: /opt/cni/bin
-        name: cni-bin
-      - hostPath:
-          path: /etc/cni/net.d
-        name: cni-cfg
-      - hostPath:
-          path: /var/run/netns
-        name: var-run-netns
+        - hostPath:
+            path: /opt/cni/bin
+          name: cni-bin
+        - hostPath:
+            path: /etc/cni/net.d
+          name: cni-cfg
+        - hostPath:
+            path: /var/run/netns
+          name: var-run-netns

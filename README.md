@@ -19,35 +19,35 @@ implementations and data plane for limited certifications. The idea of this
 project is to provide a standard "interface" so that vendors can produce a
 standard container implementation which can be used to build complex topologies.
 
-* Have standard lifecycle management infrastructure for allowing multiple vendor
+- Have standard lifecycle management infrastructure for allowing multiple vendor
   device emulations to be present in a single "topology"
-* Allow for control plane access via standard k8s networking
-* Provide a common networking interface for the forwarding plane between network
+- Allow for control plane access via standard k8s networking
+- Provide a common networking interface for the forwarding plane between network
   pods.
-  * Data plane wires between pods
-  * Control plane wires between topology manager
-* Define service implementation for allowing interaction with the topology
+  - Data plane wires between pods
+  - Control plane wires between topology manager
+- Define service implementation for allowing interaction with the topology
   manager service.
-  * Topology manager is the public API for allowing external users to manipulate
+  - Topology manager is the public API for allowing external users to manipulate
     the link state in the topology.
-  * The topology manager will run as a service in k8s environment.
-  * It will provide a gRPC interface for tests to interact with
-  * It will listen to CRDs published via the network device pods for discovery
-* Data plane connections for connectivity between pods must be a public
+  - The topology manager will run as a service in k8s environment.
+  - It will provide a gRPC interface for tests to interact with
+  - It will listen to CRDs published via the network device pods for discovery
+- Data plane connections for connectivity between pods must be a public
   transport mechanism
-  * This can't be implemented as just exposing "x eth devices on the pod"
-    because Linux doesn't understand the  associated control messages which are
+  - This can't be implemented as just exposing "x eth devices on the pod"
+    because Linux doesn't understand the associated control messages which are
     needed to make this work like a wire.
-  * Transceiver state, optical characteristics, wire state, packet filtering /
+  - Transceiver state, optical characteristics, wire state, packet filtering /
     shaping / drops
-  * LACP or other port aggregation protocols or APS cannot be simulated
+  - LACP or other port aggregation protocols or APS cannot be simulated
     correctly
-  * The topology manager will start a topology agent on each host for the pod to
+  - The topology manager will start a topology agent on each host for the pod to
     directly interact with.
-  * The topology agent will provide the connectivity between nodes
-* Define how pods boot an initial configuration
-  * Ideally, this method would allow for dynamic
-* Define how pods express services for use in-cluster as well as external
+  - The topology agent will provide the connectivity between nodes
+- Define how pods boot an initial configuration
+  - Ideally, this method would allow for dynamic
+- Define how pods express services for use in-cluster as well as external
   services
 
 ## Use Cases
@@ -98,12 +98,12 @@ by default.** Additionally the PubSub project and topic the events are published
 to are configurable. If you want to track your own private metrics about your
 KNE usage then that is supported by providing a Cloud PubSub project/topic of
 your choosing. Full details about how/when usage events are published can be
-found in the codebase [here](metrics/metrics.go). We appreciate usage metric
+found in the [metrics package](metrics/metrics.go). We appreciate usage metric
 reporting as it helps us develop a better KNE experience for all of our users.
 Whether that be detecting an abnormally high number of cluster deployment
 failures due to an upgrade to an underlying dependency introduced by a new
 commit, or detecting a bug from a scenario where the failure rate for topologies
-over *n* links is far greater than *n-1* links. Usage metric reporting is
+over _n_ links is far greater than _n-1_ links. Usage metric reporting is
 helpful tool for the KNE developers.
 
 ## Thanks
