@@ -148,6 +148,7 @@ func makeVeth(netNS, linkName string, ip string) (*koko.VEth, error) {
 // -------------------------------------------------------------------------------------------------
 // Adds interfaces to a POD. the POD name and the POD Namespace is passed as arguments.
 func cmdAdd(args *skel.CmdArgs) error {
+	startTime := time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -207,7 +208,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	log.Infof("Add[%s]: Successfully registered pod alive status with meshnet daemon", string(cniArgs.K8S_POD_NAME))
 
 	if len(localPod.Links) > 0 {
-		waitCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		waitCtx, cancel := context.WithDeadline(ctx, startTime.Add(15*time.Second))
 		defer cancel()
 		_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 			ticker := time.NewTicker(50 * time.Millisecond)
