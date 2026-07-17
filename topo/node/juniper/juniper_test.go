@@ -869,3 +869,21 @@ func TestDefaultNodeConstraints(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldRestartSession(t *testing.T) {
+	tests := []struct {
+		output string
+		want   bool
+	}{
+		{output: "error: Commit failed: Schema mismatch/updated. Restart Session and retry", want: true},
+		{output: "error: Schema was updated in background, failing the commit", want: true},
+		{output: "error: unknown command: configure", want: false},
+		{output: "commit complete", want: false},
+	}
+	for _, tt := range tests {
+		got := shouldRestartSession(tt.output)
+		if got != tt.want {
+			t.Errorf("shouldRestartSession(%q) = %v, want %v", tt.output, got, tt.want)
+		}
+	}
+}

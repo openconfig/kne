@@ -220,11 +220,29 @@ func (n *Node) GRPCConfig() []string {
 	}
 }
 
+func shouldRestartSession(output string) bool {
+	return strings.Contains(output, "Restart Session and retry") ||
+		strings.Contains(output, "Schema mismatch/updated") ||
+		strings.Contains(output, "Schema was updated")
+}
+
 // Waits and retries until CLI config mode is up and config is applied
 func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
 	log.Infof("Waiting for config to be pushed (timeout: %v) node %s", configModeTimeout, n.Name())
 	start := time.Now()
 	for time.Since(start) < configModeTimeout {
+		if n.cliConn != nil && !n.cliConn.Transport.IsAlive() {
+			n.cliConn.Close()
+			n.cliConn = nil
+		}
+		if n.cliConn == nil {
+			log.Infof("Respawning CLI session on node %s", n.Name())
+			if err := n.SpawnCLIConn(); err != nil {
+				log.Infof("Failed to spawn CLI connection on node %s: %v", n.Name(), err)
+				time.Sleep(configModeRetrySleep)
+				continue
+			}
+		}
 		multiresp, err := n.cliConn.SendConfigs(configs)
 		if err != nil {
 			if strings.Contains(err.Error(), "errPrivilegeError") || strings.Contains(err.Error(), "errTimeoutError") {
@@ -242,7 +260,15 @@ func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
 					return nil
 				}
 				if strings.Contains(resp.Result, "error:") {
-					log.Infof("Config mode not ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
+					log.Infof("Config mode not ready. Retrying in %v. Node %s Response %s", configModeRetrySleep, n.Name(), multiresp.JoinedResult())
+					if shouldRestartSession(multiresp.JoinedResult()) {
+						log.Infof("Session issue detected on node %s. Restarting CLI session.", n.Name())
+						if n.cliConn != nil {
+							n.cliConn.Close()
+							n.cliConn = nil
+						}
+					}
+					break
 				}
 			}
 		}
@@ -265,8 +291,25 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 	log.Infof("Waiting for certificates to be pushed (timeout: %v) node %s", certGenTimeout, n.Name())
 	start := time.Now()
 	for time.Since(start) < certGenTimeout {
+		if n.cliConn != nil && !n.cliConn.Transport.IsAlive() {
+			n.cliConn.Close()
+			n.cliConn = nil
+		}
+		if n.cliConn == nil {
+			log.Infof("Respawning CLI session on node %s", n.Name())
+			if err := n.SpawnCLIConn(); err != nil {
+				log.Infof("Failed to spawn CLI connection on node %s: %v", n.Name(), err)
+				time.Sleep(certGenRetrySleep)
+				continue
+			}
+		}
 		multiresp, err := n.cliConn.SendCommands(commands)
 		if err != nil {
+			if strings.Contains(err.Error(), "errPrivilegeError") || strings.Contains(err.Error(), "errTimeoutError") {
+				log.Infof("Cert infra isn't ready. Retrying in %v. Node %s, Resp %v", certGenRetrySleep, n.Name(), err)
+				time.Sleep(certGenRetrySleep)
+				continue
+			}
 			return fmt.Errorf("failed sending generate-self-signed commands: %v", err)
 		}
 		for _, resp := range multiresp.Responses {
@@ -279,6 +322,14 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 			}
 			if strings.Contains(resp.Result, "error:") {
 				log.Infof("Cert infra isn't ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
+				if shouldRestartSession(multiresp.JoinedResult()) {
+					log.Infof("Session issue detected on node %s. Restarting CLI session.", n.Name())
+					if n.cliConn != nil {
+						n.cliConn.Close()
+						n.cliConn = nil
+					}
+				}
+				break
 			}
 		}
 		time.Sleep(certGenRetrySleep)
@@ -325,17 +376,26 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 
 	// wait for cert infra to be ready and push certs
 	if err := n.waitCertInfraReadyAndPushCert(); err != nil {
+		if n.cliConn != nil {
+			n.cliConn.Close()
+		}
 		return err
 	}
 
 	// Send gRPC config
 	if err := n.waitConfigInfraReadyAndPushConfigs(n.GRPCConfig()); err != nil {
+		if n.cliConn != nil {
+			n.cliConn.Close()
+		}
 		return fmt.Errorf("failed sending grpc config commands - self-signed-cert: %v", err)
 	}
 
 	log.Infof("%s - finished cert generation", n.Name())
 
-	return n.cliConn.Close()
+	if n.cliConn != nil {
+		return n.cliConn.Close()
+	}
+	return nil
 }
 
 func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
