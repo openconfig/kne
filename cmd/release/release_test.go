@@ -18,10 +18,10 @@ import (
 	"testing"
 )
 
-func TestNewRelease(t *testing.T) {
-	cmd := NewRelease()
+func TestNew(t *testing.T) {
+	cmd := New()
 	if cmd == nil {
-		t.Fatalf("NewRelease() returned nil")
+		t.Fatalf("New() returned nil")
 	}
 	if cmd.Use != "release" {
 		t.Errorf("cmd.Use = %q, want %q", cmd.Use, "release")

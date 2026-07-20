@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package release provides subcommands for releasing KNE artifacts.
 package release
 
 import (
@@ -29,7 +30,8 @@ import (
 	"google.golang.org/api/option"
 )
 
-func NewRelease() *cobra.Command {
+// New returns the release subcommand.
+func New() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "release",
 	}
@@ -132,7 +134,9 @@ func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool) (rErr
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Build ID: %s\nLogs: %s\n", md.GetBuild().GetId(), md.GetBuild().GetLogUrl())
+	if md.Build != nil {
+		fmt.Printf("Build ID: %s\nLogs: %s\n", md.Build.GetId(), md.Build.GetLogUrl())
+	}
 	fmt.Println("Waiting for build to finish")
 	b, err := op.Wait(ctx)
 	if err != nil {
