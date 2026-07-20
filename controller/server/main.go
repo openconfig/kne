@@ -81,7 +81,7 @@ func init() {
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
 
-	muDeploy    sync.Mutex // guards deployements map
+	muDeploy    sync.Mutex // guards deployments map
 	deployments map[string]*deploy.Deployment
 	muTopo      sync.Mutex        // guards topos map
 	topos       map[string][]byte // stores the topology protobuf from the initial topology creation request
