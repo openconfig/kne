@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package internal provides subcommands intended for internal KNE team use.
 package internal
 
 import (
@@ -25,6 +26,6 @@ func New() *cobra.Command {
 		Use:   "internal",
 		Short: "Internal contains tools for internal KNE team use.",
 	}
-	cmd.AddCommand(release.NewRelease())
+	cmd.AddCommand(release.New())
 	return cmd
 }
