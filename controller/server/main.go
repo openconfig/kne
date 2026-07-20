@@ -431,7 +431,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 			continue
 		}
 		if node.GetConfig() == nil || node.GetConfig().GetFile() == "" {
-			log.Info("node %q: not initial config skipping", node.Name)
+			log.Infof("node %q: not initial config skipping", node.Name)
 			// A config section is not required: you are allowed to bring up a
 			// topology with no initial config.
 			continue
