@@ -26,8 +26,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
-	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
@@ -267,7 +267,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		}
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	// Watch the container status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {

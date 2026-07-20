@@ -26,7 +26,7 @@ spec:
         - name: meshnet
           securityContext:
             privileged: true
-          image: openconfig/meshnet:latest
+          image: us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga
           imagePullPolicy: IfNotPresent
           command: ["./entrypoint.sh"]
           resources:

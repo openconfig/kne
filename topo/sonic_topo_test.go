@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
+	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo"
 	_ "github.com/openconfig/kne/topo/node/sonic"
