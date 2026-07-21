@@ -1,10 +1,10 @@
-MESHNET_DOCKER_IMAGE := hfam/meshnet
+MESHNET_DOCKER_IMAGE ?= us-west1-docker.pkg.dev/kne-external/kne/meshnet
 GOPATH ?= ${HOME}/go
 KNE_CLI_BIN := kne
 INSTALL_DIR := /usr/local/bin
 
-COMMIT := $(shell git describe --dirty --always)
-TAG := $(shell git describe --tags --abbrev=0 || echo latest)
+COMMIT := $(shell git describe --dirty --always 2>/dev/null || echo unknown)
+TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo latest)
 
 
 include .mk/kind.mk
@@ -38,3 +38,14 @@ build:
 ## Install kne cli binary to user's local bin dir
 install: build
 	sudo mv $(KNE_CLI_BIN) $(INSTALL_DIR)
+
+.PHONY: meshnet-docker
+## Build meshnet docker image
+meshnet-docker:
+	$(MAKE) -C third_party/meshnet docker DOCKER_IMAGE=$(MESHNET_DOCKER_IMAGE)
+
+.PHONY: meshnet-release
+## Release meshnet docker image
+meshnet-release:
+	$(MAKE) -C third_party/meshnet release DOCKER_IMAGE=$(MESHNET_DOCKER_IMAGE)
+

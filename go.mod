@@ -3,6 +3,7 @@ module github.com/openconfig/kne
 go 1.26.0
 
 require (
+	cloud.google.com/go/cloudbuild v1.25.0
 	cloud.google.com/go/pubsub/v2 v2.6.0
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
@@ -14,10 +15,10 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
 	github.com/kr/pretty v0.3.1
-	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf
 	github.com/open-traffic-generator/keng-operator v0.4.2
 	github.com/open-traffic-generator/snappi/gosnappi v1.57.1
 	github.com/openconfig/gnmi v0.14.1
+	github.com/openconfig/kne/third_party/meshnet v0.3.3
 	github.com/openconfig/lemming/operator v0.2.7
 	github.com/openconfig/ondatra v0.14.5
 	github.com/pborman/uuid v1.2.1
@@ -53,6 +54,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.7.0 // indirect
+	cloud.google.com/go/longrunning v0.8.0 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
@@ -168,3 +170,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
 )
+
+replace github.com/openconfig/kne/third_party/meshnet => ./third_party/meshnet
