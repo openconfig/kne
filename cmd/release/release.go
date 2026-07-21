@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package release provides subcommands for releasing KNE artifacts.
 package release
 
 import (
@@ -29,7 +30,8 @@ import (
 	"google.golang.org/api/option"
 )
 
-func NewRelease() *cobra.Command {
+// New returns the release subcommand.
+func New() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "release",
 	}
@@ -62,17 +64,19 @@ func meshnet() *cobra.Command {
 				}
 			}
 			fmt.Println("Running prerelease tests")
-			if err := triggerBuild(cmd.Context(), "kne-test", sha, false); err != nil {
+			if err := triggerBuild(cmd.Context(), "kne-test", sha, false, nil); err != nil {
 				return err
 			}
 
-			tag := fmt.Sprintf("meshnet/%s", args[0])
+			tag := fmt.Sprintf("third_party/meshnet/%s", args[0])
 			fmt.Println("Creating and Pushing Tag:", tag)
 			if err := createAndPushTag(tag); err != nil {
 				return err
 			}
 			fmt.Println("Building and Pushing container")
-			return triggerBuild(cmd.Context(), "meshnet-release", tag, true)
+			return triggerBuild(cmd.Context(), "meshnet-release", tag, true, map[string]string{
+				"_IMAGE_TAG": args[0],
+			})
 		},
 	}
 }
@@ -94,7 +98,7 @@ const (
 )
 
 // triggerBuild runs a cloud build trigger at the given tag if set, or the main branch if unset.
-func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool) (rErr error) {
+func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool, substitutions map[string]string) (rErr error) {
 	c, err := cloudbuild.NewClient(ctx, option.WithEndpoint(cloudBuildEndpoint))
 	if err != nil {
 		return err
@@ -109,12 +113,14 @@ func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool) (rErr
 		Revision: &cloudbuildpb.RepoSource_CommitSha{
 			CommitSha: tagOrSHA,
 		},
+		Substitutions: substitutions,
 	}
 	if tag {
 		src = &cloudbuildpb.RepoSource{
 			Revision: &cloudbuildpb.RepoSource_TagName{
 				TagName: tagOrSHA,
 			},
+			Substitutions: substitutions,
 		}
 	}
 
@@ -132,7 +138,9 @@ func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool) (rErr
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Build ID: %s\nLogs: %s\n", md.GetBuild().GetId(), md.GetBuild().GetLogUrl())
+	if md.Build != nil {
+		fmt.Printf("Build ID: %s\nLogs: %s\n", md.Build.GetId(), md.Build.GetLogUrl())
+	}
 	fmt.Println("Waiting for build to finish")
 	b, err := op.Wait(ctx)
 	if err != nil {
