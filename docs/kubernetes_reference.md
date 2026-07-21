@@ -74,12 +74,12 @@ cluster creation, but regardless of which is chosen a k8s cluster will be
 created ready for topology creation. Currently, the most used cluster tool in
 KNE is **kind**. This tool actually hosts a single node k8s cluster inside of a
 docker container. The details here are not important for the purpose of this
-reference, but if you see the term *kind* then know it may be referring to a
+reference, but if you see the term _kind_ then know it may be referring to a
 tool for creating a k8s cluster. You can also bring your own cluster for use
 with KNE, this is convenient for users with custom k8s setups.
 
-NOTE: *kind* is also a field in kubeyaml used to specify resource type, you may
-see this inside of k8s manifests. However when we refer to *kind*, it's likely
+NOTE: _kind_ is also a field in kubeyaml used to specify resource type, you may
+see this inside of k8s manifests. However when we refer to _kind_, it's likely
 the cluster tool.
 
 After the cluster is created, several k8s deployments are created to initialize

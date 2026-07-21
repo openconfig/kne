@@ -25,17 +25,17 @@ Waverouter port numbering format is: `<housing>/<slot>/<port>`. In the example b
 
 ```json
 {
-    "WR1": {
-        "1": {
-            "type": "wr13",
-            "7": {
-                "type": "wr-ctm"
-            },
-            "5": {
-                "type": "wr-qbox"
-            }
-        }
+  "WR1": {
+    "1": {
+      "type": "wr13",
+      "7": {
+        "type": "wr-ctm"
+      },
+      "5": {
+        "type": "wr-qbox"
+      }
     }
+  }
 }
 ```
 

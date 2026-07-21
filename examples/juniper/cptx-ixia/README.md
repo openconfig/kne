@@ -167,35 +167,35 @@ entry: {
 - cPTX can be configured in a channelized or non-channelized mode.
 - cPTX will be started in channelized mode if any of the interfaces in the interface mapping of KNE config are channelized.
 - cPTX ethernet interfaces to software wire interface mapping (channelized). Follow the `juniper.config` for more info. Here is an example.
-    ```bash
-    et-0/0/0:0 (eth4)
-    et-0/0/0:1 (eth5)
-    -- snip --
-    et-0/0/1:0 (eth12)
-    et-0/0/1:1 (eth13)
-    -- snip --
-    et-0/0/2:0 (eth20)
-    -- snip --
-    et-0/0/3:0 (eth28)
-    et-0/0/4:0 (eth36)
-    et-0/0/5:0 (unused)
-    et-0/0/6:0 (eth40)
-    -- snip --
-    et-0/0/7:0 (unused)
-    -- snip --
-    et-0/0/11:0 (eth68)
-    ```
+  ```bash
+  et-0/0/0:0 (eth4)
+  et-0/0/0:1 (eth5)
+  -- snip --
+  et-0/0/1:0 (eth12)
+  et-0/0/1:1 (eth13)
+  -- snip --
+  et-0/0/2:0 (eth20)
+  -- snip --
+  et-0/0/3:0 (eth28)
+  et-0/0/4:0 (eth36)
+  et-0/0/5:0 (unused)
+  et-0/0/6:0 (eth40)
+  -- snip --
+  et-0/0/7:0 (unused)
+  -- snip --
+  et-0/0/11:0 (eth68)
+  ```
 - cPTX ethernet interfaces to software wire interface mapping (non-channelized). Here is an example.
-    ```bash
-    et-0/0/0 (eth4)
-    et-0/0/1 (eth5)
-    et-0/0/2 (eth6)
-    -- snip --
-    et-0/0/5 (unused)
-    et-0/0/6 (eth10)
-    et-0/0/7 (unused)
-    et-0/0/8 (eth12)
-    -- snip --
-    et-0/0/11 (eth15)
-    ```
+  ```bash
+  et-0/0/0 (eth4)
+  et-0/0/1 (eth5)
+  et-0/0/2 (eth6)
+  -- snip --
+  et-0/0/5 (unused)
+  et-0/0/6 (eth10)
+  et-0/0/7 (unused)
+  et-0/0/8 (eth12)
+  -- snip --
+  et-0/0/11 (eth15)
+  ```
 - Pass gRPC client option `-skip-verify` as only self-signed TLS certificates are configured as of today.

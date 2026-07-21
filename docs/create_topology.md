@@ -31,12 +31,12 @@ Global Flags:
   -v, --verbosity string   log level (default "info")
 ```
 
-A deployment yaml file specifies 4 things (*optional in italics*):
+A deployment yaml file specifies 4 things (_optional in italics_):
 
 1. A cluster spec
 2. An ingress spec
 3. A CNI spec
-4. *A list of controller specs*
+4. _A list of controller specs_
 
 Expand the below section for a full description of all fields in the deployment
 yaml.
@@ -48,106 +48,106 @@ yaml.
 
 > NOTE: ~~Strikethrough~~ fields are DEPRECATED and should not be used.
 
-Field         | Type             | Description
-------------- | ---------------- | ---------------------------------------------
-`cluster`     | ClusterSpec      | Spec for the cluster.
-`ingress`     | IngressSpec      | Spec for the ingress.
-`cni`         | CNISpec          | Spec for the CNI.
-`controllers` | []ControllerSpec | List of specs for the additional controllers.
+| Field         | Type             | Description                                   |
+| ------------- | ---------------- | --------------------------------------------- |
+| `cluster`     | ClusterSpec      | Spec for the cluster.                         |
+| `ingress`     | IngressSpec      | Spec for the ingress.                         |
+| `cni`         | CNISpec          | Spec for the CNI.                             |
+| `controllers` | []ControllerSpec | List of specs for the additional controllers. |
 
 #### Cluster
 
-Field  | Type      | Description
------- | --------- | ---------------------------------------------------
-`kind` | string    | Name of the cluster type. The options currently are `Kind` or `External`.
-`spec` | yaml.Node | Fields that set the options for the cluster type.
+| Field  | Type      | Description                                                               |
+| ------ | --------- | ------------------------------------------------------------------------- |
+| `kind` | string    | Name of the cluster type. The options currently are `Kind` or `External`. |
+| `spec` | yaml.Node | Fields that set the options for the cluster type.                         |
 
 ##### Kind
 
-Field                      | Type              | Description
--------------------------- | ----------------- | --------------------------
-`name`                     | string            | Cluster name, overrides `KIND_CLUSTER_NAME`, config (default `kind`).
-`recycle`                  | bool              | Reuse an existing cluster of the same name if it exists.
-`version`                  | string            | Desired version of the `kubectl` client.
-`image`                    | string            | Node docker image to use for booting the cluster.
-`retain`                   | bool              | Retain nodes for debugging when cluster creation fails.
-`wait`                     | time.Duration     | Wait for control plane node to be ready (default 0s).
-`kubecfg`                  | string            | Sets kubeconfig path instead of `$KUBECONFIG` or `$HOME/.kube/config`.
-`googleArtifactRegistries` | []string          | List of Google Artifact Registries to setup credentials for in the cluster. Example value for registry would be `us-west1-docker.pkg.dev`. Credentials used are associated with the configured `gcloud` user on the host.
-`containerImages`          | map[string]string | Map of source images to target images for containers to load in the cluster. Empty values cause the source image to be loaded into the cluster without being renamed.
-`config`                   | string            | Path to a kind config file.
-`additionalManifests`      | []string          | List of paths to manifests to be applied using `kubectl` directly after cluster creation.
+| Field                      | Type              | Description                                                                                                                                                                                                               |
+| -------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                     | string            | Cluster name, overrides `KIND_CLUSTER_NAME`, config (default `kind`).                                                                                                                                                     |
+| `recycle`                  | bool              | Reuse an existing cluster of the same name if it exists.                                                                                                                                                                  |
+| `version`                  | string            | Desired version of the `kubectl` client.                                                                                                                                                                                  |
+| `image`                    | string            | Node docker image to use for booting the cluster.                                                                                                                                                                         |
+| `retain`                   | bool              | Retain nodes for debugging when cluster creation fails.                                                                                                                                                                   |
+| `wait`                     | time.Duration     | Wait for control plane node to be ready (default 0s).                                                                                                                                                                     |
+| `kubecfg`                  | string            | Sets kubeconfig path instead of `$KUBECONFIG` or `$HOME/.kube/config`.                                                                                                                                                    |
+| `googleArtifactRegistries` | []string          | List of Google Artifact Registries to setup credentials for in the cluster. Example value for registry would be `us-west1-docker.pkg.dev`. Credentials used are associated with the configured `gcloud` user on the host. |
+| `containerImages`          | map[string]string | Map of source images to target images for containers to load in the cluster. Empty values cause the source image to be loaded into the cluster without being renamed.                                                     |
+| `config`                   | string            | Path to a kind config file.                                                                                                                                                                                               |
+| `additionalManifests`      | []string          | List of paths to manifests to be applied using `kubectl` directly after cluster creation.                                                                                                                                 |
 
 ##### External
 
-Field     | Type   | Description
---------- | ------ | -------------------------------------------------------
-`network` | string | Name of the docker network to create a pool of external IP addresses for ingress to assign to services.
+| Field     | Type   | Description                                                                                             |
+| --------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| `network` | string | Name of the docker network to create a pool of external IP addresses for ingress to assign to services. |
 
 #### Ingress
 
-Field  | Type      | Description
------- | --------- | ------------------------------------------------------
-`kind` | string    | Name of the ingress type. The only option currently is `MetalLB`.
-`spec` | yaml.Node | Fields that set the options for the ingress type.
+| Field  | Type      | Description                                                       |
+| ------ | --------- | ----------------------------------------------------------------- |
+| `kind` | string    | Name of the ingress type. The only option currently is `MetalLB`. |
+| `spec` | yaml.Node | Fields that set the options for the ingress type.                 |
 
 ##### MetalLB
 
-Field           | Type       | Description
---------------- | ---------- | -----------
-`ip_count`      | int        | Number of IP addresses to include in the available pool.
-`manifest`      | string     | Path of the manifest yaml file to create MetalLB in the cluster. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/metallb/manifest.yaml).
-~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create MetalLB in the cluster. The directory is expected to contain a file with the name `metallb-native.yaml`.~~
+| Field           | Type       | Description                                                                                                                                                                                                |
+| --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ip_count`      | int        | Number of IP addresses to include in the available pool.                                                                                                                                                   |
+| `manifest`      | string     | Path of the manifest yaml file to create MetalLB in the cluster. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/metallb/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create MetalLB in the cluster. The directory is expected to contain a file with the name `metallb-native.yaml`.~~                                         |
 
 #### CNI
 
-Field  | Type      | Description
------- | --------- | --------------------------------------------------
-`kind` | string    | Name of the CNI type. The only option currently is `Meshnet`.
-`spec` | yaml.Node | Fields that set the options for the CNI type.
+| Field  | Type      | Description                                                   |
+| ------ | --------- | ------------------------------------------------------------- |
+| `kind` | string    | Name of the CNI type. The only option currently is `Meshnet`. |
+| `spec` | yaml.Node | Fields that set the options for the CNI type.                 |
 
 ##### Meshnet
 
-Field           | Type       | Description
---------------- | ---------- | -----------
-`manifest`      | string     | Path of the manifest yaml file to create Meshnet in the cluster. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/meshnet/grpc/manifest.yaml).
-~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create Meshnet in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~
+| Field           | Type       | Description                                                                                                                                                                                                     |
+| --------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest`      | string     | Path of the manifest yaml file to create Meshnet in the cluster. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/meshnet/grpc/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create Meshnet in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                    |
 
 #### Controllers
 
-Field  | Type      | Description
------- | --------- | ----------------------------------------------------
-`kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, `CEOSLab`, and `Lemming`.
-`spec` | yaml.Node | Fields that set the options for the controller type.
+| Field  | Type      | Description                                                                                                   |
+| ------ | --------- | ------------------------------------------------------------------------------------------------------------- |
+| `kind` | string    | Name of the controller type. The current options currently are `IxiaTG`, `SRLinux`, `CEOSLab`, and `Lemming`. |
+| `spec` | yaml.Node | Fields that set the options for the controller type.                                                          |
 
 ##### IxiaTG
 
-Field           | Type       | Description
---------------- | ---------- | -----------
-`operator`      | string     | Path of the yaml file to create an IxiaTG operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-operator.yaml).
-`configMap`     | string     | Path of the yaml file to create an IxiaTG config map in the cluster. The validated config map for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-configmap.yaml).
-~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an IxiaTG operator in the cluster. The directory is expected to contain a file with the name `ixiatg-operator.yaml`. Optionally the directory can contain a file with the name `ixiatg-configmap.yaml` to apply a config map of the desired container images used by the controller.~~
+| Field           | Type       | Description                                                                                                                                                                                                                                                                                                                                    |
+| --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operator`      | string     | Path of the yaml file to create an IxiaTG operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-operator.yaml).                                                                                                                           |
+| `configMap`     | string     | Path of the yaml file to create an IxiaTG config map in the cluster. The validated config map for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-configmap.yaml).                                                                                                                      |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an IxiaTG operator in the cluster. The directory is expected to contain a file with the name `ixiatg-operator.yaml`. Optionally the directory can contain a file with the name `ixiatg-configmap.yaml` to apply a config map of the desired container images used by the controller.~~ |
 
 ##### SRLinux
 
-Field           | Type       | Description
---------------- | ---------- | -----------
-`operator`      | string     | Path of the yaml file to create an SRLinux operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/srlinux/manifest.yaml).
-~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an SRLinux operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~
+| Field           | Type       | Description                                                                                                                                                                                                               |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operator`      | string     | Path of the yaml file to create an SRLinux operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/srlinux/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an SRLinux operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                  |
 
 ##### CEOSLab
 
-Field           | Type       | Description
---------------- | ---------- | -----------
-`operator`      | string     | Path of the yaml file to create a CEOSLab operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/ceoslab/manifest.yaml).
-~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a CEOSLab operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~
+| Field           | Type       | Description                                                                                                                                                                                                              |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `operator`      | string     | Path of the yaml file to create a CEOSLab operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/ceoslab/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a CEOSLab operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                  |
 
 ##### Lemming
 
-Field           | Type       | Description
---------------- | ---------- | -----------
-`operator`      | string     | Path of the yaml file to create a Lemming operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/lemming/manifest.yaml).
-~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a Lemming operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~
+| Field           | Type       | Description                                                                                                                                                                                                              |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `operator`      | string     | Path of the yaml file to create a Lemming operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/lemming/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a Lemming operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                  |
 
 </details>
 
@@ -256,21 +256,21 @@ To load an image into a `kind` cluster there is a 3 step process:
 
 1. Pull the desired image:
 
-    ```bash
-    docker pull src_image:src_tag
-    ```
+   ```bash
+   docker pull src_image:src_tag
+   ```
 
 2. Tag the image with the desired in-cluster name:
 
-    ```bash
-    docker tag src_image:src_tag dst_image:dst_tag
-    ```
+   ```bash
+   docker tag src_image:src_tag dst_image:dst_tag
+   ```
 
 3. Load the image into the `kind` cluster:
 
-    ```bash
-    kind load docker-image dst_image:dst_tag --name=kne
-    ```
+   ```bash
+   kind load docker-image dst_image:dst_tag --name=kne
+   ```
 
 Now the `dst_image:dst_tag` image will be present for use in the `kind` cluster.
 
