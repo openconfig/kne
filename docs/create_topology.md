@@ -93,11 +93,11 @@ yaml.
 
 ##### MetalLB
 
-| Field           | Type       | Description                                                                                                                                                                                                |
-| --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ip_count`      | int        | Number of IP addresses to include in the available pool.                                                                                                                                                   |
-| `manifest`      | string     | Path of the manifest yaml file to create MetalLB in the cluster. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/metallb/manifest.yaml). |
-| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create MetalLB in the cluster. The directory is expected to contain a file with the name `metallb-native.yaml`.~~                                         |
+| Field           | Type       | Description                                                                                                                                                                         |
+| --------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ip_count`      | int        | Number of IP addresses to include in the available pool.                                                                                                                            |
+| `manifest`      | string     | Path of the manifest yaml file to create MetalLB in the cluster. See the [validated MetalLB manifest](https://github.com/openconfig/kne/tree/main/manifests/metallb/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create MetalLB in the cluster. The directory is expected to contain a file with the name `metallb-native.yaml`.~~                  |
 
 #### CNI
 
@@ -108,10 +108,10 @@ yaml.
 
 ##### Meshnet
 
-| Field           | Type       | Description                                                                                                                                                                                                     |
-| --------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest`      | string     | Path of the manifest yaml file to create Meshnet in the cluster. The validated manifest for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/meshnet/grpc/manifest.yaml). |
-| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create Meshnet in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                    |
+| Field           | Type       | Description                                                                                                                                                                              |
+| --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest`      | string     | Path of the manifest yaml file to create Meshnet in the cluster. See the [validated Meshnet manifest](https://github.com/openconfig/kne/tree/main/manifests/meshnet/grpc/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create Meshnet in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                             |
 
 #### Controllers
 
@@ -124,30 +124,30 @@ yaml.
 
 | Field           | Type       | Description                                                                                                                                                                                                                                                                                                                                    |
 | --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `operator`      | string     | Path of the yaml file to create an IxiaTG operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-operator.yaml).                                                                                                                           |
-| `configMap`     | string     | Path of the yaml file to create an IxiaTG config map in the cluster. The validated config map for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-configmap.yaml).                                                                                                                      |
+| `operator`      | string     | Path of the yaml file to create an IxiaTG operator in the cluster. See the [validated IxiaTG operator manifest](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-operator.yaml).                                                                                                                                          |
+| `configMap`     | string     | Path of the yaml file to create an IxiaTG config map in the cluster. See the [validated IxiaTG config map manifest](https://github.com/openconfig/kne/tree/main/manifests/keysight/ixiatg-configmap.yaml).                                                                                                                                     |
 | ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an IxiaTG operator in the cluster. The directory is expected to contain a file with the name `ixiatg-operator.yaml`. Optionally the directory can contain a file with the name `ixiatg-configmap.yaml` to apply a config map of the desired container images used by the controller.~~ |
 
 ##### SRLinux
 
-| Field           | Type       | Description                                                                                                                                                                                                               |
-| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `operator`      | string     | Path of the yaml file to create an SRLinux operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/srlinux/manifest.yaml). |
-| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an SRLinux operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                  |
+| Field           | Type       | Description                                                                                                                                                                                                 |
+| --------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operator`      | string     | Path of the yaml file to create an SRLinux operator in the cluster. See the [validated SRLinux operator manifest](https://github.com/openconfig/kne/tree/main/manifests/controllers/srlinux/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create an SRLinux operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                    |
 
 ##### CEOSLab
 
-| Field           | Type       | Description                                                                                                                                                                                                              |
-| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `operator`      | string     | Path of the yaml file to create a CEOSLab operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/ceoslab/manifest.yaml). |
-| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a CEOSLab operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                  |
+| Field           | Type       | Description                                                                                                                                                                                                |
+| --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operator`      | string     | Path of the yaml file to create a CEOSLab operator in the cluster. See the [validated CEOSLab operator manifest](https://github.com/openconfig/kne/tree/main/manifests/controllers/ceoslab/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a CEOSLab operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                    |
 
 ##### Lemming
 
-| Field           | Type       | Description                                                                                                                                                                                                              |
-| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `operator`      | string     | Path of the yaml file to create a Lemming operator in the cluster. The validated operator for use with KNE can be found [here](https://github.com/openconfig/kne/tree/main/manifests/controllers/lemming/manifest.yaml). |
-| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a Lemming operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                                  |
+| Field           | Type       | Description                                                                                                                                                                                                |
+| --------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operator`      | string     | Path of the yaml file to create a Lemming operator in the cluster. See the [validated Lemming operator manifest](https://github.com/openconfig/kne/tree/main/manifests/controllers/lemming/manifest.yaml). |
+| ~~`manifests`~~ | ~~string~~ | ~~Path of the directory holding the manifests to create a Lemming operator in the cluster. The directory is expected to contain a file with the name `manifest.yaml`.~~                                    |
 
 </details>
 
@@ -315,8 +315,7 @@ node definitions interfaces, services, and initial configs can be specified.
 An example topology containing 4 DUT nodes (Arista, Cisco, Nokia, and Juniper)
 and 1 ATE node (Keysight) can be found under the examples directory at
 [examples/multivendor/multivendor.pb.txt](https://github.com/openconfig/kne/blob/main/examples/multivendor/multivendor.pb.txt).
-The initial vendor router configs referenced in the topology are found
-[here](https://github.com/openconfig/kne/tree/main/examples/multivendor)
+The initial vendor router configs referenced in the topology are found in the [multivendor example directory](https://github.com/openconfig/kne/tree/main/examples/multivendor).
 See the [push config](interact_topology.md#push_config) section for details
 about pushing config after initial creation.
 

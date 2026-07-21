@@ -167,6 +167,7 @@ entry: {
 - cPTX can be configured in a channelized or non-channelized mode.
 - cPTX will be started in channelized mode if any of the interfaces in the interface mapping of KNE config are channelized.
 - cPTX ethernet interfaces to software wire interface mapping (channelized). Follow the `juniper.config` for more info. Here is an example.
+
   ```bash
   et-0/0/0:0 (eth4)
   et-0/0/0:1 (eth5)
@@ -185,7 +186,9 @@ entry: {
   -- snip --
   et-0/0/11:0 (eth68)
   ```
+
 - cPTX ethernet interfaces to software wire interface mapping (non-channelized). Here is an example.
+
   ```bash
   et-0/0/0 (eth4)
   et-0/0/1 (eth5)
@@ -198,4 +201,5 @@ entry: {
   -- snip --
   et-0/0/11 (eth15)
   ```
+
 - Pass gRPC client option `-skip-verify` as only self-signed TLS certificates are configured as of today.
