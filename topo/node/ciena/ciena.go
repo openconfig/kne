@@ -263,7 +263,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		},
 	}
 	for label, v := range n.GetProto().GetLabels() {
-		pod.ObjectMeta.Labels[label] = v
+		pod.Labels[label] = v
 	}
 	if pb.Config.ConfigData != nil {
 		vol, err := n.CreateConfig(ctx)
@@ -276,7 +276,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			MountPath: fmt.Sprintf("%s/%s", pb.Config.ConfigPath, pb.Config.ConfigFile),
 			ReadOnly:  true,
 		}
-		if vol.VolumeSource.ConfigMap != nil {
+		if vol.ConfigMap != nil {
 			vm.SubPath = pb.Config.ConfigFile
 		}
 		for i, c := range pod.Spec.Containers {

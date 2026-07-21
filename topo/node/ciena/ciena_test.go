@@ -350,7 +350,7 @@ func TestNode_CreatePod_EquipmentFile(t *testing.T) {
 	// Check volumes
 	foundVol := false
 	for _, v := range pod.Spec.Volumes {
-		if v.Name == "equipment-file" && v.VolumeSource.ConfigMap != nil && v.VolumeSource.ConfigMap.Name == "wr-1-file" {
+		if v.Name == "equipment-file" && v.ConfigMap != nil && v.ConfigMap.Name == "wr-1-file" {
 			foundVol = true
 		}
 	}
