@@ -199,9 +199,9 @@ func TestNew(t *testing.T) {
 }
 func TestRenameInterfaces(t *testing.T) {
 	tests := []struct {
-		desc       string
-		input      map[string]*tpb.Interface
-		want       map[string]*tpb.Interface
+		desc  string
+		input map[string]*tpb.Interface
+		want  map[string]*tpb.Interface
 	}{
 		{
 			desc:  "empty interfaces",
@@ -253,10 +253,10 @@ func TestRenameInterfaces(t *testing.T) {
 				"mgmt":  {IntName: "mgmt"},
 			},
 			want: map[string]*tpb.Interface{
-				"eth3":  {IntName: "1/2/3"},
-				"eth5":  {IntName: "5"},
-				"eth7":  {IntName: "eth7"},
-				"mgmt":  {IntName: "mgmt"},
+				"eth3": {IntName: "1/2/3"},
+				"eth5": {IntName: "5"},
+				"eth7": {IntName: "eth7"},
+				"mgmt": {IntName: "mgmt"},
 			},
 		},
 		{
@@ -291,7 +291,7 @@ func TestNode_CreatePod_EquipmentFile(t *testing.T) {
 
 	vendorData, err := anypb.New(&cpb.CienaConfig{
 		SystemEquipment: &cpb.SystemEquipment{
-			MountDir:     "/equipment",
+			MountDir:      "/equipment",
 			EquipmentJson: equipmentFile,
 		},
 	})
@@ -350,7 +350,7 @@ func TestNode_CreatePod_EquipmentFile(t *testing.T) {
 	// Check volumes
 	foundVol := false
 	for _, v := range pod.Spec.Volumes {
-		if v.Name == "equipment-file" && v.VolumeSource.ConfigMap != nil && v.VolumeSource.ConfigMap.Name == "wr-1-file" {
+		if v.Name == "equipment-file" && v.ConfigMap != nil && v.ConfigMap.Name == "wr-1-file" {
 			foundVol = true
 		}
 	}
@@ -363,7 +363,7 @@ func TestNode_CreatePod_MissingEquipmentFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	vendorData, err := anypb.New(&cpb.CienaConfig{
 		SystemEquipment: &cpb.SystemEquipment{
-			MountDir:     "/equipment",
+			MountDir:      "/equipment",
 			EquipmentJson: "nonexistent.json",
 		},
 	})
@@ -475,5 +475,67 @@ func TestNode_CreatePod_ConfigData(t *testing.T) {
 	}
 	if err := n.CreatePod(context.Background()); err != nil {
 		t.Fatalf("CreatePod() with ConfigData failed: %v", err)
+	}
+}
+
+func TestNode_Delete(t *testing.T) {
+	tmpDir := t.TempDir()
+	equipmentFile := "equipment.json"
+	equipmentContent := `{"equipment": "test"}`
+	equipmentPath := filepath.Join(tmpDir, equipmentFile)
+	if err := os.WriteFile(equipmentPath, []byte(equipmentContent), 0644); err != nil {
+		t.Fatalf("failed to write equipment file: %v", err)
+	}
+
+	vendorData, err := anypb.New(&cpb.CienaConfig{
+		SystemEquipment: &cpb.SystemEquipment{
+			MountDir:      "/equipment",
+			EquipmentJson: equipmentFile,
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to marshal vendor data: %v", err)
+	}
+
+	nodeProto := &tpb.Node{
+		Name: "wr-del",
+		Config: &tpb.Config{
+			Image:      "vrnetlab/ciena_waverouter:config",
+			VendorData: vendorData,
+		},
+	}
+
+	n := &Node{
+		Impl: &node.Impl{
+			Namespace:  "testns",
+			KubeClient: kfake.NewSimpleClientset(),
+			Proto:      nodeProto,
+			BasePath:   tmpDir,
+		},
+	}
+
+	if err := n.CreatePod(context.Background()); err != nil {
+		t.Fatalf("CreatePod() failed: %v", err)
+	}
+
+	// Verify equipment ConfigMap exists
+	cmName := "wr-del-file"
+	if _, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Get(context.Background(), cmName, metav1.GetOptions{}); err != nil {
+		t.Fatalf("expected ConfigMap %q to exist before delete, got error: %v", cmName, err)
+	}
+
+	// Delete node
+	if err := n.Delete(context.Background()); err != nil {
+		t.Fatalf("Delete() failed: %v", err)
+	}
+
+	// Verify equipment ConfigMap is deleted
+	if _, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Get(context.Background(), cmName, metav1.GetOptions{}); err == nil {
+		t.Errorf("expected ConfigMap %q to be deleted, but it still exists", cmName)
+	}
+
+	// Delete node without equipment ConfigMap existing (should not error)
+	if err := n.Delete(context.Background()); err != nil {
+		t.Errorf("Delete() failed when ConfigMap does not exist: %v", err)
 	}
 }

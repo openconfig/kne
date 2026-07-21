@@ -25,13 +25,14 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
 const (
-	ModelWR = "waverouter"
+	ModelWR   = "waverouter"
 	ModelSAOS = "5132" // Default SAOS model type
 )
 
@@ -87,9 +88,9 @@ var (
 			node.OndatraRoleLabel: node.OndatraRoleDUT,
 		},
 		Config: &tpb.Config{
-			ConfigPath:   "config/",
-			ConfigFile:   "config.cfg",
-			Image:     "artifactory.ciena.com/psa/saos-containerlab:latest",
+			ConfigPath: "config/",
+			ConfigFile: "config.cfg",
+			Image:      "artifactory.ciena.com/psa/saos-containerlab:latest",
 		},
 	}
 )
@@ -116,24 +117,24 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 // renameInterfaces renames the interfaces port naming to ethX format
 // e.g., eth1 -> eth1, 1/5/1 -> eth1, 2 -> eth2, etc
 func renameInterfaces(interfaces map[string]*tpb.Interface) map[string]*tpb.Interface {
-    intf := map[string]*tpb.Interface{}
-    reFull := regexp.MustCompile(`^\d+/\d+/\d+$`)
-    reSingle := regexp.MustCompile(`^\d+$`)
-    for k, v := range interfaces {
-        switch {
-        case reFull.MatchString(k):
-            parts := regexp.MustCompile(`/`).Split(k, -1)
-            lastNum := parts[len(parts)-1]
-            name := fmt.Sprintf("eth%s", lastNum)
-            intf[name] = v
-        case reSingle.MatchString(k):
-            name := fmt.Sprintf("eth%s", k)
-            intf[name] = v
-        default:
-            intf[k] = v
-        }
-    }
-    return intf
+	intf := map[string]*tpb.Interface{}
+	reFull := regexp.MustCompile(`^\d+/\d+/\d+$`)
+	reSingle := regexp.MustCompile(`^\d+$`)
+	for k, v := range interfaces {
+		switch {
+		case reFull.MatchString(k):
+			parts := regexp.MustCompile(`/`).Split(k, -1)
+			lastNum := parts[len(parts)-1]
+			name := fmt.Sprintf("eth%s", lastNum)
+			intf[name] = v
+		case reSingle.MatchString(k):
+			name := fmt.Sprintf("eth%s", k)
+			intf[name] = v
+		default:
+			intf[k] = v
+		}
+	}
+	return intf
 }
 
 type Node struct {
@@ -151,6 +152,15 @@ func (n *Node) Create(ctx context.Context) error {
 		return fmt.Errorf("node %s failed to create service %w", n.Name(), err)
 	}
 	return nil
+}
+
+// Delete removes the node resources from the cluster.
+func (n *Node) Delete(ctx context.Context) error {
+	cmName := fmt.Sprintf("%s-file", n.Name())
+	if err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, cmName, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		log.Warningf("Error deleting equipment file configmap %q: %v", cmName, err)
+	}
+	return n.Impl.Delete(ctx)
 }
 
 // CreatePod creates a Pod for the Node based on the underlying proto.
@@ -253,7 +263,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		},
 	}
 	for label, v := range n.GetProto().GetLabels() {
-		pod.ObjectMeta.Labels[label] = v
+		pod.Labels[label] = v
 	}
 	if pb.Config.ConfigData != nil {
 		vol, err := n.CreateConfig(ctx)
@@ -266,7 +276,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			MountPath: fmt.Sprintf("%s/%s", pb.Config.ConfigPath, pb.Config.ConfigFile),
 			ReadOnly:  true,
 		}
-		if vol.VolumeSource.ConfigMap != nil {
+		if vol.ConfigMap != nil {
 			vm.SubPath = pb.Config.ConfigFile
 		}
 		for i, c := range pod.Spec.Containers {
