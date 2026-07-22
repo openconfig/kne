@@ -12,21 +12,21 @@ The `IN_CLUSTER_PROXY` node type is a specialized KNE node designed to act as a 
 
 To pass static validation, the node **must** meet the following conditions:
 
-| Parameter | Constraint |
-| :--- | :--- |
-| **Interfaces** | Exactly one interface named `eth1`. |
-| **Links** | `eth1` **must** link directly to the node specified in the `proxy-pool-for` label. |
-| **Services** | Exactly one Service mapping must be provided inside `Services` map. |
-| **Labels** | The node must have the `proxy-pool-for` label correctly populated. |
+| Parameter      | Constraint                                                                         |
+| :------------- | :--------------------------------------------------------------------------------- |
+| **Interfaces** | Exactly one interface named `eth1`.                                                |
+| **Links**      | `eth1` **must** link directly to the node specified in the `proxy-pool-for` label. |
+| **Services**   | Exactly one Service mapping must be provided inside `Services` map.                |
+| **Labels**     | The node must have the `proxy-pool-for` label correctly populated.                 |
 
 ## Configuration Labels
 
-| Label Key | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `proxy-pool-for` | String | **Yes** | Name of the target node this proxy is mediating. |
-| `peer-ip` | IP | No (Opt-in) | IP address of the peer (DUT) connected over `eth1` (e.g. `192.168.100.1` or `2001:db8::1`). |
-| `peer-prefix` | String | No (Opt-in) | Prefix length of the peer IP (e.g. `31` or `127`). |
-| `target-port` | Integer | No (Opt-in) | Port on the peer node to forward proxy streams to. |
+| Label Key        | Type    | Required    | Description                                                                                 |
+| :--------------- | :------ | :---------- | :------------------------------------------------------------------------------------------ |
+| `proxy-pool-for` | String  | **Yes**     | Name of the target node this proxy is mediating.                                            |
+| `peer-ip`        | IP      | No (Opt-in) | IP address of the peer (DUT) connected over `eth1` (e.g. `192.168.100.1` or `2001:db8::1`). |
+| `peer-prefix`    | String  | No (Opt-in) | Prefix length of the peer IP (e.g. `31` or `127`).                                          |
+| `target-port`    | Integer | No (Opt-in) | Port on the peer node to forward proxy streams to.                                          |
 
 > **Note on Opt-in Automatic Setup**:
 > If **all three of** `peer-ip`, `peer-prefix`, and `target-port` are provided, the controller will automatically calculate the inverse IP (your side of the `/31` or `/127` link) and generate full commands addressing `socat`. If omitted, users must configure `command` and `args` in `.Config` structures manually.
@@ -59,9 +59,9 @@ nodes: {
   }
   services: {
     key: 1790
-    value: { 
-      name: "bgp-proxy" 
-      inside: 1790 
+    value: {
+      name: "bgp-proxy"
+      inside: 1790
     }
   }
 }

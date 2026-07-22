@@ -66,32 +66,32 @@ $ ssh admin@192.168.11.50
 
 1. Get the IP range used by KNE services:
 
-    ```bash
-    $ kubectl get services -n multivendor
-    NAME                           TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                                      AGE
-    service-gnmi-otg-controller    LoadBalancer   10.96.179.48    192.168.11.55   50051:30901/TCP                              4m9s
-    service-grpc-otg-controller    LoadBalancer   10.96.33.245    192.168.11.56   40051:30449/TCP                              4m9s
-    service-https-otg-controller   LoadBalancer   10.96.215.225   192.168.11.54   443:32556/TCP                                4m9s
-    service-otg-port-eth1          LoadBalancer   10.96.82.37     192.168.11.58   5555:30886/TCP,50071:30286/TCP               4m9s
-    service-otg-port-eth2          LoadBalancer   10.96.204.154   192.168.11.59   5555:31326/TCP,50071:31860/TCP               4m9s
-    service-otg-port-eth3          LoadBalancer   10.96.136.253   192.168.11.60   5555:30181/TCP,50071:31619/TCP               4m9s
-    service-otg-port-eth4          LoadBalancer   10.96.205.227   192.168.11.57   5555:32636/TCP,50071:31247/TCP               4m9s
-    service-r1                     LoadBalancer   10.96.130.198   192.168.11.50   443:32101/TCP,22:32304/TCP,6030:32011/TCP    4m12s
-    service-r2                     LoadBalancer   10.96.107.2     192.168.11.51   443:31942/TCP,22:30785/TCP,57400:30921/TCP   4m11s
-    service-r3                     LoadBalancer   10.96.80.18     192.168.11.52   22:32410/TCP                                 4m11s
-    service-r4                     LoadBalancer   10.96.138.204   192.168.11.53   22:31932/TCP,50051:32666/TCP                 4m10s
-    ```
+   ```bash
+   $ kubectl get services -n multivendor
+   NAME                           TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                                      AGE
+   service-gnmi-otg-controller    LoadBalancer   10.96.179.48    192.168.11.55   50051:30901/TCP                              4m9s
+   service-grpc-otg-controller    LoadBalancer   10.96.33.245    192.168.11.56   40051:30449/TCP                              4m9s
+   service-https-otg-controller   LoadBalancer   10.96.215.225   192.168.11.54   443:32556/TCP                                4m9s
+   service-otg-port-eth1          LoadBalancer   10.96.82.37     192.168.11.58   5555:30886/TCP,50071:30286/TCP               4m9s
+   service-otg-port-eth2          LoadBalancer   10.96.204.154   192.168.11.59   5555:31326/TCP,50071:31860/TCP               4m9s
+   service-otg-port-eth3          LoadBalancer   10.96.136.253   192.168.11.60   5555:30181/TCP,50071:31619/TCP               4m9s
+   service-otg-port-eth4          LoadBalancer   10.96.205.227   192.168.11.57   5555:32636/TCP,50071:31247/TCP               4m9s
+   service-r1                     LoadBalancer   10.96.130.198   192.168.11.50   443:32101/TCP,22:32304/TCP,6030:32011/TCP    4m12s
+   service-r2                     LoadBalancer   10.96.107.2     192.168.11.51   443:31942/TCP,22:30785/TCP,57400:30921/TCP   4m11s
+   service-r3                     LoadBalancer   10.96.80.18     192.168.11.52   22:32410/TCP                                 4m11s
+   service-r4                     LoadBalancer   10.96.138.204   192.168.11.53   22:31932/TCP,50051:32666/TCP                 4m10s
+   ```
 
-    In this case the IP range would be `192.168.11.*`.
+   In this case the IP range would be `192.168.11.*`.
 
 1. Edit your SSH config found at `~/.ssh/config` to include:
 
-    ```bash
-    Host 192.168.11.*
-        UserKnownHostsFile /dev/null
-        StrictHostKeyChecking no
-        ProxyCommand none
-    ```
+   ```bash
+   Host 192.168.11.*
+       UserKnownHostsFile /dev/null
+       StrictHostKeyChecking no
+       ProxyCommand none
+   ```
 
 </details>
 
@@ -252,7 +252,7 @@ See the external cptx with services
 
 </details>
 
-### Using OpenConfig g* services
+### Using OpenConfig g\* services
 
 #### Using the CLI
 

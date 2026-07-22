@@ -53,6 +53,7 @@ import (
 
 	_ "github.com/openconfig/kne/topo/node/alpine"
 	_ "github.com/openconfig/kne/topo/node/arista"
+	_ "github.com/openconfig/kne/topo/node/ciena"
 	_ "github.com/openconfig/kne/topo/node/cisco"
 	_ "github.com/openconfig/kne/topo/node/drivenets"
 	_ "github.com/openconfig/kne/topo/node/forward"
