@@ -14,5 +14,6 @@ patches:
 resources:
   - ../../base/
 images:
-  - name: openconfig/meshnet
-    newTag: d0ebd1f-dirty
+  - name: us-west1-docker.pkg.dev/kne-external/kne/meshnet
+    newName: us-west1-docker.pkg.dev/kne-external/kne/meshnet
+    newTag: a0d672d-dirty

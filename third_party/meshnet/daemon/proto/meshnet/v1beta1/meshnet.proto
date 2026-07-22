@@ -122,9 +122,15 @@ message GenerateNodeInterfaceNameResponse {
 service Local {
   rpc Get (PodQuery) returns (Pod);
   rpc SetAlive (Pod) returns (BoolResponse);
-  rpc SkipReverse (SkipQuery) returns (BoolResponse);
-  rpc Skip (SkipQuery) returns (BoolResponse);
-  rpc IsSkipped (SkipQuery) returns (BoolResponse);
+  rpc SkipReverse (SkipQuery) returns (BoolResponse) {
+    option deprecated = true;
+  }
+  rpc Skip (SkipQuery) returns (BoolResponse) {
+    option deprecated = true;
+  }
+  rpc IsSkipped (SkipQuery) returns (BoolResponse) {
+    option deprecated = true;
+  }
 
   rpc GRPCWireExists(WireDef) returns (WireCreateResponse); 
   rpc AddGRPCWireLocal(WireDef) returns (BoolResponse);

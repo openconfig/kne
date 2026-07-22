@@ -18,24 +18,32 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 //go:generate controller-gen object paths=$GOFILE
 
+// +k8s:deepcopy-gen=true
 type TopologySpec struct {
 	metav1.TypeMeta `json:",inline"`
 	Links           []Link `json:"links"`
 }
 
+// +k8s:deepcopy-gen=true
 type TopologyStatus struct {
 	metav1.TypeMeta `json:",inline"`
+	// Deprecated: Do not use. Skipped links are managed reactively by the daemon controller.
 	Skipped         []Skipped `json:"skipped"`
 	SrcIP           string    `json:"src_ip"`
 	NetNS           string    `json:"net_ns"`
 	ContainerID     string    `json:"container_id"`
+	PlumbingError   string    `json:"plumbing_error,omitempty"`
 }
 
+// Skipped represents a skipped interface connection.
+// Deprecated: Do not use.
+// +k8s:deepcopy-gen=true
 type Skipped struct {
 	PodName string `json:"pod_name"`
 	LinkId  int64  `json:"link_id"`
 }
 
+// +k8s:deepcopy-gen=true
 type Link struct {
 	LocalIntf string `json:"local_intf"`
 	LocalIP   string `json:"local_ip"`
