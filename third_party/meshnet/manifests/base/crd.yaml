@@ -47,7 +47,7 @@ spec:
             status:
               properties:
                 skipped:
-                  description: "List of pods/interfaces that are skipped by local pod"
+                  description: "List of pods/interfaces that are skipped by local pod (Deprecated)"
                   items:
                     properties:
                       link_id:
@@ -66,6 +66,9 @@ spec:
                   type: string
                 container_id:
                   description: "Sandbox ID of the POD"
+                  type: string
+                plumbing_error:
+                  description: "Plumbing error message if any link configuration failed"
                   type: string
               type: object
           type: object

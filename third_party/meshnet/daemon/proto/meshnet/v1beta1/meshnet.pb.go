@@ -910,13 +910,13 @@ const file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDesc = "" +
 	"\bpod_name\x18\x02 \x01(\tR\apodName\"Y\n" +
 	"!GenerateNodeInterfaceNameResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12$\n" +
-	"\x0enode_intf_name\x18\x02 \x01(\tR\fnodeIntfName2\xc0\x05\n" +
+	"\x0enode_intf_name\x18\x02 \x01(\tR\fnodeIntfName2\xcf\x05\n" +
 	"\x05Local\x126\n" +
 	"\x03Get\x12\x19.meshnet.v1beta1.PodQuery\x1a\x14.meshnet.v1beta1.Pod\x12?\n" +
-	"\bSetAlive\x12\x14.meshnet.v1beta1.Pod\x1a\x1d.meshnet.v1beta1.BoolResponse\x12H\n" +
-	"\vSkipReverse\x12\x1a.meshnet.v1beta1.SkipQuery\x1a\x1d.meshnet.v1beta1.BoolResponse\x12A\n" +
-	"\x04Skip\x12\x1a.meshnet.v1beta1.SkipQuery\x1a\x1d.meshnet.v1beta1.BoolResponse\x12F\n" +
-	"\tIsSkipped\x12\x1a.meshnet.v1beta1.SkipQuery\x1a\x1d.meshnet.v1beta1.BoolResponse\x12O\n" +
+	"\bSetAlive\x12\x14.meshnet.v1beta1.Pod\x1a\x1d.meshnet.v1beta1.BoolResponse\x12M\n" +
+	"\vSkipReverse\x12\x1a.meshnet.v1beta1.SkipQuery\x1a\x1d.meshnet.v1beta1.BoolResponse\"\x03\x88\x02\x01\x12F\n" +
+	"\x04Skip\x12\x1a.meshnet.v1beta1.SkipQuery\x1a\x1d.meshnet.v1beta1.BoolResponse\"\x03\x88\x02\x01\x12K\n" +
+	"\tIsSkipped\x12\x1a.meshnet.v1beta1.SkipQuery\x1a\x1d.meshnet.v1beta1.BoolResponse\"\x03\x88\x02\x01\x12O\n" +
 	"\x0eGRPCWireExists\x12\x18.meshnet.v1beta1.WireDef\x1a#.meshnet.v1beta1.WireCreateResponse\x12K\n" +
 	"\x10AddGRPCWireLocal\x12\x18.meshnet.v1beta1.WireDef\x1a\x1d.meshnet.v1beta1.BoolResponse\x12F\n" +
 	"\vRemGRPCWire\x12\x18.meshnet.v1beta1.WireDef\x1a\x1d.meshnet.v1beta1.BoolResponse\x12\x82\x01\n" +

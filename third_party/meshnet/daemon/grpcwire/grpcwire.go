@@ -196,7 +196,6 @@ func AddWireInMemNDataStore(wire *GRPCWire, handle *pcap.Handle) int {
 	/* if this wire is already present in the map then it will be overwritten.
 	   It seems to be ok to overwrite. Think more in what situation this may
 	   not be the desired behavior and we need to throw an error. */
-	wire.IsReady = true
 
 	wires.AddInMemNDataStore(wire, handle)
 	return len(wires.wires)

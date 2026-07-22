@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"strconv"
@@ -54,6 +55,8 @@ func main() {
 		log.Errorf("could not reconcile grpc wire: %v", err)
 		// generate error and continue
 	}
+
+	go m.RunControllerLoop(context.Background())
 
 	if err := m.Serve(); err != nil {
 		log.Errorf("daemon exited badly: %v", err)
