@@ -26,8 +26,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
-	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
@@ -53,6 +53,7 @@ import (
 
 	_ "github.com/openconfig/kne/topo/node/alpine"
 	_ "github.com/openconfig/kne/topo/node/arista"
+	_ "github.com/openconfig/kne/topo/node/ciena"
 	_ "github.com/openconfig/kne/topo/node/cisco"
 	_ "github.com/openconfig/kne/topo/node/drivenets"
 	_ "github.com/openconfig/kne/topo/node/forward"
@@ -63,6 +64,7 @@ import (
 	_ "github.com/openconfig/kne/topo/node/keysight"
 	_ "github.com/openconfig/kne/topo/node/nokia"
 	_ "github.com/openconfig/kne/topo/node/openconfig"
+	_ "github.com/openconfig/kne/topo/node/sonic"
 )
 
 var (
@@ -266,7 +268,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		}
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	// Watch the container status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
@@ -422,13 +424,21 @@ func (m *Manager) Watch(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer watcher.Stop()
 	ch := watcher.ResultChan()
-	for e := range ch {
-		fmt.Println(e.Type)
-		pretty.Print(e.Object)
-		fmt.Println("")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case e, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			fmt.Println(e.Type)
+			pretty.Print(e.Object)
+			fmt.Println("")
+		}
 	}
-	return nil
 }
 
 // Nodes returns a map of node names to implementations in the current topology.

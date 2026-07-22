@@ -25,8 +25,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
@@ -678,7 +678,7 @@ func TestDelete(t *testing.T) {
 			Type: watch.Deleted,
 			Object: &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "dne",
+					Name: "nonexistent",
 				},
 			},
 		},
@@ -1796,7 +1796,7 @@ func TestConfigPush(t *testing.T) {
 		wantErr: "does not implement ConfigPusher interface",
 	}, {
 		desc:    "node not found",
-		name:    "dne",
+		name:    "nonexistent",
 		wantErr: "not found",
 	}}
 	for _, tt := range tests {
@@ -1834,7 +1834,7 @@ func TestResetCfg(t *testing.T) {
 		wantErr: "does not implement Resetter interface",
 	}, {
 		desc:    "node not found",
-		name:    "dne",
+		name:    "nonexistent",
 		wantErr: "not found",
 	}}
 	for _, tt := range tests {
@@ -1901,7 +1901,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 		name: "no_info",
 	}, {
 		desc:    "node not found",
-		name:    "dne",
+		name:    "nonexistent",
 		wantErr: "not found",
 	}}
 	for _, tt := range tests {
@@ -2059,5 +2059,50 @@ func TestUpdateServicePortName(t *testing.T) {
 		if s := cmp.Diff(tt.svc, tt.want, protocmp.Transform()); s != "" {
 			t.Fatalf("updateServicePortName() failed: %s \n\n got: %s", s, tt.svc)
 		}
+	}
+}
+
+func TestOptions(t *testing.T) {
+	m := &Manager{}
+	WithKubecfg("kubeconfig")(m)
+	if m.kubecfg != "kubeconfig" {
+		t.Errorf("WithKubecfg failed, got %q", m.kubecfg)
+	}
+
+	WithBasePath("/base/path")(m)
+	if m.basePath != "/base/path" {
+		t.Errorf("WithBasePath failed, got %q", m.basePath)
+	}
+
+	WithProgress(true)(m)
+	if !m.progress {
+		t.Errorf("WithProgress failed, got %v", m.progress)
+	}
+
+	WithSkipDeleteWait(true)(m)
+	if !m.skipDeleteWait {
+		t.Errorf("WithSkipDeleteWait failed, got %v", m.skipDeleteWait)
+	}
+}
+
+func TestWatch(t *testing.T) {
+	tf, err := tfake.NewSimpleClientset(&topologyv1.Topology{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	})
+	if err != nil {
+		t.Fatalf("cannot create fake topology clientset: %v", err)
+	}
+	m := &Manager{
+		tClient: tf,
+		topo: &tpb.Topology{
+			Name: "test",
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if err := m.Watch(ctx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Watch() unexpected error: %v", err)
 	}
 }

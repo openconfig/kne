@@ -1,0 +1,11 @@
+skip-framework:
+  - cloudformation
+skip-path:
+  - manifests
+  - load
+  - deploy
+  - x/webhook
+  - x/wire
+  - init_wait
+  - "third_party/meshnet/tests/.*"
+  - "third_party/meshnet/manifests/.*"

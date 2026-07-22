@@ -7,11 +7,11 @@ to work with your Linux distribution.
 
 The following dependencies and required to use KNE:
 
-* Golang
-* Docker
-* Kubectl
-* Kind
-* Make
+- Golang
+- Docker
+- Kubectl
+- Kind
+- Make
 
 ## Install Golang
 
