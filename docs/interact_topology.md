@@ -252,7 +252,7 @@ See the external cptx with services
 
 </details>
 
-### Using OpenConfig g* services
+### Using OpenConfig g\* services
 
 #### Using the CLI
 

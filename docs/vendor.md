@@ -95,7 +95,7 @@ responsible for the support of the vendor image specific node implementation in
 [kne/topo/node](https://github.com/openconfig/kne/tree/main/topo/node), the
 vendor specific examples in
 [kne/examples](https://github.com/openconfig/kne/tree/main/examples), as well as
-other vendor software reqiured by the node implementation (e.g., controller or
+other vendor software required by the node implementation (e.g., controller or
 operator). The maintainer should be responsive to community contributions. In
 the event the maintainer of a particular node implementation is unresponsive a
 new maintainer may take over that implementation.
