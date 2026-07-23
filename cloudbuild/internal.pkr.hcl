@@ -27,7 +27,7 @@ variable "zone" {
 source "googlecompute" "kne-image" {
   project_id          = "gep-kne"
   source_image_family = "debian-12"
-  disk_size           = 50
+  disk_size           = 100
   image_name          = "kne-${var.build_id}"
   image_family        = "kne-untested"
   image_labels = {
@@ -90,13 +90,14 @@ build {
       "echo Pulling containers...",
       "gcloud auth configure-docker us-west1-docker.pkg.dev -q",      # configure sudoless docker
       "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure docker with sudo
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga &",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga &",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga &",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga &",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga &",
+      "pids=\"\"",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga & pids=\"$pids $!\"",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga & pids=\"$pids $!\"",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga & pids=\"$pids $!\"",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga & pids=\"$pids $!\"",
+      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga & pids=\"$pids $!\"",
       "echo 'Waiting for all docker pulls to complete...'",
-      "wait",
+      "for pid in $pids; do wait \"$pid\" || exit 1; done",
       "echo 'All docker images pulled successfully.'",
     ]
   }
