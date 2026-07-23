@@ -26,4 +26,4 @@ timeout: 2700s
 
 options:
   pool:
-    name: 'projects/kne-external/locations/us-central1/workerPools/kne-cloudbuild-pool'
+    name: "projects/kne-external/locations/us-central1/workerPools/kne-cloudbuild-pool"
