@@ -3,11 +3,11 @@ module github.com/openconfig/kne/third_party/meshnet
 go 1.26.0
 
 require (
-	github.com/containernetworking/cni v0.8.1
-	github.com/containernetworking/plugins v0.9.1
+	github.com/containernetworking/cni v1.3.0
+	github.com/containernetworking/plugins v1.9.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
-	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/h-fam/errdiff v1.0.2
 	github.com/openconfig/gnmi v0.14.1
 	github.com/redhat-nfvpe/koko v0.0.0-20241203052104-ec78eb8730bf
