@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package fake provides a fake clientset for testing.
 package fake
 
 import (
@@ -21,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// NewSimpleClientset returns a simple fake clientset with the given objects.
 func NewSimpleClientset(objects ...runtime.Object) (*toplogyv1client.Clientset, error) {
 	cs, err := toplogyv1client.NewForConfig(&rest.Config{})
 	if err != nil {
