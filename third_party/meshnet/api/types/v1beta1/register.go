@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package v1beta1 defines the API types for meshnet CRDs.
 package v1beta1
 
 import (
@@ -20,15 +21,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// GroupName and other constants define the API group, version, and resource names for meshnet.
 const (
-	GroupName          = "networkop.co.uk"
-	GroupVersion       = "v1beta1"
+	// GroupName is the group name used in this package.
+	GroupName = "networkop.co.uk"
+	// GroupVersion is the group version used in this package.
+	GroupVersion = "v1beta1"
+	// GWireResNamePlural is the plural resource name for GWire objects.
 	GWireResNamePlural = "gwirekobjs"
 )
 
 var (
+	// SchemeGroupVersion is the group version used to register these objects.
 	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
-	Scheme             = runtime.NewScheme()
+	// Scheme is the runtime scheme for meshnet API types.
+	Scheme = runtime.NewScheme()
 )
 
 func init() {

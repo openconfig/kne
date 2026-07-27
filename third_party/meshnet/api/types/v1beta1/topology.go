@@ -18,12 +18,14 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 //go:generate controller-gen object paths=$GOFILE
 
+// TopologySpec defines the desired state of Topology.
 // +k8s:deepcopy-gen=true
 type TopologySpec struct {
 	metav1.TypeMeta `json:",inline"`
 	Links           []Link `json:"links"`
 }
 
+// TopologyStatus defines the observed state of Topology.
 // +k8s:deepcopy-gen=true
 type TopologyStatus struct {
 	metav1.TypeMeta `json:",inline"`
@@ -43,6 +45,7 @@ type Skipped struct {
 	LinkId  int64  `json:"link_id"`
 }
 
+// Link defines a network link between local and peer interfaces/pods.
 // +k8s:deepcopy-gen=true
 type Link struct {
 	LocalIntf string `json:"local_intf"`
@@ -53,6 +56,7 @@ type Link struct {
 	UID       int    `json:"uid"`
 }
 
+// Topology is the Schema for the topologies API.
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Topology struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -62,6 +66,7 @@ type Topology struct {
 	Spec   TopologySpec   `json:"spec"`
 }
 
+// TopologyList contains a list of Topology.
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TopologyList struct {
 	metav1.TypeMeta `json:",inline"`

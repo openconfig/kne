@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package v1beta1 provides the clientset for the v1beta1 topology API.
 package v1beta1
 
 import (
@@ -58,6 +59,7 @@ var gvr = schema.GroupVersionResource{
 	Resource: "topologies",
 }
 
+// GVR returns the GroupVersionResource for topologies.
 func GVR() schema.GroupVersionResource {
 	return gvr
 }
@@ -69,6 +71,7 @@ var (
 	}
 )
 
+// GV returns the GroupVersion for topologies.
 func GV() *schema.GroupVersion {
 	return groupVersion
 }
@@ -93,6 +96,7 @@ func (c *Clientset) SetDynamicClient(d dynamic.NamespaceableResourceInterface) {
 	c.dInterface = d
 }
 
+// Topology returns a TopologyInterface for the given namespace.
 func (c *Clientset) Topology(namespace string) TopologyInterface {
 	return &topologyClient{
 		dInterface: c.dInterface,

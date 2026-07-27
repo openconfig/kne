@@ -28,6 +28,7 @@ source "googlecompute" "kne-image" {
   project_id          = "gep-kne"
   source_image_family = "debian-12"
   disk_size           = 50
+  disk_type           = "pd-ssd"
   image_name          = "kne-external-${var.build_id}"
   image_family        = "kne-external-untested"
   image_labels = {

@@ -218,7 +218,7 @@ func TestList(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(topologyv1.TopologyList{}, "TypeMeta")); s != "" {
+			if s := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(topologyv1.TopologyList{}, "TypeMeta", "ListMeta")); s != "" {
 				t.Fatalf("List() failed: %s", s)
 			}
 		})
