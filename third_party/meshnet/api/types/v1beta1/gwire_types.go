@@ -21,6 +21,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 //go:generate controller-gen object paths=$GOFILE
 
+// GWireKNodeSpec defines the desired state of GWireKNode.
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +optional
 type GWireKNodeSpec struct {
@@ -30,6 +31,7 @@ type GWireKNodeSpec struct {
 	UIDs []int `json:"uids"`
 }
 
+// GWireKNodeStatus defines the observed state of GWireKNode.
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +optional
 type GWireKNodeStatus struct {
@@ -39,6 +41,7 @@ type GWireKNodeStatus struct {
 	GWireKItems []GWireStatus `json:"grpcWireItems"`
 }
 
+// GWireStatus defines the status of an individual gRPC wire item on a node.
 type GWireStatus struct {
 	// +optional
 	// Name of the node holding the wire end
@@ -50,7 +53,7 @@ type GWireStatus struct {
 	// The topology namespace.
 	TopoNamespace string `json:"topo_namespace"`
 	// +optional
-	//Network namespace of the local pod holding the wire end
+	// Network namespace of the local pod holding the wire end
 	LocalPodNetNs string `json:"local_pod_net_ns"`
 	// +optional
 	// Local pod name as specified in topology CR
@@ -73,6 +76,7 @@ type GWireStatus struct {
 	GWirePeerNodeIp string `json:"gwire_peer_node_ip"`
 }
 
+// GWireKObj represents a Kubernetes object for gRPC wire node state.
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type GWireKObj struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -84,6 +88,7 @@ type GWireKObj struct {
 	Spec GWireKNodeSpec `json:"spec"`
 }
 
+// GWireKObjList contains a list of GWireKObj.
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type GWireKObjList struct {
 	metav1.TypeMeta `json:",inline"`
