@@ -902,6 +902,21 @@ var (
 			Model:  ModelXRD,
 		},
 	}
+
+	nodeXRDInvalidPath = &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "xrd",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{
+				Env: map[string]string{
+					"XR_EVERY_BOOT_CONFIG": "/etc/config/test;invalid",
+				},
+			},
+			Model: ModelXRD,
+		},
+	}
 )
 
 func TestNodeStatus(t *testing.T) {
@@ -978,6 +993,12 @@ func TestResetCfg(t *testing.T) {
 			wantErr:  true,
 			ni:       nodeXRD,
 			testFile: "testdata/xrd_reset_config_failure_invalid",
+		},
+		{
+			// device returns error when startup_config path contains invalid characters
+			desc:    "failed reset for XRd (invalid path characters)",
+			wantErr: true,
+			ni:      nodeXRDInvalidPath,
 		},
 		{
 			// device returns success after applying the startup config
@@ -1166,6 +1187,29 @@ func TestDefaultNodeConstraints(t *testing.T) {
 
 			if constraints.Memory != tt.wantMemory {
 				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
+			}
+		})
+	}
+}
+
+func TestValidPathRegexp(t *testing.T) {
+	tests := []struct {
+		path      string
+		wantValid bool
+	}{
+		{"/disk0:/startup-config", true},
+		{"/etc/config/xr.cfg", true},
+		{"/etc/config/test;path", false},
+		{"/path/with spaces", false},
+		{"/path/test$cfg", false},
+		{"/path/test`cfg`", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got := validPathRegexp.MatchString(tt.path)
+			if got != tt.wantValid {
+				t.Errorf("validPathRegexp.MatchString(%q) = %v, want %v", tt.path, got, tt.wantValid)
 			}
 		})
 	}

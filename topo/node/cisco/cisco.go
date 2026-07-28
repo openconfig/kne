@@ -53,6 +53,8 @@ const (
 )
 
 var (
+	validPathRegexp = regexp.MustCompile(`^[A-Za-z0-9._/:-]+$`)
+
 	defaultXRDConstraints = node.Constraints{
 		CPU:    "1000m", // 1000 milliCPUs
 		Memory: "2Gi",   // 2 GB RAM
@@ -663,6 +665,17 @@ func endTelnet(d *scraplinetwork.Driver) error {
 
 func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Infof("%s resetting config", n.Name())
+	var startupConfig string
+	if n.Proto.Model == ModelXRD {
+		startupConfig = n.Proto.Config.Env["XR_EVERY_BOOT_CONFIG"]
+		if startupConfig == "" {
+			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
+		}
+		if !validPathRegexp.MatchString(startupConfig) {
+			return status.Errorf(codes.InvalidArgument, "invalid XR_EVERY_BOOT_CONFIG %q: must match %s", startupConfig, validPathRegexp.String())
+		}
+	}
+
 	err := n.SpawnCLIConn()
 	if err != nil {
 		return err
@@ -674,12 +687,8 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 		// Copy the snooped management interface config from a know location and the startup config from
 		// the mounted location so it can be applied. This is required to preserve the snooped management
 		// IP addres and since the "copy" xr_cli command can only access files on disk 0/1.
-		startup_config := n.Proto.Config.Env["XR_EVERY_BOOT_CONFIG"]
-		if startup_config == "" {
-			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
-		}
 		// Send an additional return command to make sure any error messages are read.
-		copyCfgCmd := "cat " + xrdInterfaceConfig + " " + startup_config + " > /disk0:/startup-config"
+		copyCfgCmd := "cat " + xrdInterfaceConfig + " " + startupConfig + " > /disk0:/startup-config"
 		resp, err := n.cliConn.SendCommands([]string{copyCfgCmd, ""})
 		if err != nil {
 			return err

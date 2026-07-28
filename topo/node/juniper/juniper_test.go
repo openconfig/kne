@@ -188,6 +188,29 @@ func TestGenerateSelfSigned(t *testing.T) {
 			ni:       ni,
 			testFile: "testdata/generate_certificate_config_mode_failure",
 		},
+		{
+			// invalid cert name contains invalid characters
+			desc:     "invalid cert name characters",
+			wantErr:  true,
+			testFile: "testdata/generate_certificate_failure",
+			ni: &node.Impl{
+				KubeClient: ki,
+				Namespace:  "test",
+				Proto: &tpb.Node{
+					Name:   "pod1",
+					Vendor: tpb.Vendor_JUNIPER,
+					Config: &tpb.Config{
+						Cert: &tpb.CertificateCfg{
+							Config: &tpb.CertificateCfg_SelfSigned{
+								SelfSigned: &tpb.SelfSignedCertCfg{
+									CertName: "grpc-cert;invalid",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -865,6 +888,29 @@ func TestDefaultNodeConstraints(t *testing.T) {
 
 			if constraints.Memory != tt.wantMemory {
 				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
+			}
+		})
+	}
+}
+
+func TestValidCertNameRegexp(t *testing.T) {
+	tests := []struct {
+		certName  string
+		wantValid bool
+	}{
+		{"grpc-server-cert", true},
+		{"my_cert.v1-2", true},
+		{"cert;invalid", false},
+		{"cert$invalid", false},
+		{"cert/invalid", false},
+		{"cert name spaces", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.certName, func(t *testing.T) {
+			got := validCertNameRegexp.MatchString(tt.certName)
+			if got != tt.wantValid {
+				t.Errorf("validCertNameRegexp.MatchString(%q) = %v, want %v", tt.certName, got, tt.wantValid)
 			}
 		})
 	}
