@@ -172,7 +172,7 @@ func (n *Node) SpawnCLIConn() error {
 }
 
 // DefaultNodeConstraints returns default node constraints for Juniper.
-// If the model for cptx is specificied correctly it returns defaults for cptx.
+// If the model for cptx is specified correctly it returns defaults for cptx.
 // Otherwise, it returns defaults for ncptx by default.
 func (n *Node) DefaultNodeConstraints() node.Constraints {
 	if n.Impl == nil || n.Impl.Proto == nil {
