@@ -54,9 +54,13 @@ func parsePodLinks(topo *unstructured.Unstructured) ([]wireutil.PodLinkConfig, e
 	podName := topo.GetName()
 	kubeNs := topo.GetNamespace()
 
-	remoteLinks, found, err := unstructured.NestedSlice(topo.Object, "spec", "links")
-	if err != nil || !found || remoteLinks == nil {
-		return nil, err
+	val, found, err := unstructured.NestedFieldNoCopy(topo.Object, "spec", "links")
+	if err != nil || !found || val == nil {
+		return nil, nil
+	}
+	remoteLinks, ok := val.([]interface{})
+	if !ok {
+		return nil, nil
 	}
 
 	links := make([]wireutil.PodLinkConfig, 0, len(remoteLinks))
