@@ -231,7 +231,9 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 		}
 	}
 
-	// 2. Process gRPC peer batches with a single batch RPC per remote peer node
+	// 2. Process gRPC peer batches in chunks (default 50 items per RPC) to allow pipelined processing
+	batchSize := wireutil.GetEnvInt("WIRE_BATCH_SIZE", 50)
+
 	for peerIP, pBatch := range grpcBatches {
 		url := fmt.Sprintf("%s:%d", peerIP, wireutil.GRPCDefaultPort)
 		url = strings.TrimSpace(url)
@@ -241,22 +243,35 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 			return err
 		}
 
-		mnetdLogger.Infof("ReconcilePodLinks: calling AddGRPCWiresRemoteBatch on %s for %d links", url, len(pBatch.wireDefs))
 		remoteClient := mpb.NewRemoteClient(remoteConn)
-		batchResp, err := remoteClient.AddGRPCWiresRemoteBatch(ctx, &mpb.WireDefBatch{Items: pBatch.wireDefs})
-		remoteConn.Close()
+		total := len(pBatch.wireDefs)
 
-		if err != nil {
-			mnetdLogger.Errorf("ReconcilePodLinks: AddGRPCWiresRemoteBatch failed to %s: %v", url, err)
-			return fmt.Errorf("AddGRPCWiresRemoteBatch failed: %v", err)
-		}
+		for i := 0; i < total; i += batchSize {
+			end := i + batchSize
+			if end > total {
+				end = total
+			}
 
-		for i, res := range batchResp.Items {
-			if res != nil && res.Response {
-				l := pBatch.links[i]
-				grpcwire.UpdateWireByUID(netNS, int(l.LinkUID), res.PeerIntfId, make(chan struct{}))
+			chunkWireDefs := pBatch.wireDefs[i:end]
+			chunkLinks := pBatch.links[i:end]
+
+			mnetdLogger.Infof("ReconcilePodLinks: calling AddGRPCWiresRemoteBatch on %s for batch [%d:%d] of %d links", url, i, end, total)
+			batchResp, err := remoteClient.AddGRPCWiresRemoteBatch(ctx, &mpb.WireDefBatch{Items: chunkWireDefs})
+			if err != nil {
+				remoteConn.Close()
+				mnetdLogger.Errorf("ReconcilePodLinks: AddGRPCWiresRemoteBatch failed to %s for batch [%d:%d]: %v", url, i, end, err)
+				return fmt.Errorf("AddGRPCWiresRemoteBatch failed: %v", err)
+			}
+
+			for j, res := range batchResp.Items {
+				if res != nil && res.Response {
+					l := chunkLinks[j]
+					grpcwire.UpdateWireByUID(netNS, int(l.LinkUID), res.PeerIntfId, make(chan struct{}))
+				}
 			}
 		}
+
+		remoteConn.Close()
 	}
 
 	if len(sameNodeLinks) > 0 {
