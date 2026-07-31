@@ -468,7 +468,7 @@ func (m *Meshnet) AddGRPCWireRemote(ctx context.Context, wireDef *mpb.WireDef) (
 	return &mpb.WireCreateResponse{Response: false, PeerIntfId: wireDef.WireIfIdOnPeerNode}, err
 }
 
-// ---------------------------------------------------------------------------------------------------------------
+// AddGRPCWiresRemoteBatch handles batch creation of remote gRPC wires in a single RPC call.
 func (m *Meshnet) AddGRPCWiresRemoteBatch(ctx context.Context, req *mpb.WireDefBatch) (*mpb.WireCreateResponseBatch, error) {
 	if req == nil {
 		return &mpb.WireCreateResponseBatch{}, nil

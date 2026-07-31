@@ -19,6 +19,7 @@ type nodeStreamKey struct {
 	peerIP string
 }
 
+// NodeStream represents a single multiplexed gRPC packet stream shared by all TAP interfaces bound to a peer node within a topology.
 type NodeStream struct {
 	key      nodeStreamKey
 	pktChan  chan *mpb.Packet
@@ -95,6 +96,7 @@ func (m *nodeStreamManager) ReleaseStream(topoNs string, peerIP string) {
 	}
 }
 
+// Send enqueues a packet payload to be transmitted over the multiplexed gRPC stream.
 func (s *NodeStream) Send(pkt *mpb.Packet) bool {
 	select {
 	case s.pktChan <- pkt:
