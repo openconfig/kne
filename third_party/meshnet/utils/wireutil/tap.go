@@ -62,6 +62,12 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 			return fmt.Errorf("failed to find link %s inside netns %s: %w", ifName, podNsPath, err)
 		}
 
+		// Increase txqueuelen for high-throughput packet processing (configurable via LINK_TXQUEUELEN)
+		txqLen := GetLinkTxQLen()
+		if err := netlink.LinkSetTxQLen(link, txqLen); err != nil {
+			log.Warnf("CreateOrAttachTAP: failed to set txqueuelen %d on %s in netns %s: %v", txqLen, ifName, podNsPath, err)
+		}
+
 		if err := netlink.LinkSetUp(link); err != nil {
 			unix.Close(fd)
 			return fmt.Errorf("failed to set %s UP in netns %s: %w", ifName, podNsPath, err)
