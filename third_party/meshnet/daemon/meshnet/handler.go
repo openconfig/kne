@@ -3,6 +3,7 @@ package meshnet
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
@@ -412,6 +413,39 @@ func (m *Meshnet) SendToOnce(ctx context.Context, pkt *mpb.Packet) (*mpb.BoolRes
 	}
 
 	return &mpb.BoolResponse{Response: true}, nil
+}
+
+// ------------------------------------------------------------------------------------------------------
+func (m *Meshnet) SendToStream(stream mpb.WireProtocol_SendToStreamServer) error {
+	for {
+		pkt, err := stream.Recv()
+		if err == io.EOF {
+			return stream.SendAndClose(&mpb.BoolResponse{Response: true})
+		}
+		if err != nil {
+			return err
+		}
+
+		if pkt.RemotIntfId <= 0 {
+			continue
+		}
+
+		wrHandle, err := grpcwire.GetHostIntfHndl(pkt.RemotIntfId)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Debugf("SendToStream (wire id - %v): Could not find local handle. err:%v", pkt.RemotIntfId, err)
+			continue
+		}
+
+		if _, err := wrHandle.Write(pkt.Frame); err != nil {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Errorf("SendToStream (wire id - %v): Could not write packet(%d bytes) to local interface. err:%v", pkt.RemotIntfId, len(pkt.Frame), err)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------
