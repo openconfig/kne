@@ -3,13 +3,12 @@ package grpcwire
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"reflect"
 
-	"github.com/google/gopacket/pcap"
 	grpcwirev1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -422,24 +421,18 @@ func reCreateGWire(wStatus grpcwirev1.GWireStatus, _ context.Context) error {
 // -----------------------------------------------------------------------------------------------------------
 // Recreate the wire in-memory wire-map and start the pod to daemon packet receive thread for this wire.
 func reconLocalGRPCWire(wireDef *mpb.WireDef) error {
-	locInf, err := net.InterfaceByName(wireDef.WireIfNameOnLocalNode)
+	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
-		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END]For pod %s failed to retrieve interface ID for interface %v. error:%v", wireDef.LocalPodName, wireDef.WireIfNameOnLocalNode, err)
+		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END] For pod %s failed to create/attach TAP interface %s in netns %s: %v",
+			wireDef.LocalPodName, wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)
 		return err
 	}
-
-	//Using google gopacket for packet receive. An alternative could be using socket. Not sure it it provides any advantage over gopacket.
-	wrHandle, err := pcap.OpenLive(wireDef.WireIfNameOnLocalNode, 65365, true, pcap.BlockForever)
-	if err != nil {
-		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END]Could not open interface for send/recv packets for containers local iface id %d. error:%v", locInf.Index, err)
-		return err
-	}
-	aWire := CreateGWire(locInf.Index, wireDef.WireIfNameOnLocalNode, make(chan struct{}), wireDef)
+	wireID := NextIndex()
+	aWire := CreateGWire(int(wireID), wireDef.IntfNameInPod, make(chan struct{}), wireDef)
 	aWire.IsReady = true
 	// reconciling, so add only in memory
-	wires.AddInMem(aWire, wrHandle)
+	wires.AddInMem(aWire, tapFile)
 
-	// TODO: handle error here
 	go RecvFrmLocalPodThread(aWire, aWire.LocalNodeIfaceName)
 
 	return nil

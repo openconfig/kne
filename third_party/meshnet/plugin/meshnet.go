@@ -208,32 +208,52 @@ func cmdAdd(args *skel.CmdArgs) error {
 	log.Infof("Add[%s]: Successfully registered pod alive status with meshnet daemon", string(cniArgs.K8S_POD_NAME))
 
 	if len(localPod.Links) > 0 {
-		waitCtx, cancel := context.WithDeadline(ctx, startTime.Add(15*time.Second))
+		waitCtx, cancel := context.WithDeadline(ctx, startTime.Add(30*time.Second))
 		defer cancel()
-		_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
-			ticker := time.NewTicker(50 * time.Millisecond)
-			defer ticker.Stop()
-			for {
-				ready := true
-				for _, link := range localPod.Links {
+
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			allReady := true
+			for _, link := range localPod.Links {
+				// Check if interface exists in container netns
+				_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 					if _, err := netlink.LinkByName(link.LocalIntf); err != nil {
-						ready = false
-						break
+						allReady = false
 					}
-				}
-				if ready {
-					log.Infof("Add[%s]: All %d interfaces ready in container namespace", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
 					return nil
+				})
+				if !allReady {
+					break
 				}
-				select {
-				case <-waitCtx.Done():
-					log.Infof("Add[%s]: Bounded readiness wait expired (%d links); asynchronous completion will continue", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
-					return nil
-				case <-ticker.C:
+
+				// For gRPC links, check if the gRPC wire is fully established on the daemon
+				wireDef := &mpb.WireDef{
+					LocalPodNetNs: args.Netns,
+					LinkUid:       link.Uid,
+				}
+				resp, err := meshnetClient.GRPCWireExists(waitCtx, wireDef)
+				if err != nil || !resp.Response {
+					allReady = false
+					break
 				}
 			}
-		})
+
+			if allReady {
+				log.Infof("Add[%s]: All %d interfaces and gRPC wires are ready", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
+				break
+			}
+
+			select {
+			case <-waitCtx.Done():
+				log.Warnf("Add[%s]: Readiness wait timed out (%d links); proceeding asynchronously", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
+				goto WaitDone
+			case <-ticker.C:
+			}
+		}
 	}
+WaitDone:
 
 	return types.PrintResult(result, n.CNIVersion)
 }

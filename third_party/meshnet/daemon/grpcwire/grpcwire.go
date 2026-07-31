@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
+	"os"
 	"strings"
 	"sync"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/pcap"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/openconfig/gnmi/errlist"
-	koko "github.com/redhat-nfvpe/koko/api"
 	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -32,13 +31,10 @@ type intfIndex struct {
 }
 
 /*
-	In a given node a veth-pair connects a pod with the meshnet daemon hosted in the node. This meshnet
+	In a given node a TAP interface connects a pod with the meshnet daemon hosted in the node. This meshnet
 
-daemon provides the grpc-wire service to connect the local pod with the remote pod over grpc. The node
-end of the veth-pair must have unique name with in the node. A node can have multiple pods. So there
-will be multiple veth-pairs for connecting multiple nodes to meshnet daemon and each of them (the node end) must have unique
-names. IntfIndex provides the sequentially increasing number which makes the name unique when added as
-suffix to the name.
+daemon provides the grpc-wire service to connect the local pod with the remote pod over grpc. IntfIndex provides
+the sequentially increasing number which makes the name unique when added as suffix to the name.
 */
 var indexGen intfIndex
 
@@ -49,7 +45,6 @@ func NextIndex() int64 {
 	return indexGen.currId
 }
 
-/*+++tbf: These constants has no utility other that helping in debugging. These can be removed later. */
 type grpcWireOriginator int
 
 func (g grpcWireOriginator) String() string {
@@ -190,13 +185,8 @@ func WireDownByUID(namespace string, linkUID int) error {
 }
 
 // -------------------------------------------------------------------------------------------------
-func AddWireInMemNDataStore(wire *GRPCWire, handle *pcap.Handle) int {
+func AddWireInMemNDataStore(wire *GRPCWire, handle *os.File) int {
 	/* Populate the active wire map and returns the number of currently added active wires. */
-
-	/* if this wire is already present in the map then it will be overwritten.
-	   It seems to be ok to overwrite. Think more in what situation this may
-	   not be the desired behavior and we need to throw an error. */
-
 	wires.AddInMemNDataStore(wire, handle)
 	return len(wires.wires)
 }
@@ -242,7 +232,7 @@ func DeletePodWires(namespace string, podName string) error {
 func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 
 	if wire == nil {
-		grpcOvrlyLogger.Infof("[WIRE-DELETE]:Null wire. This ware is already removed")
+		grpcOvrlyLogger.Infof("[WIRE-DELETE]:Null wire. This wire is already removed")
 		return nil
 	}
 
@@ -252,19 +242,24 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 	}
 	wire.IsReady = false
 
-	/* Remove the veth from the node */
-	intf, err := net.InterfaceByIndex(int(wire.LocalNodeIfaceID))
-	if err != nil {
-		grpcOvrlyLogger.Infof("[WIRE-DELETE]:Interface index %d for wire %d, is already cleaned up.", wire.LocalNodeIfaceID, wire.UID)
-	} else {
-		myVeth := koko.VEth{}
-		myVeth.LinkName = intf.Name
-		if err = myVeth.RemoveVethLink(); err != nil {
-			return fmt.Errorf("[WIRE-DELETE]:failed to remove veth link: %w", err)
-		}
+	// Close the TAP file handle if open
+	if handle, ok := wires.GetHandle(wire.LocalNodeIfaceID); ok && handle != nil {
+		_ = handle.Close()
 	}
 
-	// clean up im-memory wire-map
+	// Remove the TAP link from the container netns if present
+	podNs, err := ns.GetNS(wire.LocalPodNetNS)
+	if err == nil {
+		_ = podNs.Do(func(_ ns.NetNS) error {
+			if link, err := netlink.LinkByName(wire.LocalPodIfaceName); err == nil {
+				return netlink.LinkDel(link)
+			}
+			return nil
+		})
+		podNs.Close()
+	}
+
+	// clean up in-memory wire-map
 	if inMem {
 		wires.AtomicDelete(wire) // Deleting the wire from in-memory data
 	}
@@ -277,22 +272,8 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 // -----------------------------------------------------------------------------------------------------------
 // Generate the name of the interface to be placed on the node
 func GenNodeIfaceName(podName string, podIfaceName string) (string, error) {
-	// Linux has issue if interface name is too long. Generate a smaller name.
-	// In recent kernel versions this is defined by IFNAMSIZ to be 16 bytes, so 15 user-visible bytes
-	// (assuming it includes a trailing null). IFNAMSIZ is used in defining struct net_device's name.
-	// The name must not contain / or any whitespace characters
-	//
-	//TODO: This method needs to be robust. It monotonically increases the index and never
-	//      decreases it, even if the interfaces are deleted. So far this will work for accumulated
-	//      1K interfaces per node under the current naming scheme. This is too small.
-	//      Using 14 digit random number and checking if any interface with generated name exists and if
-	//      exists then generate another random number (try 3 times before giving up). This will make it robust.
-	//      This reduces the readability and correlation between the “pod-interface” and corresponding
-	//      “node-interface”, for example eth1host1-<3-digit-index> will become "12345678901234".
 	id := NextIndex()
-
 	ifaceName := fmt.Sprintf("%.5s%.5s-%04d", podName, podIfaceName, id)
-
 	return ifaceName, nil
 }
 
@@ -300,37 +281,11 @@ func GenNodeIfaceName(podName string, podIfaceName string) (string, error) {
 func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 
 	defaultPort := wireutil.GRPCDefaultPort
-	pktBuffSz := int32(1024 * 64 * 10) //keep buffer for MAX 10 64K frames
-
 	url := strings.TrimSpace(fmt.Sprintf("%s:%d", wire.PeerNodeIP, defaultPort))
-	/* Utilizing google gopacket for polling for packets from the node. This seems to be the
-	   simplest way to get all packets.
-	   As an alternative to google gopacket(pcap), a socket based implementation is possible.
-	   Not sure if socket based implementation can bring any advantage or not.
 
-	   Near term will replace pcap by socket.
-	*/
-
-	// in some rare cases by the time the thread starts K8S may decide to move the pod somewhere else.
-	// in that case the local interfaced will be cleaned up asynchronously. Detect the situation and return.
-	_, err := net.InterfaceByName(locIfNm)
+	tapFile, err := GetHostIntfHndl(wire.LocalNodeIfaceID)
 	if err != nil {
-		grpcOvrlyLogger.Errorf("[Packet Receive thread]For pod %s failed to retrieve interface %s/%d. error: %v", wire.LocalPodName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, err)
-		return err
-	}
-
-	rdHandl, err := pcap.OpenLive(wire.LocalNodeIfaceName, pktBuffSz, true, pcap.BlockForever)
-	if err != nil {
-		// let the caller handle the error
-		grpcOvrlyLogger.Errorf("Receive Thread for local pod failed to open interface: %s/%d, PCAP ERROR: %v", wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, err)
-		return err
-	}
-	defer rdHandl.Close()
-
-	err = rdHandl.SetDirection(pcap.Direction(pcap.DirectionIn))
-	if err != nil {
-		// let the caller handle the error
-		grpcOvrlyLogger.Errorf("Receive Thread for local pod failed to set up capture direction: %s/%d, PCAP ERROR: %v", wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, err)
+		grpcOvrlyLogger.Errorf("[Packet Receive thread] For pod %s failed to retrieve TAP handle for interface %s/%d. error: %v", wire.LocalPodName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, err)
 		return err
 	}
 
@@ -344,45 +299,67 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	source := gopacket.NewPacketSource(rdHandl, rdHandl.LinkType())
 	wireClient := mpb.NewWireProtocolClient(remote)
 
-	in := source.Packets()
-	var packet gopacket.Packet
+	buf := make([]byte, 65535)
+	type readResult struct {
+		n   int
+		err error
+	}
+	readChan := make(chan readResult, 1)
+	go func() {
+		for {
+			n, err := tapFile.Read(buf)
+			readChan <- readResult{n: n, err: err}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-wire.StopC:
 			grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: closing connection with remote peer-iface@peer-node-ip: %d@%s/%d from %s@%s",
 				wire.WireIfaceIDOnPeerNode, wire.PeerNodeIP, wire.LocalNodeIfaceID, wire.LocalPodName, wire.LocalPodIfaceName)
 			return io.EOF
-		case packet = <-in:
-			data := packet.Data()
-			payload := &mpb.Packet{
-				RemotIntfId: wire.WireIfaceIDOnPeerNode,
-				Frame:       data,
+		case res := <-readChan:
+			if res.err != nil {
+				select {
+				case <-wire.StopC:
+					return io.EOF
+				default:
+					grpcOvrlyLogger.Errorf("RecvFrmLocalPodThread: error reading from TAP interface %s: %v", locIfNm, res.err)
+					return res.err
+				}
+			}
+			n := res.n
+			if n <= 0 {
+				continue
 			}
 
-			/*+++TODO: Ethernet has a minimum frame size of 64 bytes, comprising an 18-byte header and a payload of 46 bytes.
-			It also has a maximum frame size of 1518 bytes, in which case the payload is 1500 bytes.
-			This logic needs to be better, take the interface MTU not hardcoded value of 1518.
-			This is a very unusual condition to receive an packet from the pod with size > MTU. This can only happens if
-			things gets really messed up.   */
-			if len(data) > 1518 {
+			frame := make([]byte, n)
+			copy(frame, buf[:n])
+
+			if !wire.IsReady || wire.WireIfaceIDOnPeerNode <= 0 {
+				// Remote peer handshake is still in progress; skip sending to unassigned wire ID 0
+				continue
+			}
+
+			payload := &mpb.Packet{
+				RemotIntfId: wire.WireIfaceIDOnPeerNode,
+				Frame:       frame,
+			}
+
+			if n > 1518 {
 				pktType := DecodeFrame(payload.Frame)
-				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", len(data), pktType)
-				/* When Generic Receive Offload (GRO) is enabled then containers can send packets larger than MTU size packet. Do not drop these
-				   packets, deliver it to the receiving container to process.
-				*/
-				//continue
+				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", n, pktType)
 			}
 
 			ok, err := wireClient.SendToOnce(ctx, payload)
 			if err != nil || !ok.Response {
-				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: Could not deliver pkt %s@%s@%s. Peer not ready, remote iface id %d. err=%v",
+				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not deliver pkt %s@%s@%s. Peer not ready, remote iface id %d. err=%v",
 					wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, wire.WireIfaceIDOnPeerNode, err)
-				/* we generate information and continue. As the above errors will happen when the remote end is not yet ready.
-				   It will eventually get ready and if it can't then someone else will stop this thread.
-				*/
 			}
 		}
 	}
