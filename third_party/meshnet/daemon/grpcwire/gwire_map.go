@@ -43,15 +43,14 @@ func (w *wireMap) AddInMem(wire *GRPCWire, handle *os.File) error {
 
 func (w *wireMap) AddInMemNDataStore(wire *GRPCWire, handle *os.File) error {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	w.wires[linkKey{
 		namespace: wire.LocalPodNetNS,
 		linkUID:   wire.UID,
 	}] = wire
-
-	wire.K8sStoreGWire()
-
 	w.handles[wire.LocalNodeIfaceID] = handle
+	w.mu.Unlock()
+
+	go wire.K8sStoreGWire()
 	return nil
 }
 
