@@ -1,3 +1,5 @@
+// Package meshnet implements the meshnet daemon controller loop, K8s topology resource watching,
+// and gRPC wire/vxLAN link reconciliation.
 package meshnet
 
 import (
@@ -27,22 +29,24 @@ import (
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 )
 
+// Config defines configuration options for initializing the Meshnet daemon server.
 type Config struct {
 	Port     int
 	GRPCOpts []grpc.ServerOption
 }
 
+// Meshnet represents the main daemon service instance handling Kubernetes topology reconciliation and gRPC wire protocol RPCs.
 type Meshnet struct {
 	mpb.UnimplementedLocalServer
 	mpb.UnimplementedRemoteServer
 	mpb.UnimplementedWireProtocolServer
-	config         Config
-	kClient        kubernetes.Interface
-	tClient        topologyclientv1.Interface
-	GWireDynClient *dynamic.DynamicClient
-	rCfg           *rest.Config
-	s              *grpc.Server
-	lis            net.Listener
+	config            Config
+	kClient           kubernetes.Interface
+	tClient           topologyclientv1.Interface
+	GWireDynClient    *dynamic.DynamicClient
+	rCfg              *rest.Config
+	s                 *grpc.Server
+	lis               net.Listener
 	nodeIP            string
 	dirtyChan         chan struct{}
 	interNodeLinkType string
@@ -50,6 +54,7 @@ type Meshnet struct {
 
 var mnetdLogger *log.Entry = nil
 
+// InitLogger initializes the logrus logger for the meshnet daemon.
 func InitLogger() {
 	mnetdLogger = log.WithFields(log.Fields{"daemon": "meshnetd"})
 }
@@ -72,6 +77,7 @@ func restConfig() (*rest.Config, error) {
 	return rCfg, nil
 }
 
+// New creates and initializes a new Meshnet daemon instance with gRPC server options and K8s clientsets.
 func New(cfg Config) (*Meshnet, error) {
 	rCfg, err := restConfig()
 	if err != nil {
@@ -106,16 +112,16 @@ func New(cfg Config) (*Meshnet, error) {
 	}
 
 	m := &Meshnet{
-		config:         cfg,
-		rCfg:           rCfg,
-		kClient:        kClient,
-		tClient:        tClient,
-		GWireDynClient: gwireDynClient,
-		lis:            lis,
-		s:              svr,
+		config:            cfg,
+		rCfg:              rCfg,
+		kClient:           kClient,
+		tClient:           tClient,
+		GWireDynClient:    gwireDynClient,
+		lis:               lis,
+		s:                 svr,
 		nodeIP:            os.Getenv("HOST_IP"),
 		dirtyChan:         make(chan struct{}, 1),
-		interNodeLinkType:  lnkTyp,
+		interNodeLinkType: lnkTyp,
 	}
 	mpb.RegisterLocalServer(m.s, m)
 	mpb.RegisterRemoteServer(m.s, m)
@@ -134,11 +140,13 @@ func New(cfg Config) (*Meshnet, error) {
 	return m, nil
 }
 
+// Serve starts the gRPC server listening on the configured port.
 func (m *Meshnet) Serve() error {
 	mnetdLogger.Infof("GRPC server has started on port: %d", m.config.Port)
 	return m.s.Serve(m.lis)
 }
 
+// Stop gracefully stops the gRPC server instance.
 func (m *Meshnet) Stop() {
 	m.s.Stop()
 }

@@ -22,7 +22,7 @@ const (
 	skipStatusRetryCount     = skipStatusRetryWarnCount * 4 // how many times to retry
 )
 
-// --------------------------------------------------------------------------------------------------------
+// CreatGRPCChan sets up the local and remote ends of a gRPC wire channel between two pods on different nodes.
 func CreatGRPCChan(link *mpb.Link, localPod *mpb.Pod, peerPod *mpb.Pod, localClient mpb.LocalClient, cniArgs *k8sArgs, ctx context.Context) error {
 	// At this point pods attached to both end of this link are both up. They have got the management IP already.
 
@@ -253,7 +253,7 @@ func CreatGRPCChan(link *mpb.Link, localPod *mpb.Pod, peerPod *mpb.Pod, localCli
 	return nil
 }
 
-// This function is called when a K8S pod is getting deleted.
+// MakeGRPCChanDown signals the remote peer node to tear down the remote gRPC wire end when a pod is deleted.
 func MakeGRPCChanDown(link *mpb.Link, localPod *mpb.Pod, peerPod *mpb.Pod, ctx context.Context) error {
 	if link == nil {
 		return fmt.Errorf("can't remove remote grpc info. link not provided. link:%p", link)

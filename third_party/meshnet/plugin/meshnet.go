@@ -382,6 +382,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	return nil
 }
 
+// SetInterNodeLinkType reads the inter-node link configuration file to set the default overlay mode (GRPC or VXLAN).
 func SetInterNodeLinkType() {
 	// TODO: Find a more appropriate (if any) way to figure out intended link type
 	// As of today, daemon gets the intended link type from env INTER_NODE_LINK_TYPE

@@ -1,3 +1,5 @@
+// Package grpcwire provides gRPC overlay wire creation, TAP interface management,
+// packet multiplexing, and CRD reconciliation for meshnet daemon.
 package grpcwire
 
 import (
@@ -21,6 +23,7 @@ import (
 
 var grpcOvrlyLogger *log.Entry = nil
 
+// InitLogger initializes logrus logging for the gRPC overlay daemon.
 func InitLogger() {
 	grpcOvrlyLogger = log.WithFields(log.Fields{"daemon": "meshnetd", "overlay": "gRPC"})
 }
@@ -38,6 +41,7 @@ the sequentially increasing number which makes the name unique when added as suf
 */
 var indexGen intfIndex
 
+// NextIndex generates a node-wide, monotonically increasing unique wire ID for TAP device handle indexing.
 func NextIndex() int64 {
 	indexGen.mu.Lock()
 	defer indexGen.mu.Unlock()
@@ -93,6 +97,7 @@ type linkKey struct {
 	linkUID   int
 }
 
+// CreateGWire constructs a new GRPCWire struct from the provided wire definition.
 func CreateGWire(locIfIndex int, locIfNm string, stopC chan struct{}, wireDef *mpb.WireDef) *GRPCWire {
 
 	return &GRPCWire{
@@ -184,7 +189,7 @@ func WireDownByUID(namespace string, linkUID int) error {
 	return nil
 }
 
-// -------------------------------------------------------------------------------------------------
+// AddWireInMemNDataStore populates the active wire map and updates K8s status store.
 func AddWireInMemNDataStore(wire *GRPCWire, handle *os.File) int {
 	/* Populate the active wire map and returns the number of currently added active wires. */
 	wires.AddInMemNDataStore(wire, handle)
@@ -277,7 +282,7 @@ func GenNodeIfaceName(podName string, podIfaceName string) (string, error) {
 	return ifaceName, nil
 }
 
-// -----------------------------------------------------------------------------------------------------------
+// RecvFrmLocalPodThread reads packets from the local TAP interface and forwards them over the gRPC stream.
 func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 
 	defaultPort := wireutil.GRPCDefaultPort

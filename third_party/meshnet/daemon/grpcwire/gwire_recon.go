@@ -33,7 +33,7 @@ const (
 	kGrpcWireItems = "grpcWireItems" // json name of GWireKItems of gwire_type, +++TBD: can we make it dynamic
 )
 
-// -----------------------------------------------------------------------------------------------------------
+// SetGWireClient initializes the dynamic K8s client for gRPC wire CRD management.
 func SetGWireClient(gClient *dynamic.DynamicClient) {
 	// identifier<group, version, resource> of grpc wire object in k8s apis
 	gWClient.gvr = schema.GroupVersionResource{
@@ -44,12 +44,12 @@ func SetGWireClient(gClient *dynamic.DynamicClient) {
 	gWClient.di = gClient.Resource(gWClient.gvr)
 }
 
-// -----------------------------------------------------------------------------------------------------------
+// SetGWireClientInterface sets the K8s dynamic resource interface (used for unit testing).
 func SetGWireClientInterface(gClient dynamic.NamespaceableResourceInterface) {
 	gWClient.di = gClient
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// GetWireObjListUS lists unstructured GWireKObj resources for a specified node.
 func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*unstructured.UnstructuredList, error) {
 	return gc.di.Namespace("").List(ctx, metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
@@ -61,19 +61,17 @@ func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*uns
 	})
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// CreatWireObj creates a new unstructured GWireKObj resource in K8s.
 func (gc GWireClient) CreatWireObj(ctx context.Context, nSpace string, uWbj map[string]interface{}) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(nSpace).Create(ctx, &unstructured.Unstructured{Object: uWbj}, metav1.CreateOptions{})
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// UpdateWireObj updates an existing unstructured GWireKObj resource in K8s.
 func (gc GWireClient) UpdateWireObj(ctx context.Context, nSpace string, wObjsOnNd *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(nSpace).Update(ctx, wObjsOnNd, metav1.UpdateOptions{})
-
 }
 
-//------------------------------------------------------------------------------------------------------------
-
+// GetWireObjGrpUS retrieves the GWireKObj for a given node and status.
 func (gc GWireClient) GetWireObjGrpUS(ctx context.Context, wStatus *grpcwirev1.GWireStatus) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(wStatus.TopoNamespace).Get(ctx, wStatus.LocalNodeName, metav1.GetOptions{})
 }
