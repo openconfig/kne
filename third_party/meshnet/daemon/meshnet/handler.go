@@ -44,27 +44,30 @@ func (m *Meshnet) Get(ctx context.Context, pod *mpb.PodQuery) (*mpb.Pod, error) 
 		return nil, err
 	}
 
-	remoteLinks, found, err := unstructured.NestedSlice(result.Object, "spec", "links")
-	if err != nil || !found || remoteLinks == nil {
-		mnetdLogger.Errorf("could not find 'Link' array in pod's spec")
-		return nil, err
-	}
-
-	links := make([]*mpb.Link, len(remoteLinks))
-	for i := range links {
-		remoteLink, ok := remoteLinks[i].(map[string]interface{})
-		if !ok {
-			mnetdLogger.Errorf("Unrecognised 'Link' structure")
-			return nil, err
+	var links []*mpb.Link
+	val, found, err := unstructured.NestedFieldNoCopy(result.Object, "spec", "links")
+	if err == nil && found && val != nil {
+		if remoteLinks, ok := val.([]interface{}); ok {
+			links = make([]*mpb.Link, len(remoteLinks))
+			for i := range links {
+				remoteLink, ok := remoteLinks[i].(map[string]interface{})
+				if !ok {
+					mnetdLogger.Errorf("Unrecognised 'Link' structure")
+					return nil, fmt.Errorf("unrecognised 'Link' structure")
+				}
+				newLink := &mpb.Link{}
+				newLink.PeerPod, _, _ = unstructured.NestedString(remoteLink, "peer_pod")
+				newLink.PeerIntf, _, _ = unstructured.NestedString(remoteLink, "peer_intf")
+				newLink.LocalIntf, _, _ = unstructured.NestedString(remoteLink, "local_intf")
+				newLink.LocalIp, _, _ = unstructured.NestedString(remoteLink, "local_ip")
+				newLink.PeerIp, _, _ = unstructured.NestedString(remoteLink, "peer_ip")
+				newLink.Uid, _, _ = unstructured.NestedInt64(remoteLink, "uid")
+				links[i] = newLink
+			}
+		} else {
+			mnetdLogger.Errorf("Unrecognised 'links' field in pod %s spec", pod.Name)
+			return nil, fmt.Errorf("unrecognised 'links' field in pod %s spec", pod.Name)
 		}
-		newLink := &mpb.Link{}
-		newLink.PeerPod, _, _ = unstructured.NestedString(remoteLink, "peer_pod")
-		newLink.PeerIntf, _, _ = unstructured.NestedString(remoteLink, "peer_intf")
-		newLink.LocalIntf, _, _ = unstructured.NestedString(remoteLink, "local_intf")
-		newLink.LocalIp, _, _ = unstructured.NestedString(remoteLink, "local_ip")
-		newLink.PeerIp, _, _ = unstructured.NestedString(remoteLink, "peer_ip")
-		newLink.Uid, _, _ = unstructured.NestedInt64(remoteLink, "uid")
-		links[i] = newLink
 	}
 
 	srcIP, _, _ := unstructured.NestedString(result.Object, "status", "src_ip")
