@@ -98,3 +98,51 @@ func TestCleanupOrphanedHostVeths(t *testing.T) {
 		t.Fatalf("CleanupOrphanedHostVeths failed: %v", err)
 	}
 }
+
+func TestParsePodLinks_NoLinks(t *testing.T) {
+	// Pod with empty links slice
+	podEmptyLinks := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{})
+	links, err := parsePodLinks(podEmptyLinks)
+	if err != nil {
+		t.Fatalf("parsePodLinks failed for empty links: %v", err)
+	}
+	if len(links) != 0 {
+		t.Fatalf("expected 0 links, got %d", len(links))
+	}
+
+	// Pod with spec.links omitted entirely
+	podNoLinksSpec := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "networkop.co.uk/v1beta1",
+			"kind":       "Topology",
+			"metadata": map[string]interface{}{
+				"name":      "p1",
+				"namespace": "default",
+			},
+			"spec": map[string]interface{}{},
+			"status": map[string]interface{}{
+				"src_ip": "10.0.0.1",
+				"net_ns": "/proc/1/ns/net",
+			},
+		},
+	}
+	links, err = parsePodLinks(podNoLinksSpec)
+	if err != nil {
+		t.Fatalf("parsePodLinks failed for missing links spec: %v", err)
+	}
+	if len(links) != 0 {
+		t.Fatalf("expected 0 links, got %d", len(links))
+	}
+}
+
+func TestReconcilePodLinks_NoLinks(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{
+		nodeIP: "10.0.0.1",
+	}
+
+	podNoLinks := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{})
+	if err := m.ReconcilePodLinks(context.Background(), podNoLinks); err != nil {
+		t.Fatalf("ReconcilePodLinks failed for pod without links: %v", err)
+	}
+}

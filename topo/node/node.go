@@ -766,7 +766,7 @@ func (n *Impl) BackToBackLoop() bool {
 }
 
 func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
-	var links []topologyv1.Link
+	links := []topologyv1.Link{}
 	for ifcName, ifc := range n.Interfaces {
 		if ifcName == "eth0" {
 			log.Infof("Found mgmt interface ignoring for Meshnet: %q", ifcName)

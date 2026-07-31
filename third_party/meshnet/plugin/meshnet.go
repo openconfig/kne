@@ -181,7 +181,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		Name:   string(cniArgs.K8S_POD_NAME),
 		KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
 	})
-	if err != nil {
+	if err != nil || localPod == nil {
 		log.Errorf("Add: Pod %s:%s was not a topology pod returning", string(cniArgs.K8S_POD_NAMESPACE), string(cniArgs.K8S_POD_NAME))
 		return types.PrintResult(result, n.CNIVersion)
 	}
