@@ -98,6 +98,14 @@ message WireCreateResponse {
   int64 peer_intf_id = 2;
 }
 
+message WireDefBatch {
+  repeated WireDef items = 1;
+}
+
+message WireCreateResponseBatch {
+  repeated WireCreateResponse items = 1;
+}
+
 message WireDownResponse {
   bool response = 1;
 }
@@ -146,6 +154,7 @@ service Local {
 service Remote {
   rpc Update (RemotePod) returns (BoolResponse);
   rpc AddGRPCWireRemote(WireDef) returns (WireCreateResponse);
+  rpc AddGRPCWiresRemoteBatch(WireDefBatch) returns (WireCreateResponseBatch);
   rpc GRPCWireDownRemote(WireDef) returns (WireDownResponse);
 }
 

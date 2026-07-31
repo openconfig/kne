@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync"
 
 	grpcwirev1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
@@ -99,22 +100,153 @@ func CreateWireStatus(wire *GRPCWire, nodeName string) *grpcwirev1.GWireStatus {
 
 }
 
+type wireStatusUpdate struct {
+	wire      *GRPCWire
+	nodeName  string
+	flushDone chan struct{}
+}
+
+var (
+	statusQueueChan = make(chan wireStatusUpdate, 10000)
+	statusQueueOnce sync.Once
+)
+
+func startStatusQueueWorker() {
+	statusQueueOnce.Do(func() {
+		go func() {
+			for {
+				first, ok := <-statusQueueChan
+				if !ok {
+					return
+				}
+
+				var flushSignal chan struct{}
+				var updates []wireStatusUpdate
+
+				if first.flushDone != nil {
+					flushSignal = first.flushDone
+				} else {
+					updates = append(updates, first)
+				}
+
+				drain := true
+				for drain && len(updates) < 200 {
+					select {
+					case u, ok := <-statusQueueChan:
+						if !ok {
+							drain = false
+						} else if u.flushDone != nil {
+							flushSignal = u.flushDone
+							drain = false
+						} else {
+							updates = append(updates, u)
+						}
+					default:
+						drain = false
+					}
+				}
+
+				if len(updates) > 0 {
+					if err := updateGRPCWireStatusBatch(context.Background(), updates); err != nil {
+						grpcOvrlyLogger.Warnf("K8sStatusWorker: failed to update batch of %d wire statuses: %v", len(updates), err)
+					}
+				}
+
+				if flushSignal != nil {
+					close(flushSignal)
+				}
+			}
+		}()
+	})
+}
+
+// FlushK8sStatusQueue blocks until all currently queued status updates have been processed by the worker.
+func FlushK8sStatusQueue() {
+	startStatusQueueWorker()
+	done := make(chan struct{})
+	statusQueueChan <- wireStatusUpdate{flushDone: done}
+	<-done
+}
+
+func updateGRPCWireStatusBatch(ctx context.Context, updates []wireStatusUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	nodeName := updates[0].nodeName
+	topoNs := updates[0].wire.TopoNamespace
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		wStatusFirst := CreateWireStatus(updates[0].wire, nodeName)
+		wObjsOnNd, err := gWClient.GetWireObjGrpUS(ctx, wStatusFirst)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				err = CreateGWireStatInDS(ctx, wStatusFirst)
+				if err != nil {
+					return err
+				}
+				wObjsOnNd, err = gWClient.GetWireObjGrpUS(ctx, wStatusFirst)
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
+
+		gwireItems, found, err := unstructured.NestedSlice(wObjsOnNd.Object, kStatus, kGrpcWireItems)
+		if err != nil || !found || gwireItems == nil {
+			gwireItems = []interface{}{}
+		}
+
+		existingMap := make(map[string]int)
+		for i, item := range gwireItems {
+			if m, ok := item.(map[string]interface{}); ok {
+				key := fmt.Sprintf("%v@%v", m["local_pod_name"], m["local_pod_iface_name"])
+				existingMap[key] = i
+			}
+		}
+
+		for _, u := range updates {
+			ws := CreateWireStatus(u.wire, u.nodeName)
+			unstrucObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ws)
+			if err != nil {
+				continue
+			}
+
+			key := fmt.Sprintf("%v@%v", ws.LocalPodName, ws.LocalPodIfaceName)
+			if idx, exists := existingMap[key]; exists {
+				gwireItems[idx] = unstrucObj
+			} else {
+				gwireItems = append(gwireItems, unstrucObj)
+				existingMap[key] = len(gwireItems) - 1
+			}
+		}
+
+		if err := unstructured.SetNestedField(wObjsOnNd.Object, gwireItems, kStatus, kGrpcWireItems); err != nil {
+			return err
+		}
+
+		_, err = gWClient.UpdateWireObj(ctx, topoNs, wObjsOnNd)
+		return err
+	})
+}
+
 // -----------------------------------------------------------------------------------------------------------
 // K8sStoreGWire writes grpc wire info 'wire' for a specific topology namespace (wire.TopoNamespace) into k8s
 // data-store for the current node. It calls updateGRPCWireStatus() to serve the purpose
 func (wire *GRPCWire) K8sStoreGWire() error {
+	startStatusQueueWorker()
 	nodeName, err := findNodeName()
 	if err != nil {
 		grpcOvrlyLogger.Errorf("K8sStoreGWire: could not get node name: %v", err)
 		return err
 	}
 
-	ctx := context.Background()
-	ws := CreateWireStatus(wire, nodeName)
-	err = updateGRPCWireStatus(ctx, ws)
-
-	if err != nil {
-		grpcOvrlyLogger.Errorf("K8sStoreGWire: Failed to set status for node %s: %v", nodeName, err)
+	select {
+	case statusQueueChan <- wireStatusUpdate{wire: wire, nodeName: nodeName}:
+	default:
+		grpcOvrlyLogger.Warnf("K8sStoreGWire: status queue full, dropping async status update for %s@%s", wire.LocalPodName, wire.LocalPodIfaceName)
 	}
 	return nil
 }

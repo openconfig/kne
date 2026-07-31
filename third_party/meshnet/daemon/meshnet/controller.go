@@ -126,6 +126,13 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 	}
 
 	peerCache := make(map[string]*unstructured.Unstructured)
+	type grpcPeerBatch struct {
+		peerIP   string
+		links    []wireutil.PodLinkConfig
+		wireDefs []*mpb.WireDef
+	}
+	grpcBatches := make(map[string]*grpcPeerBatch)
+
 	sameNodeLinks := make([]wireutil.PodLinkConfig, 0, len(links))
 	for _, link := range links {
 		peerTopo, ok := peerCache[link.PeerPodName]
@@ -189,16 +196,13 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 					return fmt.Errorf("local wire not found for link UID %d", link.LinkUID)
 				}
 
-				// 2. Dial remote daemon and trigger remote end creation
-				url := fmt.Sprintf("%s:%d", peerSrcIP, wireutil.GRPCDefaultPort)
-				url = strings.TrimSpace(url)
-				remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
-				if err != nil {
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to dial remote node %s: %v", url, err)
-					return err
+				pBatch := grpcBatches[peerSrcIP]
+				if pBatch == nil {
+					pBatch = &grpcPeerBatch{peerIP: peerSrcIP}
+					grpcBatches[peerSrcIP] = pBatch
 				}
-
-				wireDefRemote := &mpb.WireDef{
+				pBatch.links = append(pBatch.links, link)
+				pBatch.wireDefs = append(pBatch.wireDefs, &mpb.WireDef{
 					WireIfIdOnPeerNode: locWire.LocalNodeIfaceID,
 					PeerNodeIp:         srcIP,
 					IntfNameInPod:      link.PeerIntf,
@@ -207,20 +211,7 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 					LinkUid:            link.LinkUID,
 					TopoNs:             link.KubeNs,
 					LocalPodIp:         link.PeerIP,
-				}
-
-				remoteClient := mpb.NewRemoteClient(remoteConn)
-				mnetdLogger.Infof("ReconcilePodLinks: calling remote node AddGRPCWireRemote (%s) for link UID %d", url, link.LinkUID)
-				creatResp, err := remoteClient.AddGRPCWireRemote(ctx, wireDefRemote)
-				if err != nil || !creatResp.Response {
-					remoteConn.Close()
-					mnetdLogger.Errorf("ReconcilePodLinks: remote AddGRPCWireRemote failed: %v", err)
-					return fmt.Errorf("remote AddGRPCWireRemote failed: %v", err)
-				}
-				remoteConn.Close()
-
-				// 3. Update local end with the peer's host interface ID returned by Node 2
-				grpcwire.UpdateWireByUID(netNS, int(link.LinkUID), creatResp.PeerIntfId, make(chan struct{}))
+				})
 			} else {
 				remotePod := &mpb.RemotePod{
 					NetNs:    netNS,
@@ -236,6 +227,34 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 					mnetdLogger.Errorf("ReconcilePodLinks: failed to create VXLAN for pod %s: %v", topo.GetName(), err)
 					return err
 				}
+			}
+		}
+	}
+
+	// 2. Process gRPC peer batches with a single batch RPC per remote peer node
+	for peerIP, pBatch := range grpcBatches {
+		url := fmt.Sprintf("%s:%d", peerIP, wireutil.GRPCDefaultPort)
+		url = strings.TrimSpace(url)
+		remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			mnetdLogger.Errorf("ReconcilePodLinks: failed to dial remote node %s: %v", url, err)
+			return err
+		}
+
+		mnetdLogger.Infof("ReconcilePodLinks: calling AddGRPCWiresRemoteBatch on %s for %d links", url, len(pBatch.wireDefs))
+		remoteClient := mpb.NewRemoteClient(remoteConn)
+		batchResp, err := remoteClient.AddGRPCWiresRemoteBatch(ctx, &mpb.WireDefBatch{Items: pBatch.wireDefs})
+		remoteConn.Close()
+
+		if err != nil {
+			mnetdLogger.Errorf("ReconcilePodLinks: AddGRPCWiresRemoteBatch failed to %s: %v", url, err)
+			return fmt.Errorf("AddGRPCWiresRemoteBatch failed: %v", err)
+		}
+
+		for i, res := range batchResp.Items {
+			if res != nil && res.Response {
+				l := pBatch.links[i]
+				grpcwire.UpdateWireByUID(netNS, int(l.LinkUID), res.PeerIntfId, make(chan struct{}))
 			}
 		}
 	}
