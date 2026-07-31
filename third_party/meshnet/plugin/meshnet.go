@@ -215,16 +215,16 @@ func cmdAdd(args *skel.CmdArgs) error {
 		defer ticker.Stop()
 
 		for {
-			allReady := true
+			allAreReady := true
 			for _, link := range localPod.Links {
 				// Check if interface exists in container netns
 				_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 					if _, err := netlink.LinkByName(link.LocalIntf); err != nil {
-						allReady = false
+						allAreReady = false
 					}
 					return nil
 				})
-				if !allReady {
+				if !allAreReady {
 					break
 				}
 
@@ -235,12 +235,12 @@ func cmdAdd(args *skel.CmdArgs) error {
 				}
 				resp, err := meshnetClient.GRPCWireExists(waitCtx, wireDef)
 				if err != nil || !resp.Response {
-					allReady = false
+					allAreReady = false
 					break
 				}
 			}
 
-			if allReady {
+			if allAreReady {
 				log.Infof("Add[%s]: All %d interfaces and gRPC wires are ready", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
 				break
 			}
