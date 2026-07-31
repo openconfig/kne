@@ -3,22 +3,17 @@
 package grpcwire
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/openconfig/gnmi/errlist"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
-	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 )
 
 var grpcOvrlyLogger *log.Entry = nil
@@ -317,55 +312,25 @@ func GenNodeIfaceName(podName string, podIfaceName string) (string, error) {
 	return ifaceName, nil
 }
 
+type packetSender interface {
+	Send(pkt *mpb.Packet) bool
+}
+
 // RecvFrmLocalPodThread reads packets from the local TAP interface and forwards them over the gRPC stream.
 func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
-	defaultPort := wireutil.GRPCDefaultPort
-	url := strings.TrimSpace(fmt.Sprintf("%s:%d", wire.PeerNodeIP, defaultPort))
-
 	tapFile, err := GetHostIntfHndl(wire.LocalNodeIfaceID)
 	if err != nil {
 		grpcOvrlyLogger.Errorf("[Packet Receive thread] For pod %s failed to retrieve TAP handle for interface %s/%d. error: %v", wire.LocalPodName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, err)
 		return err
 	}
 
-	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithInitialWindowSize(4 * 1024 * 1024),     // 4MB stream window
-		grpc.WithInitialConnWindowSize(16 * 1024 * 1024), // 16MB connection window
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(64*1024*1024),
-			grpc.MaxCallSendMsgSize(64*1024*1024),
-		),
-	}
+	nodeStream := streamMgr.GetOrCreateStream(wire.TopoNamespace, wire.PeerNodeIP)
+	defer streamMgr.ReleaseStream(wire.TopoNamespace, wire.PeerNodeIP)
 
-	remote, err := grpc.Dial(url, dialOpts...)
-	if err != nil {
-		grpcOvrlyLogger.Infof("RecvFrmLocalPodThread:Failed to connect to remote %s/%d", url, wire.LocalNodeIfaceID)
-		return err
-	}
-	defer remote.Close()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	wireClient := mpb.NewWireProtocolClient(remote)
-	return forwardPackets(ctx, tapFile, wireClient, wire, locIfNm)
+	return forwardPackets(tapFile, nodeStream, wire, locIfNm)
 }
 
-func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WireProtocolClient, wire *GRPCWire, locIfNm string) error {
-	var stream mpb.WireProtocol_SendToStreamClient
-	getStream := func() (mpb.WireProtocol_SendToStreamClient, error) {
-		if stream != nil {
-			return stream, nil
-		}
-		st, err := wireClient.SendToStream(ctx)
-		if err != nil {
-			return nil, err
-		}
-		stream = st
-		return stream, nil
-	}
-
+func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIfNm string) error {
 	type readResult struct {
 		buf *[]byte
 		n   int
@@ -388,9 +353,6 @@ func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WirePr
 		case <-wire.StopC:
 			grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: closing connection with remote peer-iface@peer-node-ip: %d@%s/%d from %s@%s",
 				wire.WireIfaceIDOnPeerNode, wire.PeerNodeIP, wire.LocalNodeIfaceID, wire.LocalPodName, wire.LocalPodIfaceName)
-			if stream != nil {
-				_, _ = stream.CloseAndRecv()
-			}
 			return io.EOF
 		case res := <-readChan:
 			bufPtr := res.buf
@@ -437,16 +399,8 @@ func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WirePr
 				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", n, pktType)
 			}
 
-			st, err := getStream()
-			if err != nil {
-				packetPool.Put(bufPtr)
-				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not get stream for %s@%s: %v", wire.LocalPodName, wire.LocalNodeIfaceName, err)
-				continue
-			}
-
-			if err := st.Send(payload); err != nil {
-				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not send packet over stream %s@%s: %v", wire.LocalPodName, wire.LocalNodeIfaceName, err)
-				stream = nil // reset stream for reconnect on next packet
+			if !sender.Send(payload) {
+				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not queue packet over stream %s@%s (queue full)", wire.LocalPodName, wire.LocalNodeIfaceName)
 			}
 			packetPool.Put(bufPtr)
 		}

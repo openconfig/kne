@@ -2,7 +2,6 @@ package grpcwire
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io"
 	"sync"
@@ -10,52 +9,25 @@ import (
 	"time"
 
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
-	"google.golang.org/grpc"
 )
 
-type mockWireProtocolClient struct {
-	mpb.UnimplementedWireProtocolServer
+type mockPacketSender struct {
 	mu             sync.Mutex
 	receivedFrames [][]byte
 	sendDelay      time.Duration
 }
 
-func (m *mockWireProtocolClient) SendToOnce(ctx context.Context, in *mpb.Packet, opts ...grpc.CallOption) (*mpb.BoolResponse, error) {
+func (m *mockPacketSender) Send(pkt *mpb.Packet) bool {
 	if m.sendDelay > 0 {
 		time.Sleep(m.sendDelay)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	// Copy frame to verify exact payload received
-	frameCopy := make([]byte, len(in.Frame))
-	copy(frameCopy, in.Frame)
+	frameCopy := make([]byte, len(pkt.Frame))
+	copy(frameCopy, pkt.Frame)
 	m.receivedFrames = append(m.receivedFrames, frameCopy)
-	return &mpb.BoolResponse{Response: true}, nil
-}
-
-type mockStreamClient struct {
-	grpc.ClientStream
-	mockClient *mockWireProtocolClient
-}
-
-func (s *mockStreamClient) Send(in *mpb.Packet) error {
-	if s.mockClient.sendDelay > 0 {
-		time.Sleep(s.mockClient.sendDelay)
-	}
-	s.mockClient.mu.Lock()
-	defer s.mockClient.mu.Unlock()
-	frameCopy := make([]byte, len(in.Frame))
-	copy(frameCopy, in.Frame)
-	s.mockClient.receivedFrames = append(s.mockClient.receivedFrames, frameCopy)
-	return nil
-}
-
-func (s *mockStreamClient) CloseAndRecv() (*mpb.BoolResponse, error) {
-	return &mpb.BoolResponse{Response: true}, nil
-}
-
-func (m *mockWireProtocolClient) SendToStream(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[mpb.Packet, mpb.BoolResponse], error) {
-	return &mockStreamClient{mockClient: m}, nil
+	return true
 }
 
 func TestForwardPackets_NoCorruption(t *testing.T) {
@@ -64,8 +36,8 @@ func TestForwardPackets_NoCorruption(t *testing.T) {
 	pr, pw := io.Pipe()
 	defer pr.Close()
 
-	mockClient := &mockWireProtocolClient{
-		// Simulate network latency so reader goroutine reads next packet while SendToOnce is busy
+	mockSender := &mockPacketSender{
+		// Simulate network latency so reader goroutine reads next packet while Send is busy
 		sendDelay: 5 * time.Millisecond,
 	}
 
@@ -83,7 +55,7 @@ func TestForwardPackets_NoCorruption(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- forwardPackets(context.Background(), pr, mockClient, wire, "eth1-0001")
+		errCh <- forwardPackets(pr, mockSender, wire, "eth1-0001")
 	}()
 
 	numPackets := 50
@@ -108,9 +80,9 @@ func TestForwardPackets_NoCorruption(t *testing.T) {
 		t.Fatalf("forwardPackets failed with unexpected error: %v", err)
 	}
 
-	mockClient.mu.Lock()
-	received := mockClient.receivedFrames
-	mockClient.mu.Unlock()
+	mockSender.mu.Lock()
+	received := mockSender.receivedFrames
+	mockSender.mu.Unlock()
 
 	if len(received) != numPackets {
 		t.Fatalf("expected %d packets, got %d", numPackets, len(received))
