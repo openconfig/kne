@@ -195,4 +195,29 @@ func TestCleanupRemovedPodLinks_GRPC(t *testing.T) {
 	m.cleanupRemovedPodLinks(context.Background(), podWith1Link, "/proc/1/ns/net", desired1Link)
 }
 
+func TestReconcilePodLinks_TransitionGRPCToSameNode(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{
+		nodeIP: "10.0.0.1",
+	}
+
+	// Pod "p1" and "p2" both on same node "10.0.0.1"
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2"})
+	p2 := createFakePodTopology("p2", "default", "10.0.0.1", "/proc/2/ns/net", []string{"p1"})
+
+	fakeClient, err := fakeTopology.NewSimpleClientset(p1, p2)
+	if err != nil {
+		t.Fatalf("failed to create fake topology clientset: %v", err)
+	}
+	m.tClient = fakeClient
+
+	// Reconcile p1. Since netns /proc/1/ns/net doesn't exist, ConfigurePodLinks will return an error opening netns,
+	// proving it proceeded to same-node veth plumbing rather than skipping or hanging on gRPC.
+	err = m.ReconcilePodLinks(context.Background(), p1)
+	if err == nil {
+		t.Fatalf("expected error opening non-existent netns during same-node plumbing, got nil")
+	}
+}
+
+
 

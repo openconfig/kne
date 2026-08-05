@@ -226,10 +226,44 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 		}
 		if peerSrcIP == srcIP || (m.nodeIP == "" && srcIP == "") {
 			if peerNetNS != "" {
+				// Transition check: If moving from gRPC to same-node veth, clean up any existing gRPC wire
+				if wire, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID)); ok && wire != nil {
+					mnetdLogger.Infof("ReconcilePodLinks: link UID %d for pod %s moved to same node; tearing down old gRPC wire", link.LinkUID, topo.GetName())
+					_ = grpcwire.RemoveWireAcrosAll(wire, true)
+				}
+
+				// If an interface with link.LocalIntf exists in netNS but is not a veth link (e.g. old TAP or VXLAN), remove it
+				if podNs, err := ns.GetNS(netNS); err == nil {
+					_ = podNs.Do(func(_ ns.NetNS) error {
+						if l, err := netlink.LinkByName(link.LocalIntf); err == nil {
+							if l.Type() != "veth" {
+								mnetdLogger.Infof("ReconcilePodLinks: removing non-veth interface %s (%s) from netns %s before same-node veth plumbing", link.LocalIntf, l.Type(), netNS)
+								_ = netlink.LinkDel(l)
+							}
+						}
+						return nil
+					})
+					podNs.Close()
+				}
+
 				sameNodeLinks = append(sameNodeLinks, link)
 			}
 		} else if peerSrcIP != "" {
 			if m.interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
+				// Transition check: If moving from same-node veth or VXLAN to gRPC, clean up non-TAP interface in netNS
+				if podNs, err := ns.GetNS(netNS); err == nil {
+					_ = podNs.Do(func(_ ns.NetNS) error {
+						if l, err := netlink.LinkByName(link.LocalIntf); err == nil {
+							if l.Type() != "tuntap" {
+								mnetdLogger.Infof("ReconcilePodLinks: removing non-TAP interface %s (%s) from netns %s before gRPC wire plumbing", link.LocalIntf, l.Type(), netNS)
+								_ = netlink.LinkDel(l)
+							}
+						}
+						return nil
+					})
+					podNs.Close()
+				}
+
 				// Check if wire already exists, is ready, and points to the current peer node IP
 				if wire, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID)); ok && wire != nil && wire.IsReady && wire.PeerNodeIP == peerSrcIP {
 					mnetdLogger.Debugf("ReconcilePodLinks: gRPC wire already exists for link UID %d to peer %s (%s), skipping", link.LinkUID, link.PeerPodName, peerSrcIP)
