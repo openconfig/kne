@@ -174,3 +174,25 @@ func TestReconcilePodLinks_LowerPriorityPodInitiatesGRPC(t *testing.T) {
 	}
 }
 
+func TestCleanupRemovedPodLinks_GRPC(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{
+		nodeIP: "10.0.0.1",
+	}
+
+	// Pod "p1" initially had 2 links (UID 1 and UID 2)
+	podWith2Links := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2", "p3"})
+	desiredLinks, err := parsePodLinks(podWith2Links)
+	if err != nil || len(desiredLinks) != 2 {
+		t.Fatalf("failed to parse 2 links: %v", err)
+	}
+
+	// Now remove link UID 2 from spec.links (only UID 1 remains)
+	podWith1Link := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2"})
+	desired1Link, _ := parsePodLinks(podWith1Link)
+
+	// Call cleanupRemovedPodLinks with 1 link
+	m.cleanupRemovedPodLinks(context.Background(), podWith1Link, "/proc/1/ns/net", desired1Link)
+}
+
+

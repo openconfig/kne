@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/openconfig/kne/third_party/meshnet/daemon/grpcwire"
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 	"github.com/openconfig/kne/third_party/meshnet/daemon/vxlan"
@@ -108,6 +109,70 @@ func (m *Meshnet) ReconcilePodLinks(ctx context.Context, topo *unstructured.Unst
 	return nil
 }
 
+// cleanupRemovedPodLinks removes any gRPC wires and netns interfaces that belong to link UIDs
+// or interface names no longer present in desiredLinks for the active pod.
+func (m *Meshnet) cleanupRemovedPodLinks(ctx context.Context, topo *unstructured.Unstructured, netNS string, desiredLinks []wireutil.PodLinkConfig) {
+	if topo == nil || netNS == "" {
+		return
+	}
+
+	desiredUIDs := make(map[int64]bool)
+	desiredIntfs := make(map[string]bool)
+	for _, l := range desiredLinks {
+		desiredUIDs[l.LinkUID] = true
+		desiredIntfs[l.LocalIntf] = true
+	}
+
+	// 1. Clean up removed gRPC wires
+	existingWires, _ := grpcwire.GetWiresByPod(topo.GetNamespace(), topo.GetName())
+	for _, wire := range existingWires {
+		if wire == nil {
+			continue
+		}
+		if wire.LocalPodNetNS == netNS && !desiredUIDs[int64(wire.UID)] {
+			mnetdLogger.Infof("cleanupRemovedPodLinks: removing hot-deleted gRPC wire (UID %d, pod %s, intf %s)",
+				wire.UID, wire.LocalPodName, wire.LocalPodIfaceName)
+
+			if wire.PeerNodeIP != "" && wire.PeerNodeIP != m.nodeIP && wire.PeerNodeIP != "localhost" && wire.PeerNodeIP != "127.0.0.1" {
+				url := fmt.Sprintf("%s:%d", wire.PeerNodeIP, wireutil.GRPCDefaultPort)
+				url = strings.TrimSpace(url)
+				if remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
+					remoteClient := mpb.NewRemoteClient(remoteConn)
+					_, _ = remoteClient.GRPCWireDownRemote(ctx, &mpb.WireDef{
+						TopoNs:        wire.TopoNamespace,
+						LocalPodName:  wire.LocalPodName,
+						LocalPodNetNs: wire.LocalPodNetNS,
+						LinkUid:       int64(wire.UID),
+					})
+					remoteConn.Close()
+				}
+			}
+
+			_ = grpcwire.RemoveWireAcrosAll(wire, true)
+		}
+	}
+
+	// 2. Clean up removed interfaces inside container netns
+	if podNs, err := ns.GetNS(netNS); err == nil {
+		_ = podNs.Do(func(_ ns.NetNS) error {
+			if list, err := netlink.LinkList(); err == nil {
+				for _, l := range list {
+					name := l.Attrs().Name
+					if name == "lo" || name == "eth0" {
+						continue
+					}
+					if !desiredIntfs[name] {
+						mnetdLogger.Infof("cleanupRemovedPodLinks: removing hot-deleted interface %s from netns %s (pod %s)", name, netNS, topo.GetName())
+						_ = netlink.LinkDel(l)
+					}
+				}
+			}
+			return nil
+		})
+		podNs.Close()
+	}
+}
+
 // reconcilePodLinksInternal performs the actual network interface plumbing work.
 func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructured.Unstructured) error {
 	if topo == nil {
@@ -122,8 +187,14 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 	}
 
 	links, err := parsePodLinks(topo)
-	if err != nil || len(links) == 0 {
+	if err != nil {
 		return err
+	}
+
+	m.cleanupRemovedPodLinks(ctx, topo, netNS, links)
+
+	if len(links) == 0 {
+		return nil
 	}
 
 	peerCache := make(map[string]*unstructured.Unstructured)
