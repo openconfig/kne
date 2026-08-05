@@ -2,15 +2,14 @@ package grpcwire
 
 import (
 	"fmt"
+	"os"
 	"sync"
-
-	"github.com/google/gopacket/pcap"
 )
 
 type wireMap struct {
 	mu      sync.Mutex
 	wires   map[linkKey]*GRPCWire
-	handles map[int64]*pcap.Handle
+	handles map[int64]*os.File
 }
 
 func (w *wireMap) GetWire(namespace string, linkUID int) (*GRPCWire, bool) {
@@ -23,14 +22,14 @@ func (w *wireMap) GetWire(namespace string, linkUID int) (*GRPCWire, bool) {
 	return wire, ok
 }
 
-func (w *wireMap) GetHandle(key int64) (*pcap.Handle, bool) {
+func (w *wireMap) GetHandle(key int64) (*os.File, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	handle, ok := w.handles[key]
 	return handle, ok
 }
 
-func (w *wireMap) AddInMem(wire *GRPCWire, handle *pcap.Handle) error {
+func (w *wireMap) AddInMem(wire *GRPCWire, handle *os.File) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.wires[linkKey{
@@ -42,17 +41,16 @@ func (w *wireMap) AddInMem(wire *GRPCWire, handle *pcap.Handle) error {
 	return nil
 }
 
-func (w *wireMap) AddInMemNDataStore(wire *GRPCWire, handle *pcap.Handle) error {
+func (w *wireMap) AddInMemNDataStore(wire *GRPCWire, handle *os.File) error {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	w.wires[linkKey{
 		namespace: wire.LocalPodNetNS,
 		linkUID:   wire.UID,
 	}] = wire
-
-	wire.K8sStoreGWire()
-
 	w.handles[wire.LocalNodeIfaceID] = handle
+	w.mu.Unlock()
+
+	go wire.K8sStoreGWire()
 	return nil
 }
 
@@ -87,11 +85,8 @@ func (w *wireMap) DeleteWoLock(wire *GRPCWire) error {
  * trigger is received. This situation occurs when both the host triggers wire creation almost simultaneously.
  */
 var wires = &wireMap{
-	wires: map[linkKey]*GRPCWire{},
-	/* Used when a packet is received, then we know the id of the interface to which the packet to be delivered.
-	   This map take interface-id as key and returns the corresponding handle for delivering the packet.
-	   map[interface-id]->handle */
-	handles: map[int64]*pcap.Handle{},
+	wires:   map[linkKey]*GRPCWire{},
+	handles: map[int64]*os.File{},
 }
 
 // FindWiresByPod returns a list of wires matching the namespace and pod.
@@ -113,7 +108,6 @@ func GetWiresByPod(namespace string, podName string) ([]*GRPCWire, bool) {
 func ExtractOneWireByPod(namespace string, podName string) (*GRPCWire, bool) {
 	wires.mu.Lock()
 	defer wires.mu.Unlock()
-	//var rWires *GRPCWire
 
 	for _, wire := range wires.wires {
 		if wire.LocalPodName == podName && wire.TopoNamespace == namespace {
@@ -123,7 +117,7 @@ func ExtractOneWireByPod(namespace string, podName string) (*GRPCWire, bool) {
 				linkUID:   wire.UID,
 			})
 
-			// also clean up the pcap handle for the wire that is extracted from the wire-map
+			// also clean up the handle for the wire that is extracted from the wire-map
 			delete(wires.handles, wire.LocalNodeIfaceID)
 			return wire, true
 		}
@@ -131,7 +125,7 @@ func ExtractOneWireByPod(namespace string, podName string) (*GRPCWire, bool) {
 	return nil, true // no wire found is not a failure, so return true
 }
 
-func GetHostIntfHndl(intfID int64) (*pcap.Handle, error) {
+func GetHostIntfHndl(intfID int64) (*os.File, error) {
 
 	val, ok := wires.GetHandle(intfID)
 	if ok {

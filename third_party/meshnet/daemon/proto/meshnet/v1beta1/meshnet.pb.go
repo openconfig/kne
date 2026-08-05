@@ -643,6 +643,94 @@ func (x *WireCreateResponse) GetPeerIntfId() int64 {
 	return 0
 }
 
+type WireDefBatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*WireDef             `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WireDefBatch) Reset() {
+	*x = WireDefBatch{}
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WireDefBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WireDefBatch) ProtoMessage() {}
+
+func (x *WireDefBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WireDefBatch.ProtoReflect.Descriptor instead.
+func (*WireDefBatch) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *WireDefBatch) GetItems() []*WireDef {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type WireCreateResponseBatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*WireCreateResponse  `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WireCreateResponseBatch) Reset() {
+	*x = WireCreateResponseBatch{}
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WireCreateResponseBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WireCreateResponseBatch) ProtoMessage() {}
+
+func (x *WireCreateResponseBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WireCreateResponseBatch.ProtoReflect.Descriptor instead.
+func (*WireCreateResponseBatch) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WireCreateResponseBatch) GetItems() []*WireCreateResponse {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 type WireDownResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Response      bool                   `protobuf:"varint,1,opt,name=response,proto3" json:"response,omitempty"`
@@ -652,7 +740,7 @@ type WireDownResponse struct {
 
 func (x *WireDownResponse) Reset() {
 	*x = WireDownResponse{}
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[8]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -664,7 +752,7 @@ func (x *WireDownResponse) String() string {
 func (*WireDownResponse) ProtoMessage() {}
 
 func (x *WireDownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[8]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -677,7 +765,7 @@ func (x *WireDownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireDownResponse.ProtoReflect.Descriptor instead.
 func (*WireDownResponse) Descriptor() ([]byte, []int) {
-	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{8}
+	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *WireDownResponse) GetResponse() bool {
@@ -698,7 +786,7 @@ type Packet struct {
 
 func (x *Packet) Reset() {
 	*x = Packet{}
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[9]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +798,7 @@ func (x *Packet) String() string {
 func (*Packet) ProtoMessage() {}
 
 func (x *Packet) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[9]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +811,7 @@ func (x *Packet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Packet.ProtoReflect.Descriptor instead.
 func (*Packet) Descriptor() ([]byte, []int) {
-	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{9}
+	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Packet) GetRemotIntfId() int64 {
@@ -750,7 +838,7 @@ type GenerateNodeInterfaceNameRequest struct {
 
 func (x *GenerateNodeInterfaceNameRequest) Reset() {
 	*x = GenerateNodeInterfaceNameRequest{}
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[10]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -762,7 +850,7 @@ func (x *GenerateNodeInterfaceNameRequest) String() string {
 func (*GenerateNodeInterfaceNameRequest) ProtoMessage() {}
 
 func (x *GenerateNodeInterfaceNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[10]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -775,7 +863,7 @@ func (x *GenerateNodeInterfaceNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateNodeInterfaceNameRequest.ProtoReflect.Descriptor instead.
 func (*GenerateNodeInterfaceNameRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{10}
+	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GenerateNodeInterfaceNameRequest) GetPodIntfName() string {
@@ -802,7 +890,7 @@ type GenerateNodeInterfaceNameResponse struct {
 
 func (x *GenerateNodeInterfaceNameResponse) Reset() {
 	*x = GenerateNodeInterfaceNameResponse{}
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[11]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -814,7 +902,7 @@ func (x *GenerateNodeInterfaceNameResponse) String() string {
 func (*GenerateNodeInterfaceNameResponse) ProtoMessage() {}
 
 func (x *GenerateNodeInterfaceNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[11]
+	mi := &file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -827,7 +915,7 @@ func (x *GenerateNodeInterfaceNameResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GenerateNodeInterfaceNameResponse.ProtoReflect.Descriptor instead.
 func (*GenerateNodeInterfaceNameResponse) Descriptor() ([]byte, []int) {
-	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{11}
+	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GenerateNodeInterfaceNameResponse) GetOk() bool {
@@ -899,7 +987,11 @@ const file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDesc = "" +
 	"\x12WireCreateResponse\x12\x1a\n" +
 	"\bresponse\x18\x01 \x01(\bR\bresponse\x12 \n" +
 	"\fpeer_intf_id\x18\x02 \x01(\x03R\n" +
-	"peerIntfId\".\n" +
+	"peerIntfId\">\n" +
+	"\fWireDefBatch\x12.\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.meshnet.v1beta1.WireDefR\x05items\"T\n" +
+	"\x17WireCreateResponseBatch\x129\n" +
+	"\x05items\x18\x01 \x03(\v2#.meshnet.v1beta1.WireCreateResponseR\x05items\".\n" +
 	"\x10WireDownResponse\x12\x1a\n" +
 	"\bresponse\x18\x01 \x01(\bR\bresponse\"B\n" +
 	"\x06Packet\x12\"\n" +
@@ -920,10 +1012,11 @@ const file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDesc = "" +
 	"\x0eGRPCWireExists\x12\x18.meshnet.v1beta1.WireDef\x1a#.meshnet.v1beta1.WireCreateResponse\x12K\n" +
 	"\x10AddGRPCWireLocal\x12\x18.meshnet.v1beta1.WireDef\x1a\x1d.meshnet.v1beta1.BoolResponse\x12F\n" +
 	"\vRemGRPCWire\x12\x18.meshnet.v1beta1.WireDef\x1a\x1d.meshnet.v1beta1.BoolResponse\x12\x82\x01\n" +
-	"\x19GenerateNodeInterfaceName\x121.meshnet.v1beta1.GenerateNodeInterfaceNameRequest\x1a2.meshnet.v1beta1.GenerateNodeInterfaceNameResponse2\xf4\x01\n" +
+	"\x19GenerateNodeInterfaceName\x121.meshnet.v1beta1.GenerateNodeInterfaceNameRequest\x1a2.meshnet.v1beta1.GenerateNodeInterfaceNameResponse2\xd8\x02\n" +
 	"\x06Remote\x12C\n" +
 	"\x06Update\x12\x1a.meshnet.v1beta1.RemotePod\x1a\x1d.meshnet.v1beta1.BoolResponse\x12R\n" +
-	"\x11AddGRPCWireRemote\x12\x18.meshnet.v1beta1.WireDef\x1a#.meshnet.v1beta1.WireCreateResponse\x12Q\n" +
+	"\x11AddGRPCWireRemote\x12\x18.meshnet.v1beta1.WireDef\x1a#.meshnet.v1beta1.WireCreateResponse\x12b\n" +
+	"\x17AddGRPCWiresRemoteBatch\x12\x1d.meshnet.v1beta1.WireDefBatch\x1a(.meshnet.v1beta1.WireCreateResponseBatch\x12Q\n" +
 	"\x12GRPCWireDownRemote\x12\x18.meshnet.v1beta1.WireDef\x1a!.meshnet.v1beta1.WireDownResponse2\x9e\x01\n" +
 	"\fWireProtocol\x12D\n" +
 	"\n" +
@@ -942,7 +1035,7 @@ func file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescGZIP() []byte {
 	return file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDescData
 }
 
-var file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_daemon_proto_meshnet_v1beta1_meshnet_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_daemon_proto_meshnet_v1beta1_meshnet_proto_goTypes = []any{
 	(*Pod)(nil),                               // 0: meshnet.v1beta1.Pod
 	(*Link)(nil),                              // 1: meshnet.v1beta1.Link
@@ -952,46 +1045,52 @@ var file_daemon_proto_meshnet_v1beta1_meshnet_proto_goTypes = []any{
 	(*RemotePod)(nil),                         // 5: meshnet.v1beta1.RemotePod
 	(*WireDef)(nil),                           // 6: meshnet.v1beta1.WireDef
 	(*WireCreateResponse)(nil),                // 7: meshnet.v1beta1.WireCreateResponse
-	(*WireDownResponse)(nil),                  // 8: meshnet.v1beta1.WireDownResponse
-	(*Packet)(nil),                            // 9: meshnet.v1beta1.Packet
-	(*GenerateNodeInterfaceNameRequest)(nil),  // 10: meshnet.v1beta1.GenerateNodeInterfaceNameRequest
-	(*GenerateNodeInterfaceNameResponse)(nil), // 11: meshnet.v1beta1.GenerateNodeInterfaceNameResponse
+	(*WireDefBatch)(nil),                      // 8: meshnet.v1beta1.WireDefBatch
+	(*WireCreateResponseBatch)(nil),           // 9: meshnet.v1beta1.WireCreateResponseBatch
+	(*WireDownResponse)(nil),                  // 10: meshnet.v1beta1.WireDownResponse
+	(*Packet)(nil),                            // 11: meshnet.v1beta1.Packet
+	(*GenerateNodeInterfaceNameRequest)(nil),  // 12: meshnet.v1beta1.GenerateNodeInterfaceNameRequest
+	(*GenerateNodeInterfaceNameResponse)(nil), // 13: meshnet.v1beta1.GenerateNodeInterfaceNameResponse
 }
 var file_daemon_proto_meshnet_v1beta1_meshnet_proto_depIdxs = []int32{
 	1,  // 0: meshnet.v1beta1.Pod.links:type_name -> meshnet.v1beta1.Link
-	2,  // 1: meshnet.v1beta1.Local.Get:input_type -> meshnet.v1beta1.PodQuery
-	0,  // 2: meshnet.v1beta1.Local.SetAlive:input_type -> meshnet.v1beta1.Pod
-	3,  // 3: meshnet.v1beta1.Local.SkipReverse:input_type -> meshnet.v1beta1.SkipQuery
-	3,  // 4: meshnet.v1beta1.Local.Skip:input_type -> meshnet.v1beta1.SkipQuery
-	3,  // 5: meshnet.v1beta1.Local.IsSkipped:input_type -> meshnet.v1beta1.SkipQuery
-	6,  // 6: meshnet.v1beta1.Local.GRPCWireExists:input_type -> meshnet.v1beta1.WireDef
-	6,  // 7: meshnet.v1beta1.Local.AddGRPCWireLocal:input_type -> meshnet.v1beta1.WireDef
-	6,  // 8: meshnet.v1beta1.Local.RemGRPCWire:input_type -> meshnet.v1beta1.WireDef
-	10, // 9: meshnet.v1beta1.Local.GenerateNodeInterfaceName:input_type -> meshnet.v1beta1.GenerateNodeInterfaceNameRequest
-	5,  // 10: meshnet.v1beta1.Remote.Update:input_type -> meshnet.v1beta1.RemotePod
-	6,  // 11: meshnet.v1beta1.Remote.AddGRPCWireRemote:input_type -> meshnet.v1beta1.WireDef
-	6,  // 12: meshnet.v1beta1.Remote.GRPCWireDownRemote:input_type -> meshnet.v1beta1.WireDef
-	9,  // 13: meshnet.v1beta1.WireProtocol.SendToOnce:input_type -> meshnet.v1beta1.Packet
-	9,  // 14: meshnet.v1beta1.WireProtocol.SendToStream:input_type -> meshnet.v1beta1.Packet
-	0,  // 15: meshnet.v1beta1.Local.Get:output_type -> meshnet.v1beta1.Pod
-	4,  // 16: meshnet.v1beta1.Local.SetAlive:output_type -> meshnet.v1beta1.BoolResponse
-	4,  // 17: meshnet.v1beta1.Local.SkipReverse:output_type -> meshnet.v1beta1.BoolResponse
-	4,  // 18: meshnet.v1beta1.Local.Skip:output_type -> meshnet.v1beta1.BoolResponse
-	4,  // 19: meshnet.v1beta1.Local.IsSkipped:output_type -> meshnet.v1beta1.BoolResponse
-	7,  // 20: meshnet.v1beta1.Local.GRPCWireExists:output_type -> meshnet.v1beta1.WireCreateResponse
-	4,  // 21: meshnet.v1beta1.Local.AddGRPCWireLocal:output_type -> meshnet.v1beta1.BoolResponse
-	4,  // 22: meshnet.v1beta1.Local.RemGRPCWire:output_type -> meshnet.v1beta1.BoolResponse
-	11, // 23: meshnet.v1beta1.Local.GenerateNodeInterfaceName:output_type -> meshnet.v1beta1.GenerateNodeInterfaceNameResponse
-	4,  // 24: meshnet.v1beta1.Remote.Update:output_type -> meshnet.v1beta1.BoolResponse
-	7,  // 25: meshnet.v1beta1.Remote.AddGRPCWireRemote:output_type -> meshnet.v1beta1.WireCreateResponse
-	8,  // 26: meshnet.v1beta1.Remote.GRPCWireDownRemote:output_type -> meshnet.v1beta1.WireDownResponse
-	4,  // 27: meshnet.v1beta1.WireProtocol.SendToOnce:output_type -> meshnet.v1beta1.BoolResponse
-	4,  // 28: meshnet.v1beta1.WireProtocol.SendToStream:output_type -> meshnet.v1beta1.BoolResponse
-	15, // [15:29] is the sub-list for method output_type
-	1,  // [1:15] is the sub-list for method input_type
-	1,  // [1:1] is the sub-list for extension type_name
-	1,  // [1:1] is the sub-list for extension extendee
-	0,  // [0:1] is the sub-list for field type_name
+	6,  // 1: meshnet.v1beta1.WireDefBatch.items:type_name -> meshnet.v1beta1.WireDef
+	7,  // 2: meshnet.v1beta1.WireCreateResponseBatch.items:type_name -> meshnet.v1beta1.WireCreateResponse
+	2,  // 3: meshnet.v1beta1.Local.Get:input_type -> meshnet.v1beta1.PodQuery
+	0,  // 4: meshnet.v1beta1.Local.SetAlive:input_type -> meshnet.v1beta1.Pod
+	3,  // 5: meshnet.v1beta1.Local.SkipReverse:input_type -> meshnet.v1beta1.SkipQuery
+	3,  // 6: meshnet.v1beta1.Local.Skip:input_type -> meshnet.v1beta1.SkipQuery
+	3,  // 7: meshnet.v1beta1.Local.IsSkipped:input_type -> meshnet.v1beta1.SkipQuery
+	6,  // 8: meshnet.v1beta1.Local.GRPCWireExists:input_type -> meshnet.v1beta1.WireDef
+	6,  // 9: meshnet.v1beta1.Local.AddGRPCWireLocal:input_type -> meshnet.v1beta1.WireDef
+	6,  // 10: meshnet.v1beta1.Local.RemGRPCWire:input_type -> meshnet.v1beta1.WireDef
+	12, // 11: meshnet.v1beta1.Local.GenerateNodeInterfaceName:input_type -> meshnet.v1beta1.GenerateNodeInterfaceNameRequest
+	5,  // 12: meshnet.v1beta1.Remote.Update:input_type -> meshnet.v1beta1.RemotePod
+	6,  // 13: meshnet.v1beta1.Remote.AddGRPCWireRemote:input_type -> meshnet.v1beta1.WireDef
+	8,  // 14: meshnet.v1beta1.Remote.AddGRPCWiresRemoteBatch:input_type -> meshnet.v1beta1.WireDefBatch
+	6,  // 15: meshnet.v1beta1.Remote.GRPCWireDownRemote:input_type -> meshnet.v1beta1.WireDef
+	11, // 16: meshnet.v1beta1.WireProtocol.SendToOnce:input_type -> meshnet.v1beta1.Packet
+	11, // 17: meshnet.v1beta1.WireProtocol.SendToStream:input_type -> meshnet.v1beta1.Packet
+	0,  // 18: meshnet.v1beta1.Local.Get:output_type -> meshnet.v1beta1.Pod
+	4,  // 19: meshnet.v1beta1.Local.SetAlive:output_type -> meshnet.v1beta1.BoolResponse
+	4,  // 20: meshnet.v1beta1.Local.SkipReverse:output_type -> meshnet.v1beta1.BoolResponse
+	4,  // 21: meshnet.v1beta1.Local.Skip:output_type -> meshnet.v1beta1.BoolResponse
+	4,  // 22: meshnet.v1beta1.Local.IsSkipped:output_type -> meshnet.v1beta1.BoolResponse
+	7,  // 23: meshnet.v1beta1.Local.GRPCWireExists:output_type -> meshnet.v1beta1.WireCreateResponse
+	4,  // 24: meshnet.v1beta1.Local.AddGRPCWireLocal:output_type -> meshnet.v1beta1.BoolResponse
+	4,  // 25: meshnet.v1beta1.Local.RemGRPCWire:output_type -> meshnet.v1beta1.BoolResponse
+	13, // 26: meshnet.v1beta1.Local.GenerateNodeInterfaceName:output_type -> meshnet.v1beta1.GenerateNodeInterfaceNameResponse
+	4,  // 27: meshnet.v1beta1.Remote.Update:output_type -> meshnet.v1beta1.BoolResponse
+	7,  // 28: meshnet.v1beta1.Remote.AddGRPCWireRemote:output_type -> meshnet.v1beta1.WireCreateResponse
+	9,  // 29: meshnet.v1beta1.Remote.AddGRPCWiresRemoteBatch:output_type -> meshnet.v1beta1.WireCreateResponseBatch
+	10, // 30: meshnet.v1beta1.Remote.GRPCWireDownRemote:output_type -> meshnet.v1beta1.WireDownResponse
+	4,  // 31: meshnet.v1beta1.WireProtocol.SendToOnce:output_type -> meshnet.v1beta1.BoolResponse
+	4,  // 32: meshnet.v1beta1.WireProtocol.SendToStream:output_type -> meshnet.v1beta1.BoolResponse
+	18, // [18:33] is the sub-list for method output_type
+	3,  // [3:18] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_daemon_proto_meshnet_v1beta1_meshnet_proto_init() }
@@ -1005,7 +1104,7 @@ func file_daemon_proto_meshnet_v1beta1_meshnet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDesc), len(file_daemon_proto_meshnet_v1beta1_meshnet_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   3,
 		},
