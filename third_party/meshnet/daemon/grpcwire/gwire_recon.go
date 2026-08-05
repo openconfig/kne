@@ -3,13 +3,13 @@ package grpcwire
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"reflect"
+	"sync"
 
-	"github.com/google/gopacket/pcap"
 	grpcwirev1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +34,7 @@ const (
 	kGrpcWireItems = "grpcWireItems" // json name of GWireKItems of gwire_type, +++TBD: can we make it dynamic
 )
 
-// -----------------------------------------------------------------------------------------------------------
+// SetGWireClient initializes the dynamic K8s client for gRPC wire CRD management.
 func SetGWireClient(gClient *dynamic.DynamicClient) {
 	// identifier<group, version, resource> of grpc wire object in k8s apis
 	gWClient.gvr = schema.GroupVersionResource{
@@ -45,12 +45,12 @@ func SetGWireClient(gClient *dynamic.DynamicClient) {
 	gWClient.di = gClient.Resource(gWClient.gvr)
 }
 
-// -----------------------------------------------------------------------------------------------------------
+// SetGWireClientInterface sets the K8s dynamic resource interface (used for unit testing).
 func SetGWireClientInterface(gClient dynamic.NamespaceableResourceInterface) {
 	gWClient.di = gClient
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// GetWireObjListUS lists unstructured GWireKObj resources for a specified node.
 func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*unstructured.UnstructuredList, error) {
 	return gc.di.Namespace("").List(ctx, metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
@@ -62,19 +62,17 @@ func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*uns
 	})
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// CreatWireObj creates a new unstructured GWireKObj resource in K8s.
 func (gc GWireClient) CreatWireObj(ctx context.Context, nSpace string, uWbj map[string]interface{}) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(nSpace).Create(ctx, &unstructured.Unstructured{Object: uWbj}, metav1.CreateOptions{})
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// UpdateWireObj updates an existing unstructured GWireKObj resource in K8s.
 func (gc GWireClient) UpdateWireObj(ctx context.Context, nSpace string, wObjsOnNd *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(nSpace).Update(ctx, wObjsOnNd, metav1.UpdateOptions{})
-
 }
 
-//------------------------------------------------------------------------------------------------------------
-
+// GetWireObjGrpUS retrieves the GWireKObj for a given node and status.
 func (gc GWireClient) GetWireObjGrpUS(ctx context.Context, wStatus *grpcwirev1.GWireStatus) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(wStatus.TopoNamespace).Get(ctx, wStatus.LocalNodeName, metav1.GetOptions{})
 }
@@ -102,22 +100,153 @@ func CreateWireStatus(wire *GRPCWire, nodeName string) *grpcwirev1.GWireStatus {
 
 }
 
+type wireStatusUpdate struct {
+	wire      *GRPCWire
+	nodeName  string
+	flushDone chan struct{}
+}
+
+var (
+	statusQueueChan = make(chan wireStatusUpdate, 10000)
+	statusQueueOnce sync.Once
+)
+
+func startStatusQueueWorker() {
+	statusQueueOnce.Do(func() {
+		go func() {
+			for {
+				first, ok := <-statusQueueChan
+				if !ok {
+					return
+				}
+
+				var flushSignal chan struct{}
+				var updates []wireStatusUpdate
+
+				if first.flushDone != nil {
+					flushSignal = first.flushDone
+				} else {
+					updates = append(updates, first)
+				}
+
+				drain := true
+				for drain && len(updates) < 200 {
+					select {
+					case u, ok := <-statusQueueChan:
+						if !ok {
+							drain = false
+						} else if u.flushDone != nil {
+							flushSignal = u.flushDone
+							drain = false
+						} else {
+							updates = append(updates, u)
+						}
+					default:
+						drain = false
+					}
+				}
+
+				if len(updates) > 0 {
+					if err := updateGRPCWireStatusBatch(context.Background(), updates); err != nil {
+						grpcOvrlyLogger.Warnf("K8sStatusWorker: failed to update batch of %d wire statuses: %v", len(updates), err)
+					}
+				}
+
+				if flushSignal != nil {
+					close(flushSignal)
+				}
+			}
+		}()
+	})
+}
+
+// FlushK8sStatusQueue blocks until all currently queued status updates have been processed by the worker.
+func FlushK8sStatusQueue() {
+	startStatusQueueWorker()
+	done := make(chan struct{})
+	statusQueueChan <- wireStatusUpdate{flushDone: done}
+	<-done
+}
+
+func updateGRPCWireStatusBatch(ctx context.Context, updates []wireStatusUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	nodeName := updates[0].nodeName
+	topoNs := updates[0].wire.TopoNamespace
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		wStatusFirst := CreateWireStatus(updates[0].wire, nodeName)
+		wObjsOnNd, err := gWClient.GetWireObjGrpUS(ctx, wStatusFirst)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				err = CreateGWireStatInDS(ctx, wStatusFirst)
+				if err != nil {
+					return err
+				}
+				wObjsOnNd, err = gWClient.GetWireObjGrpUS(ctx, wStatusFirst)
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
+
+		gwireItems, found, err := unstructured.NestedSlice(wObjsOnNd.Object, kStatus, kGrpcWireItems)
+		if err != nil || !found || gwireItems == nil {
+			gwireItems = []interface{}{}
+		}
+
+		existingMap := make(map[string]int)
+		for i, item := range gwireItems {
+			if m, ok := item.(map[string]interface{}); ok {
+				key := fmt.Sprintf("%v@%v", m["local_pod_name"], m["local_pod_iface_name"])
+				existingMap[key] = i
+			}
+		}
+
+		for _, u := range updates {
+			ws := CreateWireStatus(u.wire, u.nodeName)
+			unstrucObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ws)
+			if err != nil {
+				continue
+			}
+
+			key := fmt.Sprintf("%v@%v", ws.LocalPodName, ws.LocalPodIfaceName)
+			if idx, exists := existingMap[key]; exists {
+				gwireItems[idx] = unstrucObj
+			} else {
+				gwireItems = append(gwireItems, unstrucObj)
+				existingMap[key] = len(gwireItems) - 1
+			}
+		}
+
+		if err := unstructured.SetNestedField(wObjsOnNd.Object, gwireItems, kStatus, kGrpcWireItems); err != nil {
+			return err
+		}
+
+		_, err = gWClient.UpdateWireObj(ctx, topoNs, wObjsOnNd)
+		return err
+	})
+}
+
 // -----------------------------------------------------------------------------------------------------------
 // K8sStoreGWire writes grpc wire info 'wire' for a specific topology namespace (wire.TopoNamespace) into k8s
 // data-store for the current node. It calls updateGRPCWireStatus() to serve the purpose
 func (wire *GRPCWire) K8sStoreGWire() error {
+	startStatusQueueWorker()
 	nodeName, err := findNodeName()
 	if err != nil {
 		grpcOvrlyLogger.Errorf("K8sStoreGWire: could not get node name: %v", err)
 		return err
 	}
 
-	ctx := context.Background()
-	ws := CreateWireStatus(wire, nodeName)
-	err = updateGRPCWireStatus(ctx, ws)
-
-	if err != nil {
-		grpcOvrlyLogger.Errorf("K8sStoreGWire: Failed to set status for node %s: %v", nodeName, err)
+	select {
+	case statusQueueChan <- wireStatusUpdate{wire: wire, nodeName: nodeName}:
+	default:
+		grpcOvrlyLogger.Warnf("K8sStoreGWire: status queue full, dropping async status update for %s@%s", wire.LocalPodName, wire.LocalPodIfaceName)
 	}
 	return nil
 }
@@ -422,24 +551,18 @@ func reCreateGWire(wStatus grpcwirev1.GWireStatus, _ context.Context) error {
 // -----------------------------------------------------------------------------------------------------------
 // Recreate the wire in-memory wire-map and start the pod to daemon packet receive thread for this wire.
 func reconLocalGRPCWire(wireDef *mpb.WireDef) error {
-	locInf, err := net.InterfaceByName(wireDef.WireIfNameOnLocalNode)
+	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
-		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END]For pod %s failed to retrieve interface ID for interface %v. error:%v", wireDef.LocalPodName, wireDef.WireIfNameOnLocalNode, err)
+		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END] For pod %s failed to create/attach TAP interface %s in netns %s: %v",
+			wireDef.LocalPodName, wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)
 		return err
 	}
-
-	//Using google gopacket for packet receive. An alternative could be using socket. Not sure it it provides any advantage over gopacket.
-	wrHandle, err := pcap.OpenLive(wireDef.WireIfNameOnLocalNode, 65365, true, pcap.BlockForever)
-	if err != nil {
-		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END]Could not open interface for send/recv packets for containers local iface id %d. error:%v", locInf.Index, err)
-		return err
-	}
-	aWire := CreateGWire(locInf.Index, wireDef.WireIfNameOnLocalNode, make(chan struct{}), wireDef)
+	wireID := NextIndex()
+	aWire := CreateGWire(int(wireID), wireDef.IntfNameInPod, make(chan struct{}), wireDef)
 	aWire.IsReady = true
 	// reconciling, so add only in memory
-	wires.AddInMem(aWire, wrHandle)
+	wires.AddInMem(aWire, tapFile)
 
-	// TODO: handle error here
 	go RecvFrmLocalPodThread(aWire, aWire.LocalNodeIfaceName)
 
 	return nil

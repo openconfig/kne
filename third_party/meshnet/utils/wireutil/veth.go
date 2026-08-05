@@ -173,6 +173,12 @@ func ConfigurePodLinks(podNsPath string, links []PodLinkConfig) error {
 				}
 			}
 
+			// Increase txqueuelen for high-throughput packet processing (configurable via LINK_TXQUEUELEN)
+			txqLen := GetLinkTxQLen()
+			if err := netlink.LinkSetTxQLen(link, txqLen); err != nil {
+				log.Warnf("ConfigurePodLinks: failed to set txqueuelen %d on %s inside %s: %v", txqLen, cfg.LocalIntf, podNsPath, err)
+			}
+
 			if err := netlink.LinkSetUp(link); err != nil {
 				return fmt.Errorf("failed to set %s UP inside %s: %w", cfg.LocalIntf, podNsPath, err)
 			}

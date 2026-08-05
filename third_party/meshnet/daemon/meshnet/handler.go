@@ -3,6 +3,7 @@ package meshnet
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
@@ -380,6 +381,14 @@ func (m *Meshnet) AddGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*
 
 // ------------------------------------------------------------------------------------------------------
 func (m *Meshnet) SendToOnce(ctx context.Context, pkt *mpb.Packet) (*mpb.BoolResponse, error) {
+	if pkt.RemotIntfId <= 0 {
+		log.WithFields(log.Fields{
+			"daemon":  "meshnetd",
+			"overlay": "gRPC",
+		}).Debugf("SendToOnce: received packet for uninitialized wire id %d, peer not ready yet", pkt.RemotIntfId)
+		return &mpb.BoolResponse{Response: false}, nil
+	}
+
 	wrHandle, err := grpcwire.GetHostIntfHndl(pkt.RemotIntfId)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -394,7 +403,7 @@ func (m *Meshnet) SendToOnce(ctx context.Context, pkt *mpb.Packet) (*mpb.BoolRes
 	// log.Printf("Daemon(SendToOnce): Received [pkt: %s, bytes: %d, for local interface id: %d]. Sending it to local container", pktType, len(pkt.Frame), pkt.RemotIntfId)
 	// log.Printf("Daemon(SendToOnce): Received [bytes: %d, for local interface id: %d]. Sending it to local container", len(pkt.Frame), pkt.RemotIntfId)
 
-	err = wrHandle.WritePacketData(pkt.Frame)
+	_, err = wrHandle.Write(pkt.Frame)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"daemon":  "meshnetd",
@@ -404,6 +413,39 @@ func (m *Meshnet) SendToOnce(ctx context.Context, pkt *mpb.Packet) (*mpb.BoolRes
 	}
 
 	return &mpb.BoolResponse{Response: true}, nil
+}
+
+// ------------------------------------------------------------------------------------------------------
+func (m *Meshnet) SendToStream(stream mpb.WireProtocol_SendToStreamServer) error {
+	for {
+		pkt, err := stream.Recv()
+		if err == io.EOF {
+			return stream.SendAndClose(&mpb.BoolResponse{Response: true})
+		}
+		if err != nil {
+			return err
+		}
+
+		if pkt.RemotIntfId <= 0 {
+			continue
+		}
+
+		wrHandle, err := grpcwire.GetHostIntfHndl(pkt.RemotIntfId)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Debugf("SendToStream (wire id - %v): Could not find local handle. err:%v", pkt.RemotIntfId, err)
+			continue
+		}
+
+		if _, err := wrHandle.Write(pkt.Frame); err != nil {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Errorf("SendToStream (wire id - %v): Could not write packet(%d bytes) to local interface. err:%v", pkt.RemotIntfId, len(pkt.Frame), err)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -424,6 +466,31 @@ func (m *Meshnet) AddGRPCWireRemote(ctx context.Context, wireDef *mpb.WireDef) (
 		"overlay": "gRPC",
 	}).Errorf("[ADD-WIRE:REMOTE-END] err: %v", err)
 	return &mpb.WireCreateResponse{Response: false, PeerIntfId: wireDef.WireIfIdOnPeerNode}, err
+}
+
+// AddGRPCWiresRemoteBatch handles batch creation of remote gRPC wires in a single RPC call.
+func (m *Meshnet) AddGRPCWiresRemoteBatch(ctx context.Context, req *mpb.WireDefBatch) (*mpb.WireCreateResponseBatch, error) {
+	if req == nil {
+		return &mpb.WireCreateResponseBatch{}, nil
+	}
+	resp := &mpb.WireCreateResponseBatch{
+		Items: make([]*mpb.WireCreateResponse, len(req.Items)),
+	}
+	for i, wireDef := range req.Items {
+		stopC := make(chan struct{})
+		wire, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Errorf("[ADD-WIRE:REMOTE-END-BATCH] Error creating wire %s@%s: %v", wireDef.LocalPodName, wireDef.IntfNameInPod, err)
+			resp.Items[i] = &mpb.WireCreateResponse{Response: false}
+			continue
+		}
+		go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		resp.Items[i] = &mpb.WireCreateResponse{Response: true, PeerIntfId: wire.LocalNodeIfaceID}
+	}
+	return resp, nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -447,10 +514,10 @@ func (m *Meshnet) GRPCWireDownRemote(ctx context.Context, wireDef *mpb.WireDef) 
 // GRPCWireExists will return the wire if it exists.
 func (m *Meshnet) GRPCWireExists(ctx context.Context, wireDef *mpb.WireDef) (*mpb.WireCreateResponse, error) {
 	wire, ok := grpcwire.GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
-	if !ok || wire == nil {
+	if !ok || wire == nil || !wire.IsReady || wire.WireIfaceIDOnPeerNode <= 0 {
 		return &mpb.WireCreateResponse{Response: false, PeerIntfId: wireDef.WireIfIdOnPeerNode}, nil
 	}
-	return &mpb.WireCreateResponse{Response: ok, PeerIntfId: wire.WireIfaceIDOnPeerNode}, nil
+	return &mpb.WireCreateResponse{Response: true, PeerIntfId: wire.WireIfaceIDOnPeerNode}, nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------

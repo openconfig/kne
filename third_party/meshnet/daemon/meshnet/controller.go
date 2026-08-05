@@ -3,16 +3,13 @@ package meshnet
 import (
 	"context"
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
-	"github.com/containernetworking/plugins/pkg/ns"
-	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 	"github.com/openconfig/kne/third_party/meshnet/daemon/grpcwire"
+	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 	"github.com/openconfig/kne/third_party/meshnet/daemon/vxlan"
 	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
-	koko "github.com/redhat-nfvpe/koko/api"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -129,6 +126,13 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 	}
 
 	peerCache := make(map[string]*unstructured.Unstructured)
+	type grpcPeerBatch struct {
+		peerIP   string
+		links    []wireutil.PodLinkConfig
+		wireDefs []*mpb.WireDef
+	}
+	grpcBatches := make(map[string]*grpcPeerBatch)
+
 	sameNodeLinks := make([]wireutil.PodLinkConfig, 0, len(links))
 	for _, link := range links {
 		peerTopo, ok := peerCache[link.PeerPodName]
@@ -171,87 +175,35 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 				mnetdLogger.Infof("ReconcilePodLinks: initiating gRPC wire for pod %s <-> peer %s (UID %d)",
 					topo.GetName(), link.PeerPodName, link.LinkUID)
 
-				// 1. Generate local host interface name
-				outIfNm, err := grpcwire.GenNodeIfaceName(topo.GetName(), link.LocalIntf)
-				if err != nil {
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to generate node interface name: %v", err)
-					return err
-				}
-
-				currNs, err := ns.GetCurrentNS()
-				if err != nil {
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to get current host ns: %v", err)
-					return err
-				}
-
-				// 2. Create VEth pair (pod namespace <-> host namespace)
-				inContainerVeth := koko.VEth{
-					NsName:   netNS,
-					LinkName: link.LocalIntf,
-				}
-				if link.LocalIP != "" {
-					ipAddr, ipSubnet, err := net.ParseCIDR(link.LocalIP)
-					if err != nil {
-						mnetdLogger.Errorf("ReconcilePodLinks: failed to parse local IP CIDR %s: %v", link.LocalIP, err)
-						return err
-					}
-					inContainerVeth.IPAddr = []net.IPNet{{
-						IP:   ipAddr,
-						Mask: ipSubnet.Mask,
-					}}
-				}
-
-				hostEndVeth := koko.VEth{
-					NsName:   currNs.Path(),
-					LinkName: outIfNm,
-				}
-
-				// Make Veth
-				if err := koko.MakeVeth(inContainerVeth, hostEndVeth); err != nil {
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to create local vEth pair (in:%s, out:%s) for gRPC wire: %v",
-						inContainerVeth.LinkName, hostEndVeth.LinkName, err)
-					return err
-				}
-
-				// Disable TX checksum
-				if err := wireutil.SetTxChecksumOff(inContainerVeth.LinkName, inContainerVeth.NsName); err != nil {
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to disable Tx checksum on %s: %v", inContainerVeth.LinkName, err)
-				}
-
-				// 3. Register local end in meshnet daemon (acts as CreateGRPCWireLocal)
+				// 1. Register local end in meshnet daemon (creates/attaches TAP interface in container netns)
 				wireDefLocal := &mpb.WireDef{
-					LocalPodNetNs:         netNS,
-					LinkUid:               link.LinkUID,
-					TopoNs:                link.KubeNs,
-					WireIfNameOnLocalNode: outIfNm,
-					LocalPodName:          topo.GetName(),
-					IntfNameInPod:         link.LocalIntf,
-					LocalPodIp:            link.LocalIP,
-					PeerNodeIp:            peerSrcIP,
+					LocalPodNetNs: netNS,
+					LinkUid:       link.LinkUID,
+					TopoNs:        link.KubeNs,
+					LocalPodName:  topo.GetName(),
+					IntfNameInPod: link.LocalIntf,
+					LocalPodIp:    link.LocalIP,
+					PeerNodeIp:    peerSrcIP,
 				}
 				if _, err := grpcwire.CreateGRPCWireLocal(ctx, wireDefLocal); err != nil {
 					mnetdLogger.Errorf("ReconcilePodLinks: failed to register local GRPC wire: %v", err)
 					return err
 				}
 
-				// 4. Dial remote daemon and trigger remote end creation
-				url := fmt.Sprintf("%s:%d", peerSrcIP, wireutil.GRPCDefaultPort)
-				url = strings.TrimSpace(url)
-				remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
-				if err != nil {
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to dial remote node %s: %v", url, err)
-					return err
+				locWire, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID))
+				if !ok || locWire == nil {
+					mnetdLogger.Errorf("ReconcilePodLinks: failed to get local wire for link UID %d", link.LinkUID)
+					return fmt.Errorf("local wire not found for link UID %d", link.LinkUID)
 				}
 
-				locInf, err := net.InterfaceByName(outIfNm)
-				if err != nil {
-					remoteConn.Close()
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to get local interface by name %s: %v", outIfNm, err)
-					return err
+				pBatch := grpcBatches[peerSrcIP]
+				if pBatch == nil {
+					pBatch = &grpcPeerBatch{peerIP: peerSrcIP}
+					grpcBatches[peerSrcIP] = pBatch
 				}
-
-				wireDefRemote := &mpb.WireDef{
-					WireIfIdOnPeerNode: int64(locInf.Index),
+				pBatch.links = append(pBatch.links, link)
+				pBatch.wireDefs = append(pBatch.wireDefs, &mpb.WireDef{
+					WireIfIdOnPeerNode: locWire.LocalNodeIfaceID,
 					PeerNodeIp:         srcIP,
 					IntfNameInPod:      link.PeerIntf,
 					LocalPodNetNs:      peerNetNS,
@@ -259,20 +211,7 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 					LinkUid:            link.LinkUID,
 					TopoNs:             link.KubeNs,
 					LocalPodIp:         link.PeerIP,
-				}
-
-				remoteClient := mpb.NewRemoteClient(remoteConn)
-				mnetdLogger.Infof("ReconcilePodLinks: calling remote node AddGRPCWireRemote (%s) for link UID %d", url, link.LinkUID)
-				creatResp, err := remoteClient.AddGRPCWireRemote(ctx, wireDefRemote)
-				if err != nil || !creatResp.Response {
-					remoteConn.Close()
-					mnetdLogger.Errorf("ReconcilePodLinks: remote AddGRPCWireRemote failed: %v", err)
-					return fmt.Errorf("remote AddGRPCWireRemote failed: %v", err)
-				}
-				remoteConn.Close()
-
-				// 5. Update local end with the peer's host interface ID returned by Node 2
-				grpcwire.UpdateWireByUID(netNS, int(link.LinkUID), creatResp.PeerIntfId, make(chan struct{}))
+				})
 			} else {
 				remotePod := &mpb.RemotePod{
 					NetNs:    netNS,
@@ -290,6 +229,49 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 				}
 			}
 		}
+	}
+
+	// 2. Process gRPC peer batches in chunks (default 50 items per RPC) to allow pipelined processing
+	batchSize := wireutil.GetEnvInt("WIRE_BATCH_SIZE", 50)
+
+	for peerIP, pBatch := range grpcBatches {
+		url := fmt.Sprintf("%s:%d", peerIP, wireutil.GRPCDefaultPort)
+		url = strings.TrimSpace(url)
+		remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			mnetdLogger.Errorf("ReconcilePodLinks: failed to dial remote node %s: %v", url, err)
+			return err
+		}
+
+		remoteClient := mpb.NewRemoteClient(remoteConn)
+		total := len(pBatch.wireDefs)
+
+		for i := 0; i < total; i += batchSize {
+			end := i + batchSize
+			if end > total {
+				end = total
+			}
+
+			chunkWireDefs := pBatch.wireDefs[i:end]
+			chunkLinks := pBatch.links[i:end]
+
+			mnetdLogger.Infof("ReconcilePodLinks: calling AddGRPCWiresRemoteBatch on %s for batch [%d:%d] of %d links", url, i, end, total)
+			batchResp, err := remoteClient.AddGRPCWiresRemoteBatch(ctx, &mpb.WireDefBatch{Items: chunkWireDefs})
+			if err != nil {
+				remoteConn.Close()
+				mnetdLogger.Errorf("ReconcilePodLinks: AddGRPCWiresRemoteBatch failed to %s for batch [%d:%d]: %v", url, i, end, err)
+				return fmt.Errorf("AddGRPCWiresRemoteBatch failed: %v", err)
+			}
+
+			for j, res := range batchResp.Items {
+				if res != nil && res.Response {
+					l := chunkLinks[j]
+					grpcwire.UpdateWireByUID(netNS, int(l.LinkUID), res.PeerIntfId, make(chan struct{}))
+				}
+			}
+		}
+
+		remoteConn.Close()
 	}
 
 	if len(sameNodeLinks) > 0 {

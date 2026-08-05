@@ -272,6 +272,7 @@ func TestK8sStoreGWire(t *testing.T) {
 			if err != nil {
 				t.Fatalf("could not add gwire status into k8s data-store")
 			}
+			FlushK8sStatusQueue()
 			storedWStatus = append(storedWStatus, *CreateWireStatus(tc.store, nodeName))
 			wObjsOnNd, err := cs.Namespace(tc.store.TopoNamespace).Get(context.Background(), nodeName, metav1.GetOptions{})
 			if err != nil {
