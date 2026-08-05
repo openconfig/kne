@@ -159,16 +159,8 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 			}
 		} else if peerSrcIP != "" {
 			if m.interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
-				// We only initiate gRPC wires from the higher priority pod node (lexicographically)
-				higherPrio := topo.GetName() > link.PeerPodName
-				if !higherPrio {
-					mnetdLogger.Debugf("ReconcilePodLinks: skipping gRPC wire initialization for link UID %d, expecting higher-priority peer %s to initiate",
-						link.LinkUID, link.PeerPodName)
-					continue
-				}
-
 				// Check if wire already exists and is ready
-				if _, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID)); ok {
+				if wire, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID)); ok && wire != nil && wire.IsReady {
 					mnetdLogger.Debugf("ReconcilePodLinks: gRPC wire already exists for link UID %d, skipping", link.LinkUID)
 					continue
 				}

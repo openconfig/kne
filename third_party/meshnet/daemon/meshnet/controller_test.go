@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	fakeTopology "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -146,3 +147,30 @@ func TestReconcilePodLinks_NoLinks(t *testing.T) {
 		t.Fatalf("ReconcilePodLinks failed for pod without links: %v", err)
 	}
 }
+
+func TestReconcilePodLinks_LowerPriorityPodInitiatesGRPC(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{
+		nodeIP:            "10.0.0.1",
+		interNodeLinkType: "GRPC",
+	}
+
+	// Lower priority pod "a_pod" connected to peer "z_pod" on remote node "10.0.0.2"
+	lowerPrioPod := createFakePodTopology("a_pod", "default", "10.0.0.1", "/proc/100/ns/net", []string{"z_pod"})
+	peerPod := createFakePodTopology("z_pod", "default", "10.0.0.2", "/proc/200/ns/net", []string{"a_pod"})
+
+	fakeClient, err := fakeTopology.NewSimpleClientset(lowerPrioPod, peerPod)
+	if err != nil {
+		t.Fatalf("failed to create fake topology clientset: %v", err)
+	}
+	m.tClient = fakeClient
+
+	// Reconcile lower priority pod "a_pod". It should attempt to reconcile without skipping due to lower priority.
+	// Since CreateGRPCWireLocal will attempt to open TAP device (which fails without root/TAP), we expect a TAP creation error,
+	// proving it attempted reconciliation rather than skipping.
+	err = m.ReconcilePodLinks(context.Background(), lowerPrioPod)
+	if err == nil {
+		t.Fatalf("expected error during TAP creation without root, but got nil (means it may have skipped)")
+	}
+}
+

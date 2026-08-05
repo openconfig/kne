@@ -32,6 +32,24 @@ func (w *wireMap) GetHandle(key int64) (*os.File, bool) {
 func (w *wireMap) AddInMem(wire *GRPCWire, handle *os.File) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	for key, oldWire := range w.wires {
+		if oldWire.TopoNamespace == wire.TopoNamespace &&
+			oldWire.LocalPodName == wire.LocalPodName &&
+			oldWire.UID == wire.UID &&
+			oldWire.LocalPodNetNS != wire.LocalPodNetNS {
+			if oldWire.IsReady {
+				close(oldWire.StopC)
+				oldWire.IsReady = false
+			}
+			if oldHandle, ok := w.handles[oldWire.LocalNodeIfaceID]; ok && oldHandle != nil {
+				_ = oldHandle.Close()
+				delete(w.handles, oldWire.LocalNodeIfaceID)
+			}
+			delete(w.wires, key)
+		}
+	}
+
 	w.wires[linkKey{
 		namespace: wire.LocalPodNetNS,
 		linkUID:   wire.UID,
