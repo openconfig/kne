@@ -3,13 +3,12 @@ package grpcwire
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"reflect"
 
-	"github.com/google/gopacket/pcap"
 	grpcwirev1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +33,7 @@ const (
 	kGrpcWireItems = "grpcWireItems" // json name of GWireKItems of gwire_type, +++TBD: can we make it dynamic
 )
 
-// -----------------------------------------------------------------------------------------------------------
+// SetGWireClient initializes the dynamic K8s client for gRPC wire CRD management.
 func SetGWireClient(gClient *dynamic.DynamicClient) {
 	// identifier<group, version, resource> of grpc wire object in k8s apis
 	gWClient.gvr = schema.GroupVersionResource{
@@ -45,12 +44,12 @@ func SetGWireClient(gClient *dynamic.DynamicClient) {
 	gWClient.di = gClient.Resource(gWClient.gvr)
 }
 
-// -----------------------------------------------------------------------------------------------------------
+// SetGWireClientInterface sets the K8s dynamic resource interface (used for unit testing).
 func SetGWireClientInterface(gClient dynamic.NamespaceableResourceInterface) {
 	gWClient.di = gClient
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// GetWireObjListUS lists unstructured GWireKObj resources for a specified node.
 func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*unstructured.UnstructuredList, error) {
 	return gc.di.Namespace("").List(ctx, metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
@@ -62,19 +61,17 @@ func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*uns
 	})
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// CreatWireObj creates a new unstructured GWireKObj resource in K8s.
 func (gc GWireClient) CreatWireObj(ctx context.Context, nSpace string, uWbj map[string]interface{}) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(nSpace).Create(ctx, &unstructured.Unstructured{Object: uWbj}, metav1.CreateOptions{})
 }
 
-// ------------------------------------------------------------------------------------------------------------
+// UpdateWireObj updates an existing unstructured GWireKObj resource in K8s.
 func (gc GWireClient) UpdateWireObj(ctx context.Context, nSpace string, wObjsOnNd *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(nSpace).Update(ctx, wObjsOnNd, metav1.UpdateOptions{})
-
 }
 
-//------------------------------------------------------------------------------------------------------------
-
+// GetWireObjGrpUS retrieves the GWireKObj for a given node and status.
 func (gc GWireClient) GetWireObjGrpUS(ctx context.Context, wStatus *grpcwirev1.GWireStatus) (*unstructured.Unstructured, error) {
 	return gc.di.Namespace(wStatus.TopoNamespace).Get(ctx, wStatus.LocalNodeName, metav1.GetOptions{})
 }
@@ -422,24 +419,18 @@ func reCreateGWire(wStatus grpcwirev1.GWireStatus, _ context.Context) error {
 // -----------------------------------------------------------------------------------------------------------
 // Recreate the wire in-memory wire-map and start the pod to daemon packet receive thread for this wire.
 func reconLocalGRPCWire(wireDef *mpb.WireDef) error {
-	locInf, err := net.InterfaceByName(wireDef.WireIfNameOnLocalNode)
+	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
-		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END]For pod %s failed to retrieve interface ID for interface %v. error:%v", wireDef.LocalPodName, wireDef.WireIfNameOnLocalNode, err)
+		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END] For pod %s failed to create/attach TAP interface %s in netns %s: %v",
+			wireDef.LocalPodName, wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)
 		return err
 	}
-
-	//Using google gopacket for packet receive. An alternative could be using socket. Not sure it it provides any advantage over gopacket.
-	wrHandle, err := pcap.OpenLive(wireDef.WireIfNameOnLocalNode, 65365, true, pcap.BlockForever)
-	if err != nil {
-		grpcOvrlyLogger.Errorf("[RECONCILE:LOCAL-END]Could not open interface for send/recv packets for containers local iface id %d. error:%v", locInf.Index, err)
-		return err
-	}
-	aWire := CreateGWire(locInf.Index, wireDef.WireIfNameOnLocalNode, make(chan struct{}), wireDef)
+	wireID := NextIndex()
+	aWire := CreateGWire(int(wireID), wireDef.IntfNameInPod, make(chan struct{}), wireDef)
 	aWire.IsReady = true
 	// reconciling, so add only in memory
-	wires.AddInMem(aWire, wrHandle)
+	wires.AddInMem(aWire, tapFile)
 
-	// TODO: handle error here
 	go RecvFrmLocalPodThread(aWire, aWire.LocalNodeIfaceName)
 
 	return nil
