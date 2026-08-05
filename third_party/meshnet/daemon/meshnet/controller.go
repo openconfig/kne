@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -21,6 +22,36 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 )
+
+// isNetNSValid returns true if the netns path exists on the host filesystem.
+func isNetNSValid(netNS string) bool {
+	if netNS == "" {
+		return false
+	}
+	_, err := os.Stat(netNS)
+	return err == nil
+}
+
+// clearPodAliveStatus removes status.src_ip, status.net_ns, status.container_id, and status.plumbing_error
+// from the Topology resource when a local pod container netns becomes invalid.
+func (m *Meshnet) clearPodAliveStatus(ctx context.Context, topo *unstructured.Unstructured) error {
+	if m.tClient == nil {
+		return nil
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latestTopo, err := m.tClient.Topology(topo.GetNamespace()).Unstructured(ctx, topo.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		unstructured.RemoveNestedField(latestTopo.Object, "status", "src_ip")
+		unstructured.RemoveNestedField(latestTopo.Object, "status", "net_ns")
+		unstructured.RemoveNestedField(latestTopo.Object, "status", "container_id")
+		unstructured.RemoveNestedField(latestTopo.Object, "status", "plumbing_error")
+
+		_, err = m.tClient.Topology(latestTopo.GetNamespace()).Update(ctx, latestTopo, metav1.UpdateOptions{})
+		return err
+	})
+}
 
 // toUnstructured converts any Kubernetes object into *unstructured.Unstructured.
 func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
@@ -178,6 +209,18 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 	if topo == nil {
 		return nil
 	}
+	srcIP, _, _ := unstructured.NestedString(topo.Object, "status", "src_ip")
+	currentNetNS, _, _ := unstructured.NestedString(topo.Object, "status", "net_ns")
+	if srcIP != "" && m.nodeIP != "" && srcIP == m.nodeIP {
+		if currentNetNS != "" && !isNetNSValid(currentNetNS) {
+			mnetdLogger.Warnf("ReconcilePodLinks: local pod %s has stale netns path %s; clearing active status", topo.GetName(), currentNetNS)
+			_ = m.CleanupPodLinks(ctx, topo)
+			_ = grpcwire.DeletePodWires(topo.GetNamespace(), topo.GetName())
+			_ = m.clearPodAliveStatus(ctx, topo)
+			return nil
+		}
+	}
+
 	srcIP, netNS, active := isPodActive(topo)
 	if !active {
 		return nil

@@ -408,7 +408,6 @@ func ReconGWires() error {
 	return nil
 }
 
-
 // -----------------------------------------------------------------------------------------------------------
 // CreateGWireStatInDS creates grpc wire unstructured object with gvr info populated in it.
 func CreateGWireStatInDS(ctx context.Context, wStatus *grpcwirev1.GWireStatus) error {

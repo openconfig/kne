@@ -16,7 +16,7 @@ import (
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 )
 
-var grpcOvrlyLogger *log.Entry = nil
+var grpcOvrlyLogger *log.Entry = log.WithFields(log.Fields{"daemon": "meshnetd", "overlay": "gRPC"})
 
 // InitLogger initializes logrus logging for the gRPC overlay daemon.
 func InitLogger() {

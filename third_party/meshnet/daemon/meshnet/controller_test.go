@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	fakeTopology "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -156,8 +157,8 @@ func TestReconcilePodLinks_LowerPriorityPodInitiatesGRPC(t *testing.T) {
 	}
 
 	// Lower priority pod "a_pod" connected to peer "z_pod" on remote node "10.0.0.2"
-	lowerPrioPod := createFakePodTopology("a_pod", "default", "10.0.0.1", "/proc/100/ns/net", []string{"z_pod"})
-	peerPod := createFakePodTopology("z_pod", "default", "10.0.0.2", "/proc/200/ns/net", []string{"a_pod"})
+	lowerPrioPod := createFakePodTopology("a_pod", "default", "10.0.0.1", "/proc/self/ns/net", []string{"z_pod"})
+	peerPod := createFakePodTopology("z_pod", "default", "10.0.0.2", "/proc/self/ns/net", []string{"a_pod"})
 
 	fakeClient, err := fakeTopology.NewSimpleClientset(lowerPrioPod, peerPod)
 	if err != nil {
@@ -181,18 +182,18 @@ func TestCleanupRemovedPodLinks_GRPC(t *testing.T) {
 	}
 
 	// Pod "p1" initially had 2 links (UID 1 and UID 2)
-	podWith2Links := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2", "p3"})
+	podWith2Links := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/self/ns/net", []string{"p2", "p3"})
 	desiredLinks, err := parsePodLinks(podWith2Links)
 	if err != nil || len(desiredLinks) != 2 {
 		t.Fatalf("failed to parse 2 links: %v", err)
 	}
 
 	// Now remove link UID 2 from spec.links (only UID 1 remains)
-	podWith1Link := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2"})
+	podWith1Link := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/self/ns/net", []string{"p2"})
 	desired1Link, _ := parsePodLinks(podWith1Link)
 
 	// Call cleanupRemovedPodLinks with 1 link
-	m.cleanupRemovedPodLinks(context.Background(), podWith1Link, "/proc/1/ns/net", desired1Link)
+	m.cleanupRemovedPodLinks(context.Background(), podWith1Link, "/proc/self/ns/net", desired1Link)
 }
 
 func TestReconcilePodLinks_TransitionGRPCToSameNode(t *testing.T) {
@@ -202,8 +203,8 @@ func TestReconcilePodLinks_TransitionGRPCToSameNode(t *testing.T) {
 	}
 
 	// Pod "p1" and "p2" both on same node "10.0.0.1"
-	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2"})
-	p2 := createFakePodTopology("p2", "default", "10.0.0.1", "/proc/2/ns/net", []string{"p1"})
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/self/ns/net", []string{"p2"})
+	p2 := createFakePodTopology("p2", "default", "10.0.0.1", "/proc/self/ns/net", []string{"p1"})
 
 	fakeClient, err := fakeTopology.NewSimpleClientset(p1, p2)
 	if err != nil {
@@ -218,6 +219,39 @@ func TestReconcilePodLinks_TransitionGRPCToSameNode(t *testing.T) {
 		t.Fatalf("expected error opening non-existent netns during same-node plumbing, got nil")
 	}
 }
+
+func TestReconcilePodLinks_StaleLocalNetNSClearsStatus(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{
+		nodeIP: "10.0.0.1",
+	}
+
+	// Local pod "p1" with a stale netns path "/nonexistent/netns/path"
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/nonexistent/netns/path", []string{"p2"})
+
+	fakeClient, err := fakeTopology.NewSimpleClientset(p1)
+	if err != nil {
+		t.Fatalf("failed to create fake topology clientset: %v", err)
+	}
+	m.tClient = fakeClient
+
+	// Reconcile p1. Since /nonexistent/netns/path does not exist, reconcilePodLinksInternal should clear alive status and return nil cleanly.
+	err = m.ReconcilePodLinks(context.Background(), p1)
+	if err != nil {
+		t.Fatalf("expected nil return when clearing stale netns status, got: %v", err)
+	}
+
+	// Verify status fields were cleared from fake K8s client
+	updatedP1, err := fakeClient.Topology("default").Unstructured(context.Background(), "p1", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to fetch updated topology p1: %v", err)
+	}
+	_, _, active := isPodActive(updatedP1)
+	if active {
+		t.Fatalf("expected active to be false for p1 after clearing stale netns, got true")
+	}
+}
+
 
 
 
