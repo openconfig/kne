@@ -53,6 +53,8 @@ const (
 )
 
 var (
+	validPathRegexp = regexp.MustCompile(`^[A-Za-z0-9._/:-]+$`)
+
 	defaultXRDConstraints = node.Constraints{
 		CPU:    "1000m", // 1000 milliCPUs
 		Memory: "2Gi",   // 2 GB RAM
@@ -277,7 +279,7 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 // DefaultNodeConstraints returns default node constraints for CISCO.
-// If the model for 8000e is specificied correctly it returns defaults for 8000e.
+// If the model for 8000e is specified correctly it returns defaults for 8000e.
 // Otherwise, it returns defaults for XRD by default.
 func (n *Node) DefaultNodeConstraints() node.Constraints {
 	if n.Impl == nil || n.Impl.Proto == nil {
@@ -292,7 +294,7 @@ func (n *Node) DefaultNodeConstraints() node.Constraints {
 	return defaultXRDConstraints
 }
 
-// validateHostConstraints - Validates host contraints through the default node's implementation. It skips the validation optionally
+// validateHostConstraints - Validates host constraints through the default node's implementation. It skips the validation optionally
 // based on skipValidation flag which is useful for unit tests
 func validateHostConstraints(n *Node, skipValidation bool) error {
 	if skipValidation {
@@ -663,6 +665,17 @@ func endTelnet(d *scraplinetwork.Driver) error {
 
 func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Infof("%s resetting config", n.Name())
+	var startupConfig string
+	if n.Proto.Model == ModelXRD {
+		startupConfig = n.Proto.Config.Env["XR_EVERY_BOOT_CONFIG"]
+		if startupConfig == "" {
+			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
+		}
+		if !validPathRegexp.MatchString(startupConfig) {
+			return status.Errorf(codes.InvalidArgument, "invalid XR_EVERY_BOOT_CONFIG %q: must match %s", startupConfig, validPathRegexp.String())
+		}
+	}
+
 	err := n.SpawnCLIConn()
 	if err != nil {
 		return err
@@ -673,13 +686,9 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 	if n.Proto.Model == ModelXRD {
 		// Copy the snooped management interface config from a know location and the startup config from
 		// the mounted location so it can be applied. This is required to preserve the snooped management
-		// IP addres and since the "copy" xr_cli command can only access files on disk 0/1.
-		startup_config := n.Proto.Config.Env["XR_EVERY_BOOT_CONFIG"]
-		if startup_config == "" {
-			return status.Errorf(codes.InvalidArgument, "XR_EVERY_BOOT_CONFIG is not set")
-		}
+		// IP address and since the "copy" xr_cli command can only access files on disk 0/1.
 		// Send an additional return command to make sure any error messages are read.
-		copyCfgCmd := "cat " + xrdInterfaceConfig + " " + startup_config + " > /disk0:/startup-config"
+		copyCfgCmd := "cat " + xrdInterfaceConfig + " " + startupConfig + " > /disk0:/startup-config"
 		resp, err := n.cliConn.SendCommands([]string{copyCfgCmd, ""})
 		if err != nil {
 			return err
@@ -757,7 +766,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 func (n *Node) GenerateSelfSigned(context.Context) error {
 	// IOS XR automatically generates a self-signed certificate when gRPC is first enabled.
 	// If the startup configuration contains a gRPC configuration, or if the user configures
-	// gRPC after bootup, the self-signed cert will automatically be created and used.
+	// gRPC after boot-up, the self-signed cert will automatically be created and used.
 	return status.Errorf(codes.Unimplemented, "certificate generation is not supported")
 }
 
