@@ -1,3 +1,4 @@
+// Package vxlan implements VXLAN overlay link creation and network interface management for meshnet daemon.
 package vxlan
 
 import (
@@ -16,6 +17,7 @@ import (
 
 var vxLanOvrlyLogger *log.Entry = nil
 
+// InitLogger initializes the logrus logger for the VXLAN overlay daemon.
 func InitLogger() {
 	vxLanOvrlyLogger = log.WithFields(log.Fields{"daemon": "meshnetd", "overlay": "vxLAN"})
 }

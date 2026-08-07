@@ -1,3 +1,5 @@
+// Package wireutil provides low-level network interface creation, TAP/veth management,
+// checksum offload tuning, and OS performance utilities for meshnet.
 package wireutil
 
 import (
@@ -34,6 +36,8 @@ const (
 	INTER_NODE_LINK_GRPC  = "GRPC"
 )
 
+// SetTxChecksumOff disables TX checksum and segmentation offloading on the specified interface
+// inside the target network namespace to prevent checksum corruption during packet forwarding.
 func SetTxChecksumOff(intfName, nsName string) error {
 	var vethNs ns.NetNS
 	var err error

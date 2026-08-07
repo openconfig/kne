@@ -380,6 +380,14 @@ func (m *Meshnet) AddGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*
 
 // ------------------------------------------------------------------------------------------------------
 func (m *Meshnet) SendToOnce(ctx context.Context, pkt *mpb.Packet) (*mpb.BoolResponse, error) {
+	if pkt.RemotIntfId <= 0 {
+		log.WithFields(log.Fields{
+			"daemon":  "meshnetd",
+			"overlay": "gRPC",
+		}).Debugf("SendToOnce: received packet for uninitialized wire id %d, peer not ready yet", pkt.RemotIntfId)
+		return &mpb.BoolResponse{Response: false}, nil
+	}
+
 	wrHandle, err := grpcwire.GetHostIntfHndl(pkt.RemotIntfId)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -394,7 +402,7 @@ func (m *Meshnet) SendToOnce(ctx context.Context, pkt *mpb.Packet) (*mpb.BoolRes
 	// log.Printf("Daemon(SendToOnce): Received [pkt: %s, bytes: %d, for local interface id: %d]. Sending it to local container", pktType, len(pkt.Frame), pkt.RemotIntfId)
 	// log.Printf("Daemon(SendToOnce): Received [bytes: %d, for local interface id: %d]. Sending it to local container", len(pkt.Frame), pkt.RemotIntfId)
 
-	err = wrHandle.WritePacketData(pkt.Frame)
+	_, err = wrHandle.Write(pkt.Frame)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"daemon":  "meshnetd",
@@ -447,10 +455,10 @@ func (m *Meshnet) GRPCWireDownRemote(ctx context.Context, wireDef *mpb.WireDef) 
 // GRPCWireExists will return the wire if it exists.
 func (m *Meshnet) GRPCWireExists(ctx context.Context, wireDef *mpb.WireDef) (*mpb.WireCreateResponse, error) {
 	wire, ok := grpcwire.GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
-	if !ok || wire == nil {
+	if !ok || wire == nil || !wire.IsReady || wire.WireIfaceIDOnPeerNode <= 0 {
 		return &mpb.WireCreateResponse{Response: false, PeerIntfId: wireDef.WireIfIdOnPeerNode}, nil
 	}
-	return &mpb.WireCreateResponse{Response: ok, PeerIntfId: wire.WireIfaceIDOnPeerNode}, nil
+	return &mpb.WireCreateResponse{Response: true, PeerIntfId: wire.WireIfaceIDOnPeerNode}, nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------
