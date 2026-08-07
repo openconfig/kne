@@ -1,8 +1,10 @@
 package wireutil
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"unsafe"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -48,7 +50,11 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 		}
 
 		// Make device persistent so it survives process crashes/restarts
-		_, _, _ = unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETPERSIST), 1)
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETPERSIST), 1)
+		if errno != 0 {
+			unix.Close(fd)
+			return fmt.Errorf("TUNSETPERSIST failed for %s in netns %s: %v", ifName, podNsPath, errno)
+		}
 
 		link, err := netlink.LinkByName(ifName)
 		if err != nil {
@@ -57,13 +63,21 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 		}
 
 		if err := netlink.LinkSetUp(link); err != nil {
-			log.Warnf("CreateOrAttachTAP: failed to set %s UP in netns %s: %v", ifName, podNsPath, err)
+			unix.Close(fd)
+			return fmt.Errorf("failed to set %s UP in netns %s: %w", ifName, podNsPath, err)
 		}
 
 		if ipCIDR != "" {
 			addr, err := netlink.ParseAddr(ipCIDR)
-			if err == nil {
-				_ = netlink.AddrAdd(link, addr)
+			if err != nil {
+				unix.Close(fd)
+				return fmt.Errorf("failed to parse CIDR %q for %s: %w", ipCIDR, ifName, err)
+			}
+			if err := netlink.AddrAdd(link, addr); err != nil {
+				if !os.IsExist(err) && !strings.Contains(err.Error(), "file exists") && !errors.Is(err, unix.EEXIST) {
+					unix.Close(fd)
+					return fmt.Errorf("failed to add IP %s to %s inside netns %s: %w", ipCIDR, ifName, podNsPath, err)
+				}
 			}
 		}
 
@@ -75,8 +89,11 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 		return nil, err
 	}
 
-	// Disable tx offload inside the netns (ignore error if non-fatal)
-	_ = SetTxChecksumOff(ifName, podNsPath)
+	// Disable tx offload inside the netns (log warning if non-fatal)
+	if err := SetTxChecksumOff(ifName, podNsPath); err != nil {
+		log.Warnf("CreateOrAttachTAP: failed to disable tx checksum on %s inside netns %s: %v", ifName, podNsPath, err)
+	}
 
 	return tapFile, nil
 }
+
