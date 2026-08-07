@@ -443,7 +443,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 								MatchExpressions: []metav1.LabelSelectorRequirement{{
 									Key:      "topo",
 									Operator: "In",
-									Values:   []string{pb.Name},
+									Values:   []string{n.Namespace},
 								}},
 							},
 							TopologyKey: "kubernetes.io/hostname",
