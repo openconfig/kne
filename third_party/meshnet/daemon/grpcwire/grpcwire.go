@@ -28,6 +28,17 @@ func InitLogger() {
 	grpcOvrlyLogger = log.WithFields(log.Fields{"daemon": "meshnetd", "overlay": "gRPC"})
 }
 
+var packetPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 65535)
+		return &b
+	},
+}
+
+func init() {
+	InitLogger()
+}
+
 type intfIndex struct {
 	mu     sync.Mutex
 	currId int64
@@ -308,7 +319,6 @@ func GenNodeIfaceName(podName string, podIfaceName string) (string, error) {
 
 // RecvFrmLocalPodThread reads packets from the local TAP interface and forwards them over the gRPC stream.
 func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
-
 	defaultPort := wireutil.GRPCDefaultPort
 	url := strings.TrimSpace(fmt.Sprintf("%s:%d", wire.PeerNodeIP, defaultPort))
 
@@ -329,17 +339,21 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 	defer cancel()
 
 	wireClient := mpb.NewWireProtocolClient(remote)
+	return forwardPackets(ctx, tapFile, wireClient, wire, locIfNm)
+}
 
-	buf := make([]byte, 65535)
+func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WireProtocolClient, wire *GRPCWire, locIfNm string) error {
 	type readResult struct {
+		buf *[]byte
 		n   int
 		err error
 	}
 	readChan := make(chan readResult, 1)
 	go func() {
 		for {
-			n, err := tapFile.Read(buf)
-			readChan <- readResult{n: n, err: err}
+			bufPtr := packetPool.Get().(*[]byte)
+			n, err := reader.Read(*bufPtr)
+			readChan <- readResult{buf: bufPtr, n: n, err: err}
 			if err != nil {
 				return
 			}
@@ -353,7 +367,11 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 				wire.WireIfaceIDOnPeerNode, wire.PeerNodeIP, wire.LocalNodeIfaceID, wire.LocalPodName, wire.LocalPodIfaceName)
 			return io.EOF
 		case res := <-readChan:
+			bufPtr := res.buf
 			if res.err != nil {
+				if bufPtr != nil {
+					packetPool.Put(bufPtr)
+				}
 				select {
 				case <-wire.StopC:
 					return io.EOF
@@ -364,11 +382,13 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 			}
 			n := res.n
 			if n <= 0 {
+				if bufPtr != nil {
+					packetPool.Put(bufPtr)
+				}
 				continue
 			}
 
-			frame := make([]byte, n)
-			copy(frame, buf[:n])
+			frame := (*bufPtr)[:n]
 
 			wire.mu.Lock()
 			isReady := wire.IsReady
@@ -377,6 +397,7 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 
 			if !isReady || peerIntfID <= 0 {
 				// Remote peer handshake is still in progress; skip sending to unassigned wire ID 0
+				packetPool.Put(bufPtr)
 				continue
 			}
 
@@ -391,6 +412,7 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 			}
 
 			ok, err := wireClient.SendToOnce(ctx, payload)
+			packetPool.Put(bufPtr)
 			if err != nil || !ok.Response {
 				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not deliver pkt %s@%s@%s. Peer not ready, remote iface id %d. err=%v",
 					wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, peerIntfID, err)
