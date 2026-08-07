@@ -228,15 +228,24 @@ func cmdAdd(args *skel.CmdArgs) error {
 					break
 				}
 
-				// For gRPC links, check if the gRPC wire is fully established on the daemon
-				wireDef := &mpb.WireDef{
-					LocalPodNetNs: args.Netns,
-					LinkUid:       link.Uid,
-				}
-				resp, err := meshnetClient.GRPCWireExists(waitCtx, wireDef)
-				if err != nil || !resp.Response {
-					allAreReady = false
-					break
+				// For inter-node gRPC links, check if the gRPC wire is fully established on the daemon
+				if interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
+					peerPod, err := meshnetClient.Get(ctx, &mpb.PodQuery{
+						Name:   link.PeerPod,
+						KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
+					})
+					// Only check gRPC wire readiness if peer is on a different node
+					if err == nil && peerPod != nil && peerPod.SrcIp != "" && peerPod.SrcIp != localPod.SrcIp {
+						wireDef := &mpb.WireDef{
+							LocalPodNetNs: args.Netns,
+							LinkUid:       link.Uid,
+						}
+						resp, err := meshnetClient.GRPCWireExists(waitCtx, wireDef)
+						if err != nil || !resp.Response {
+							allAreReady = false
+							break
+						}
+					}
 				}
 			}
 
