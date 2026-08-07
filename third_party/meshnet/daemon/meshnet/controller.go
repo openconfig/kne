@@ -220,7 +220,7 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 				remoteConn.Close()
 
 				// 3. Update local end with the peer's host interface ID returned by Node 2
-				grpcwire.UpdateWireByUID(netNS, int(link.LinkUID), creatResp.PeerIntfId, make(chan struct{}))
+				grpcwire.UpdateWireByUID(netNS, int(link.LinkUID), creatResp.PeerIntfId, nil)
 			} else {
 				remotePod := &mpb.RemotePod{
 					NetNs:    netNS,

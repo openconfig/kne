@@ -99,7 +99,9 @@ type linkKey struct {
 
 // CreateGWire constructs a new GRPCWire struct from the provided wire definition.
 func CreateGWire(locIfIndex int, locIfNm string, stopC chan struct{}, wireDef *mpb.WireDef) *GRPCWire {
-
+	if stopC == nil {
+		stopC = make(chan struct{})
+	}
 	return &GRPCWire{
 		UID: int(wireDef.LinkUid),
 
@@ -123,11 +125,17 @@ func CreateGWire(locIfIndex int, locIfNm string, stopC chan struct{}, wireDef *m
 
 }
 
-// update the ware with the given input and mark the wire ready
+// update the wire with the given input and mark the wire ready
 func (wire *GRPCWire) UpdateWire(peerIntfId int64, stopC chan struct{}) {
 	wire.mu.Lock()
 	defer wire.mu.Unlock()
-	wire.StopC = stopC
+	if wire.StopC == nil {
+		if stopC != nil {
+			wire.StopC = stopC
+		} else {
+			wire.StopC = make(chan struct{})
+		}
+	}
 	if !wire.IsReady {
 		wire.WireIfaceIDOnPeerNode = peerIntfId
 	}
@@ -151,13 +159,21 @@ func GetWireByUID(namespace string, linkUID int) (*GRPCWire, bool) {
 // Returns true if a wire exists, also the wire structure that got modified
 func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan struct{}) (*GRPCWire, bool) {
 	wires.mu.Lock()
-	defer wires.mu.Unlock()
 	wire, ok := wires.wires[linkKey{
 		namespace: namespace,
 		linkUID:   linkUID,
 	}]
+	wires.mu.Unlock()
 	if ok {
-		wire.StopC = stopC
+		wire.mu.Lock()
+		defer wire.mu.Unlock()
+		if wire.StopC == nil {
+			if stopC != nil {
+				wire.StopC = stopC
+			} else {
+				wire.StopC = make(chan struct{})
+			}
+		}
 		if !wire.IsReady {
 			wire.WireIfaceIDOnPeerNode = peerIntfId
 		}
@@ -169,19 +185,23 @@ func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan
 // WireDownByUID - stops packet collection from the connected pod
 func WireDownByUID(namespace string, linkUID int) error {
 	wires.mu.Lock()
-	defer wires.mu.Unlock()
-
 	wire, ok := wires.wires[linkKey{
 		namespace: namespace,
 		linkUID:   linkUID,
 	}]
+	wires.mu.Unlock()
+
 	if ok {
+		wire.mu.Lock()
+		defer wire.mu.Unlock()
 		grpcOvrlyLogger.Infof("WireDownByUID: Making wire down from db, %s@%s-%s@%d, peer fid %d, link uid %d",
 			wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, wire.WireIfaceIDOnPeerNode, linkUID)
 		if wire.IsReady {
-			close(wire.StopC)
+			if wire.StopC != nil {
+				close(wire.StopC)
+			}
+			wire.IsReady = false
 		}
-		wire.IsReady = false
 	} else {
 		grpcOvrlyLogger.Infof("WireDownByUID: Did not find entry to make down from db, uid %d, ns %s",
 			linkUID, namespace)
@@ -242,10 +262,14 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 	}
 
 	// stop the packet receive thread for this pod
+	wire.mu.Lock()
 	if wire.IsReady {
-		close(wire.StopC)
+		if wire.StopC != nil {
+			close(wire.StopC)
+		}
+		wire.IsReady = false
 	}
-	wire.IsReady = false
+	wire.mu.Unlock()
 
 	// Close the TAP file handle if open
 	if handle, ok := wires.GetHandle(wire.LocalNodeIfaceID); ok && handle != nil {
@@ -346,13 +370,18 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 			frame := make([]byte, n)
 			copy(frame, buf[:n])
 
-			if !wire.IsReady || wire.WireIfaceIDOnPeerNode <= 0 {
+			wire.mu.Lock()
+			isReady := wire.IsReady
+			peerIntfID := wire.WireIfaceIDOnPeerNode
+			wire.mu.Unlock()
+
+			if !isReady || peerIntfID <= 0 {
 				// Remote peer handshake is still in progress; skip sending to unassigned wire ID 0
 				continue
 			}
 
 			payload := &mpb.Packet{
-				RemotIntfId: wire.WireIfaceIDOnPeerNode,
+				RemotIntfId: peerIntfID,
 				Frame:       frame,
 			}
 
@@ -364,7 +393,7 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 			ok, err := wireClient.SendToOnce(ctx, payload)
 			if err != nil || !ok.Response {
 				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not deliver pkt %s@%s@%s. Peer not ready, remote iface id %d. err=%v",
-					wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, wire.WireIfaceIDOnPeerNode, err)
+					wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, peerIntfID, err)
 			}
 		}
 	}
