@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -171,7 +172,7 @@ func (n *Node) SpawnCLIConn() error {
 }
 
 // DefaultNodeConstraints returns default node constraints for Juniper.
-// If the model for cptx is specificied correctly it returns defaults for cptx.
+// If the model for cptx is specified correctly it returns defaults for cptx.
 // Otherwise, it returns defaults for ncptx by default.
 func (n *Node) DefaultNodeConstraints() node.Constraints {
 	if n.Impl == nil || n.Impl.Proto == nil {
@@ -252,14 +253,21 @@ func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
 	return fmt.Errorf("failed sending configs")
 }
 
+// validCertNameRegexp defines the allowed characters in a certificate name.
+var validCertNameRegexp = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
 // Waits and retries until Cert infra is up and certs are applied
 func (n *Node) waitCertInfraReadyAndPushCert() error {
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
+	certName := selfSigned.GetCertName()
+	if !validCertNameRegexp.MatchString(certName) {
+		return fmt.Errorf("invalid cert name %q: must match %s", certName, validCertNameRegexp.String())
+	}
 	commands := []string{
-		fmt.Sprintf("request security pki generate-key-pair certificate-id %s", selfSigned.GetCertName()),
+		fmt.Sprintf("request security pki generate-key-pair certificate-id %s", certName),
 		fmt.Sprintf("request security pki local-certificate generate-self-signed certificate-id %s "+
 			"subject CN=abc domain-name google.com ip-address 1.2.3.4 email example@google.com",
-			selfSigned.GetCertName()),
+			certName),
 	}
 
 	log.Infof("Waiting for certificates to be pushed (timeout: %v) node %s", certGenTimeout, n.Name())
@@ -293,6 +301,10 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	if selfSigned == nil {
 		log.Infof("%s - no cert config", n.Name())
 		return nil
+	}
+	certName := selfSigned.GetCertName()
+	if !validCertNameRegexp.MatchString(certName) {
+		return fmt.Errorf("invalid cert name %q: must match %s", certName, validCertNameRegexp.String())
 	}
 	log.Infof("%s - generating self signed certs", n.Name())
 	log.Infof("%s - waiting for pod to be running", n.Name())
