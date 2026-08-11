@@ -3,6 +3,7 @@ package meshnet
 import (
 	"context"
 	"testing"
+	"time"
 
 	fakeTopology "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -249,6 +250,167 @@ func TestReconcilePodLinks_StaleLocalNetNSClearsStatus(t *testing.T) {
 	_, _, active := isPodActive(updatedP1)
 	if active {
 		t.Fatalf("expected active to be false for p1 after clearing stale netns, got true")
+	}
+}
+
+func TestTopologyCache_PutGetListDelete(t *testing.T) {
+	cache := NewTopologyCache()
+
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2"})
+	p2 := createFakePodTopology("p2", "default", "10.0.0.2", "/proc/2/ns/net", []string{"p1"})
+	p3 := createFakePodTopology("p3", "other-ns", "10.0.0.3", "/proc/3/ns/net", []string{"p4"})
+
+	cache.Put(p1)
+	cache.Put(p2)
+	cache.Put(p3)
+
+	// Get tests
+	if got := cache.Get("default", "p1"); got == nil || got.GetName() != "p1" {
+		t.Fatalf("expected p1 in cache, got %+v", got)
+	}
+	if got := cache.Get("default", "nonexistent"); got != nil {
+		t.Fatalf("expected nil for nonexistent pod, got %+v", got)
+	}
+
+	// List tests
+	defaultList := cache.List("default")
+	if len(defaultList) != 2 {
+		t.Fatalf("expected 2 topologies in default namespace, got %d", len(defaultList))
+	}
+	allList := cache.List("")
+	if len(allList) != 3 {
+		t.Fatalf("expected 3 topologies across all namespaces, got %d", len(allList))
+	}
+
+	// Delete test
+	cache.Delete("default", "p1")
+	if got := cache.Get("default", "p1"); got != nil {
+		t.Fatalf("expected nil after delete, got %+v", got)
+	}
+	if len(cache.List("default")) != 1 {
+		t.Fatalf("expected 1 topology remaining in default namespace, got %d", len(cache.List("default")))
+	}
+}
+
+func TestTopologyCache_DependencyTracking(t *testing.T) {
+	cache := NewTopologyCache()
+
+	// p1 links to p2 and p3
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2", "p3"})
+	// p4 also links to p2
+	p4 := createFakePodTopology("p4", "default", "10.0.0.4", "/proc/4/ns/net", []string{"p2"})
+
+	cache.Put(p1)
+	cache.Put(p4)
+
+	// Check dependents for p2: should be p1 and p4
+	depsP2 := cache.GetDependents("default", "p2")
+	if len(depsP2) != 2 {
+		t.Fatalf("expected 2 dependents for p2, got %d: %+v", len(depsP2), depsP2)
+	}
+
+	// Check dependents for p3: should be only p1
+	depsP3 := cache.GetDependents("default", "p3")
+	if len(depsP3) != 1 || depsP3[0] != "default/p1" {
+		t.Fatalf("expected [default/p1] for p3, got %+v", depsP3)
+	}
+
+	// Now delete p1: dependents for p2 should now only be p4, and p3 should have none
+	cache.Delete("default", "p1")
+	depsP2After := cache.GetDependents("default", "p2")
+	if len(depsP2After) != 1 || depsP2After[0] != "default/p4" {
+		t.Fatalf("expected [default/p4] for p2 after p1 deletion, got %+v", depsP2After)
+	}
+	depsP3After := cache.GetDependents("default", "p3")
+	if len(depsP3After) != 0 {
+		t.Fatalf("expected 0 dependents for p3 after p1 deletion, got %+v", depsP3After)
+	}
+}
+
+func TestReconcileQueue_DebounceAndDrain(t *testing.T) {
+	rq := NewReconcileQueue(20 * time.Millisecond)
+
+	// Enqueue multiple pod keys in rapid succession
+	rq.Enqueue("default/p1")
+	rq.Enqueue("default/p2")
+	rq.Enqueue("default/p1") // duplicate
+	rq.Enqueue("default/p3")
+
+	// Wait for debounce notification
+	select {
+	case <-rq.notifyChan:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatalf("timed out waiting for reconcile queue notifyChan")
+	}
+
+	isFull, keys := rq.Drain()
+	if isFull {
+		t.Fatalf("expected isFull=false for targeted enqueue, got true")
+	}
+	if len(keys) != 3 {
+		t.Fatalf("expected 3 unique keys, got %d: %+v", len(keys), keys)
+	}
+
+	// Test EnqueueFull
+	rq.EnqueueFull()
+	select {
+	case <-rq.notifyChan:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatalf("timed out waiting for reconcile queue notifyChan on full reconcile")
+	}
+
+	isFull, _ = rq.Drain()
+	if !isFull {
+		t.Fatalf("expected isFull=true after EnqueueFull, got false")
+	}
+}
+
+func TestTargetedReconciliation_PeerRestartQueuesDependents(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{
+		nodeIP:         "10.0.0.1",
+		topoCache:      NewTopologyCache(),
+		reconcileQueue: NewReconcileQueue(10 * time.Millisecond),
+	}
+
+	// Local pod "p1" on node 10.0.0.1 links to remote peer "p2" on node 10.0.0.2
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/self/ns/net", []string{"p2"})
+	// Unrelated local pod "p3" on node 10.0.0.1 links to "p4" on node 10.0.0.3
+	p3 := createFakePodTopology("p3", "default", "10.0.0.1", "/proc/self/ns/net", []string{"p4"})
+
+	m.topoCache.Put(p1)
+	m.topoCache.Put(p3)
+
+	// Remote peer "p2" restarts and updates its status
+	p2Updated := createFakePodTopology("p2", "default", "10.0.0.2", "/proc/999/ns/net", []string{"p1"})
+	m.topoCache.Put(p2Updated)
+
+	// When p2 event arrives, controller queries dependents
+	dependents := m.topoCache.GetDependents("default", "p2")
+	for _, depKey := range dependents {
+		depNS, depName := parseKey(depKey)
+		depTopo := m.topoCache.Get(depNS, depName)
+		if depTopo != nil {
+			depSrcIP, _, depActive := isPodActive(depTopo)
+			if depActive && (m.nodeIP == "" || depSrcIP == m.nodeIP) {
+				m.enqueueReconcile(depKey)
+			}
+		}
+	}
+
+	// Wait for debounce notification
+	select {
+	case <-m.reconcileQueue.notifyChan:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatalf("timed out waiting for reconcile queue notification")
+	}
+
+	isFull, keys := m.reconcileQueue.Drain()
+	if isFull {
+		t.Fatalf("expected targeted reconcile, got full")
+	}
+	if len(keys) != 1 || keys[0] != "default/p1" {
+		t.Fatalf("expected only dependent local pod default/p1 to be queued, got %+v", keys)
 	}
 }
 

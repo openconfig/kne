@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -49,6 +50,9 @@ func (m *Meshnet) clearPodAliveStatus(ctx context.Context, topo *unstructured.Un
 		unstructured.RemoveNestedField(latestTopo.Object, "status", "plumbing_error")
 
 		_, err = m.tClient.Topology(latestTopo.GetNamespace()).Update(ctx, latestTopo, metav1.UpdateOptions{})
+		if err == nil && m.topoCache != nil {
+			m.topoCache.Put(latestTopo)
+		}
 		return err
 	})
 }
@@ -463,24 +467,262 @@ func (m *Meshnet) CleanupPodLinks(ctx context.Context, topo *unstructured.Unstru
 	return nil
 }
 
+// TopologyCache provides a thread-safe in-memory cache of Kubernetes Topology CRs
+// and maintains an inverted dependency map (peerPod -> []localPods) for targeted reconciliation.
+type TopologyCache struct {
+	mu       sync.RWMutex
+	topos    map[string]*unstructured.Unstructured // key: "namespace/name"
+	peerDeps map[string]map[string]bool            // key: "namespace/peerPodName" -> set of "namespace/dependentPodName"
+}
+
+// NewTopologyCache creates a new empty TopologyCache instance.
+func NewTopologyCache() *TopologyCache {
+	return &TopologyCache{
+		topos:    make(map[string]*unstructured.Unstructured),
+		peerDeps: make(map[string]map[string]bool),
+	}
+}
+
+// Put updates or inserts a Topology resource into the cache and indexes its link dependencies.
+func (c *TopologyCache) Put(topo *unstructured.Unstructured) {
+	if c == nil || topo == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ns := topo.GetNamespace()
+	name := topo.GetName()
+	key := fmt.Sprintf("%s/%s", ns, name)
+
+	// Remove old peer dependencies registered by this pod if already in cache
+	if oldTopo, exists := c.topos[key]; exists {
+		oldLinks, _ := parsePodLinks(oldTopo)
+		for _, l := range oldLinks {
+			oldPeerKey := fmt.Sprintf("%s/%s", l.KubeNs, l.PeerPodName)
+			if deps, ok := c.peerDeps[oldPeerKey]; ok {
+				delete(deps, key)
+				if len(deps) == 0 {
+					delete(c.peerDeps, oldPeerKey)
+				}
+			}
+		}
+	}
+
+	c.topos[key] = topo
+
+	// Index new peer dependencies
+	links, _ := parsePodLinks(topo)
+	for _, l := range links {
+		peerKey := fmt.Sprintf("%s/%s", l.KubeNs, l.PeerPodName)
+		if c.peerDeps[peerKey] == nil {
+			c.peerDeps[peerKey] = make(map[string]bool)
+		}
+		c.peerDeps[peerKey][key] = true
+	}
+}
+
+// Delete removes a Topology resource from the cache and cleans up its link dependencies.
+func (c *TopologyCache) Delete(ns, name string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	key := fmt.Sprintf("%s/%s", ns, name)
+	if oldTopo, exists := c.topos[key]; exists {
+		oldLinks, _ := parsePodLinks(oldTopo)
+		for _, l := range oldLinks {
+			oldPeerKey := fmt.Sprintf("%s/%s", l.KubeNs, l.PeerPodName)
+			if deps, ok := c.peerDeps[oldPeerKey]; ok {
+				delete(deps, key)
+				if len(deps) == 0 {
+					delete(c.peerDeps, oldPeerKey)
+				}
+			}
+		}
+		delete(c.topos, key)
+	}
+}
+
+// Get retrieves a Topology resource by namespace and name from the cache.
+func (c *TopologyCache) Get(ns, name string) *unstructured.Unstructured {
+	if c == nil {
+		return nil
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.topos[fmt.Sprintf("%s/%s", ns, name)]
+}
+
+// List returns all cached Topology resources matching the given namespace (or all if namespace is empty or metav1.NamespaceAll).
+func (c *TopologyCache) List(ns string) []*unstructured.Unstructured {
+	if c == nil {
+		return nil
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	res := make([]*unstructured.Unstructured, 0, len(c.topos))
+	for _, topo := range c.topos {
+		if ns == "" || ns == metav1.NamespaceAll || topo.GetNamespace() == ns {
+			res = append(res, topo)
+		}
+	}
+	return res
+}
+
+// GetDependents returns all pod keys ("namespace/name") that declare links pointing to the given pod.
+func (c *TopologyCache) GetDependents(ns, name string) []string {
+	if c == nil {
+		return nil
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	key := fmt.Sprintf("%s/%s", ns, name)
+	deps := c.peerDeps[key]
+	if len(deps) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(deps))
+	for depKey := range deps {
+		result = append(result, depKey)
+	}
+	return result
+}
+
+// ReconcileQueue coalesces and debounces reconciliation requests for individual pods
+// or full cluster sync passes.
+type ReconcileQueue struct {
+	mu          sync.Mutex
+	pending     map[string]bool
+	fullPending bool
+	notifyChan  chan struct{}
+	debounceDur time.Duration
+	timer       *time.Timer
+}
+
+// NewReconcileQueue creates a new ReconcileQueue with the specified debounce duration.
+func NewReconcileQueue(debounceDur time.Duration) *ReconcileQueue {
+	if debounceDur <= 0 {
+		debounceDur = 50 * time.Millisecond
+	}
+	return &ReconcileQueue{
+		pending:     make(map[string]bool),
+		notifyChan:  make(chan struct{}, 1),
+		debounceDur: debounceDur,
+	}
+}
+
+// Enqueue adds a pod key ("namespace/name") to the pending reconciliation set and arms the debounce timer.
+func (rq *ReconcileQueue) Enqueue(key string) {
+	if rq == nil {
+		return
+	}
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+
+	rq.pending[key] = true
+	if rq.timer == nil {
+		rq.timer = time.AfterFunc(rq.debounceDur, func() {
+			select {
+			case rq.notifyChan <- struct{}{}:
+			default:
+			}
+		})
+	}
+}
+
+// EnqueueFull requests a full cluster reconciliation pass and arms the debounce timer.
+func (rq *ReconcileQueue) EnqueueFull() {
+	if rq == nil {
+		return
+	}
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+
+	rq.fullPending = true
+	if rq.timer == nil {
+		rq.timer = time.AfterFunc(rq.debounceDur, func() {
+			select {
+			case rq.notifyChan <- struct{}{}:
+			default:
+			}
+		})
+	}
+}
+
+// Drain clears and returns the currently queued reconciliation tasks.
+func (rq *ReconcileQueue) Drain() (bool, []string) {
+	if rq == nil {
+		return true, nil
+	}
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+
+	isFull := rq.fullPending
+	rq.fullPending = false
+
+	keys := make([]string, 0, len(rq.pending))
+	for k := range rq.pending {
+		keys = append(keys, k)
+	}
+	rq.pending = make(map[string]bool)
+	rq.timer = nil
+
+	return isFull, keys
+}
+
+func parseKey(key string) (string, string) {
+	parts := strings.SplitN(key, "/", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "", parts[0]
+}
+
+func (m *Meshnet) enqueueReconcile(key string) {
+	if m.reconcileQueue != nil {
+		m.reconcileQueue.Enqueue(key)
+	} else {
+		m.triggerReconcile()
+	}
+}
+
+func (m *Meshnet) enqueueFullReconcile() {
+	if m.reconcileQueue != nil {
+		m.reconcileQueue.EnqueueFull()
+	} else {
+		m.triggerReconcile()
+	}
+}
+
 // CleanupOrphanedHostVeths scans the host network namespace for any temporary host veths ("vnm-...")
 // that do not match any link in any currently existing Topology resource and deletes them.
 // This cleans up partial veths left behind by topologies that were deleted while meshnetd was offline.
 func (m *Meshnet) CleanupOrphanedHostVeths(ctx context.Context) error {
-	if m.tClient == nil {
-		return nil
+	var topos []*unstructured.Unstructured
+	if m.topoCache != nil {
+		topos = m.topoCache.List(metav1.NamespaceAll)
 	}
-	list, err := m.tClient.Topology(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
+	if len(topos) == 0 && m.tClient != nil {
+		list, err := m.tClient.Topology(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for i := range list.Items {
+			u, err := toUnstructured(&list.Items[i])
+			if err != nil {
+				continue
+			}
+			topos = append(topos, u)
+		}
 	}
 
 	validHostNames := make(map[string]bool)
-	for i := range list.Items {
-		u, err := toUnstructured(&list.Items[i])
-		if err != nil {
-			continue
-		}
+	for _, u := range topos {
 		links, _ := parsePodLinks(u)
 		for _, l := range links {
 			side0, side1 := wireutil.HostVethNames(l.KubeNs, l.PodName, l.PeerPodName, l.LinkUID)
@@ -506,26 +748,36 @@ func (m *Meshnet) CleanupOrphanedHostVeths(ctx context.Context) error {
 
 // ReconcileAllLocalPods scans all Topology resources and reconciles any active local pod scheduled on this node.
 func (m *Meshnet) ReconcileAllLocalPods(ctx context.Context) error {
-	if m.tClient == nil {
-		return nil
+	var topos []*unstructured.Unstructured
+	if m.topoCache != nil {
+		topos = m.topoCache.List(metav1.NamespaceAll)
 	}
-	list, err := m.tClient.Topology(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for i := range list.Items {
-		u, err := toUnstructured(&list.Items[i])
+	if len(topos) == 0 && m.tClient != nil {
+		list, err := m.tClient.Topology(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
 		if err != nil {
-			continue
+			return err
 		}
+		for i := range list.Items {
+			u, err := toUnstructured(&list.Items[i])
+			if err != nil {
+				continue
+			}
+			topos = append(topos, u)
+		}
+	}
+	for _, u := range topos {
 		_ = m.ReconcilePodLinks(ctx, u)
 	}
 	return nil
 }
 
-// triggerReconcile sets the dirty token in dirtyChan, coalescing multiple triggers
-// into at most one pending reconciliation run.
+// triggerReconcile sets the dirty token or triggers a full reconciliation pass,
+// maintaining backward compatibility with callers.
 func (m *Meshnet) triggerReconcile() {
+	if m.reconcileQueue != nil {
+		m.reconcileQueue.EnqueueFull()
+		return
+	}
 	if m.dirtyChan == nil {
 		return
 	}
@@ -537,13 +789,31 @@ func (m *Meshnet) triggerReconcile() {
 }
 
 // runReconcileWorker runs in the background and coalesces incoming reconcile triggers.
-// When a trigger is received, it executes a full local reconciliation pass. Any triggers that
-// arrive while reconciliation is in progress coalesce into a single follow-up pass.
+// When a trigger is received, it executes a targeted or full local reconciliation pass.
 func (m *Meshnet) runReconcileWorker(ctx context.Context) {
+	if m.reconcileQueue == nil {
+		m.reconcileQueue = NewReconcileQueue(50 * time.Millisecond)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-m.reconcileQueue.notifyChan:
+			isFull, keys := m.reconcileQueue.Drain()
+			if isFull {
+				_ = m.CleanupOrphanedHostVeths(ctx)
+				_ = m.ReconcileAllLocalPods(ctx)
+			} else {
+				for _, key := range keys {
+					ns, name := parseKey(key)
+					topo, err := m.getPod(ctx, name, ns)
+					if err != nil || topo == nil {
+						continue
+					}
+					_ = m.ReconcilePodLinks(ctx, topo)
+				}
+			}
 		case <-m.dirtyChan:
 			_ = m.CleanupOrphanedHostVeths(ctx)
 			_ = m.ReconcileAllLocalPods(ctx)
@@ -552,12 +822,39 @@ func (m *Meshnet) runReconcileWorker(ctx context.Context) {
 }
 
 // RunControllerLoop runs the continuous level-triggered Topology controller in meshnetd.
-// It watches for resource changes across namespaces and coalesces incoming events into
-// background reconciliation runs.
+// It maintains an in-memory topology cache, tracks pod-link dependencies, and coalesces
+// incoming events into targeted background reconciliation runs.
 func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 	mnetdLogger.Infof("Starting Topology controller loop")
+	if m.topoCache == nil {
+		m.topoCache = NewTopologyCache()
+	}
+	if m.reconcileQueue == nil {
+		m.reconcileQueue = NewReconcileQueue(50 * time.Millisecond)
+	}
+
+	// 1. Initial full population of cache from K8s API
+	if m.tClient != nil {
+		list, err := m.tClient.Topology(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+		if err == nil && list != nil {
+			for i := range list.Items {
+				if u, err := toUnstructured(&list.Items[i]); err == nil && u != nil {
+					m.topoCache.Put(u)
+				}
+			}
+		} else if err != nil {
+			mnetdLogger.Warnf("RunControllerLoop: initial list failed: %v", err)
+		}
+	}
+
 	go m.runReconcileWorker(ctx)
-	m.triggerReconcile()
+
+	// Trigger initial full reconciliation on startup
+	m.enqueueFullReconcile()
+
+	// Periodic resync ticker (every 60s) as a safety net against missed watch events or state decay
+	resyncTicker := time.NewTicker(60 * time.Second)
+	defer resyncTicker.Stop()
 
 	for {
 		if ctx.Err() != nil {
@@ -570,24 +867,78 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 			continue
 		}
 
-		for event := range watcher.ResultChan() {
-			if ctx.Err() != nil {
+		watchCh := watcher.ResultChan()
+		loopDone := false
+		for !loopDone {
+			select {
+			case <-ctx.Done():
 				watcher.Stop()
 				return
-			}
-			topo, err := toUnstructured(event.Object)
-			if err != nil || topo == nil {
-				continue
-			}
-			switch event.Type {
-			case watch.Added, watch.Modified:
-				m.triggerReconcile()
-			case watch.Deleted:
-				_ = m.CleanupPodLinks(ctx, topo)
-				m.triggerReconcile()
+			case <-resyncTicker.C:
+				m.enqueueFullReconcile()
+			case event, ok := <-watchCh:
+				if !ok {
+					loopDone = true
+					break
+				}
+				topo, err := toUnstructured(event.Object)
+				if err != nil || topo == nil {
+					continue
+				}
+
+				ns := topo.GetNamespace()
+				name := topo.GetName()
+				key := fmt.Sprintf("%s/%s", ns, name)
+
+				switch event.Type {
+				case watch.Added, watch.Modified:
+					// Update cache
+					m.topoCache.Put(topo)
+
+					// Check if this pod is local to this node
+					srcIP, _, active := isPodActive(topo)
+					isLocal := active && (m.nodeIP == "" || srcIP == m.nodeIP)
+					if isLocal {
+						m.enqueueReconcile(key)
+					}
+
+					// Find all local dependent pods that have links to this pod
+					dependents := m.topoCache.GetDependents(ns, name)
+					for _, depKey := range dependents {
+						depNS, depName := parseKey(depKey)
+						depTopo := m.topoCache.Get(depNS, depName)
+						if depTopo != nil {
+							depSrcIP, _, depActive := isPodActive(depTopo)
+							if depActive && (m.nodeIP == "" || depSrcIP == m.nodeIP) {
+								m.enqueueReconcile(depKey)
+							}
+						}
+					}
+
+				case watch.Deleted:
+					// Before removing from cache, get all dependent pods
+					dependents := m.topoCache.GetDependents(ns, name)
+					m.topoCache.Delete(ns, name)
+
+					// If this was a local pod, clean up its links
+					_ = m.CleanupPodLinks(ctx, topo)
+
+					// Reconcile dependent pods so they update / clean up their link state
+					for _, depKey := range dependents {
+						depNS, depName := parseKey(depKey)
+						depTopo := m.topoCache.Get(depNS, depName)
+						if depTopo != nil {
+							depSrcIP, _, depActive := isPodActive(depTopo)
+							if depActive && (m.nodeIP == "" || depSrcIP == m.nodeIP) {
+								m.enqueueReconcile(depKey)
+							}
+						}
+					}
+				}
 			}
 		}
-		m.triggerReconcile()
+		// If watch closed, queue full resync on reconnect
+		m.enqueueFullReconcile()
 	}
 }
 
@@ -613,6 +964,9 @@ func (m *Meshnet) updatePlumbingErrorStatus(ctx context.Context, topo *unstructu
 		}
 
 		_, err = m.tClient.Topology(latestTopo.GetNamespace()).Update(ctx, latestTopo, metav1.UpdateOptions{})
+		if err == nil && m.topoCache != nil {
+			m.topoCache.Put(latestTopo)
+		}
 		return err
 	})
 

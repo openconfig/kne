@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -50,6 +51,8 @@ type Meshnet struct {
 	nodeIP            string
 	dirtyChan         chan struct{}
 	interNodeLinkType string
+	topoCache         *TopologyCache
+	reconcileQueue    *ReconcileQueue
 }
 
 var mnetdLogger *log.Entry = nil
@@ -136,6 +139,8 @@ func New(cfg Config) (*Meshnet, error) {
 		nodeIP:            os.Getenv("HOST_IP"),
 		dirtyChan:         make(chan struct{}, 1),
 		interNodeLinkType: lnkTyp,
+		topoCache:         NewTopologyCache(),
+		reconcileQueue:    NewReconcileQueue(50 * time.Millisecond),
 	}
 	mpb.RegisterLocalServer(m.s, m)
 	mpb.RegisterRemoteServer(m.s, m)
