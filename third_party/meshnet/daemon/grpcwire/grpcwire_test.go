@@ -33,8 +33,29 @@ func (m *mockWireProtocolClient) SendToOnce(ctx context.Context, in *mpb.Packet,
 	return &mpb.BoolResponse{Response: true}, nil
 }
 
+type mockStreamClient struct {
+	grpc.ClientStream
+	mockClient *mockWireProtocolClient
+}
+
+func (s *mockStreamClient) Send(in *mpb.Packet) error {
+	if s.mockClient.sendDelay > 0 {
+		time.Sleep(s.mockClient.sendDelay)
+	}
+	s.mockClient.mu.Lock()
+	defer s.mockClient.mu.Unlock()
+	frameCopy := make([]byte, len(in.Frame))
+	copy(frameCopy, in.Frame)
+	s.mockClient.receivedFrames = append(s.mockClient.receivedFrames, frameCopy)
+	return nil
+}
+
+func (s *mockStreamClient) CloseAndRecv() (*mpb.BoolResponse, error) {
+	return &mpb.BoolResponse{Response: true}, nil
+}
+
 func (m *mockWireProtocolClient) SendToStream(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[mpb.Packet, mpb.BoolResponse], error) {
-	return nil, errors.New("unimplemented")
+	return &mockStreamClient{mockClient: m}, nil
 }
 
 func TestForwardPackets_NoCorruption(t *testing.T) {

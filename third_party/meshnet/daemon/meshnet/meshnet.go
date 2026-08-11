@@ -103,12 +103,20 @@ func New(cfg Config) (*Meshnet, error) {
 	// If the link type is GRPC then set the GRPC logging level to LevelNone
 	// Otherwise there will be GRPC log for every packet sent as for link type GRPC, GRPC is also the data-plane. This is too
 	// much of log that does not help in debugging and K8S does log rotation very frequently.
+	defaultOpts := []grpc.ServerOption{
+		grpc.InitialWindowSize(4 * 1024 * 1024),     // 4MB stream window
+		grpc.InitialConnWindowSize(16 * 1024 * 1024), // 16MB connection window
+		grpc.MaxRecvMsgSize(64 * 1024 * 1024),
+		grpc.MaxSendMsgSize(64 * 1024 * 1024),
+	}
+	allOpts := append(defaultOpts, cfg.GRPCOpts...)
+
 	var svr *grpc.Server
 	lnkTyp := os.Getenv("INTER_NODE_LINK_TYPE")
 	if lnkTyp == wireutil.INTER_NODE_LINK_GRPC {
-		svr = grpc.NewServer(cfg.GRPCOpts...)
+		svr = grpc.NewServer(allOpts...)
 	} else {
-		svr = newServerWithLogging(cfg.GRPCOpts...)
+		svr = newServerWithLogging(allOpts...)
 	}
 
 	m := &Meshnet{
