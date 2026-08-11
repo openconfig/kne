@@ -173,12 +173,14 @@ func (m *Meshnet) cleanupRemovedPodLinks(ctx context.Context, topo *unstructured
 				url = strings.TrimSpace(url)
 				if remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
 					remoteClient := mpb.NewRemoteClient(remoteConn)
-					_, _ = remoteClient.GRPCWireDownRemote(ctx, &mpb.WireDef{
+					rpcCtx, rpcCancel := context.WithTimeout(ctx, 5*time.Second)
+					_, _ = remoteClient.GRPCWireDownRemote(rpcCtx, &mpb.WireDef{
 						TopoNs:        wire.TopoNamespace,
 						LocalPodName:  wire.LocalPodName,
 						LocalPodNetNs: wire.LocalPodNetNS,
 						LinkUid:       int64(wire.UID),
 					})
+					rpcCancel()
 					remoteConn.Close()
 				}
 			}
@@ -402,7 +404,9 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 			chunkLinks := pBatch.links[i:end]
 
 			mnetdLogger.Infof("ReconcilePodLinks: calling AddGRPCWiresRemoteBatch on %s for batch [%d:%d] of %d links", url, i, end, total)
-			batchResp, err := remoteClient.AddGRPCWiresRemoteBatch(ctx, &mpb.WireDefBatch{Items: chunkWireDefs})
+			rpcCtx, rpcCancel := context.WithTimeout(ctx, 5*time.Second)
+			batchResp, err := remoteClient.AddGRPCWiresRemoteBatch(rpcCtx, &mpb.WireDefBatch{Items: chunkWireDefs})
+			rpcCancel()
 			if err != nil {
 				remoteConn.Close()
 				mnetdLogger.Errorf("ReconcilePodLinks: AddGRPCWiresRemoteBatch failed to %s for batch [%d:%d]: %v", url, i, end, err)

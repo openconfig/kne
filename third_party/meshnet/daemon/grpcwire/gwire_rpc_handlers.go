@@ -10,6 +10,16 @@ import (
 )
 
 func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolResponse, error) {
+	if wire, ok := GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid)); ok && wire != nil {
+		wire.mu.Lock()
+		wire.Originator = HOST_CREATED_WIRE
+		if wireDef.PeerNodeIp != "" {
+			wire.PeerNodeIP = wireDef.PeerNodeIp
+		}
+		wire.mu.Unlock()
+		return &mpb.BoolResponse{Response: true}, nil
+	}
+
 	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
 		log.WithFields(log.Fields{
