@@ -94,6 +94,36 @@ func (m *nodeStreamManager) ReleaseStream(topoNs string, peerIP string) {
 	}
 }
 
+// Send enqueues a packet payload to be transmitted over the multiplexed gRPC stream for the given topo and peer IP.
+func (m *nodeStreamManager) Send(topoNs string, peerIP string, pkt *mpb.Packet) bool {
+	if peerIP == "" || pkt == nil {
+		return false
+	}
+	if topoNs == "" {
+		topoNs = "default"
+	}
+	key := nodeStreamKey{
+		topoNs: topoNs,
+		peerIP: peerIP,
+	}
+
+	m.mu.Lock()
+	st, ok := m.streams[key]
+	if !ok {
+		st = &NodeStream{
+			key:      key,
+			pktChan:  make(chan *mpb.Packet, 10000),
+			stopChan: make(chan struct{}),
+			refCount: 1,
+		}
+		m.streams[key] = st
+		go st.run()
+	}
+	m.mu.Unlock()
+
+	return st.Send(pkt)
+}
+
 // Send enqueues a packet payload to be transmitted over the multiplexed gRPC stream.
 func (s *NodeStream) Send(pkt *mpb.Packet) bool {
 	if pkt == nil {

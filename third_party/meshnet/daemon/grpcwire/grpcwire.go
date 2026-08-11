@@ -148,7 +148,13 @@ func (wire *GRPCWire) UpdateWire(peerIntfId int64, peerNodeIP string, stopC chan
 		}
 	}
 	wire.WireIfaceIDOnPeerNode = peerIntfId
-	if peerNodeIP != "" {
+	if peerNodeIP != "" && wire.PeerNodeIP != peerNodeIP {
+		if wire.PeerNodeIP != "" {
+			streamMgr.ReleaseStream(wire.TopoNamespace, wire.PeerNodeIP)
+		}
+		wire.PeerNodeIP = peerNodeIP
+		_ = streamMgr.GetOrCreateStream(wire.TopoNamespace, peerNodeIP)
+	} else if peerNodeIP != "" {
 		wire.PeerNodeIP = peerNodeIP
 	}
 	wire.IsReady = true
@@ -309,10 +315,25 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 		return err
 	}
 
-	nodeStream := streamMgr.GetOrCreateStream(wire.TopoNamespace, wire.PeerNodeIP)
-	defer streamMgr.ReleaseStream(wire.TopoNamespace, wire.PeerNodeIP)
+	wire.mu.Lock()
+	peerIP := wire.PeerNodeIP
+	topoNs := wire.TopoNamespace
+	wire.mu.Unlock()
 
-	return forwardPackets(tapFile, nodeStream, wire, locIfNm)
+	if peerIP != "" {
+		_ = streamMgr.GetOrCreateStream(topoNs, peerIP)
+		defer func() {
+			wire.mu.Lock()
+			currIP := wire.PeerNodeIP
+			currNs := wire.TopoNamespace
+			wire.mu.Unlock()
+			if currIP != "" {
+				streamMgr.ReleaseStream(currNs, currIP)
+			}
+		}()
+	}
+
+	return forwardPackets(tapFile, nil, wire, locIfNm)
 }
 
 func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIfNm string) error {
@@ -343,6 +364,9 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 		case <-wire.StopC:
 			grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: closing connection with remote peer-iface@peer-node-ip: %d@%s/%d from %s@%s",
 				wire.WireIfaceIDOnPeerNode, wire.PeerNodeIP, wire.LocalNodeIfaceID, wire.LocalPodName, wire.LocalPodIfaceName)
+			if closer, ok := reader.(io.Closer); ok {
+				_ = closer.Close()
+			}
 			return io.EOF
 		case res := <-readChan:
 			bufPtr := res.buf
@@ -371,9 +395,11 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 			wire.mu.Lock()
 			isReady := wire.IsReady
 			peerIntfID := wire.WireIfaceIDOnPeerNode
+			peerNodeIP := wire.PeerNodeIP
+			topoNs := wire.TopoNamespace
 			wire.mu.Unlock()
 
-			if !isReady || peerIntfID <= 0 {
+			if !isReady || peerIntfID <= 0 || peerNodeIP == "" {
 				// Remote peer handshake is still in progress; skip sending to unassigned wire ID 0
 				packetPool.Put(bufPtr)
 				continue
@@ -389,7 +415,13 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", n, pktType)
 			}
 
-			if !sender.Send(payload) {
+			sent := false
+			if sender != nil {
+				sent = sender.Send(payload)
+			} else {
+				sent = streamMgr.Send(topoNs, peerNodeIP, payload)
+			}
+			if !sent {
 				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not queue packet over stream %s@%s (queue full)", wire.LocalPodName, wire.LocalNodeIfaceName)
 			}
 			packetPool.Put(bufPtr)
