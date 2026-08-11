@@ -328,7 +328,17 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 		return err
 	}
 
-	remote, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	dialOpts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithInitialWindowSize(4 * 1024 * 1024),     // 4MB stream window
+		grpc.WithInitialConnWindowSize(16 * 1024 * 1024), // 16MB connection window
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(64*1024*1024),
+			grpc.MaxCallSendMsgSize(64*1024*1024),
+		),
+	}
+
+	remote, err := grpc.Dial(url, dialOpts...)
 	if err != nil {
 		grpcOvrlyLogger.Infof("RecvFrmLocalPodThread:Failed to connect to remote %s/%d", url, wire.LocalNodeIfaceID)
 		return err
@@ -343,6 +353,19 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 }
 
 func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WireProtocolClient, wire *GRPCWire, locIfNm string) error {
+	var stream mpb.WireProtocol_SendToStreamClient
+	getStream := func() (mpb.WireProtocol_SendToStreamClient, error) {
+		if stream != nil {
+			return stream, nil
+		}
+		st, err := wireClient.SendToStream(ctx)
+		if err != nil {
+			return nil, err
+		}
+		stream = st
+		return stream, nil
+	}
+
 	type readResult struct {
 		buf *[]byte
 		n   int
@@ -365,6 +388,9 @@ func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WirePr
 		case <-wire.StopC:
 			grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: closing connection with remote peer-iface@peer-node-ip: %d@%s/%d from %s@%s",
 				wire.WireIfaceIDOnPeerNode, wire.PeerNodeIP, wire.LocalNodeIfaceID, wire.LocalPodName, wire.LocalPodIfaceName)
+			if stream != nil {
+				_, _ = stream.CloseAndRecv()
+			}
 			return io.EOF
 		case res := <-readChan:
 			bufPtr := res.buf
@@ -411,12 +437,18 @@ func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WirePr
 				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", n, pktType)
 			}
 
-			ok, err := wireClient.SendToOnce(ctx, payload)
-			packetPool.Put(bufPtr)
-			if err != nil || !ok.Response {
-				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not deliver pkt %s@%s@%s. Peer not ready, remote iface id %d. err=%v",
-					wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, peerIntfID, err)
+			st, err := getStream()
+			if err != nil {
+				packetPool.Put(bufPtr)
+				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not get stream for %s@%s: %v", wire.LocalPodName, wire.LocalNodeIfaceName, err)
+				continue
 			}
+
+			if err := st.Send(payload); err != nil {
+				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not send packet over stream %s@%s: %v", wire.LocalPodName, wire.LocalNodeIfaceName, err)
+				stream = nil // reset stream for reconnect on next packet
+			}
+			packetPool.Put(bufPtr)
 		}
 	}
 }
