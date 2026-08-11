@@ -111,7 +111,8 @@ build {
       "sudo apt-get update",
       // kube-proxy requires conntrack to route traffic, and kubeadm v1.31+ enforces it in preflight checks
       "sudo apt-get install conntrack -y",
-      "sudo apt-get install kubelet kubeadm kubectl -y",
+      // TODO: Remove pin when kubectl reports a version number other than `v0.0.0-master+$Format:%H$`.
+      "sudo apt-get install kubelet kubeadm kubectl=1:578.0.0-0 -y",
       "kubectl version --client",
       "echo 'source <(kubectl completion bash)' >> ~/.bashrc",
       "echo 'alias k=kubectl' >> ~/.bashrc",
