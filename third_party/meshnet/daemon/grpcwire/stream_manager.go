@@ -25,8 +25,6 @@ type NodeStream struct {
 	pktChan  chan *mpb.Packet
 	stopChan chan struct{}
 	refCount int
-	mu       sync.Mutex
-	conn     *grpc.ClientConn
 }
 
 type nodeStreamManager struct {
@@ -148,10 +146,6 @@ func (s *NodeStream) run() {
 				continue
 			}
 		}
-
-		s.mu.Lock()
-		s.conn = conn
-		s.mu.Unlock()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		client := mpb.NewWireProtocolClient(conn)

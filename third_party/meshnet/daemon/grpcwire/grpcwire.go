@@ -148,14 +148,6 @@ func (wire *GRPCWire) UpdateWire(peerIntfId int64, stopC chan struct{}) {
 	wire.IsReady = true
 }
 
-// Delete a wire from the in-memory wire-map under a lock
-func (w *wireMap) Delete(wire *GRPCWire) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	err := w.DeleteWoLock(wire)
-	return err
-}
-
 // GetWireByUID returns wire matching the provided namespace and linkUID.
 func GetWireByUID(namespace string, linkUID int) (*GRPCWire, bool) {
 	return wires.GetWire(namespace, linkUID)
@@ -171,19 +163,7 @@ func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan
 	}]
 	wires.mu.Unlock()
 	if ok {
-		wire.mu.Lock()
-		defer wire.mu.Unlock()
-		if wire.StopC == nil {
-			if stopC != nil {
-				wire.StopC = stopC
-			} else {
-				wire.StopC = make(chan struct{})
-			}
-		}
-		if !wire.IsReady {
-			wire.WireIfaceIDOnPeerNode = peerIntfId
-		}
-		wire.IsReady = true
+		wire.UpdateWire(peerIntfId, stopC)
 	}
 	return wire, ok
 }

@@ -68,16 +68,6 @@ func (w *wireMap) AtomicDelete(wire *GRPCWire) error {
 	return nil
 }
 
-// Delete a wire from the in-memory wire-map without a lock
-func (w *wireMap) DeleteWoLock(wire *GRPCWire) error {
-	delete(w.wires, linkKey{
-		namespace: wire.LocalPodNetNS,
-		linkUID:   wire.UID,
-	})
-	delete(w.handles, wire.LocalNodeIfaceID)
-	return nil
-}
-
 /* A grpc-wire creation (between pod A and pod B) can be triggered by either host hosting pod A, B. They
  * can even trigger it simultaneously. Irrespective of who triggers, successful wire creation needs
  * activities at both hosts end. Our intention is to finish the wire creation at the first trigger.

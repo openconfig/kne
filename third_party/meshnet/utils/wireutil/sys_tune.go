@@ -14,10 +14,3 @@ func GetEnvInt(key string, defaultVal int) int {
 	}
 	return defaultVal
 }
-
-func getEnvString(key string, defaultVal string) string {
-	if valStr := os.Getenv(key); valStr != "" {
-		return valStr
-	}
-	return defaultVal
-}

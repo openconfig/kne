@@ -368,7 +368,6 @@ func (m *Meshnet) Update(ctx context.Context, pod *mpb.RemotePod) (*mpb.BoolResp
 
 // ------------------------------------------------------------------------------------------------------
 func (m *Meshnet) RemGRPCWire(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolResponse, error) {
-	//if err := grpcwire.DeleteWiresByPod(wireDef.KubeNs, wireDef.LocalPodName); err != nil
 	if err := grpcwire.DeletePodWires(wireDef.TopoNs, wireDef.LocalPodName); err != nil {
 		return &mpb.BoolResponse{Response: false}, err
 	}

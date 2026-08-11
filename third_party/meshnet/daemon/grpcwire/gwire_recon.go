@@ -2,6 +2,7 @@ package grpcwire
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -11,7 +12,7 @@ import (
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -168,19 +169,44 @@ func FlushK8sStatusQueue() {
 	<-done
 }
 
+type statusGroupKey struct {
+	nodeName string
+	topoNs   string
+}
+
 func updateGRPCWireStatusBatch(ctx context.Context, updates []wireStatusUpdate) error {
 	if len(updates) == 0 {
 		return nil
 	}
 
-	nodeName := updates[0].nodeName
-	topoNs := updates[0].wire.TopoNamespace
+	groups := make(map[statusGroupKey][]wireStatusUpdate)
+	for _, u := range updates {
+		k := statusGroupKey{
+			nodeName: u.nodeName,
+			topoNs:   u.wire.TopoNamespace,
+		}
+		groups[k] = append(groups[k], u)
+	}
+
+	var errs []error
+	for key, grpUpdates := range groups {
+		if err := updateGRPCWireStatusGroup(ctx, key.nodeName, key.topoNs, grpUpdates); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func updateGRPCWireStatusGroup(ctx context.Context, nodeName, topoNs string, updates []wireStatusUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		wStatusFirst := CreateWireStatus(updates[0].wire, nodeName)
 		wObjsOnNd, err := gWClient.GetWireObjGrpUS(ctx, wStatusFirst)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				err = CreateGWireStatInDS(ctx, wStatusFirst)
 				if err != nil {
 					return err
@@ -233,8 +259,8 @@ func updateGRPCWireStatusBatch(ctx context.Context, updates []wireStatusUpdate) 
 }
 
 // -----------------------------------------------------------------------------------------------------------
-// K8sStoreGWire writes grpc wire info 'wire' for a specific topology namespace (wire.TopoNamespace) into k8s
-// data-store for the current node. It calls updateGRPCWireStatus() to serve the purpose
+// K8sStoreGWire enqueues grpc wire info 'wire' for a specific topology namespace (wire.TopoNamespace)
+// into the background status queue to be written in batch to the k8s data-store for the current node.
 func (wire *GRPCWire) K8sStoreGWire() error {
 	startStatusQueueWorker()
 	nodeName, err := findNodeName()
@@ -336,82 +362,6 @@ func ReconGWires() error {
 	return nil
 }
 
-// -----------------------------------------------------------------------------------------------------------
-// updateGRPCWireStatus writes grpc wire 'wStatus' into k8s data-store. 'wStatus' for all existing grpc wires are added
-// under 'grpcWireItems' as part of status. Status is part of 'GWireKObj' and identified
-// by name=<current-node-name>. For the first write, this object for a node does not exist in k8s data-
-// store. So for first write, it creates the object and then adds the 'wStatus'. For all subsequent 'wStatus'
-// to be added, first get the object from data-store, append the 'wStatus' to the existing list of
-// 'grpcWireItems' and write the updated 'grpcWireItems' list back to k8s api data-store.
-func updateGRPCWireStatus(ctx context.Context, wStatus *grpcwirev1.GWireStatus) error {
-	grpcOvrlyLogger.Infof("Updating GRPC wire status on node %s, pod %s@%s", wStatus.LocalNodeName, wStatus.LocalPodName, wStatus.LocalPodIfaceName)
-
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-		// wires are grouped by node name. retrieve the group for this node 'wStatus.LocalNodeName'
-		wObjsOnNd, err := gWClient.GetWireObjGrpUS(ctx, wStatus)
-		if err != nil {
-			// if not found then create it
-			if errors.IsNotFound(err) {
-				// WireObj does not exist. add it first
-				err = CreateGWireStatInDS(ctx, wStatus)
-				if err != nil {
-					return err
-				}
-				grpcOvrlyLogger.Infof("updateGRPCWireStatus: Created node %s, pod %s@%s into k8s data-store",
-					wStatus.LocalNodeName, wStatus.LocalPodName, wStatus.LocalPodIfaceName)
-				return nil
-			}
-
-			return err // for all error expect 'not found' return the error
-		}
-
-		// extract status gwire items
-		gwireItems, found, err := unstructured.NestedSlice(wObjsOnNd.Object, kStatus, kGrpcWireItems)
-		if err != nil {
-			grpcOvrlyLogger.Errorf("updateGRPCWireStatus: could not retrieve gWireItems: %v", err)
-			return err
-		}
-		if !found {
-			grpcOvrlyLogger.Errorf("updateGRPCWireStatus: gwireItems not found in GWireKObj status")
-			return err
-		}
-		if gwireItems == nil {
-			grpcOvrlyLogger.Errorf("updateGRPCWireStatus: gwireItems is nil in GWireKObj status")
-			return err
-		}
-		newItem, err := runtime.DefaultUnstructuredConverter.ToUnstructured(wStatus)
-		if err != nil {
-			grpcOvrlyLogger.Errorf("updateGRPCWireStatus: could not convert to unstructured: %v\n", err)
-			return err
-		}
-		gwireItems = append(gwireItems, newItem)
-
-		if err := unstructured.SetNestedField(wObjsOnNd.Object, gwireItems, kStatus, kGrpcWireItems); err != nil {
-			grpcOvrlyLogger.Errorf("updateGRPCWireStatus: could not set grpcwireitems status: %v", err)
-			return err
-		}
-
-		_, err = gWClient.UpdateWireObj(ctx, wStatus.TopoNamespace, wObjsOnNd)
-		if err != nil {
-			grpcOvrlyLogger.Infof("updateGRPCWireStatus: Could not update GRPCWire status for node %s, pod %s@%s into K8s",
-				wObjsOnNd.GetName(), wStatus.LocalPodName, wStatus.LocalPodIfaceName)
-			return err
-		}
-		return nil
-
-	})
-	if retryErr != nil {
-		log.WithFields(log.Fields{
-			"daemon":   "meshnetd",
-			"err":      retryErr,
-			"function": "updateGRPCWireStatus",
-		}).Errorf("Failed to update status on node %s, pod %s@%s", wStatus.LocalNodeName, wStatus.LocalPodName, wStatus.LocalPodIfaceName)
-		return retryErr
-	}
-
-	return nil
-}
 
 // -----------------------------------------------------------------------------------------------------------
 // CreateGWireStatInDS creates grpc wire unstructured object with gvr info populated in it.

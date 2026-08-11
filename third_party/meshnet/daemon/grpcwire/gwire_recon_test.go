@@ -301,6 +301,77 @@ func TestK8sStoreGWire(t *testing.T) {
 	//t.Logf("TestK8sStoreGWire: passed")
 }
 
+func TestK8sStoreGWire_MultiNamespaceBatch(t *testing.T) {
+	cs := setUp(t)
+	nodeName, err := findNodeName()
+	if err != nil {
+		t.Fatalf("could not retrieve node name: %v", err)
+	}
+
+	wireNs1 := &GRPCWire{
+		UID:                   1,
+		TopoNamespace:         "topo-ns1",
+		LocalPodNetNS:         "netns1",
+		LocalNodeIfaceName:    "eth1-node1",
+		LocalPodName:          "pod1",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.1.1.1",
+		WireIfaceIDOnPeerNode: 101,
+		PeerNodeIP:            "192.168.1.2",
+	}
+	wireNs2 := &GRPCWire{
+		UID:                   2,
+		TopoNamespace:         "topo-ns2",
+		LocalPodNetNS:         "netns2",
+		LocalNodeIfaceName:    "eth1-node2",
+		LocalPodName:          "pod2",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.2.2.2",
+		WireIfaceIDOnPeerNode: 201,
+		PeerNodeIP:            "192.168.1.3",
+	}
+
+	// Enqueue both updates to be batched together
+	if err := wireNs1.K8sStoreGWire(); err != nil {
+		t.Fatalf("failed to store wireNs1: %v", err)
+	}
+	if err := wireNs2.K8sStoreGWire(); err != nil {
+		t.Fatalf("failed to store wireNs2: %v", err)
+	}
+
+	FlushK8sStatusQueue()
+
+	// Verify topo-ns1 has wireNs1
+	wObjs1, err := cs.Namespace("topo-ns1").Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get topo-ns1 object: %v", err)
+	}
+	items1, _, _ := unstructured.NestedSlice(wObjs1.Object, kStatus, kGrpcWireItems)
+	if len(items1) != 1 {
+		t.Fatalf("expected 1 item in topo-ns1, got %d", len(items1))
+	}
+	var ws1 grpcwirev1.GWireStatus
+	_ = runtime.DefaultUnstructuredConverter.FromUnstructured(items1[0].(map[string]interface{}), &ws1)
+	if ws1.TopoNamespace != "topo-ns1" || ws1.LocalPodName != "pod1" {
+		t.Errorf("unexpected status in topo-ns1: %+v", ws1)
+	}
+
+	// Verify topo-ns2 has wireNs2
+	wObjs2, err := cs.Namespace("topo-ns2").Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get topo-ns2 object: %v", err)
+	}
+	items2, _, _ := unstructured.NestedSlice(wObjs2.Object, kStatus, kGrpcWireItems)
+	if len(items2) != 1 {
+		t.Fatalf("expected 1 item in topo-ns2, got %d", len(items2))
+	}
+	var ws2 grpcwirev1.GWireStatus
+	_ = runtime.DefaultUnstructuredConverter.FromUnstructured(items2[0].(map[string]interface{}), &ws2)
+	if ws2.TopoNamespace != "topo-ns2" || ws2.LocalPodName != "pod2" {
+		t.Errorf("unexpected status in topo-ns2: %+v", ws2)
+	}
+}
+
 // TestK8sDelGWire covers gwire status delete, update and get commands
 func TestK8sDelGWire(t *testing.T) {
 	//objs := []runtime.Object{gWireKObj1, gWireKObj2}
