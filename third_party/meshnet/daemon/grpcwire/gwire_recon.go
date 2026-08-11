@@ -66,7 +66,7 @@ func SetGWireClientInterface(gClient dynamic.NamespaceableResourceInterface) {
 func (gc *GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*unstructured.UnstructuredList, error) {
 	di := gc.getDI()
 	if di == nil {
-		return nil, errors.New("gWClient dynamic interface is nil")
+		return nil, fmt.Errorf("gwire client interface not initialized")
 	}
 	return di.Namespace("").List(ctx, metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
