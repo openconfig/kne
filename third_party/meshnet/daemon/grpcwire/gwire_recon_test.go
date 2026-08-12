@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -268,6 +269,7 @@ func TestK8sStoreGWire(t *testing.T) {
 	var storedWStatus []interface{}
 	for _, tc := range test_cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			_ = wires.AddInMem(tc.store, nil)
 			err := tc.store.K8sStoreGWire()
 			if err != nil {
 				t.Fatalf("could not add gwire status into k8s data-store")
@@ -331,6 +333,9 @@ func TestK8sStoreGWire_MultiNamespaceBatch(t *testing.T) {
 		PeerNodeIP:            "192.168.1.3",
 	}
 
+	_ = wires.AddInMem(wireNs1, nil)
+	_ = wires.AddInMem(wireNs2, nil)
+
 	// Enqueue both updates to be batched together
 	if err := wireNs1.K8sStoreGWire(); err != nil {
 		t.Fatalf("failed to store wireNs1: %v", err)
@@ -370,6 +375,104 @@ func TestK8sStoreGWire_MultiNamespaceBatch(t *testing.T) {
 	if ws2.TopoNamespace != "topo-ns2" || ws2.LocalPodName != "pod2" {
 		t.Errorf("unexpected status in topo-ns2: %+v", ws2)
 	}
+}
+
+func TestFlushK8sStatusQueue_Concurrent(t *testing.T) {
+	_ = setUp(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			wire := &GRPCWire{
+				UID:                   1000 + id,
+				TopoNamespace:         "topo-flush",
+				LocalPodNetNS:         "netns-flush",
+				LocalNodeIfaceName:    "eth1-flush",
+				LocalPodName:          "pod-flush",
+				LocalPodIfaceName:     "eth1",
+				LocalPodIP:            "10.0.0.1",
+				WireIfaceIDOnPeerNode: int64(100 + id),
+				PeerNodeIP:            "192.168.1.10",
+			}
+			_ = wires.AddInMem(wire, nil)
+			_ = wire.K8sStoreGWire()
+			FlushK8sStatusQueue()
+		}(i)
+	}
+	wg.Wait()
+}
+
+func TestK8sStoreGWire_CreateThenDeleteGhostWirePrevention(t *testing.T) {
+	cs := setUp(t)
+	nodeName, err := findNodeName()
+	if err != nil {
+		t.Fatalf("could not retrieve node name: %v", err)
+	}
+
+	wire := &GRPCWire{
+		UID:                   999,
+		TopoNamespace:         "topo-ghost",
+		LocalPodNetNS:         "netns-ghost",
+		LocalNodeIfaceName:    "eth1-ghost",
+		LocalPodName:          "pod-ghost",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.9.9.9",
+		WireIfaceIDOnPeerNode: 999,
+		PeerNodeIP:            "192.168.9.9",
+	}
+
+	// 1. Add to in-memory and enqueue async creation
+	_ = wires.AddInMem(wire, nil)
+	if err := wire.K8sStoreGWire(); err != nil {
+		t.Fatalf("failed to store wire: %v", err)
+	}
+
+	// 2. Immediately delete wire from memory and call K8sDelGWire
+	_ = wires.AtomicDelete(wire)
+	if err := wire.K8sDelGWire(); err != nil {
+		t.Fatalf("failed to delete wire: %v", err)
+	}
+
+	// 3. Flush any residual queue items
+	FlushK8sStatusQueue()
+
+	// 4. Verify no ghost wire exists in K8s
+	wObjs, err := cs.Namespace("topo-ghost").Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err == nil {
+		items, _, _ := unstructured.NestedSlice(wObjs.Object, kStatus, kGrpcWireItems)
+		if len(items) != 0 {
+			t.Fatalf("expected 0 items after deletion, got %d ghost items: %+v", len(items), items)
+		}
+	}
+}
+
+func TestCreateWireStatus_ConcurrentUpdateRace(t *testing.T) {
+	wire := &GRPCWire{
+		UID:                   555,
+		TopoNamespace:         "topo-race",
+		LocalPodNetNS:         "netns-race",
+		LocalNodeIfaceName:    "eth1-race",
+		LocalPodName:          "pod-race",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.5.5.5",
+		WireIfaceIDOnPeerNode: 0,
+		PeerNodeIP:            "192.168.5.5",
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func(id int) {
+			defer wg.Done()
+			wire.UpdateWire(int64(id), nil)
+		}(i)
+		go func() {
+			defer wg.Done()
+			_ = CreateWireStatus(wire, "node1")
+		}()
+	}
+	wg.Wait()
 }
 
 // TestK8sDelGWire covers gwire status delete, update and get commands

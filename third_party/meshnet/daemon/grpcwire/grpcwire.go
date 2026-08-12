@@ -257,10 +257,8 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 	}
 	wire.mu.Unlock()
 
-	// Close the TAP file handle if open
-	if handle, ok := wires.GetHandle(wire.LocalNodeIfaceID); ok && handle != nil {
-		_ = handle.Close()
-	}
+	// Close and remove the TAP file handle
+	_ = wires.CloseAndRemoveHandle(wire.LocalNodeIfaceID)
 
 	// Remove the TAP link from the container netns if present
 	podNs, err := ns.GetNS(wire.LocalPodNetNS)
@@ -321,7 +319,12 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 		for {
 			bufPtr := packetPool.Get().(*[]byte)
 			n, err := reader.Read(*bufPtr)
-			readChan <- readResult{buf: bufPtr, n: n, err: err}
+			select {
+			case readChan <- readResult{buf: bufPtr, n: n, err: err}:
+			case <-wire.StopC:
+				packetPool.Put(bufPtr)
+				return
+			}
 			if err != nil {
 				return
 			}

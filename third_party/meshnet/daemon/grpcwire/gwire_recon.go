@@ -81,6 +81,8 @@ func (gc GWireClient) GetWireObjGrpUS(ctx context.Context, wStatus *grpcwirev1.G
 // -----------------------------------------------------------------------------------------------------------
 // Create & populate "GWireStatus" from a "GRPCWire". GWireStatus is stored in K8S data-store
 func CreateWireStatus(wire *GRPCWire, nodeName string) *grpcwirev1.GWireStatus {
+	wire.mu.Lock()
+	defer wire.mu.Unlock()
 
 	return &grpcwirev1.GWireStatus{
 		LocalNodeName: nodeName,
@@ -121,11 +123,11 @@ func startStatusQueueWorker() {
 					return
 				}
 
-				var flushSignal chan struct{}
+				var flushSignals []chan struct{}
 				var updates []wireStatusUpdate
 
 				if first.flushDone != nil {
-					flushSignal = first.flushDone
+					flushSignals = append(flushSignals, first.flushDone)
 				} else {
 					updates = append(updates, first)
 				}
@@ -137,7 +139,7 @@ func startStatusQueueWorker() {
 						if !ok {
 							drain = false
 						} else if u.flushDone != nil {
-							flushSignal = u.flushDone
+							flushSignals = append(flushSignals, u.flushDone)
 							drain = false
 						} else {
 							updates = append(updates, u)
@@ -153,8 +155,8 @@ func startStatusQueueWorker() {
 					}
 				}
 
-				if flushSignal != nil {
-					close(flushSignal)
+				for _, sig := range flushSignals {
+					close(sig)
 				}
 			}
 		}()
@@ -179,8 +181,18 @@ func updateGRPCWireStatusBatch(ctx context.Context, updates []wireStatusUpdate) 
 		return nil
 	}
 
-	groups := make(map[statusGroupKey][]wireStatusUpdate)
+	var activeUpdates []wireStatusUpdate
 	for _, u := range updates {
+		if _, ok := GetWireByUID(u.wire.LocalPodNetNS, u.wire.UID); ok {
+			activeUpdates = append(activeUpdates, u)
+		}
+	}
+	if len(activeUpdates) == 0 {
+		return nil
+	}
+
+	groups := make(map[statusGroupKey][]wireStatusUpdate)
+	for _, u := range activeUpdates {
 		k := statusGroupKey{
 			nodeName: u.nodeName,
 			topoNs:   u.wire.TopoNamespace,
@@ -234,8 +246,12 @@ func updateGRPCWireStatusGroup(ctx context.Context, nodeName, topoNs string, upd
 		}
 
 		for _, u := range updates {
+			if _, ok := GetWireByUID(u.wire.LocalPodNetNS, u.wire.UID); !ok {
+				continue
+			}
+
 			ws := CreateWireStatus(u.wire, u.nodeName)
-			unstrucObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ws)
+			unstrucObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ws)
 			if err != nil {
 				continue
 			}
@@ -281,6 +297,9 @@ func (wire *GRPCWire) K8sStoreGWire() error {
 // K8sDelGWire deletes grpc wire info 'wire' for a specific namespace from k8s api data-store for the current
 // node. namespace is specified in given 'wire' argument. it calls deleteGRPCWireStatus() to serve the purpose
 func (wire *GRPCWire) K8sDelGWire() error {
+	// Flush any pending async status updates before performing deletion
+	FlushK8sStatusQueue()
+
 	nodeName, err := findNodeName()
 	if err != nil {
 		grpcOvrlyLogger.Errorf("K8sDelGWire: could not get node name: %v", err)
@@ -402,6 +421,9 @@ func deleteGRPCWireStatus(ctx context.Context, wStatus *grpcwirev1.GWireStatus) 
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		node, err := gWClient.GetWireObjGrpUS(ctx, wStatus)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
 			grpcOvrlyLogger.Errorf("deleteGRPCWireStatus: failed to read node %s, pod %s@%s from K8s to delete wire status: %v",
 				wStatus.LocalNodeName, wStatus.LocalPodName, wStatus.LocalPodIfaceName, err)
 			return err

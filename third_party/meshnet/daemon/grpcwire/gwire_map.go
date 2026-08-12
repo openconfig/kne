@@ -54,6 +54,19 @@ func (w *wireMap) AddInMemNDataStore(wire *GRPCWire, handle *os.File) error {
 	return nil
 }
 
+// CloseAndRemoveHandle closes the TAP file handle for the given interface ID and removes it from the map.
+func (w *wireMap) CloseAndRemoveHandle(key int64) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if handle, ok := w.handles[key]; ok {
+		delete(w.handles, key)
+		if handle != nil {
+			return handle.Close()
+		}
+	}
+	return nil
+}
+
 // Clear the in-memory wire map
 func (w *wireMap) AtomicDelete(wire *GRPCWire) error {
 	w.mu.Lock()
@@ -63,7 +76,12 @@ func (w *wireMap) AtomicDelete(wire *GRPCWire) error {
 		linkUID:   wire.UID,
 	})
 
-	delete(w.handles, wire.LocalNodeIfaceID)
+	if handle, ok := w.handles[wire.LocalNodeIfaceID]; ok {
+		delete(w.handles, wire.LocalNodeIfaceID)
+		if handle != nil {
+			_ = handle.Close()
+		}
+	}
 
 	return nil
 }
@@ -107,8 +125,6 @@ func ExtractOneWireByPod(namespace string, podName string) (*GRPCWire, bool) {
 				linkUID:   wire.UID,
 			})
 
-			// also clean up the handle for the wire that is extracted from the wire-map
-			delete(wires.handles, wire.LocalNodeIfaceID)
 			return wire, true
 		}
 	}

@@ -2,6 +2,7 @@ package meshnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -233,6 +234,7 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 
 	// 2. Process gRPC peer batches in chunks (default 50 items per RPC) to allow pipelined processing
 	batchSize := wireutil.GetEnvInt("WIRE_BATCH_SIZE", 50)
+	var batchErrs []error
 
 	for peerIP, pBatch := range grpcBatches {
 		url := fmt.Sprintf("%s:%d", peerIP, wireutil.GRPCDefaultPort)
@@ -263,15 +265,33 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 				return fmt.Errorf("AddGRPCWiresRemoteBatch failed: %v", err)
 			}
 
+			if batchResp == nil {
+				remoteConn.Close()
+				mnetdLogger.Errorf("ReconcilePodLinks: nil batch response from %s for batch [%d:%d]", url, i, end)
+				return fmt.Errorf("nil batch response from %s", url)
+			}
+
 			for j, res := range batchResp.Items {
+				if j >= len(chunkLinks) {
+					mnetdLogger.Warnf("ReconcilePodLinks: response items length (%d) exceeds chunk links length (%d)", len(batchResp.Items), len(chunkLinks))
+					break
+				}
+				l := chunkLinks[j]
 				if res != nil && res.Response {
-					l := chunkLinks[j]
 					grpcwire.UpdateWireByUID(netNS, int(l.LinkUID), res.PeerIntfId, make(chan struct{}))
+				} else {
+					linkErr := fmt.Errorf("remote wire creation failed for link UID %d (%s@%s -> %s@%s)", l.LinkUID, topo.GetName(), l.LocalIntf, l.PeerPodName, l.PeerIntf)
+					mnetdLogger.Errorf("ReconcilePodLinks: %v", linkErr)
+					batchErrs = append(batchErrs, linkErr)
 				}
 			}
 		}
 
 		remoteConn.Close()
+	}
+
+	if len(batchErrs) > 0 {
+		return errors.Join(batchErrs...)
 	}
 
 	if len(sameNodeLinks) > 0 {

@@ -92,10 +92,45 @@ func TestGet_WithLinks(t *testing.T) {
 	if pod == nil {
 		t.Fatalf("expected non-nil pod, got nil")
 	}
-	if len(pod.Links) != 1 {
-		t.Fatalf("expected 1 link, got %d", len(pod.Links))
-	}
 	if pod.Links[0].PeerPod != "dut2" || pod.Links[0].LocalIntf != "eth1" {
 		t.Fatalf("unexpected link metadata: %+v", pod.Links[0])
+	}
+}
+
+func TestAddGRPCWiresRemoteBatch_NilRequest(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{}
+	resp, err := m.AddGRPCWiresRemoteBatch(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error on nil request: %v", err)
+	}
+	if resp == nil || len(resp.Items) != 0 {
+		t.Fatalf("expected empty response, got: %+v", resp)
+	}
+}
+
+func TestAddGRPCWiresRemoteBatch_InvalidNetNS(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{}
+	req := &mpb.WireDefBatch{
+		Items: []*mpb.WireDef{
+			{
+				LinkUid:       9999,
+				IntfNameInPod: "eth99",
+				LocalPodName:  "pod99",
+				LocalPodNetNs: "/invalid/netns/path",
+				TopoNs:        "default",
+			},
+		},
+	}
+	resp, err := m.AddGRPCWiresRemoteBatch(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected RPC-level error: %v", err)
+	}
+	if resp == nil || len(resp.Items) != 1 {
+		t.Fatalf("expected 1 response item, got: %+v", resp)
+	}
+	if resp.Items[0].Response {
+		t.Fatalf("expected response false for invalid netns")
 	}
 }

@@ -450,13 +450,15 @@ func (m *Meshnet) SendToStream(stream mpb.WireProtocol_SendToStreamServer) error
 // ---------------------------------------------------------------------------------------------------------------
 func (m *Meshnet) AddGRPCWireRemote(ctx context.Context, wireDef *mpb.WireDef) (*mpb.WireCreateResponse, error) {
 	stopC := make(chan struct{})
-	wire, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
+	wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
 	if err == nil {
-		log.WithFields(log.Fields{
-			"daemon":  "meshnetd",
-			"overlay": "gRPC",
-		}).Infof("[ADD-WIRE:REMOTE-END]For pod %s@%s starting the local packet receive thread", wireDef.LocalPodName, wireDef.IntfNameInPod)
-		go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		if created {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Infof("[ADD-WIRE:REMOTE-END]For pod %s@%s starting the local packet receive thread", wireDef.LocalPodName, wireDef.IntfNameInPod)
+			go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		}
 
 		return &mpb.WireCreateResponse{Response: true, PeerIntfId: wire.LocalNodeIfaceID}, nil
 	}
@@ -477,7 +479,7 @@ func (m *Meshnet) AddGRPCWiresRemoteBatch(ctx context.Context, req *mpb.WireDefB
 	}
 	for i, wireDef := range req.Items {
 		stopC := make(chan struct{})
-		wire, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
+		wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"daemon":  "meshnetd",
@@ -486,7 +488,9 @@ func (m *Meshnet) AddGRPCWiresRemoteBatch(ctx context.Context, req *mpb.WireDefB
 			resp.Items[i] = &mpb.WireCreateResponse{Response: false}
 			continue
 		}
-		go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		if created {
+			go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		}
 		resp.Items[i] = &mpb.WireCreateResponse{Response: true, PeerIntfId: wire.LocalNodeIfaceID}
 	}
 	return resp, nil

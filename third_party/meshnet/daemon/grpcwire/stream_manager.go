@@ -165,6 +165,13 @@ func (s *NodeStream) run() {
 		grpcOvrlyLogger.Infof("[STREAM-MGR] Successfully connected multiplexed SendToStream to %s for topo %s", url, s.key.topoNs)
 
 		s.drainAndSend(ctx, cancel, conn, stream)
+
+		// Throttled backoff before reconnecting to prevent tight spin loops on stream failure
+		select {
+		case <-s.stopChan:
+			return
+		case <-time.After(200 * time.Millisecond):
+		}
 	}
 }
 
