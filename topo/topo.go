@@ -699,12 +699,12 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 		wg.Add(1)
 		go func(topo *topologyv1.Topology) {
 			defer wg.Done()
-			log.Infof("Creating topology for meshnet node %s", topo.ObjectMeta.Name)
+			log.Infof("Creating topology for meshnet node %s", topo.Name)
 			sT, err := m.tClient.Topology(m.topo.Name).Create(ctx, topo, metav1.CreateOptions{})
 			if err != nil {
 				mu.Lock()
 				if firstErr == nil {
-					firstErr = fmt.Errorf("could not create topology for meshnet node %s: %v", topo.ObjectMeta.Name, err)
+					firstErr = fmt.Errorf("could not create topology for meshnet node %s: %v", topo.Name, err)
 				}
 				mu.Unlock()
 				return
@@ -756,7 +756,7 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 				defer mu.Unlock()
 				if err != nil || phase == node.StatusFailed {
 					if firstErr == nil {
-						firstErr = fmt.Errorf("Node %s: Status %s Reason %v", nod, phase, err)
+						firstErr = fmt.Errorf("node %s: status %s reason %v", nod, phase, err)
 					}
 					return
 				}
