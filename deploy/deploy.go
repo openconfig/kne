@@ -434,6 +434,7 @@ type KubeadmSpec struct {
 	Network                     string `yaml:"network"`
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
 	ImageRepository             string `yaml:"imageRepository"`
+	ServiceNodePortRange        string `yaml:"serviceNodePortRange"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -489,6 +490,13 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	}
 	if err := os.WriteFile(filepath.Join(kubeDir, "config"), b, 0600); err != nil {
 		return err
+	}
+	portRange := "10000-32767"
+	if k.ServiceNodePortRange != "" {
+		portRange = k.ServiceNodePortRange
+	}
+	if err := kubeadm.SetServiceNodePortRange(portRange); err != nil {
+		log.Warningf("Failed to set service node port range: %v", err)
 	}
 	if k.AllowControlPlaneScheduling {
 		if err := run.LogCommand("kubectl", "taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"); err != nil {

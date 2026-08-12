@@ -10,8 +10,57 @@ import (
 )
 
 var (
-	kubeadmFlagPath = "/var/lib/kubelet/kubeadm-flags.env"
+	kubeadmFlagPath       = "/var/lib/kubelet/kubeadm-flags.env"
+	kubeAPIServerManifest = "/etc/kubernetes/manifests/kube-apiserver.yaml"
 )
+
+// SetServiceNodePortRange sets the service node port range in the kube-apiserver manifest.
+func SetServiceNodePortRange(portRange string) error {
+	log.Infof("Setting service node port range to %q...", portRange)
+	if _, err := os.Stat(kubeAPIServerManifest); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to stat %s: %w", kubeAPIServerManifest, err)
+	}
+	b, err := os.ReadFile(kubeAPIServerManifest)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", kubeAPIServerManifest, err)
+	}
+	content := string(b)
+	if strings.Contains(content, "--service-node-port-range=") {
+		return nil
+	}
+	target := "    - --service-cluster-ip-range="
+	idx := strings.Index(content, target)
+	if idx == -1 {
+		target = "    - kube-apiserver\n"
+		idx = strings.Index(content, target)
+		if idx == -1 {
+			return fmt.Errorf("could not find insertion point in %s", kubeAPIServerManifest)
+		}
+	}
+	endOfLine := strings.Index(content[idx:], "\n")
+	if endOfLine == -1 {
+		endOfLine = len(content) - idx
+	}
+	insertPos := idx + endOfLine + 1
+	flag := fmt.Sprintf("    - --service-node-port-range=%s\n", portRange)
+	newContent := content[:insertPos] + flag + content[insertPos:]
+
+	f, err := os.CreateTemp("", "kne-apiserver-*.yaml")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(f.Name())
+	if _, err := f.WriteString(newContent); err != nil {
+		return err
+	}
+	if err := run.LogCommand("sudo", "cp", f.Name(), kubeAPIServerManifest); err != nil {
+		return err
+	}
+	return nil
+}
 
 // EnableCredentialProvider enables a credential provider according
 // to the specified config file on the kubelet.
