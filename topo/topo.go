@@ -186,6 +186,12 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 		}
 		m.rCfg = rCfg
 	}
+	if m.rCfg.QPS == 0 {
+		m.rCfg.QPS = 100
+	}
+	if m.rCfg.Burst == 0 {
+		m.rCfg.Burst = 200
+	}
 	if m.kClient == nil {
 		kClient, err := kubernetes.NewForConfig(m.rCfg)
 		if err != nil {
@@ -409,10 +415,19 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 		}
 	}
 	stateMap := &stateMap{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, n := range m.nodes {
-		phase, _ := n.Status(ctx)
-		stateMap.setNodeState(n.Name(), phase)
+		wg.Add(1)
+		go func(nd node.Node) {
+			defer wg.Done()
+			phase, _ := nd.Status(ctx)
+			mu.Lock()
+			stateMap.setNodeState(nd.Name(), phase)
+			mu.Unlock()
+		}(n)
 	}
+	wg.Wait()
 	return &cpb.ShowTopologyResponse{
 		State:    stateMap.topologyState(),
 		Topology: m.topo,
@@ -677,15 +692,28 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 		return fmt.Errorf("could not get meshnet topologies: %v", err)
 	}
 	log.V(2).Infof("Got topology specs for namespace %s: %+v", m.topo.Name, topologies)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
 	for _, t := range topologies {
-		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
-		sT, err := m.tClient.Topology(m.topo.Name).Create(ctx, t, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
-		}
-		log.V(1).Infof("Meshnet Node:\n%+v\n", sT)
+		wg.Add(1)
+		go func(topo *topologyv1.Topology) {
+			defer wg.Done()
+			log.Infof("Creating topology for meshnet node %s", topo.ObjectMeta.Name)
+			sT, err := m.tClient.Topology(m.topo.Name).Create(ctx, topo, metav1.CreateOptions{})
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("could not create topology for meshnet node %s: %v", topo.ObjectMeta.Name, err)
+				}
+				mu.Unlock()
+				return
+			}
+			log.V(1).Infof("Meshnet Node:\n%+v\n", sT)
+		}(t)
 	}
-	return nil
+	wg.Wait()
+	return firstErr
 }
 
 // deleteMeshnetTopologies deletes meshnet resources for all available nodes.
@@ -707,28 +735,46 @@ func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) error {
 	foundAll := false
 	processed := make(map[string]bool)
+	var mu sync.Mutex
 
 	// Check until end state or timeout sec expired
 	start := time.Now()
 	for (timeout == 0 || time.Since(start) < timeout) && !foundAll {
 		foundAll = true
+		var wg sync.WaitGroup
+		var firstErr error
 		for name, n := range m.nodes {
-			if _, ok := processed[name]; ok {
+			if processed[name] {
 				continue
 			}
 
-			phase, err := n.Status(ctx)
-			if err != nil || phase == node.StatusFailed {
-				return fmt.Errorf("Node %s: Status %s Reason %v", n, phase, err)
-			}
-			if phase == node.StatusRunning {
-				log.Infof("Node %s: Status %s", n, phase)
-				processed[name] = true
-			} else {
-				foundAll = false
-			}
+			wg.Add(1)
+			go func(name string, nd node.Node) {
+				defer wg.Done()
+				phase, err := nd.Status(ctx)
+				mu.Lock()
+				defer mu.Unlock()
+				if err != nil || phase == node.StatusFailed {
+					if firstErr == nil {
+						firstErr = fmt.Errorf("Node %s: Status %s Reason %v", nd, phase, err)
+					}
+					return
+				}
+				if phase == node.StatusRunning {
+					log.Infof("Node %s: Status %s", nd, phase)
+					processed[name] = true
+				} else {
+					foundAll = false
+				}
+			}(name, n)
 		}
-		time.Sleep(100 * time.Millisecond)
+		wg.Wait()
+		if firstErr != nil {
+			return firstErr
+		}
+		if !foundAll {
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 	if !foundAll {
 		log.Warningf("Failed to determine status of some node resources in %d sec", timeout)
@@ -752,18 +798,41 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		Topologies: map[string]*topologyv1.Topology{},
 	}
 
+	podList, err := m.kClient.CoreV1().Pods(m.topo.Name).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pods for topology %s: %w", m.topo.Name, err)
+	}
+	podMap := map[string][]*corev1.Pod{}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		podMap[pod.Name] = append(podMap[pod.Name], pod)
+	}
+
+	serviceList, err := m.kClient.CoreV1().Services(m.topo.Name).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list services for topology %s: %w", m.topo.Name, err)
+	}
+	svcMap := map[string][]*corev1.Service{}
+	for i := range serviceList.Items {
+		svc := &serviceList.Items[i]
+		nodeName := strings.TrimPrefix(svc.Name, "service-")
+		svcMap[nodeName] = append(svcMap[nodeName], svc)
+	}
+
 	for nodeName, n := range m.nodes {
-		pods, err := n.Pods(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("could not get pods for node %s: %v", nodeName, err)
+		pods, ok := podMap[nodeName]
+		if !ok || len(pods) == 0 {
+			return nil, fmt.Errorf("could not get pods for node %s", nodeName)
 		}
 		r.Pods[nodeName] = pods
 
-		services, err := n.Services(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("could not get services for node %s: %v", nodeName, err)
+		if len(n.GetProto().GetServices()) > 0 {
+			services, ok := svcMap[nodeName]
+			if !ok || len(services) == 0 {
+				return nil, fmt.Errorf("could not get services for node %s", nodeName)
+			}
+			r.Services[nodeName] = services
 		}
-		r.Services[nodeName] = services
 	}
 
 	tList, err := m.topologyResources(ctx)
