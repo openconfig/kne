@@ -26,8 +26,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
-	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
-	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
@@ -37,6 +35,8 @@ import (
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -419,11 +419,11 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 	var wg sync.WaitGroup
 	for _, n := range m.nodes {
 		wg.Add(1)
-		go func(nd node.Node) {
+		go func(nod node.Node) {
 			defer wg.Done()
-			phase, _ := nd.Status(ctx)
+			phase, _ := nod.Status(ctx)
 			mu.Lock()
-			stateMap.setNodeState(nd.Name(), phase)
+			stateMap.setNodeState(nod.Name(), phase)
 			mu.Unlock()
 		}(n)
 	}
@@ -749,19 +749,19 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 			}
 
 			wg.Add(1)
-			go func(name string, nd node.Node) {
+			go func(name string, nod node.Node) {
 				defer wg.Done()
-				phase, err := nd.Status(ctx)
+				phase, err := nod.Status(ctx)
 				mu.Lock()
 				defer mu.Unlock()
 				if err != nil || phase == node.StatusFailed {
 					if firstErr == nil {
-						firstErr = fmt.Errorf("Node %s: Status %s Reason %v", nd, phase, err)
+						firstErr = fmt.Errorf("Node %s: Status %s Reason %v", nod, phase, err)
 					}
 					return
 				}
 				if phase == node.StatusRunning {
-					log.Infof("Node %s: Status %s", nd, phase)
+					log.Infof("Node %s: Status %s", nod, phase)
 					processed[name] = true
 				} else {
 					foundAll = false
