@@ -42,8 +42,9 @@ func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolRe
 // A remote peer can tell the local node to create/update the local end of the grpc-wire.
 // At the local end if the wire is already created then update the wire properties.
 // This updation can happen when a pod is deleted and recreated again. This is not very uncommon in K8S to move
-// a pod from node A to node B dynamically
-func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct{}) (*GRPCWire, error) {
+// a pod from node A to node B dynamically.
+// Returns the wire, whether it was freshly created (true) or updated (false), and any error.
+func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct{}) (*GRPCWire, bool, error) {
 
 	// If this wire is already created, then only update the already created wire properties like stopC.
 	// This can happen due to a race between the local and remote peer.
@@ -52,14 +53,14 @@ func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct
 	grpcWire, ok := UpdateWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid), wireDef.WireIfIdOnPeerNode, stopC)
 	if ok {
 		grpcOvrlyLogger.Infof("[CREATE-UPDATE-WIRE] At remote end this grpc-wire is already created by %s. Local interface id : %d peer interface id : %d", grpcWire.Originator, grpcWire.LocalNodeIfaceID, grpcWire.WireIfaceIDOnPeerNode)
-		return grpcWire, nil
+		return grpcWire, false, nil
 	}
 
 	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
 		grpcOvrlyLogger.Errorf("[ADD-WIRE:REMOTE-END] Error creating/attaching TAP interface %s in netns %s: %v",
 			wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)
-		return nil, err
+		return nil, false, err
 	}
 
 	wireID := NextIndex()
@@ -71,7 +72,7 @@ func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct
 	// Add the created wire in the in memory wire-map and k8S data store
 	AddWireInMemNDataStore(aWire, tapFile)
 
-	return aWire, nil
+	return aWire, true, nil
 }
 
 // When the remote peer tells the local node to remove the local end of the grpc-wire info

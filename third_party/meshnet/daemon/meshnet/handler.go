@@ -368,7 +368,6 @@ func (m *Meshnet) Update(ctx context.Context, pod *mpb.RemotePod) (*mpb.BoolResp
 
 // ------------------------------------------------------------------------------------------------------
 func (m *Meshnet) RemGRPCWire(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolResponse, error) {
-	//if err := grpcwire.DeleteWiresByPod(wireDef.KubeNs, wireDef.LocalPodName); err != nil
 	if err := grpcwire.DeletePodWires(wireDef.TopoNs, wireDef.LocalPodName); err != nil {
 		return &mpb.BoolResponse{Response: false}, err
 	}
@@ -451,13 +450,15 @@ func (m *Meshnet) SendToStream(stream mpb.WireProtocol_SendToStreamServer) error
 // ---------------------------------------------------------------------------------------------------------------
 func (m *Meshnet) AddGRPCWireRemote(ctx context.Context, wireDef *mpb.WireDef) (*mpb.WireCreateResponse, error) {
 	stopC := make(chan struct{})
-	wire, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
+	wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
 	if err == nil {
-		log.WithFields(log.Fields{
-			"daemon":  "meshnetd",
-			"overlay": "gRPC",
-		}).Infof("[ADD-WIRE:REMOTE-END]For pod %s@%s starting the local packet receive thread", wireDef.LocalPodName, wireDef.IntfNameInPod)
-		go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		if created {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Infof("[ADD-WIRE:REMOTE-END]For pod %s@%s starting the local packet receive thread", wireDef.LocalPodName, wireDef.IntfNameInPod)
+			go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		}
 
 		return &mpb.WireCreateResponse{Response: true, PeerIntfId: wire.LocalNodeIfaceID}, nil
 	}
@@ -466,6 +467,33 @@ func (m *Meshnet) AddGRPCWireRemote(ctx context.Context, wireDef *mpb.WireDef) (
 		"overlay": "gRPC",
 	}).Errorf("[ADD-WIRE:REMOTE-END] err: %v", err)
 	return &mpb.WireCreateResponse{Response: false, PeerIntfId: wireDef.WireIfIdOnPeerNode}, err
+}
+
+// AddGRPCWiresRemoteBatch handles batch creation of remote gRPC wires in a single RPC call.
+func (m *Meshnet) AddGRPCWiresRemoteBatch(ctx context.Context, req *mpb.WireDefBatch) (*mpb.WireCreateResponseBatch, error) {
+	if req == nil {
+		return &mpb.WireCreateResponseBatch{}, nil
+	}
+	resp := &mpb.WireCreateResponseBatch{
+		Items: make([]*mpb.WireCreateResponse, len(req.Items)),
+	}
+	for i, wireDef := range req.Items {
+		stopC := make(chan struct{})
+		wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"daemon":  "meshnetd",
+				"overlay": "gRPC",
+			}).Errorf("[ADD-WIRE:REMOTE-END-BATCH] Error creating wire %s@%s: %v", wireDef.LocalPodName, wireDef.IntfNameInPod, err)
+			resp.Items[i] = &mpb.WireCreateResponse{Response: false}
+			continue
+		}
+		if created {
+			go grpcwire.RecvFrmLocalPodThread(wire, wire.LocalNodeIfaceName)
+		}
+		resp.Items[i] = &mpb.WireCreateResponse{Response: true, PeerIntfId: wire.LocalNodeIfaceID}
+	}
+	return resp, nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------

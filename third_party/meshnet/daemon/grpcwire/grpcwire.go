@@ -3,22 +3,17 @@
 package grpcwire
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/openconfig/gnmi/errlist"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
-	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 )
 
 var grpcOvrlyLogger *log.Entry = nil
@@ -153,14 +148,6 @@ func (wire *GRPCWire) UpdateWire(peerIntfId int64, stopC chan struct{}) {
 	wire.IsReady = true
 }
 
-// Delete a wire from the in-memory wire-map under a lock
-func (w *wireMap) Delete(wire *GRPCWire) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	err := w.DeleteWoLock(wire)
-	return err
-}
-
 // GetWireByUID returns wire matching the provided namespace and linkUID.
 func GetWireByUID(namespace string, linkUID int) (*GRPCWire, bool) {
 	return wires.GetWire(namespace, linkUID)
@@ -176,19 +163,7 @@ func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan
 	}]
 	wires.mu.Unlock()
 	if ok {
-		wire.mu.Lock()
-		defer wire.mu.Unlock()
-		if wire.StopC == nil {
-			if stopC != nil {
-				wire.StopC = stopC
-			} else {
-				wire.StopC = make(chan struct{})
-			}
-		}
-		if !wire.IsReady {
-			wire.WireIfaceIDOnPeerNode = peerIntfId
-		}
-		wire.IsReady = true
+		wire.UpdateWire(peerIntfId, stopC)
 	}
 	return wire, ok
 }
@@ -282,10 +257,8 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 	}
 	wire.mu.Unlock()
 
-	// Close the TAP file handle if open
-	if handle, ok := wires.GetHandle(wire.LocalNodeIfaceID); ok && handle != nil {
-		_ = handle.Close()
-	}
+	// Close and remove the TAP file handle
+	_ = wires.CloseAndRemoveHandle(wire.LocalNodeIfaceID)
 
 	// Remove the TAP link from the container netns if present
 	podNs, err := ns.GetNS(wire.LocalPodNetNS)
@@ -317,55 +290,25 @@ func GenNodeIfaceName(podName string, podIfaceName string) (string, error) {
 	return ifaceName, nil
 }
 
+type packetSender interface {
+	Send(pkt *mpb.Packet) bool
+}
+
 // RecvFrmLocalPodThread reads packets from the local TAP interface and forwards them over the gRPC stream.
 func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
-	defaultPort := wireutil.GRPCDefaultPort
-	url := strings.TrimSpace(fmt.Sprintf("%s:%d", wire.PeerNodeIP, defaultPort))
-
 	tapFile, err := GetHostIntfHndl(wire.LocalNodeIfaceID)
 	if err != nil {
 		grpcOvrlyLogger.Errorf("[Packet Receive thread] For pod %s failed to retrieve TAP handle for interface %s/%d. error: %v", wire.LocalPodName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, err)
 		return err
 	}
 
-	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithInitialWindowSize(4 * 1024 * 1024),     // 4MB stream window
-		grpc.WithInitialConnWindowSize(16 * 1024 * 1024), // 16MB connection window
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(64*1024*1024),
-			grpc.MaxCallSendMsgSize(64*1024*1024),
-		),
-	}
+	nodeStream := streamMgr.GetOrCreateStream(wire.TopoNamespace, wire.PeerNodeIP)
+	defer streamMgr.ReleaseStream(wire.TopoNamespace, wire.PeerNodeIP)
 
-	remote, err := grpc.Dial(url, dialOpts...)
-	if err != nil {
-		grpcOvrlyLogger.Infof("RecvFrmLocalPodThread:Failed to connect to remote %s/%d", url, wire.LocalNodeIfaceID)
-		return err
-	}
-	defer remote.Close()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	wireClient := mpb.NewWireProtocolClient(remote)
-	return forwardPackets(ctx, tapFile, wireClient, wire, locIfNm)
+	return forwardPackets(tapFile, nodeStream, wire, locIfNm)
 }
 
-func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WireProtocolClient, wire *GRPCWire, locIfNm string) error {
-	var stream mpb.WireProtocol_SendToStreamClient
-	getStream := func() (mpb.WireProtocol_SendToStreamClient, error) {
-		if stream != nil {
-			return stream, nil
-		}
-		st, err := wireClient.SendToStream(ctx)
-		if err != nil {
-			return nil, err
-		}
-		stream = st
-		return stream, nil
-	}
-
+func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIfNm string) error {
 	type readResult struct {
 		buf *[]byte
 		n   int
@@ -376,7 +319,12 @@ func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WirePr
 		for {
 			bufPtr := packetPool.Get().(*[]byte)
 			n, err := reader.Read(*bufPtr)
-			readChan <- readResult{buf: bufPtr, n: n, err: err}
+			select {
+			case readChan <- readResult{buf: bufPtr, n: n, err: err}:
+			case <-wire.StopC:
+				packetPool.Put(bufPtr)
+				return
+			}
 			if err != nil {
 				return
 			}
@@ -388,9 +336,6 @@ func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WirePr
 		case <-wire.StopC:
 			grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: closing connection with remote peer-iface@peer-node-ip: %d@%s/%d from %s@%s",
 				wire.WireIfaceIDOnPeerNode, wire.PeerNodeIP, wire.LocalNodeIfaceID, wire.LocalPodName, wire.LocalPodIfaceName)
-			if stream != nil {
-				_, _ = stream.CloseAndRecv()
-			}
 			return io.EOF
 		case res := <-readChan:
 			bufPtr := res.buf
@@ -437,16 +382,8 @@ func forwardPackets(ctx context.Context, reader io.Reader, wireClient mpb.WirePr
 				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", n, pktType)
 			}
 
-			st, err := getStream()
-			if err != nil {
-				packetPool.Put(bufPtr)
-				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not get stream for %s@%s: %v", wire.LocalPodName, wire.LocalNodeIfaceName, err)
-				continue
-			}
-
-			if err := st.Send(payload); err != nil {
-				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not send packet over stream %s@%s: %v", wire.LocalPodName, wire.LocalNodeIfaceName, err)
-				stream = nil // reset stream for reconnect on next packet
+			if !sender.Send(payload) {
+				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not queue packet over stream %s@%s (queue full)", wire.LocalPodName, wire.LocalNodeIfaceName)
 			}
 			packetPool.Put(bufPtr)
 		}
