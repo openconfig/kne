@@ -49,7 +49,6 @@ type Meshnet struct {
 	s                 *grpc.Server
 	lis               net.Listener
 	nodeIP            string
-	dirtyChan         chan struct{}
 	interNodeLinkType string
 	topoCache         *TopologyCache
 	reconcileQueue    *ReconcileQueue
@@ -137,7 +136,6 @@ func New(cfg Config) (*Meshnet, error) {
 		lis:               lis,
 		s:                 svr,
 		nodeIP:            os.Getenv("HOST_IP"),
-		dirtyChan:         make(chan struct{}, 1),
 		interNodeLinkType: lnkTyp,
 		topoCache:         NewTopologyCache(),
 		reconcileQueue:    NewReconcileQueue(50 * time.Millisecond),

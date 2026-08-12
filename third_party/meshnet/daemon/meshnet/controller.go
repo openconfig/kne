@@ -775,21 +775,9 @@ func (m *Meshnet) ReconcileAllLocalPods(ctx context.Context) error {
 	return nil
 }
 
-// triggerReconcile sets the dirty token or triggers a full reconciliation pass,
-// maintaining backward compatibility with callers.
+// triggerReconcile triggers a full reconciliation pass via the reconcile queue.
 func (m *Meshnet) triggerReconcile() {
-	if m.reconcileQueue != nil {
-		m.reconcileQueue.EnqueueFull()
-		return
-	}
-	if m.dirtyChan == nil {
-		return
-	}
-	select {
-	case m.dirtyChan <- struct{}{}:
-	default:
-		// Already triggered/dirty; worker will execute a pass covering all updates.
-	}
+	m.enqueueFullReconcile()
 }
 
 // runReconcileWorker runs in the background and coalesces incoming reconcile triggers.
@@ -818,9 +806,6 @@ func (m *Meshnet) runReconcileWorker(ctx context.Context) {
 					_ = m.ReconcilePodLinks(ctx, topo)
 				}
 			}
-		case <-m.dirtyChan:
-			_ = m.CleanupOrphanedHostVeths(ctx)
-			_ = m.ReconcileAllLocalPods(ctx)
 		}
 	}
 }

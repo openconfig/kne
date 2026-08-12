@@ -239,7 +239,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 				if interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
 					peerSrcIP, cached := peerNodeCache[link.PeerPod]
 					if !cached {
-						peerPod, err := meshnetClient.Get(ctx, &mpb.PodQuery{
+						peerPod, err := meshnetClient.Get(waitCtx, &mpb.PodQuery{
 							Name:   link.PeerPod,
 							KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
 						})
