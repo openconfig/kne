@@ -1137,6 +1137,43 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}
 }
 
+func TestCreate(t *testing.T) {
+	ki := fake.NewSimpleClientset()
+	n := &Node{
+		Impl: &node.Impl{
+			Namespace:  "test",
+			KubeClient: ki,
+			Proto: &tpb.Node{
+				Name:  "xrd",
+				Model: ModelXRD,
+				Config: &tpb.Config{
+					ConfigFile: "startup.cfg",
+					ConfigPath: "/",
+					ConfigData: &tpb.Config_Data{
+						Data: []byte("hostname xrd"),
+					},
+				},
+				Interfaces: map[string]*tpb.Interface{
+					"eth1": {Name: "GigabitEthernet0/0/0/0"},
+				},
+			},
+		},
+	}
+	if err := n.Create(context.Background()); err != nil {
+		t.Fatalf("Create() unexpected error = %v", err)
+	}
+	pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "xrd", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get created pod: %v", err)
+	}
+	if len(pod.Spec.InitContainers) != 1 {
+		t.Fatalf("expected 1 init container, got %d", len(pod.Spec.InitContainers))
+	}
+	if len(pod.Spec.InitContainers[0].VolumeMounts) != 2 {
+		t.Fatalf("expected 2 volume mounts in init container, got %d", len(pod.Spec.InitContainers[0].VolumeMounts))
+	}
+}
+
 func TestDefaultNodeConstraints(t *testing.T) {
 	tests := []struct {
 		name       string

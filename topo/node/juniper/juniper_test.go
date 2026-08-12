@@ -30,30 +30,12 @@ import (
 	ktest "k8s.io/client-go/testing"
 )
 
-type fakeWatch struct {
-	e []watch.Event
-}
-
 // scrapliDebug checks if SCRAPLI_DEBUG env var is set.
 // used in testing to enable debug log of scrapligo.
 func scrapliDebug() bool {
 	_, set := os.LookupEnv("SCRAPLI_DEBUG")
 
 	return set
-}
-
-func (f *fakeWatch) Stop() {}
-
-func (f *fakeWatch) ResultChan() <-chan watch.Event {
-	eCh := make(chan watch.Event)
-	go func() {
-		for len(f.e) != 0 {
-			e := f.e[0]
-			f.e = f.e[1:]
-			eCh <- e
-		}
-	}()
-	return eCh
 }
 
 // removeCommentsFromConfig removes comment lines from a JunOS config file
@@ -91,22 +73,15 @@ func TestGenerateSelfSigned(t *testing.T) {
 	})
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{
-				{
-					// Test that watcher properly handles events with the wrong type.
-					Object: &corev1.ConfigMap{},
-				},
-				{
-					Object: &corev1.Pod{
-						Status: corev1.PodStatus{
-							Phase: corev1.PodRunning,
-						},
-					},
-				},
+		fw := watch.NewFakeWithChanSize(2, false)
+		// Test that watcher properly handles events with the wrong type.
+		fw.Add(&corev1.ConfigMap{})
+		fw.Add(&corev1.Pod{
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
 			},
-		}
-		return true, f, nil
+		})
+		return true, fw, nil
 	}
 	ki.PrependWatchReactor("*", reaction)
 
@@ -187,6 +162,34 @@ func TestGenerateSelfSigned(t *testing.T) {
 			wantErr:  true,
 			ni:       ni,
 			testFile: "testdata/generate_certificate_config_mode_failure",
+		},
+		{
+			// nil kubeclient
+			desc:    "nil kubeclient",
+			wantErr: true,
+			ni: &node.Impl{
+				Namespace: "test",
+				Proto:     ni.Proto,
+			},
+		},
+		{
+			// pod already running
+			desc:     "pod already running",
+			wantErr:  false,
+			testFile: "testdata/generate_certificate_success",
+			ni: &node.Impl{
+				KubeClient: fake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod1",
+						Namespace: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				}),
+				Namespace: "test",
+				Proto:     ni.Proto,
+			},
 		},
 		{
 			// invalid cert name contains invalid characters
@@ -327,16 +330,13 @@ func TestConfigPush(t *testing.T) {
 	})
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
+		fw := watch.NewFakeWithChanSize(1, false)
+		fw.Add(&corev1.Pod{
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		})
+		return true, fw, nil
 	}
 	ki.PrependWatchReactor("*", reaction)
 
@@ -421,18 +421,27 @@ func TestResetCfg(t *testing.T) {
 	})
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
+		fw := watch.NewFakeWithChanSize(1, false)
+		fw.Add(&corev1.Pod{
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		})
+		return true, fw, nil
 	}
 	ki.PrependWatchReactor("*", reaction)
+
+	origConfigModeRetrySleep := configModeRetrySleep
+	defer func() {
+		configModeRetrySleep = origConfigModeRetrySleep
+	}()
+	configModeRetrySleep = time.Millisecond
+
+	origConfigModeTimeout := configModeTimeout
+	defer func() {
+		configModeTimeout = origConfigModeTimeout
+	}()
+	configModeTimeout = 100 * time.Millisecond
 
 	ni := &node.Impl{
 		KubeClient: ki,
@@ -913,5 +922,45 @@ func TestValidCertNameRegexp(t *testing.T) {
 				t.Errorf("validCertNameRegexp.MatchString(%q) = %v, want %v", tt.certName, got, tt.wantValid)
 			}
 		})
+	}
+}
+
+func TestCreate(t *testing.T) {
+	ki := fake.NewSimpleClientset()
+	ni := &node.Impl{
+		Namespace:  "test",
+		KubeClient: ki,
+		Proto: &tpb.Node{
+			Name:   "ncptx",
+			Model:  "ncptx",
+			Vendor: tpb.Vendor_JUNIPER,
+			Config: &tpb.Config{
+				ConfigFile: "juniper.conf",
+				ConfigPath: "/home/evo/configdisk",
+				ConfigData: &tpb.Config_Data{
+					Data: []byte("set system host-name ncptx"),
+				},
+			},
+			Interfaces: map[string]*tpb.Interface{
+				"eth1": {Name: "et-0/0/0:0"},
+			},
+		},
+	}
+	n, err := New(ni)
+	if err != nil {
+		t.Fatalf("New() unexpected error = %v", err)
+	}
+	if err := n.Create(context.Background()); err != nil {
+		t.Fatalf("Create() unexpected error = %v", err)
+	}
+	pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "ncptx", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get created pod: %v", err)
+	}
+	if len(pod.Spec.InitContainers) != 1 {
+		t.Fatalf("expected 1 init container, got %d", len(pod.Spec.InitContainers))
+	}
+	if len(pod.Spec.InitContainers[0].VolumeMounts) != 2 {
+		t.Fatalf("expected 2 volume mounts in init container, got %d", len(pod.Spec.InitContainers[0].VolumeMounts))
 	}
 }
