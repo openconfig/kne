@@ -2,6 +2,7 @@ package kubeadm
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/openconfig/gnmi/errdiff"
@@ -44,7 +45,7 @@ func TestEnableCredentialProvider(t *testing.T) {
 		},
 	}, {
 		desc:    "config file not found",
-		cfgPath: "dne",
+		cfgPath: "nonexistent",
 		wantErr: "config file not found",
 	}, {
 		desc:    "failed to upgrade kubelet",
@@ -92,5 +93,129 @@ func checkCmds(t *testing.T, cmds *fexec.Command) {
 	t.Helper()
 	if err := cmds.Done(); err != nil {
 		t.Errorf("%v", err)
+	}
+}
+
+func TestSetServiceNodePortRange(t *testing.T) {
+	origKubeAPIServerManifest := kubeAPIServerManifest
+	defer func() {
+		kubeAPIServerManifest = origKubeAPIServerManifest
+	}()
+
+	manifestWithClusterIP := `apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver
+spec:
+  containers:
+  - command:
+    - kube-apiserver
+    - --service-cluster-ip-range=10.96.0.0/12
+    - --advertise-address=192.168.1.10
+`
+	manifestWithKubeAPIServer := `apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver
+spec:
+  containers:
+  - command:
+    - kube-apiserver
+    - --advertise-address=192.168.1.10
+`
+	manifestWithExistingRange := `apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver
+spec:
+  containers:
+  - command:
+    - kube-apiserver
+    - --service-node-port-range=10000-32767
+`
+	manifestNoMatch := `apiVersion: v1
+kind: Pod
+metadata:
+  name: other-pod
+spec:
+  containers:
+  - command:
+    - other-command
+`
+
+	tests := []struct {
+		desc         string
+		manifestData string
+		nonExistent  bool
+		portRange    string
+		resp         []fexec.Response
+		wantErr      string
+	}{{
+		desc:         "success with service-cluster-ip-range target",
+		manifestData: manifestWithClusterIP,
+		portRange:    "10000-32767",
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"cp", ".*", ".*"}},
+		},
+	}, {
+		desc:         "success with kube-apiserver fallback target",
+		manifestData: manifestWithKubeAPIServer,
+		portRange:    "10000-32767",
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"cp", ".*", ".*"}},
+		},
+	}, {
+		desc:        "manifest not found returns nil",
+		nonExistent: true,
+		portRange:   "10000-32767",
+	}, {
+		desc:         "manifest already contains service-node-port-range returns nil",
+		manifestData: manifestWithExistingRange,
+		portRange:    "10000-32767",
+	}, {
+		desc:         "could not find insertion point",
+		manifestData: manifestNoMatch,
+		portRange:    "10000-32767",
+		wantErr:      "could not find insertion point",
+	}, {
+		desc:         "failed to copy modified manifest",
+		manifestData: manifestWithClusterIP,
+		portRange:    "10000-32767",
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"cp", ".*", ".*"}, Err: "failed to copy"},
+		},
+		wantErr: "failed to copy",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if tt.nonExistent {
+				kubeAPIServerManifest = filepath.Join(t.TempDir(), "nonexistent.yaml")
+			} else {
+				f, err := os.CreateTemp(t.TempDir(), "kube-apiserver-*.yaml")
+				if err != nil {
+					t.Fatalf("Failed to create temp file: %v", err)
+				}
+				if _, err := f.WriteString(tt.manifestData); err != nil {
+					t.Fatalf("Failed to write temp manifest: %v", err)
+				}
+				if err := f.Close(); err != nil {
+					t.Fatalf("Failed to close temp manifest: %v", err)
+				}
+				kubeAPIServerManifest = f.Name()
+			}
+
+			fexec.LogCommand = func(s string) {
+				t.Logf("%s: %s", tt.desc, s)
+			}
+			cmds := fexec.Commands(tt.resp)
+			kexec.Command = cmds.Command
+			defer checkCmds(t, cmds)
+
+			err := SetServiceNodePortRange(tt.portRange)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
 	}
 }

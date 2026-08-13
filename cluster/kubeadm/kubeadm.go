@@ -17,15 +17,17 @@ var (
 // SetServiceNodePortRange sets the service node port range in the kube-apiserver manifest.
 func SetServiceNodePortRange(portRange string) error {
 	log.Infof("Setting service node port range to %q...", portRange)
-	if _, err := os.Stat(kubeAPIServerManifest); err != nil {
+	b, err := os.ReadFile(kubeAPIServerManifest)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("failed to stat %s: %w", kubeAPIServerManifest, err)
-	}
-	b, err := os.ReadFile(kubeAPIServerManifest)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", kubeAPIServerManifest, err)
+		// If read fails (e.g. due to permissions on root-owned manifest), try reading via sudo.
+		var sudoErr error
+		b, sudoErr = run.OutCommand("sudo", "cat", kubeAPIServerManifest)
+		if sudoErr != nil {
+			return fmt.Errorf("failed to read %s: %w", kubeAPIServerManifest, err)
+		}
 	}
 	content := string(b)
 	if strings.Contains(content, "--service-node-port-range=") {
@@ -52,8 +54,16 @@ func SetServiceNodePortRange(portRange string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(f.Name())
+	defer func() {
+		if err := os.Remove(f.Name()); err != nil && !os.IsNotExist(err) {
+			log.Warningf("Failed to remove temp file %q: %v", f.Name(), err)
+		}
+	}()
 	if _, err := f.WriteString(newContent); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	if err := run.LogCommand("sudo", "cp", f.Name(), kubeAPIServerManifest); err != nil {
@@ -85,8 +95,16 @@ func EnableCredentialProvider(cfgPath string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(f.Name())
+	defer func() {
+		if err := os.Remove(f.Name()); err != nil && !os.IsNotExist(err) {
+			log.Warningf("Failed to remove temp file %q: %v", f.Name(), err)
+		}
+	}()
 	if _, err := f.WriteString(s); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	if err := run.LogCommand("sudo", "cp", f.Name(), kubeadmFlagPath); err != nil {

@@ -118,6 +118,16 @@ func TestKubeadmSpec(t *testing.T) {
 			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 		},
+	}, {
+		desc: "custom service node port range",
+		k: &KubeadmSpec{
+			ServiceNodePortRange: "20000-30000",
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
