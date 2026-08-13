@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/openconfig/gnmi/errdiff"
 	kexec "github.com/openconfig/kne/exec"
@@ -98,9 +99,18 @@ func checkCmds(t *testing.T, cmds *fexec.Command) {
 
 func TestSetServiceNodePortRange(t *testing.T) {
 	origKubeAPIServerManifest := kubeAPIServerManifest
+	origSleepFn := sleepFn
+	origTimeout := apiserverWaitTimeout
+	origPollInterval := apiserverPollInterval
 	defer func() {
 		kubeAPIServerManifest = origKubeAPIServerManifest
+		sleepFn = origSleepFn
+		apiserverWaitTimeout = origTimeout
+		apiserverPollInterval = origPollInterval
 	}()
+	sleepFn = func(time.Duration) {}
+	apiserverWaitTimeout = 50 * time.Millisecond
+	apiserverPollInterval = time.Millisecond
 
 	manifestWithClusterIP := `apiVersion: v1
 kind: Pod
@@ -148,6 +158,7 @@ spec:
 		manifestData string
 		nonExistent  bool
 		portRange    string
+		waitTimeout  time.Duration
 		resp         []fexec.Response
 		wantErr      string
 	}{{
@@ -156,6 +167,8 @@ spec:
 		portRange:    "10000-32767",
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
+			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
+			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Stdout: "ok"},
 		},
 	}, {
 		desc:         "success with kube-apiserver fallback target",
@@ -163,6 +176,8 @@ spec:
 		portRange:    "10000-32767",
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
+			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
+			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Stdout: "ok"},
 		},
 	}, {
 		desc:        "manifest not found returns nil",
@@ -185,10 +200,38 @@ spec:
 			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}, Err: "failed to copy"},
 		},
 		wantErr: "failed to copy",
+	}, {
+		desc:         "success after retry",
+		manifestData: manifestWithClusterIP,
+		portRange:    "10000-32767",
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
+			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Err: "connection refused"},
+			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "old-args"},
+			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
+			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Err: "not ready"},
+			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
+			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Stdout: "ok"},
+		},
+	}, {
+		desc:         "timed out waiting for apiserver",
+		manifestData: manifestWithClusterIP,
+		portRange:    "10000-32767",
+		waitTimeout:  time.Nanosecond,
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
+			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Err: "connection refused"},
+		},
+		wantErr: "timed out waiting for kube-apiserver",
 	}}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if tt.waitTimeout != 0 {
+				apiserverWaitTimeout = tt.waitTimeout
+			} else {
+				apiserverWaitTimeout = 50 * time.Millisecond
+			}
 			if tt.nonExistent {
 				kubeAPIServerManifest = filepath.Join(t.TempDir(), "nonexistent.yaml")
 			} else {

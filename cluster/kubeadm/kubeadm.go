@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/openconfig/kne/exec/run"
 	log "k8s.io/klog/v2"
@@ -12,6 +13,9 @@ import (
 var (
 	kubeadmFlagPath       = "/var/lib/kubelet/kubeadm-flags.env"
 	kubeAPIServerManifest = "/etc/kubernetes/manifests/kube-apiserver.yaml"
+	apiserverWaitTimeout  = 60 * time.Second
+	apiserverPollInterval = time.Second
+	sleepFn               = time.Sleep
 )
 
 // SetServiceNodePortRange sets the service node port range in the kube-apiserver manifest.
@@ -69,7 +73,33 @@ func SetServiceNodePortRange(portRange string) error {
 	if err := run.LogCommand("sudo", "cp", "-f", f.Name(), kubeAPIServerManifest); err != nil {
 		return err
 	}
-	return nil
+	return waitForAPIServer(portRange)
+}
+
+func waitForAPIServer(portRange string) error {
+	log.Infof("Waiting for kube-apiserver to restart with service node port range %q...", portRange)
+	deadline := time.Now().Add(apiserverWaitTimeout)
+	expectedFlag := fmt.Sprintf("--service-node-port-range=%s", portRange)
+	for {
+		sleepFn(apiserverPollInterval)
+		out, err := run.OutCommand("kubectl", "get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", "jsonpath={.items[*].spec.containers[*].command}")
+		if err != nil {
+			log.V(1).Infof("kube-apiserver not ready yet: %v", err)
+		} else if !strings.Contains(string(out), expectedFlag) {
+			log.V(1).Infof("kube-apiserver has not restarted with %q yet", expectedFlag)
+		} else {
+			readyOut, err := run.OutCommand("kubectl", "get", "--raw", "/readyz")
+			if err != nil || strings.TrimSpace(string(readyOut)) != "ok" {
+				log.V(1).Infof("kube-apiserver /readyz not ready yet: %v", err)
+			} else {
+				log.Infof("kube-apiserver is ready with service node port range %q", portRange)
+				return nil
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timed out waiting for kube-apiserver to become ready after setting service node port range")
+		}
+	}
 }
 
 // EnableCredentialProvider enables a credential provider according
