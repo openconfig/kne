@@ -801,41 +801,41 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		Topologies: map[string]*topologyv1.Topology{},
 	}
 
-	podList, err := m.kClient.CoreV1().Pods(m.topo.Name).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pods for topology %s: %w", m.topo.Name, err)
-	}
-	podMap := map[string][]*corev1.Pod{}
-	for i := range podList.Items {
-		pod := &podList.Items[i]
-		podMap[pod.Name] = append(podMap[pod.Name], pod)
-	}
-
-	serviceList, err := m.kClient.CoreV1().Services(m.topo.Name).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list services for topology %s: %w", m.topo.Name, err)
-	}
-	svcMap := map[string][]*corev1.Service{}
-	for i := range serviceList.Items {
-		svc := &serviceList.Items[i]
-		nodeName := strings.TrimPrefix(svc.Name, "service-")
-		svcMap[nodeName] = append(svcMap[nodeName], svc)
-	}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
 
 	for nodeName, n := range m.nodes {
-		pods, ok := podMap[nodeName]
-		if !ok || len(pods) == 0 {
-			return nil, fmt.Errorf("could not get pods for node %s", nodeName)
-		}
-		r.Pods[nodeName] = pods
-
-		if len(n.GetProto().GetServices()) > 0 {
-			services, ok := svcMap[nodeName]
-			if !ok || len(services) == 0 {
-				return nil, fmt.Errorf("could not get services for node %s", nodeName)
+		wg.Add(1)
+		go func(name string, nd node.Node) {
+			defer wg.Done()
+			pods, err := nd.Pods(ctx)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("could not get pods for node %s: %v", name, err)
+				}
+				mu.Unlock()
+				return
 			}
-			r.Services[nodeName] = services
-		}
+			services, err := nd.Services(ctx)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("could not get services for node %s: %v", name, err)
+				}
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			r.Pods[name] = pods
+			r.Services[name] = services
+			mu.Unlock()
+		}(nodeName, n)
+	}
+	wg.Wait()
+	if firstErr != nil {
+		return nil, firstErr
 	}
 
 	tList, err := m.topologyResources(ctx)
