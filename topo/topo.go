@@ -807,9 +807,9 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 
 	for nodeName, n := range m.nodes {
 		wg.Add(1)
-		go func(name string, nd node.Node) {
+		go func(name string, nod node.Node) {
 			defer wg.Done()
-			pods, err := nd.Pods(ctx)
+			pods, err := nod.Pods(ctx)
 			if err != nil {
 				mu.Lock()
 				if firstErr == nil {
@@ -818,7 +818,7 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 				mu.Unlock()
 				return
 			}
-			services, err := nd.Services(ctx)
+			services, err := nod.Services(ctx)
 			if err != nil {
 				mu.Lock()
 				if firstErr == nil {
