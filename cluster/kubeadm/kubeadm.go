@@ -66,7 +66,7 @@ func SetServiceNodePortRange(portRange string) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := run.LogCommand("sudo", "cp", f.Name(), kubeAPIServerManifest); err != nil {
+	if err := run.LogCommand("sudo", "cp", "-f", f.Name(), kubeAPIServerManifest); err != nil {
 		return err
 	}
 	return nil
@@ -107,7 +107,7 @@ func EnableCredentialProvider(cfgPath string) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := run.LogCommand("sudo", "cp", f.Name(), kubeadmFlagPath); err != nil {
+	if err := run.LogCommand("sudo", "cp", "-f", f.Name(), kubeadmFlagPath); err != nil {
 		return err
 	}
 	if err := run.LogCommand("sudo", "systemctl", "restart", "kubelet"); err != nil {

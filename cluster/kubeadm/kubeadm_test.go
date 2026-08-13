@@ -40,7 +40,7 @@ func TestEnableCredentialProvider(t *testing.T) {
 		cfgPath: cfg.Name(),
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "upgrade", "node", "phase", "kubelet-config"}},
-			{Cmd: "sudo", Args: []string{"cp", ".*", kubeadmFlagPath}},
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", kubeadmFlagPath}},
 			{Cmd: "sudo", Args: []string{"systemctl", "restart", "kubelet"}},
 		},
 	}, {
@@ -59,7 +59,7 @@ func TestEnableCredentialProvider(t *testing.T) {
 		cfgPath: cfg.Name(),
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "upgrade", "node", "phase", "kubelet-config"}},
-			{Cmd: "sudo", Args: []string{"cp", ".*", kubeadmFlagPath}, Err: "failed to copy"},
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", kubeadmFlagPath}, Err: "failed to copy"},
 		},
 		wantErr: "failed to copy",
 	}, {
@@ -67,7 +67,7 @@ func TestEnableCredentialProvider(t *testing.T) {
 		cfgPath: cfg.Name(),
 		resp: []fexec.Response{
 			{Cmd: "sudo", Args: []string{"kubeadm", "upgrade", "node", "phase", "kubelet-config"}},
-			{Cmd: "sudo", Args: []string{"cp", ".*", kubeadmFlagPath}},
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", kubeadmFlagPath}},
 			{Cmd: "sudo", Args: []string{"systemctl", "restart", "kubelet"}, Err: "failed to restart kubelet"},
 		},
 		wantErr: "failed to restart kubelet",
@@ -155,14 +155,14 @@ spec:
 		manifestData: manifestWithClusterIP,
 		portRange:    "10000-32767",
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", ".*", ".*"}},
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
 		},
 	}, {
 		desc:         "success with kube-apiserver fallback target",
 		manifestData: manifestWithKubeAPIServer,
 		portRange:    "10000-32767",
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", ".*", ".*"}},
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
 		},
 	}, {
 		desc:        "manifest not found returns nil",
@@ -182,7 +182,7 @@ spec:
 		manifestData: manifestWithClusterIP,
 		portRange:    "10000-32767",
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", ".*", ".*"}, Err: "failed to copy"},
+			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}, Err: "failed to copy"},
 		},
 		wantErr: "failed to copy",
 	}}

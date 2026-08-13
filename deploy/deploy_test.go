@@ -1060,7 +1060,7 @@ func TestMetalLBSpec(t *testing.T) {
 			}
 			mi, err := mfake.NewSimpleClientset(tt.mObjects...)
 			if err != nil {
-				t.Fatalf("faild to create fake client: %v", err)
+				t.Fatalf("failed to create fake client: %v", err)
 			}
 
 			tt.m.SetKClient(ki)
