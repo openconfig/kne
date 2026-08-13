@@ -735,14 +735,20 @@ func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) error {
 	foundAll := false
 	processed := make(map[string]bool)
-	var mu sync.Mutex
+
+	type statusResult struct {
+		name  string
+		nod   node.Node
+		phase node.Status
+		err   error
+	}
 
 	// Check until end state or timeout sec expired
 	start := time.Now()
 	for (timeout == 0 || time.Since(start) < timeout) && !foundAll {
 		foundAll = true
 		var wg sync.WaitGroup
-		var firstErr error
+		resCh := make(chan statusResult, len(m.nodes))
 		for name, n := range m.nodes {
 			if processed[name] {
 				continue
@@ -752,25 +758,22 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 			go func(name string, nod node.Node) {
 				defer wg.Done()
 				phase, err := nod.Status(ctx)
-				mu.Lock()
-				defer mu.Unlock()
-				if err != nil || phase == node.StatusFailed {
-					if firstErr == nil {
-						firstErr = fmt.Errorf("node %s: status %s reason %v", nod, phase, err)
-					}
-					return
-				}
-				if phase == node.StatusRunning {
-					log.Infof("Node %s: Status %s", nod, phase)
-					processed[name] = true
-				} else {
-					foundAll = false
-				}
+				resCh <- statusResult{name: name, nod: nod, phase: phase, err: err}
 			}(name, n)
 		}
 		wg.Wait()
-		if firstErr != nil {
-			return firstErr
+		close(resCh)
+
+		for res := range resCh {
+			if res.err != nil || res.phase == node.StatusFailed {
+				return fmt.Errorf("node %s: status %s reason %v", res.nod, res.phase, res.err)
+			}
+			if res.phase == node.StatusRunning {
+				log.Infof("Node %s: Status %s", res.nod, res.phase)
+				processed[res.name] = true
+			} else {
+				foundAll = false
+			}
 		}
 		if !foundAll {
 			time.Sleep(500 * time.Millisecond)

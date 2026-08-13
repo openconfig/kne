@@ -57,7 +57,9 @@ root@cptx2> start shell user root
 [vrf:none] root@cptx2:~#
 [vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '    }'
 [vrf:none] root@cptx2:~#
-[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing 'abcd'
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing '}'
+[vrf:none] root@cptx2:~#
+[vrf:none] root@cptx2:~# echo >> /config/scrapli_cfg_testing ''
 [vrf:none] root@cptx2:~#
 [vrf:none] root@cptx2:~# exit
 logout

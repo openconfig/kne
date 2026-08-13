@@ -1040,7 +1040,7 @@ func TestResetCfg(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(10 * time.Second),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -1106,7 +1106,7 @@ func TestPushCfg(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(10 * time.Second),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
