@@ -24,11 +24,18 @@ import (
 
 // GWireClient is dynamic client for grpc wire. it is used to read/write grpc wire info from/to k8s api data-store
 type GWireClient struct {
+	mu  sync.RWMutex
 	di  dynamic.NamespaceableResourceInterface
 	gvr schema.GroupVersionResource
 }
 
 var gWClient GWireClient
+
+func (gc *GWireClient) getDI() dynamic.NamespaceableResourceInterface {
+	gc.mu.RLock()
+	defer gc.mu.RUnlock()
+	return gc.di
+}
 
 const (
 	kStatus        = "status"        // json name of Status of gwire_type, +++TBD: can we make it dynamic
@@ -37,6 +44,8 @@ const (
 
 // SetGWireClient initializes the dynamic K8s client for gRPC wire CRD management.
 func SetGWireClient(gClient *dynamic.DynamicClient) {
+	gWClient.mu.Lock()
+	defer gWClient.mu.Unlock()
 	// identifier<group, version, resource> of grpc wire object in k8s apis
 	gWClient.gvr = schema.GroupVersionResource{
 		Group:    grpcwirev1.GroupName,
@@ -48,12 +57,18 @@ func SetGWireClient(gClient *dynamic.DynamicClient) {
 
 // SetGWireClientInterface sets the K8s dynamic resource interface (used for unit testing).
 func SetGWireClientInterface(gClient dynamic.NamespaceableResourceInterface) {
+	gWClient.mu.Lock()
+	defer gWClient.mu.Unlock()
 	gWClient.di = gClient
 }
 
 // GetWireObjListUS lists unstructured GWireKObj resources for a specified node.
-func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*unstructured.UnstructuredList, error) {
-	return gc.di.Namespace("").List(ctx, metav1.ListOptions{
+func (gc *GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*unstructured.UnstructuredList, error) {
+	di := gc.getDI()
+	if di == nil {
+		return nil, errors.New("gWClient dynamic interface is nil")
+	}
+	return di.Namespace("").List(ctx, metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
 			Kind: reflect.TypeOf(grpcwirev1.GWireKObj{}).Name(),
 		},
@@ -64,18 +79,30 @@ func (gc GWireClient) GetWireObjListUS(ctx context.Context, ndName string) (*uns
 }
 
 // CreatWireObj creates a new unstructured GWireKObj resource in K8s.
-func (gc GWireClient) CreatWireObj(ctx context.Context, nSpace string, uWbj map[string]interface{}) (*unstructured.Unstructured, error) {
-	return gc.di.Namespace(nSpace).Create(ctx, &unstructured.Unstructured{Object: uWbj}, metav1.CreateOptions{})
+func (gc *GWireClient) CreatWireObj(ctx context.Context, nSpace string, uWbj map[string]interface{}) (*unstructured.Unstructured, error) {
+	di := gc.getDI()
+	if di == nil {
+		return nil, errors.New("gWClient dynamic interface is nil")
+	}
+	return di.Namespace(nSpace).Create(ctx, &unstructured.Unstructured{Object: uWbj}, metav1.CreateOptions{})
 }
 
 // UpdateWireObj updates an existing unstructured GWireKObj resource in K8s.
-func (gc GWireClient) UpdateWireObj(ctx context.Context, nSpace string, wObjsOnNd *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	return gc.di.Namespace(nSpace).Update(ctx, wObjsOnNd, metav1.UpdateOptions{})
+func (gc *GWireClient) UpdateWireObj(ctx context.Context, nSpace string, wObjsOnNd *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	di := gc.getDI()
+	if di == nil {
+		return nil, errors.New("gWClient dynamic interface is nil")
+	}
+	return di.Namespace(nSpace).Update(ctx, wObjsOnNd, metav1.UpdateOptions{})
 }
 
 // GetWireObjGrpUS retrieves the GWireKObj for a given node and status.
-func (gc GWireClient) GetWireObjGrpUS(ctx context.Context, wStatus *grpcwirev1.GWireStatus) (*unstructured.Unstructured, error) {
-	return gc.di.Namespace(wStatus.TopoNamespace).Get(ctx, wStatus.LocalNodeName, metav1.GetOptions{})
+func (gc *GWireClient) GetWireObjGrpUS(ctx context.Context, wStatus *grpcwirev1.GWireStatus) (*unstructured.Unstructured, error) {
+	di := gc.getDI()
+	if di == nil {
+		return nil, errors.New("gWClient dynamic interface is nil")
+	}
+	return di.Namespace(wStatus.TopoNamespace).Get(ctx, wStatus.LocalNodeName, metav1.GetOptions{})
 }
 
 // -----------------------------------------------------------------------------------------------------------
@@ -177,7 +204,7 @@ type statusGroupKey struct {
 }
 
 func updateGRPCWireStatusBatch(ctx context.Context, updates []wireStatusUpdate) error {
-	if len(updates) == 0 {
+	if len(updates) == 0 || gWClient.getDI() == nil {
 		return nil
 	}
 
@@ -417,6 +444,9 @@ func CreateGWireStatInDS(ctx context.Context, wStatus *grpcwirev1.GWireStatus) e
 // deleteGRPCWireStatus deletes a grpc wire status from 'grpcWireItems' for a specific namespace
 // for this node. Topology namespace is derived from given 'wStatus'.
 func deleteGRPCWireStatus(ctx context.Context, wStatus *grpcwirev1.GWireStatus) error {
+	if gWClient.getDI() == nil {
+		return nil
+	}
 
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		node, err := gWClient.GetWireObjGrpUS(ctx, wStatus)

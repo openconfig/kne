@@ -230,14 +230,14 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 			}
 		} else if peerSrcIP != "" {
 			if m.interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
-				// Check if wire already exists and is ready
-				if wire, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID)); ok && wire != nil && wire.IsReady {
-					mnetdLogger.Debugf("ReconcilePodLinks: gRPC wire already exists for link UID %d, skipping", link.LinkUID)
+				// Check if wire already exists, is ready, and points to the current peer node IP
+				if wire, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID)); ok && wire != nil && wire.IsReady && wire.PeerNodeIP == peerSrcIP {
+					mnetdLogger.Debugf("ReconcilePodLinks: gRPC wire already exists for link UID %d to peer %s (%s), skipping", link.LinkUID, link.PeerPodName, peerSrcIP)
 					continue
 				}
 
-				mnetdLogger.Infof("ReconcilePodLinks: initiating gRPC wire for pod %s <-> peer %s (UID %d)",
-					topo.GetName(), link.PeerPodName, link.LinkUID)
+				mnetdLogger.Infof("ReconcilePodLinks: initiating gRPC wire for pod %s <-> peer %s (%s, UID %d)",
+					topo.GetName(), link.PeerPodName, peerSrcIP, link.LinkUID)
 
 				// 1. Register local end in meshnet daemon (creates/attaches TAP interface in container netns)
 				wireDefLocal := &mpb.WireDef{
@@ -341,7 +341,7 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 				}
 				l := chunkLinks[j]
 				if res != nil && res.Response {
-					grpcwire.UpdateWireByUID(netNS, int(l.LinkUID), res.PeerIntfId, make(chan struct{}))
+					grpcwire.UpdateWireByUID(netNS, int(l.LinkUID), res.PeerIntfId, peerIP, make(chan struct{}))
 				} else {
 					linkErr := fmt.Errorf("remote wire creation failed for link UID %d (%s@%s -> %s@%s)", l.LinkUID, topo.GetName(), l.LocalIntf, l.PeerPodName, l.PeerIntf)
 					mnetdLogger.Errorf("ReconcilePodLinks: %v", linkErr)
@@ -514,7 +514,7 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 	}
 }
 
-// updatePlumbingErrorStatus writes the provided plumbing error message (or clears it if empty) 
+// updatePlumbingErrorStatus writes the provided plumbing error message (or clears it if empty)
 // to the Topology resource's status.plumbing_error field.
 func (m *Meshnet) updatePlumbingErrorStatus(ctx context.Context, topo *unstructured.Unstructured, errMsg string) error {
 	if m.tClient == nil {

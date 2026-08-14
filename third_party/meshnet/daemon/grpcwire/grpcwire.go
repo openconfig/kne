@@ -132,7 +132,7 @@ func CreateGWire(locIfIndex int, locIfNm string, stopC chan struct{}, wireDef *m
 }
 
 // update the wire with the given input and mark the wire ready
-func (wire *GRPCWire) UpdateWire(peerIntfId int64, stopC chan struct{}) {
+func (wire *GRPCWire) UpdateWire(peerIntfId int64, peerNodeIP string, stopC chan struct{}) {
 	wire.mu.Lock()
 	defer wire.mu.Unlock()
 	if wire.StopC == nil {
@@ -142,10 +142,12 @@ func (wire *GRPCWire) UpdateWire(peerIntfId int64, stopC chan struct{}) {
 			wire.StopC = make(chan struct{})
 		}
 	}
-	if !wire.IsReady {
-		wire.WireIfaceIDOnPeerNode = peerIntfId
+	wire.WireIfaceIDOnPeerNode = peerIntfId
+	if peerNodeIP != "" {
+		wire.PeerNodeIP = peerNodeIP
 	}
 	wire.IsReady = true
+	go wire.K8sStoreGWire()
 }
 
 // GetWireByUID returns wire matching the provided namespace and linkUID.
@@ -155,7 +157,7 @@ func GetWireByUID(namespace string, linkUID int) (*GRPCWire, bool) {
 
 // For the given uid if the wire exists, then update the wire properties.
 // Returns true if a wire exists, also the wire structure that got modified
-func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan struct{}) (*GRPCWire, bool) {
+func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, peerNodeIP string, stopC chan struct{}) (*GRPCWire, bool) {
 	wires.mu.Lock()
 	wire, ok := wires.wires[linkKey{
 		namespace: namespace,
@@ -163,7 +165,7 @@ func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan
 	}]
 	wires.mu.Unlock()
 	if ok {
-		wire.UpdateWire(peerIntfId, stopC)
+		wire.UpdateWire(peerIntfId, peerNodeIP, stopC)
 	}
 	return wire, ok
 }
