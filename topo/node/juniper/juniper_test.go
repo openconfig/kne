@@ -146,13 +146,13 @@ func TestGenerateSelfSigned(t *testing.T) {
 	defer func() {
 		certGenTimeout = origCertGenTimeout
 	}()
-	certGenTimeout = time.Second * 10
+	certGenTimeout = time.Second * 2
 
 	origConfigModeTimeout := configModeTimeout
 	defer func() {
 		configModeTimeout = origConfigModeTimeout
 	}()
-	configModeTimeout = time.Second * 10
+	configModeTimeout = time.Second * 2
 
 	tests := []struct {
 		desc     string
@@ -226,7 +226,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(10 * time.Second),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -390,7 +390,7 @@ func TestConfigPush(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(10 * time.Second),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -489,7 +489,7 @@ func TestResetCfg(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(10 * time.Second),
+				scrapliopts.WithTimeoutOps(2 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),

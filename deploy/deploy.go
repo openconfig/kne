@@ -207,6 +207,12 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if err != nil {
 		return fmt.Errorf("failed to create k8s config: %w", err)
 	}
+	if rCfg.QPS == 0 {
+		rCfg.QPS = 100
+	}
+	if rCfg.Burst == 0 {
+		rCfg.Burst = 200
+	}
 	kClient, err := kubernetes.NewForConfig(rCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create k8s client: %w", err)
