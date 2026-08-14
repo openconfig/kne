@@ -414,6 +414,52 @@ func TestTargetedReconciliation_PeerRestartQueuesDependents(t *testing.T) {
 	}
 }
 
+func TestTopologyCache_DeepCopyIsolation(t *testing.T) {
+	cache := NewTopologyCache()
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2"})
+	cache.Put(p1)
 
+	// Mutate the object returned from Get
+	got := cache.Get("default", "p1")
+	if got == nil {
+		t.Fatalf("expected p1 in cache")
+	}
+	_ = unstructured.SetNestedField(got.Object, "10.99.99.99", "status", "src_ip")
 
+	// Verify cached object was not mutated
+	got2 := cache.Get("default", "p1")
+	srcIP, _, _ := unstructured.NestedString(got2.Object, "status", "src_ip")
+	if srcIP != "10.0.0.1" {
+		t.Fatalf("expected cached src_ip to remain 10.0.0.1, got %s", srcIP)
+	}
+}
 
+func TestUpdatePlumbingErrorStatus_NoOpWhenUnchanged(t *testing.T) {
+	InitLogger()
+	p1 := createFakePodTopology("p1", "default", "10.0.0.1", "/proc/1/ns/net", []string{"p2"})
+	fakeClient, err := fakeTopology.NewSimpleClientset(p1)
+	if err != nil {
+		t.Fatalf("failed to create fake topology clientset: %v", err)
+	}
+
+	m := &Meshnet{
+		tClient:   fakeClient,
+		topoCache: NewTopologyCache(),
+	}
+	m.topoCache.Put(p1)
+
+	// 1. Clearing when already empty should succeed without error
+	if err := m.updatePlumbingErrorStatus(context.Background(), p1, ""); err != nil {
+		t.Fatalf("expected nil error on clearing empty error: %v", err)
+	}
+
+	// 2. Setting an error
+	if err := m.updatePlumbingErrorStatus(context.Background(), p1, "dial timeout"); err != nil {
+		t.Fatalf("expected nil error on setting error: %v", err)
+	}
+
+	// 3. Setting the exact same error again should be a no-op
+	if err := m.updatePlumbingErrorStatus(context.Background(), p1, "dial timeout"); err != nil {
+		t.Fatalf("expected nil error on setting duplicate error: %v", err)
+	}
+}

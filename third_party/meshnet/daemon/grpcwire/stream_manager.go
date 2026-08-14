@@ -24,7 +24,15 @@ type NodeStream struct {
 	key      nodeStreamKey
 	pktChan  chan *mpb.Packet
 	stopChan chan struct{}
+	stopOnce sync.Once
 	refCount int
+}
+
+// Stop safely closes the stopChan at most once.
+func (s *NodeStream) Stop() {
+	s.stopOnce.Do(func() {
+		close(s.stopChan)
+	})
 }
 
 type nodeStreamManager struct {
@@ -89,7 +97,7 @@ func (m *nodeStreamManager) ReleaseStream(topoNs string, peerIP string) {
 
 	st.refCount--
 	if st.refCount <= 0 {
-		close(st.stopChan)
+		st.Stop()
 		delete(m.streams, key)
 	}
 }
@@ -109,17 +117,11 @@ func (m *nodeStreamManager) Send(topoNs string, peerIP string, pkt *mpb.Packet) 
 
 	m.mu.Lock()
 	st, ok := m.streams[key]
-	if !ok {
-		st = &NodeStream{
-			key:      key,
-			pktChan:  make(chan *mpb.Packet, 10000),
-			stopChan: make(chan struct{}),
-			refCount: 1,
-		}
-		m.streams[key] = st
-		go st.run()
-	}
 	m.mu.Unlock()
+
+	if !ok {
+		return false
+	}
 
 	return st.Send(pkt)
 }

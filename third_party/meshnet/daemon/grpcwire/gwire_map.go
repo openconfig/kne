@@ -29,19 +29,24 @@ func (w *wireMap) GetHandle(key int64) (*os.File, bool) {
 	return handle, ok
 }
 
-func (w *wireMap) AddInMem(wire *GRPCWire, handle *os.File) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *wireMap) cleanupOldWireLocked(wire *GRPCWire) {
+	lk := linkKey{namespace: wire.LocalPodNetNS, linkUID: wire.UID}
+	if oldWire, exists := w.wires[lk]; exists && oldWire != wire {
+		oldWire.CloseStopC()
+		oldWire.IsReady = false
+		if oldHandle, ok := w.handles[oldWire.LocalNodeIfaceID]; ok && oldHandle != nil {
+			_ = oldHandle.Close()
+			delete(w.handles, oldWire.LocalNodeIfaceID)
+		}
+	}
 
 	for key, oldWire := range w.wires {
 		if oldWire.TopoNamespace == wire.TopoNamespace &&
 			oldWire.LocalPodName == wire.LocalPodName &&
 			oldWire.UID == wire.UID &&
 			oldWire.LocalPodNetNS != wire.LocalPodNetNS {
-			if oldWire.IsReady {
-				close(oldWire.StopC)
-				oldWire.IsReady = false
-			}
+			oldWire.CloseStopC()
+			oldWire.IsReady = false
 			if oldHandle, ok := w.handles[oldWire.LocalNodeIfaceID]; ok && oldHandle != nil {
 				_ = oldHandle.Close()
 				delete(w.handles, oldWire.LocalNodeIfaceID)
@@ -49,6 +54,13 @@ func (w *wireMap) AddInMem(wire *GRPCWire, handle *os.File) error {
 			delete(w.wires, key)
 		}
 	}
+}
+
+func (w *wireMap) AddInMem(wire *GRPCWire, handle *os.File) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.cleanupOldWireLocked(wire)
 
 	w.wires[linkKey{
 		namespace: wire.LocalPodNetNS,
@@ -61,6 +73,7 @@ func (w *wireMap) AddInMem(wire *GRPCWire, handle *os.File) error {
 
 func (w *wireMap) AddInMemNDataStore(wire *GRPCWire, handle *os.File) error {
 	w.mu.Lock()
+	w.cleanupOldWireLocked(wire)
 	w.wires[linkKey{
 		namespace: wire.LocalPodNetNS,
 		linkUID:   wire.UID,

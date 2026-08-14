@@ -112,7 +112,7 @@ func New(cfg Config) (*Meshnet, error) {
 	// Otherwise there will be GRPC log for every packet sent as for link type GRPC, GRPC is also the data-plane. This is too
 	// much of log that does not help in debugging and K8S does log rotation very frequently.
 	defaultOpts := []grpc.ServerOption{
-		grpc.InitialWindowSize(4 * 1024 * 1024),     // 4MB stream window
+		grpc.InitialWindowSize(4 * 1024 * 1024),      // 4MB stream window
 		grpc.InitialConnWindowSize(16 * 1024 * 1024), // 16MB connection window
 		grpc.MaxRecvMsgSize(64 * 1024 * 1024),
 		grpc.MaxSendMsgSize(64 * 1024 * 1024),

@@ -68,12 +68,12 @@ func HostVethNames(kubeNs, podName, peerPodName string, linkUID int64) (string, 
 // network namespace (podNsPath).
 //
 // Uses deterministic host veth naming (HostVethNames) so that:
-// - If the veth pair has not been created yet, it creates the host veth pair, moves the local end
-//   into podNsPath, and leaves the peer end waiting on the host for the peer pod to claim.
-// - If the peer pod already created the host veth pair, it finds the waiting local end on the host
-//   and moves it into podNsPath.
-// - If interrupted or restarted halfway through, it discovers already-moved interfaces and resumes
-//   idempotently.
+//   - If the veth pair has not been created yet, it creates the host veth pair, moves the local end
+//     into podNsPath, and leaves the peer end waiting on the host for the peer pod to claim.
+//   - If the peer pod already created the host veth pair, it finds the waiting local end on the host
+//     and moves it into podNsPath.
+//   - If interrupted or restarted halfway through, it discovers already-moved interfaces and resumes
+//     idempotently.
 func ConfigurePodLinks(podNsPath string, links []PodLinkConfig) error {
 	if len(links) == 0 {
 		return nil

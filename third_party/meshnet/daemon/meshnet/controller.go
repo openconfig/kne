@@ -513,7 +513,7 @@ func (c *TopologyCache) Put(topo *unstructured.Unstructured) {
 		}
 	}
 
-	c.topos[key] = topo
+	c.topos[key] = topo.DeepCopy()
 
 	// Index new peer dependencies
 	links, _ := parsePodLinks(topo)
@@ -557,7 +557,11 @@ func (c *TopologyCache) Get(ns, name string) *unstructured.Unstructured {
 	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.topos[fmt.Sprintf("%s/%s", ns, name)]
+	topo := c.topos[fmt.Sprintf("%s/%s", ns, name)]
+	if topo == nil {
+		return nil
+	}
+	return topo.DeepCopy()
 }
 
 // List returns all cached Topology resources matching the given namespace (or all if namespace is empty or metav1.NamespaceAll).
@@ -571,7 +575,7 @@ func (c *TopologyCache) List(ns string) []*unstructured.Unstructured {
 	res := make([]*unstructured.Unstructured, 0, len(c.topos))
 	for _, topo := range c.topos {
 		if ns == "" || ns == metav1.NamespaceAll || topo.GetNamespace() == ns {
-			res = append(res, topo)
+			res = append(res, topo.DeepCopy())
 		}
 	}
 	return res
@@ -944,9 +948,16 @@ func (m *Meshnet) updatePlumbingErrorStatus(ctx context.Context, topo *unstructu
 			return err
 		}
 
+		currErr, found, _ := unstructured.NestedString(latestTopo.Object, "status", "plumbing_error")
 		if errMsg == "" {
+			if !found || currErr == "" {
+				return nil
+			}
 			unstructured.RemoveNestedField(latestTopo.Object, "status", "plumbing_error")
 		} else {
+			if found && currErr == errMsg {
+				return nil
+			}
 			if err := unstructured.SetNestedField(latestTopo.Object, errMsg, "status", "plumbing_error"); err != nil {
 				return err
 			}

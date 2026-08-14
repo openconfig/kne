@@ -99,8 +99,18 @@ type GRPCWire struct {
 	Originator   grpcWireOriginator // create by local host or create on trigger from remote host. This is for debugging.
 	OriginatorIP string             // IP address of the host created it. This is for debugging.
 
-	StopC chan struct{} // the channel to send stop signal to the receive thread.
-	mu    sync.Mutex
+	StopC    chan struct{} // the channel to send stop signal to the receive thread.
+	stopOnce sync.Once
+	mu       sync.Mutex
+}
+
+// CloseStopC safely closes the wire's StopC channel at most once.
+func (wire *GRPCWire) CloseStopC() {
+	wire.stopOnce.Do(func() {
+		if wire.StopC != nil {
+			close(wire.StopC)
+		}
+	})
 }
 
 type linkKey struct {
@@ -188,6 +198,15 @@ func WireDownByUID(namespace string, linkUID int) error {
 		namespace: namespace,
 		linkUID:   linkUID,
 	}]
+	if !ok {
+		for _, w := range wires.wires {
+			if w.UID == linkUID && (namespace == "" || w.TopoNamespace == namespace || w.LocalPodNetNS == namespace) {
+				wire = w
+				ok = true
+				break
+			}
+		}
+	}
 	wires.mu.Unlock()
 
 	if ok {
@@ -195,12 +214,8 @@ func WireDownByUID(namespace string, linkUID int) error {
 		defer wire.mu.Unlock()
 		grpcOvrlyLogger.Infof("WireDownByUID: Making wire down from db, %s@%s-%s@%d, peer fid %d, link uid %d",
 			wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, wire.WireIfaceIDOnPeerNode, linkUID)
-		if wire.IsReady {
-			if wire.StopC != nil {
-				close(wire.StopC)
-			}
-			wire.IsReady = false
-		}
+		wire.CloseStopC()
+		wire.IsReady = false
 	} else {
 		grpcOvrlyLogger.Infof("WireDownByUID: Did not find entry to make down from db, uid %d, ns %s",
 			linkUID, namespace)
@@ -262,12 +277,8 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 
 	// stop the packet receive thread for this pod
 	wire.mu.Lock()
-	if wire.IsReady {
-		if wire.StopC != nil {
-			close(wire.StopC)
-		}
-		wire.IsReady = false
-	}
+	wire.CloseStopC()
+	wire.IsReady = false
 	wire.mu.Unlock()
 
 	// Close and remove the TAP file handle
@@ -322,16 +333,16 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 
 	if peerIP != "" {
 		_ = streamMgr.GetOrCreateStream(topoNs, peerIP)
-		defer func() {
-			wire.mu.Lock()
-			currIP := wire.PeerNodeIP
-			currNs := wire.TopoNamespace
-			wire.mu.Unlock()
-			if currIP != "" {
-				streamMgr.ReleaseStream(currNs, currIP)
-			}
-		}()
 	}
+	defer func() {
+		wire.mu.Lock()
+		currIP := wire.PeerNodeIP
+		currNs := wire.TopoNamespace
+		wire.mu.Unlock()
+		if currIP != "" {
+			streamMgr.ReleaseStream(currNs, currIP)
+		}
+	}()
 
 	return forwardPackets(tapFile, nil, wire, locIfNm)
 }

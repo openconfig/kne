@@ -2,6 +2,7 @@ package grpcwire
 
 import (
 	"context"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
@@ -9,13 +10,15 @@ import (
 	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 )
 
+var createWireMu sync.Mutex
+
 func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolResponse, error) {
+	createWireMu.Lock()
+	defer createWireMu.Unlock()
+
 	if wire, ok := GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid)); ok && wire != nil {
 		wire.mu.Lock()
 		wire.Originator = HOST_CREATED_WIRE
-		if wireDef.PeerNodeIp != "" {
-			wire.PeerNodeIP = wireDef.PeerNodeIp
-		}
 		wire.mu.Unlock()
 		return &mpb.BoolResponse{Response: true}, nil
 	}
@@ -55,6 +58,8 @@ func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolRe
 // a pod from node A to node B dynamically.
 // Returns the wire, whether it was freshly created (true) or updated (false), and any error.
 func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct{}) (*GRPCWire, bool, error) {
+	createWireMu.Lock()
+	defer createWireMu.Unlock()
 
 	// If this wire is already created, then only update the already created wire properties like stopC.
 	// This can happen due to a race between the local and remote peer.

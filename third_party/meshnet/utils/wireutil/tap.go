@@ -96,4 +96,3 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 
 	return tapFile, nil
 }
-
