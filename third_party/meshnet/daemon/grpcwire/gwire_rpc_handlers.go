@@ -92,13 +92,11 @@ func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct
 
 // When the remote peer tells the local node to remove the local end of the grpc-wire info
 func GRPCWireDownRemoteTriggered(wireDef *mpb.WireDef) error {
-
-	err := WireDownByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
-	if err != nil {
-		grpcOvrlyLogger.Infof("[WIRE-DOWN] Remote end failed in making down wire end in pod %s@%s,. Link uid : %d",
-			wireDef.LocalPodName, wireDef.IntfNameInPod, wireDef.LinkUid)
-		return nil
+	if _, ok := GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid)); ok {
+		return WireDownByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
 	}
-
-	return nil
+	if wireDef.TopoNs != "" {
+		return WireDownByUID(wireDef.TopoNs, int(wireDef.LinkUid))
+	}
+	return WireDownByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
 }

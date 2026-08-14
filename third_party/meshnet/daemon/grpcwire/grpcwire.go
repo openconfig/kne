@@ -191,7 +191,7 @@ func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, peerNodeIP
 	return wire, ok
 }
 
-// WireDownByUID - stops packet collection from the connected pod
+// WireDownByUID stops packet collection and cleans up the wire for the given link UID.
 func WireDownByUID(namespace string, linkUID int) error {
 	wires.mu.Lock()
 	wire, ok := wires.wires[linkKey{
@@ -210,16 +210,12 @@ func WireDownByUID(namespace string, linkUID int) error {
 	wires.mu.Unlock()
 
 	if ok {
-		wire.mu.Lock()
-		defer wire.mu.Unlock()
-		grpcOvrlyLogger.Infof("WireDownByUID: Making wire down from db, %s@%s-%s@%d, peer fid %d, link uid %d",
+		grpcOvrlyLogger.Infof("WireDownByUID: Removing wire from db, %s@%s-%s@%d, peer fid %d, link uid %d",
 			wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, wire.WireIfaceIDOnPeerNode, linkUID)
-		wire.CloseStopC()
-		wire.IsReady = false
-	} else {
-		grpcOvrlyLogger.Infof("WireDownByUID: Did not find entry to make down from db, uid %d, ns %s",
-			linkUID, namespace)
+		return RemoveWireAcrosAll(wire, true)
 	}
+	grpcOvrlyLogger.Infof("WireDownByUID: Did not find entry to make down from db, uid %d, ns %s",
+		linkUID, namespace)
 	return nil
 }
 

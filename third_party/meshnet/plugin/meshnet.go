@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/containernetworking/cni/pkg/skel"
@@ -393,19 +394,6 @@ func cmdDel(args *skel.CmdArgs) error {
 			// instead of failing, just log the error and move on
 			log.Errorf("Del: Error removing Veth link %s (%s) on pod %s: %v", link.LocalIntf, linkType, localPod.Name, err)
 		}
-
-		// Setting reversed skipped flag so that this pod will try to connect veth pair on restart
-		log.Infof("Del: Setting skip-reverse flag on peer %s@%s(link id %d) for local interface %s", link.PeerPod, link.PeerIntf, link.Uid, link.LocalIntf)
-		ok, err := meshnetClient.SkipReverse(ctx, &mpb.SkipQuery{
-			Pod:    localPod.Name,
-			Peer:   link.PeerPod,
-			LinkId: link.Uid,
-			KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
-		})
-		if err != nil || !ok.Response {
-			log.Errorf("Del: Failed to set skip reversed flag on our peer %s", link.PeerPod)
-			return err
-		}
 	}
 	return nil
 }
@@ -418,12 +406,12 @@ func SetInterNodeLinkType() {
 	// via means of file on host (which is read below) containing the value GRPC or VXLAN
 	b, err := os.ReadFile("/etc/cni/net.d/meshnet-inter-node-link-type")
 	if err != nil {
-		log.Warningf("Could not read iner node link type: %v", err)
+		log.Warningf("Could not read inner node link type: %v", err)
 		// use the default value
 		return
 	}
 
-	interNodeLinkType = string(b)
+	interNodeLinkType = strings.TrimSpace(string(b))
 }
 
 // -------------------------------------------------------------------------------------------------

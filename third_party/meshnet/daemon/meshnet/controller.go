@@ -915,6 +915,7 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 
 					// If this was a local pod, clean up its links
 					_ = m.CleanupPodLinks(ctx, topo)
+					_ = grpcwire.DeletePodWires(ns, name)
 
 					// Reconcile dependent pods so they update / clean up their link state
 					for _, depKey := range dependents {

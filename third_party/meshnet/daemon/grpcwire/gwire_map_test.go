@@ -391,3 +391,78 @@ func TestPassivePodRestart_SymmetricRecovery(t *testing.T) {
 		t.Fatalf("expected wire to remain ready")
 	}
 }
+
+func TestWireDownByUID_CleansUpAndRemovesFromMemory(t *testing.T) {
+	stopC := make(chan struct{})
+	w := &GRPCWire{
+		UID:           950,
+		TopoNamespace: "default",
+		LocalPodName:  "podDownTest",
+		LocalPodNetNS: "/proc/950/ns/net",
+		PeerNodeIP:    "10.0.0.2",
+		IsReady:       true,
+		StopC:         stopC,
+	}
+	wires.AddInMem(w, nil)
+
+	// WireDownByUID should cleanly remove wire from memory and close StopC
+	if err := WireDownByUID("/proc/950/ns/net", 950); err != nil {
+		t.Fatalf("WireDownByUID failed: %v", err)
+	}
+
+	// 1. Verify StopC closed
+	select {
+	case <-stopC:
+	default:
+		t.Fatalf("expected stopC to be closed")
+	}
+
+	// 2. Verify wire is removed from in-memory active map
+	if _, exists := GetWireByUID("/proc/950/ns/net", 950); exists {
+		t.Fatalf("expected wire to be removed from in-memory map by WireDownByUID")
+	}
+}
+
+func TestGRPCWireDownRemoteTriggered_RemoteNetNSFallback(t *testing.T) {
+	stopC := make(chan struct{})
+	w := &GRPCWire{
+		UID:           960,
+		TopoNamespace: "test-topo-ns",
+		LocalPodName:  "podLocal",
+		LocalPodNetNS: "/proc/nodeB/local/ns/net",
+		PeerNodeIP:    "10.0.0.1",
+		IsReady:       true,
+		StopC:         stopC,
+	}
+	wires.AddInMem(w, nil)
+	defer wires.AtomicDelete(w)
+
+	// Node A sends GRPCWireDownRemoteTriggered with Node A's netns (/proc/nodeA/remote/ns/net) and TopoNs
+	wireDefFromRemote := &mpb.WireDef{
+		LocalPodNetNs: "/proc/nodeA/remote/ns/net",
+		LinkUid:       960,
+		TopoNs:        "test-topo-ns",
+		LocalPodName:  "podRemote",
+	}
+
+	if err := GRPCWireDownRemoteTriggered(wireDefFromRemote); err != nil {
+		t.Fatalf("GRPCWireDownRemoteTriggered failed: %v", err)
+	}
+
+	// Wire should be marked down and removed
+	if w.IsReady {
+		t.Fatalf("expected wire to be marked down")
+	}
+
+	select {
+	case <-stopC:
+		// success: stopC was closed
+	default:
+		t.Fatalf("expected stopC to be closed")
+	}
+
+	if _, exists := GetWireByUID("/proc/nodeB/local/ns/net", 960); exists {
+		t.Fatalf("expected wire to be removed from memory by GRPCWireDownRemoteTriggered")
+	}
+}
+
