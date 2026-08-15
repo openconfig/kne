@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -926,41 +929,186 @@ func TestValidCertNameRegexp(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	ki := fake.NewSimpleClientset()
-	ni := &node.Impl{
-		Namespace:  "test",
-		KubeClient: ki,
-		Proto: &tpb.Node{
-			Name:   "ncptx",
-			Model:  "ncptx",
-			Vendor: tpb.Vendor_JUNIPER,
-			Config: &tpb.Config{
-				ConfigFile: "juniper.conf",
-				ConfigPath: "/home/evo/configdisk",
-				ConfigData: &tpb.Config_Data{
-					Data: []byte("set system host-name ncptx"),
-				},
-			},
-			Interfaces: map[string]*tpb.Interface{
-				"eth1": {Name: "et-0/0/0:0"},
-			},
+	tests := []struct {
+		desc              string
+		configData        []byte
+		wantInitCommand   []string
+		wantInitArgsLen   int
+		wantInitMountsLen int
+		wantMainMountsLen int
+		wantInitScriptSub []string
+		wantErr           bool
+	}{
+		{
+			desc:              "cPTX with config data",
+			configData:        []byte("set system host-name ncptx"),
+			wantInitCommand:   []string{"/bin/sh", "-c"},
+			wantInitArgsLen:   4, // script, "init", num_intfs, sleep
+			wantInitMountsLen: 2, // /config-dst and /config-src
+			wantMainMountsLen: 5, // 4 base mounts (/run, /tmp, /dev/shm, /sys/fs/cgroup) + config mount
+			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0 unit 0 family inet", "routing-options static route 0.0.0.0/0", "/config-dst/juniper.conf"},
+		},
+		{
+			desc:              "cPTX without config data",
+			configData:        nil,
+			wantInitCommand:   []string{"/bin/sh", "-c"},
+			wantInitArgsLen:   4,
+			wantInitMountsLen: 1, // only /config-dst
+			wantMainMountsLen: 5,
+			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0 unit 0 family inet", "routing-options static route 0.0.0.0/0"},
 		},
 	}
-	n, err := New(ni)
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset()
+			cfg := &tpb.Config{
+				ConfigFile: "juniper.conf",
+				ConfigPath: "/home/evo/configdisk",
+			}
+			if tt.configData != nil {
+				cfg.ConfigData = &tpb.Config_Data{Data: tt.configData}
+			}
+			ni := &node.Impl{
+				Namespace:  "test",
+				KubeClient: ki,
+				Proto: &tpb.Node{
+					Name:       "ncptx",
+					Model:      "ncptx",
+					Vendor:     tpb.Vendor_JUNIPER,
+					Config:     cfg,
+					Interfaces: map[string]*tpb.Interface{
+						"eth1": {Name: "et-0/0/0:0"},
+					},
+				},
+			}
+			n, err := New(ni)
+			if err != nil {
+				t.Fatalf("New() unexpected error = %v", err)
+			}
+			if err := n.Create(context.Background()); (err != nil) != tt.wantErr {
+				t.Fatalf("Create() unexpected error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "ncptx", metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("failed to get created pod: %v", err)
+			}
+			if len(pod.Spec.InitContainers) != 1 {
+				t.Fatalf("expected 1 init container, got %d", len(pod.Spec.InitContainers))
+			}
+			initC := pod.Spec.InitContainers[0]
+			if diff := cmp.Diff(tt.wantInitCommand, initC.Command); diff != "" {
+				t.Errorf("init container command diff (-want +got):\n%s", diff)
+			}
+			if len(initC.Args) != tt.wantInitArgsLen {
+				t.Errorf("init container args len = %d, want %d", len(initC.Args), tt.wantInitArgsLen)
+			}
+			if len(initC.VolumeMounts) != tt.wantInitMountsLen {
+				t.Errorf("init container volume mounts len = %d, want %d", len(initC.VolumeMounts), tt.wantInitMountsLen)
+			}
+			if len(pod.Spec.Containers[0].VolumeMounts) != tt.wantMainMountsLen {
+				t.Errorf("main container volume mounts len = %d, want %d", len(pod.Spec.Containers[0].VolumeMounts), tt.wantMainMountsLen)
+			}
+			for _, sub := range tt.wantInitScriptSub {
+				if !strings.Contains(initC.Args[0], sub) {
+					t.Errorf("init container script missing expected substring %q", sub)
+				}
+			}
+		})
+	}
+}
+
+func TestJuniperInitScriptExecution(t *testing.T) {
+	tmpDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, "config-src")
+	dstDir := filepath.Join(tmpDir, "config-dst")
+	binDir := filepath.Join(tmpDir, "bin")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := "juniper.conf"
+	srcFile := filepath.Join(srcDir, configFile)
+	if err := os.WriteFile(srcFile, []byte("set system host-name ncptx\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create fake entrypoint.sh in binDir
+	entrypointPath := filepath.Join(binDir, "entrypoint.sh")
+	if err := os.WriteFile(entrypointPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create fake ip command in binDir
+	ipPath := filepath.Join(binDir, "ip")
+	ipScript := `#!/bin/sh
+if [ "$1" = "-4" ] && [ "$2" = "addr" ]; then
+  echo "    inet 10.244.0.15/24 scope global eth0"
+elif [ "$1" = "-4" ] && [ "$2" = "route" ]; then
+  echo "default via 10.244.0.1 dev eth0"
+elif [ "$1" = "-6" ] && [ "$2" = "addr" ]; then
+  echo "    inet6 2001:db8::15/64 scope global"
+elif [ "$1" = "-6" ] && [ "$2" = "route" ]; then
+  echo "default via 2001:db8::1 dev eth0"
+fi
+`
+	if err := os.WriteFile(ipPath, []byte(ipScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	initScript := fmt.Sprintf(`
+%[4]s "$1" "$2"
+mkdir -p %[1]s
+if [ -f %[2]s/%[3]s ]; then
+  cp %[2]s/%[3]s %[1]s/%[3]s
+else
+  touch %[1]s/%[3]s
+fi
+IP4=$(ip -4 addr show dev eth0 2>/dev/null | awk '/inet /{print $2}' | head -n1)
+GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$IP4" ]; then
+  printf '\nset interfaces re0:mgmt-0 unit 0 family inet address %%s\n' "$IP4" >> %[1]s/%[3]s
+fi
+if [ -n "$GW4" ]; then
+  printf 'set routing-options static route 0.0.0.0/0 next-hop %%s\n' "$GW4" >> %[1]s/%[3]s
+fi
+IP6=$(ip -6 addr show dev eth0 2>/dev/null | awk '/inet6 /{print $2}' | grep -v '^fe80' | head -n1)
+GW6=$(ip -6 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$IP6" ]; then
+  printf '\nset interfaces re0:mgmt-0 unit 0 family inet6 address %%s\n' "$IP6" >> %[1]s/%[3]s
+fi
+if [ -n "$GW6" ]; then
+  printf 'set routing-options rib inet6.0 static route ::/0 next-hop %%s\n' "$GW6" >> %[1]s/%[3]s
+fi
+`, dstDir, srcDir, configFile, entrypointPath)
+
+	cmd := exec.Command("/bin/sh", "-c", initScript, "init", "2", "0")
+	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("New() unexpected error = %v", err)
+		t.Fatalf("script execution failed: %v, output: %s", err, string(out))
 	}
-	if err := n.Create(context.Background()); err != nil {
-		t.Fatalf("Create() unexpected error = %v", err)
-	}
-	pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "ncptx", metav1.GetOptions{})
+
+	dstFile := filepath.Join(dstDir, configFile)
+	content, err := os.ReadFile(dstFile)
 	if err != nil {
-		t.Fatalf("failed to get created pod: %v", err)
+		t.Fatalf("failed to read generated config: %v", err)
 	}
-	if len(pod.Spec.InitContainers) != 1 {
-		t.Fatalf("expected 1 init container, got %d", len(pod.Spec.InitContainers))
+
+	got := string(content)
+	wantContains := []string{
+		"set system host-name ncptx",
+		"set interfaces re0:mgmt-0 unit 0 family inet address 10.244.0.15/24",
+		"set routing-options static route 0.0.0.0/0 next-hop 10.244.0.1",
+		"set interfaces re0:mgmt-0 unit 0 family inet6 address 2001:db8::15/64",
+		"set routing-options rib inet6.0 static route ::/0 next-hop 2001:db8::1",
 	}
-	if len(pod.Spec.InitContainers[0].VolumeMounts) != 2 {
-		t.Fatalf("expected 2 volume mounts in init container, got %d", len(pod.Spec.InitContainers[0].VolumeMounts))
+	for _, want := range wantContains {
+		if !strings.Contains(got, want) {
+			t.Errorf("generated config missing %q\nGot:\n%s", want, got)
+		}
 	}
 }

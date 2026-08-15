@@ -308,10 +308,19 @@ func convertSysctlNameToProcSysPath(sysctlName string) string {
 }
 
 func (n *Impl) readConfig() ([]byte, error) {
+	if n.Proto == nil || n.Proto.Config == nil {
+		return nil, nil
+	}
 	switch v := n.Proto.Config.GetConfigData().(type) {
 	case *tpb.Config_File:
+		if v == nil {
+			return nil, nil
+		}
 		return os.ReadFile(filepath.Join(n.BasePath, v.File))
 	case *tpb.Config_Data:
+		if v == nil {
+			return nil, nil
+		}
 		return v.Data, nil
 	case nil:
 		return nil, nil

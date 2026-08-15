@@ -285,11 +285,9 @@ fi
 			pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, vm)
 		}
 
-		if pb.Config.ConfigData != nil {
-			vol, err := n.CreateConfig(ctx)
-			if err != nil {
-				return err
-			}
+		if vol, err := n.CreateConfig(ctx); err != nil {
+			return err
+		} else if vol != nil {
 			vol.Name = "startup-config-src-volume"
 			pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
 			initVolumeMounts = append(initVolumeMounts, corev1.VolumeMount{
