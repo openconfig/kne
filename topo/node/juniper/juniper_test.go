@@ -1065,7 +1065,13 @@ mkdir -p %[1]s
 if [ -f %[2]s/%[3]s ]; then
   cp %[2]s/%[3]s %[1]s/%[3]s
 else
-  touch %[1]s/%[3]s
+  cat << 'EOF' > %[1]s/%[3]s
+set system root-authentication encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"
+set system services ssh root-login allow
+set system syslog file interactive-commands interactive-commands any
+set system syslog file messages any notice
+set system syslog file messages authorization info
+EOF
 fi
 IP4=$(ip -4 addr show dev eth0 2>/dev/null | awk '/inet /{print $2}' | head -n1)
 GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
@@ -1085,11 +1091,12 @@ if [ -n "$GW6" ]; then
 fi
 `, dstDir, srcDir, configFile, entrypointPath)
 
+	// Test case 1: With existing source config
 	cmd := exec.Command("/bin/sh", "-c", initScript, "init", "2", "0")
 	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("script execution failed: %v, output: %s", err, string(out))
+		t.Fatalf("script execution with source config failed: %v, output: %s", err, string(out))
 	}
 
 	dstFile := filepath.Join(dstDir, configFile)
@@ -1108,7 +1115,36 @@ fi
 	}
 	for _, want := range wantContains {
 		if !strings.Contains(got, want) {
-			t.Errorf("generated config missing %q\nGot:\n%s", want, got)
+			t.Errorf("generated config with source missing %q\nGot:\n%s", want, got)
+		}
+	}
+
+	// Test case 2: Without source config (should generate built-in default config with root password)
+	os.Remove(srcFile)
+	os.Remove(dstFile)
+
+	cmd2 := exec.Command("/bin/sh", "-c", initScript, "init", "2", "0")
+	cmd2.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
+	out2, err := cmd2.CombinedOutput()
+	if err != nil {
+		t.Fatalf("script execution without source config failed: %v, output: %s", err, string(out2))
+	}
+
+	content2, err := os.ReadFile(dstFile)
+	if err != nil {
+		t.Fatalf("failed to read default generated config: %v", err)
+	}
+
+	got2 := string(content2)
+	wantDefaultContains := []string{
+		"root-authentication encrypted-password",
+		"set system services ssh root-login allow",
+		"set interfaces re0:mgmt-0 unit 0 family inet address 10.244.0.15/24",
+		"set routing-options static route 0.0.0.0/0 next-hop 10.244.0.1",
+	}
+	for _, want := range wantDefaultContains {
+		if !strings.Contains(got2, want) {
+			t.Errorf("default generated config missing %q\nGot:\n%s", want, got2)
 		}
 	}
 }

@@ -622,7 +622,13 @@ mkdir -p %[1]s
 if [ -f %[2]s/%[3]s ]; then
   cp %[2]s/%[3]s %[1]s/%[3]s
 else
-  touch %[1]s/%[3]s
+  cat << 'EOF' > %[1]s/%[3]s
+set system root-authentication encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"
+set system services ssh root-login allow
+set system syslog file interactive-commands interactive-commands any
+set system syslog file messages any notice
+set system syslog file messages authorization info
+EOF
 fi
 IP4=$(ip -4 addr show dev eth0 2>/dev/null | awk '/inet /{print $2}' | head -n1)
 GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
