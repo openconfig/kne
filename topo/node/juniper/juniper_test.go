@@ -946,7 +946,7 @@ func TestCreate(t *testing.T) {
 			wantInitArgsLen:   4, // script, "init", num_intfs, sleep
 			wantInitMountsLen: 2, // /config-dst and /config-src
 			wantMainMountsLen: 5, // 4 base mounts (/run, /tmp, /dev/shm, /sys/fs/cgroup) + config mount
-			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0 unit 0 family inet", "routing-options static route 0.0.0.0/0", "/config-dst/juniper.conf"},
+			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0", "route 0.0.0.0/0 next-hop", "/config-dst/juniper.conf"},
 		},
 		{
 			desc:              "cPTX without config data",
@@ -955,7 +955,7 @@ func TestCreate(t *testing.T) {
 			wantInitArgsLen:   4,
 			wantInitMountsLen: 1, // only /config-dst
 			wantMainMountsLen: 5,
-			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0 unit 0 family inet", "routing-options static route 0.0.0.0/0"},
+			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0", "route 0.0.0.0/0 next-hop"},
 		},
 	}
 
@@ -1032,7 +1032,7 @@ func TestJuniperInitScriptExecution(t *testing.T) {
 
 	configFile := "juniper.conf"
 	srcFile := filepath.Join(srcDir, configFile)
-	if err := os.WriteFile(srcFile, []byte("set system host-name ncptx\n"), 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte("set system host-name ncptx\naddress FXP0ADDR;\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1066,28 +1066,73 @@ if [ -f %[2]s/%[3]s ]; then
   cp %[2]s/%[3]s %[1]s/%[3]s
 else
   cat << 'EOF' > %[1]s/%[3]s
-set system root-authentication encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"
-set system services ssh root-login allow
-set system syslog file interactive-commands interactive-commands any
-set system syslog file messages any notice
-set system syslog file messages authorization info
+system {
+    root-authentication {
+        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/";
+    }
+    services {
+        ssh {
+            root-login allow;
+        }
+    }
+}
 EOF
 fi
 IP4=$(ip -4 addr show dev eth0 2>/dev/null | awk '/inet /{print $2}' | head -n1)
 GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
 if [ -n "$IP4" ]; then
-  printf '\nset interfaces re0:mgmt-0 unit 0 family inet address %%s\n' "$IP4" >> %[1]s/%[3]s
+  if grep -q "FXP0ADDR" %[1]s/%[3]s; then
+    sed -i "s|FXP0ADDR|$IP4|g" %[1]s/%[3]s
+  elif ! grep -q "re0:mgmt-0" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet {
+                address $IP4;
+            }
+        }
+    }
+}
+EOF
+  fi
 fi
 if [ -n "$GW4" ]; then
-  printf 'set routing-options static route 0.0.0.0/0 next-hop %%s\n' "$GW4" >> %[1]s/%[3]s
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    static {
+        route 0.0.0.0/0 next-hop $GW4;
+    }
+}
+EOF
 fi
 IP6=$(ip -6 addr show dev eth0 2>/dev/null | awk '/inet6 /{print $2}' | grep -v '^fe80' | head -n1)
 GW6=$(ip -6 route show default 2>/dev/null | awk '{print $3}' | head -n1)
 if [ -n "$IP6" ]; then
-  printf '\nset interfaces re0:mgmt-0 unit 0 family inet6 address %%s\n' "$IP6" >> %[1]s/%[3]s
+  if ! grep -q "family inet6" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet6 {
+                address $IP6;
+            }
+        }
+    }
+}
+EOF
+  fi
 fi
 if [ -n "$GW6" ]; then
-  printf 'set routing-options rib inet6.0 static route ::/0 next-hop %%s\n' "$GW6" >> %[1]s/%[3]s
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    rib inet6.0 {
+        static {
+            route ::/0 next-hop $GW6;
+        }
+    }
+}
+EOF
 fi
 `, dstDir, srcDir, configFile, entrypointPath)
 
@@ -1106,12 +1151,15 @@ fi
 	}
 
 	got := string(content)
+	if strings.Contains(got, "FXP0ADDR") {
+		t.Errorf("generated config contains invalid FXP0ADDR placeholder line\nGot:\n%s", got)
+	}
 	wantContains := []string{
 		"set system host-name ncptx",
-		"set interfaces re0:mgmt-0 unit 0 family inet address 10.244.0.15/24",
-		"set routing-options static route 0.0.0.0/0 next-hop 10.244.0.1",
-		"set interfaces re0:mgmt-0 unit 0 family inet6 address 2001:db8::15/64",
-		"set routing-options rib inet6.0 static route ::/0 next-hop 2001:db8::1",
+		"address 10.244.0.15/24;",
+		"route 0.0.0.0/0 next-hop 10.244.0.1;",
+		"address 2001:db8::15/64;",
+		"route ::/0 next-hop 2001:db8::1;",
 	}
 	for _, want := range wantContains {
 		if !strings.Contains(got, want) {
@@ -1137,10 +1185,10 @@ fi
 
 	got2 := string(content2)
 	wantDefaultContains := []string{
-		"root-authentication encrypted-password",
-		"set system services ssh root-login allow",
-		"set interfaces re0:mgmt-0 unit 0 family inet address 10.244.0.15/24",
-		"set routing-options static route 0.0.0.0/0 next-hop 10.244.0.1",
+		"root-authentication",
+		"encrypted-password",
+		"address 10.244.0.15/24;",
+		"route 0.0.0.0/0 next-hop 10.244.0.1;",
 	}
 	for _, want := range wantDefaultContains {
 		if !strings.Contains(got2, want) {

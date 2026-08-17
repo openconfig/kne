@@ -627,28 +627,73 @@ if [ -f %[2]s/%[3]s ]; then
   cp %[2]s/%[3]s %[1]s/%[3]s
 else
   cat << 'EOF' > %[1]s/%[3]s
-set system root-authentication encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/"
-set system services ssh root-login allow
-set system syslog file interactive-commands interactive-commands any
-set system syslog file messages any notice
-set system syslog file messages authorization info
+system {
+    root-authentication {
+        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/";
+    }
+    services {
+        ssh {
+            root-login allow;
+        }
+    }
+}
 EOF
 fi
 IP4=$(ip -4 addr show dev eth0 2>/dev/null | awk '/inet /{print $2}' | head -n1)
 GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
 if [ -n "$IP4" ]; then
-  printf '\nset interfaces re0:mgmt-0 unit 0 family inet address %%s\n' "$IP4" >> %[1]s/%[3]s
+  if grep -q "FXP0ADDR" %[1]s/%[3]s; then
+    sed -i "s|FXP0ADDR|$IP4|g" %[1]s/%[3]s
+  elif ! grep -q "re0:mgmt-0" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet {
+                address $IP4;
+            }
+        }
+    }
+}
+EOF
+  fi
 fi
 if [ -n "$GW4" ]; then
-  printf 'set routing-options static route 0.0.0.0/0 next-hop %%s\n' "$GW4" >> %[1]s/%[3]s
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    static {
+        route 0.0.0.0/0 next-hop $GW4;
+    }
+}
+EOF
 fi
 IP6=$(ip -6 addr show dev eth0 2>/dev/null | awk '/inet6 /{print $2}' | grep -v '^fe80' | head -n1)
 GW6=$(ip -6 route show default 2>/dev/null | awk '{print $3}' | head -n1)
 if [ -n "$IP6" ]; then
-  printf '\nset interfaces re0:mgmt-0 unit 0 family inet6 address %%s\n' "$IP6" >> %[1]s/%[3]s
+  if ! grep -q "family inet6" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet6 {
+                address $IP6;
+            }
+        }
+    }
+}
+EOF
+  fi
 fi
 if [ -n "$GW6" ]; then
-  printf 'set routing-options rib inet6.0 static route ::/0 next-hop %%s\n' "$GW6" >> %[1]s/%[3]s
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    rib inet6.0 {
+        static {
+            route ::/0 next-hop $GW6;
+        }
+    }
+}
+EOF
 fi
 `, configDstPath, configSrcPath, configFile)
 
