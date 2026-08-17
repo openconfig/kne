@@ -1120,8 +1120,8 @@ fi
 	}
 
 	// Test case 2: Without source config (should generate built-in default config with root password)
-	os.Remove(srcFile)
-	os.Remove(dstFile)
+	_ = os.Remove(srcFile)
+	_ = os.Remove(dstFile)
 
 	cmd2 := exec.Command("/bin/sh", "-c", initScript, "init", "2", "0")
 	cmd2.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))

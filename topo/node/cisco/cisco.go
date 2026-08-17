@@ -331,7 +331,7 @@ fi
 				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
 				ReadOnly:  true,
 			}
-			if vol.VolumeSource.ConfigMap != nil {
+			if vol.ConfigMap != nil {
 				vm.SubPath = pb.Config.ConfigFile
 			}
 			for i, c := range pod.Spec.Containers {
