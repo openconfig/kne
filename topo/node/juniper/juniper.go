@@ -195,26 +195,30 @@ func (n *Node) GRPCConfig() []string {
 			port = service.GetInside()
 		}
 	}
-	log.Infof("gNMI Port %d", port)
+	certName := "grpc-server-cert"
+	if selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned(); selfSigned != nil && selfSigned.GetCertName() != "" {
+		certName = selfSigned.GetCertName()
+	}
+	log.Infof("gNMI Port %d, certName %s", port, certName)
 	return []string{
 		"set system services http servers server grpc-server-9339",
 		fmt.Sprintf("set system services http servers server grpc-server-9339 port %d", port),
 		"set system services http servers server grpc-server-9339 grpc gnmi",
 		"set system services http servers server grpc-server-9339 grpc gnoi",
 		"set system services http servers server grpc-server-9339 grpc gnsi",
-		"set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert",
+		fmt.Sprintf("set system services http servers server grpc-server-9339 tls local-certificate %s", certName),
 		"set system services http servers server grpc-server-9339 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300",
 		"set system services http servers server grpc-server-9340",
 		"set system services http servers server grpc-server-9340 port 9340",
 		"set system services http servers server grpc-server-9340 grpc gribi",
-		"set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert",
+		fmt.Sprintf("set system services http servers server grpc-server-9340 tls local-certificate %s", certName),
 		"set system services http servers server grpc-server-9340 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300",
 		"set system services http servers server grpc-server-9559",
 		"set system services http servers server grpc-server-9559 port 9559",
 		"set system services http servers server grpc-server-9559 grpc p4",
-		"set system services http servers server grpc-server-9559 tls local-certificate grpc-server-cert",
+		fmt.Sprintf("set system services http servers server grpc-server-9559 tls local-certificate %s", certName),
 		"set system services http servers server grpc-server-9559 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9559 grpc all-grpc max-connections 300",
 		"commit",
