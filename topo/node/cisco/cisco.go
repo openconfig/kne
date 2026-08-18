@@ -659,7 +659,9 @@ func endTelnet(d *scraplinetwork.Driver) error {
 	// sending ctrl + ] (^]) to end telnet session gracefully. Otherwise, the next connection can be blocked.
 	endTelnet := string(byte(29)) + " quit\n"
 	log.Infof("Closing the connection by sending ctrl+] quit \n")
-	d.SendCommand(endTelnet)
+	if _, err := d.Channel.SendInput(endTelnet, scrapliopts.WithTimeoutOps(1*time.Second)); err != nil {
+		log.V(1).Infof("endTelnet: failed to send telnet quit sequence: %v", err)
+	}
 	return nil
 }
 
