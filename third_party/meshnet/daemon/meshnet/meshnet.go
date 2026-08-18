@@ -76,10 +76,10 @@ func restConfig() (*rest.Config, error) {
 			return nil, err
 		}
 	}
-	if rCfg.QPS == 0 {
+	if rCfg.QPS < 100 {
 		rCfg.QPS = 100
 	}
-	if rCfg.Burst == 0 {
+	if rCfg.Burst < 200 {
 		rCfg.Burst = 200
 	}
 	return rCfg, nil
