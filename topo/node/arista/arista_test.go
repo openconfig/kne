@@ -36,6 +36,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -590,32 +591,28 @@ func TestStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			name := "pod1"
-			ki := fake.NewSimpleClientset(&corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: name,
-				},
-			})
-
-			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-				if tt.cantWatch {
-					err = errors.New("")
-					return true, nil, err
-				}
-				f := &fakeWatch{}
-				if !tt.noPodYet {
-					f.e = []watch.Event{{
-						Object: &corev1.Pod{
-							Status: corev1.PodStatus{
-								Phase: tt.phase,
-							},
-						},
-					}}
-				}
-				return true, f, nil
-			}
-			ki.PrependWatchReactor("*", reaction)
-
 			ns := "default"
+			var ki *fake.Clientset
+			if tt.noPodYet {
+				ki = fake.NewSimpleClientset()
+			} else {
+				ki = fake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: ns,
+					},
+					Status: corev1.PodStatus{
+						Phase: tt.phase,
+					},
+				})
+			}
+
+			if tt.cantWatch {
+				ki.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("failed to get pod")
+				})
+			}
+
 			node := &Node{
 				Impl: &node.Impl{
 					KubeClient: ki,
@@ -629,7 +626,7 @@ func TestStatus(t *testing.T) {
 				t.Errorf("Status() unexpected err: %s", s)
 			}
 			if s := cmp.Diff(tt.status, status); s != "" {
-				t.Errorf("New() CEosLabDevice CRDs unexpected diff (-want +got):\n%s", s)
+				t.Errorf("Status() unexpected diff (-want +got):\n%s", s)
 			}
 		})
 	}

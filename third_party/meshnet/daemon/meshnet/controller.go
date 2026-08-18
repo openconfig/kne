@@ -21,7 +21,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
+
+	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
 )
 
 // isNetNSValid returns true if the netns path exists on the host filesystem.
@@ -814,9 +818,6 @@ func (m *Meshnet) runReconcileWorker(ctx context.Context) {
 	}
 }
 
-// RunControllerLoop runs the continuous level-triggered Topology controller in meshnetd.
-// It maintains an in-memory topology cache, tracks pod-link dependencies, and coalesces
-// incoming events into targeted background reconciliation runs.
 func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 	mnetdLogger.Infof("Starting Topology controller loop")
 	if m.topoCache == nil {
@@ -826,7 +827,98 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 		m.reconcileQueue = NewReconcileQueue(50 * time.Millisecond)
 	}
 
-	// 1. Initial full population of cache from K8s API
+	go m.runReconcileWorker(ctx)
+
+	if m.GWireDynClient != nil {
+		factory := dynamicinformer.NewDynamicSharedInformerFactory(m.GWireDynClient, 60*time.Second)
+		informer := factory.ForResource(topologyclientv1.GVR())
+
+		informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				topo, err := toUnstructured(obj)
+				if err != nil || topo == nil {
+					return
+				}
+				ns := topo.GetNamespace()
+				name := topo.GetName()
+				key := fmt.Sprintf("%s/%s", ns, name)
+
+				m.topoCache.Put(topo)
+				srcIP, _, active := isPodActive(topo)
+				if active && (m.nodeIP == "" || srcIP == m.nodeIP) {
+					m.enqueueReconcile(key)
+				}
+				for _, depKey := range m.topoCache.GetDependents(ns, name) {
+					depNS, depName := parseKey(depKey)
+					if depTopo := m.topoCache.Get(depNS, depName); depTopo != nil {
+						depSrcIP, _, depActive := isPodActive(depTopo)
+						if depActive && (m.nodeIP == "" || depSrcIP == m.nodeIP) {
+							m.enqueueReconcile(depKey)
+						}
+					}
+				}
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				topo, err := toUnstructured(newObj)
+				if err != nil || topo == nil {
+					return
+				}
+				ns := topo.GetNamespace()
+				name := topo.GetName()
+				key := fmt.Sprintf("%s/%s", ns, name)
+
+				m.topoCache.Put(topo)
+				srcIP, _, active := isPodActive(topo)
+				if active && (m.nodeIP == "" || srcIP == m.nodeIP) {
+					m.enqueueReconcile(key)
+				}
+				for _, depKey := range m.topoCache.GetDependents(ns, name) {
+					depNS, depName := parseKey(depKey)
+					if depTopo := m.topoCache.Get(depNS, depName); depTopo != nil {
+						depSrcIP, _, depActive := isPodActive(depTopo)
+						if depActive && (m.nodeIP == "" || depSrcIP == m.nodeIP) {
+							m.enqueueReconcile(depKey)
+						}
+					}
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				topo, err := toUnstructured(obj)
+				if err != nil || topo == nil {
+					return
+				}
+				ns := topo.GetNamespace()
+				name := topo.GetName()
+
+				dependents := m.topoCache.GetDependents(ns, name)
+				m.topoCache.Delete(ns, name)
+
+				_ = m.CleanupPodLinks(ctx, topo)
+				_ = grpcwire.DeletePodWires(ns, name)
+
+				for _, depKey := range dependents {
+					depNS, depName := parseKey(depKey)
+					if depTopo := m.topoCache.Get(depNS, depName); depTopo != nil {
+						depSrcIP, _, depActive := isPodActive(depTopo)
+						if depActive && (m.nodeIP == "" || depSrcIP == m.nodeIP) {
+							m.enqueueReconcile(depKey)
+						}
+					}
+				}
+			},
+		})
+
+		factory.Start(ctx.Done())
+		if cache.WaitForCacheSync(ctx.Done(), informer.Informer().HasSynced) {
+			mnetdLogger.Infof("Topology informer cache synced successfully")
+			m.enqueueFullReconcile()
+			<-ctx.Done()
+			return
+		}
+		mnetdLogger.Warnf("Topology informer cache failed to sync, falling back to manual watch loop")
+	}
+
+	// Fallback manual watch loop for test environments without GWireDynClient
 	if m.tClient != nil {
 		list, err := m.tClient.Topology(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
 		if err == nil && list != nil {
@@ -839,8 +931,6 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 			mnetdLogger.Warnf("RunControllerLoop: initial list failed: %v", err)
 		}
 	}
-
-	go m.runReconcileWorker(ctx)
 
 	// Trigger initial full reconciliation on startup
 	m.enqueueFullReconcile()
@@ -885,17 +975,13 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 
 				switch event.Type {
 				case watch.Added, watch.Modified:
-					// Update cache
 					m.topoCache.Put(topo)
-
-					// Check if this pod is local to this node
 					srcIP, _, active := isPodActive(topo)
 					isLocal := active && (m.nodeIP == "" || srcIP == m.nodeIP)
 					if isLocal {
 						m.enqueueReconcile(key)
 					}
 
-					// Find all local dependent pods that have links to this pod
 					dependents := m.topoCache.GetDependents(ns, name)
 					for _, depKey := range dependents {
 						depNS, depName := parseKey(depKey)
@@ -909,15 +995,11 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 					}
 
 				case watch.Deleted:
-					// Before removing from cache, get all dependent pods
 					dependents := m.topoCache.GetDependents(ns, name)
 					m.topoCache.Delete(ns, name)
-
-					// If this was a local pod, clean up its links
 					_ = m.CleanupPodLinks(ctx, topo)
 					_ = grpcwire.DeletePodWires(ns, name)
 
-					// Reconcile dependent pods so they update / clean up their link state
 					for _, depKey := range dependents {
 						depNS, depName := parseKey(depKey)
 						depTopo := m.topoCache.Get(depNS, depName)
@@ -931,7 +1013,6 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 				}
 			}
 		}
-		// If watch closed, queue full resync on reconnect
 		m.enqueueFullReconcile()
 	}
 }

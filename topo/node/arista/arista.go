@@ -36,7 +36,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	log "k8s.io/klog/v2"
 
 	ceos "github.com/aristanetworks/arista-ceoslab-operator/v2/api/v1alpha1"
@@ -164,28 +163,26 @@ func (n *Node) Create(ctx context.Context) error {
 }
 
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
-	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{metav1.ObjectNameField: n.Name()}).String(),
-	})
+	p, err := n.Pods(ctx)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return node.StatusUnknown, nil
+		}
 		return node.StatusFailed, err
 	}
-	status := node.StatusUnknown
-	for e := range w.ResultChan() {
-		p, ok := e.Object.(*corev1.Pod)
-		if !ok {
-			continue
-		}
-		if p.Status.Phase == corev1.PodPending {
-			status = node.StatusPending
-			break
-		}
-		if p.Status.Phase == corev1.PodRunning {
-			status = node.StatusRunning
-			break
-		}
+	if len(p) != 1 {
+		return node.StatusUnknown, nil
 	}
-	return status, nil
+	switch p[0].Status.Phase {
+	case corev1.PodPending:
+		return node.StatusPending, nil
+	case corev1.PodRunning:
+		return node.StatusRunning, nil
+	case corev1.PodFailed:
+		return node.StatusFailed, nil
+	default:
+		return node.StatusUnknown, nil
+	}
 }
 
 func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {

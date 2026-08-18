@@ -730,11 +730,14 @@ func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplin
 		opts = append(opts, scrapliopts.WithLogger(li))
 	}
 
+	// Fast-fail initial CLI open attempts during early boot (5s timeout per attempt)
+	openOpts := append([]scrapliutil.Option{scrapliopts.WithTimeoutOps(5 * time.Second)}, opts...)
+
 	for {
 		p, err := scrapliplatform.NewPlatform(
 			platform,
 			n.Name(),
-			opts...,
+			openOpts...,
 		)
 		if err != nil {
 			log.Errorf("failed to fetch platform instance for device %s; error: %+v\n", err, n.Name())
@@ -754,6 +757,17 @@ func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplin
 		}
 
 		log.V(1).Infof("%s - Cli ready.", n.Name())
+
+		// Re-initialize with full caller options if operation timeout was overridden
+		pFull, err := scrapliplatform.NewPlatform(platform, n.Name(), opts...)
+		if err == nil {
+			if dFull, err := pFull.GetNetworkDriver(); err == nil {
+				_ = d.Close()
+				if err = dFull.Open(); err == nil {
+					return dFull, nil
+				}
+			}
+		}
 
 		return d, nil
 	}
