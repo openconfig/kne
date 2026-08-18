@@ -21,12 +21,12 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/openconfig/kne/cmd/deploy"
+	"github.com/openconfig/kne/cmd/internal"
 	"github.com/openconfig/kne/cmd/topology"
 	"github.com/openconfig/kne/topo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/util/homedir"
-	log "k8s.io/klog/v2"
 )
 
 func New() *cobra.Command {
@@ -65,6 +65,7 @@ environment.`,
 	root.AddCommand(topology.New())
 	root.AddCommand(deploy.NewDeploy())
 	root.AddCommand(deploy.NewTeardown())
+	root.AddCommand(internal.New())
 	return root
 }
 
@@ -141,7 +142,6 @@ func createFn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	log.Infof(bp)
 	topopb, err := topo.Load(args[0])
 	if err != nil {
 		return fmt.Errorf("%s: %w", cmd.Use, err)

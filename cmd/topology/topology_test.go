@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	tfake "github.com/networkop/meshnet-cni/api/clientset/v1beta1/fake"
+	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -164,7 +164,7 @@ func TestReset(t *testing.T) {
 			Vendor: tpb.Vendor(1001),
 			Config: &tpb.Config{
 				ConfigData: &tpb.Config_File{
-					File: "dne",
+					File: "nonexistent",
 				},
 			},
 		}, {
@@ -187,7 +187,7 @@ func TestReset(t *testing.T) {
 		args:    []string{"reset"},
 	}, {
 		desc:    "no file",
-		args:    []string{"reset", "filedne"},
+		args:    []string{"reset", "nonexistentfile"},
 		wantErr: "no such file",
 	}, {
 		desc:    "valid topology no skip",
@@ -206,15 +206,15 @@ func TestReset(t *testing.T) {
 		desc: "valid topology push with relative file location",
 		args: []string{"reset", fConfigRelative.Name(), "--skip", "--push"},
 	}, {
-		desc:    "valid topology push with config DNE",
+		desc:    "valid topology push with config missing",
 		args:    []string{"reset", fConfigDNE.Name(), "--skip", "--push"},
 		wantErr: "no such file or directory",
 	}, {
-		desc: "valid topology push with config DNE single device",
+		desc: "valid topology push with config missing single device",
 		args: []string{"reset", fConfigDNE.Name(), "--skip", "--push", "resettable1"},
 	}, {
-		desc:    "valid topology push with config DNE single device invalid",
-		args:    []string{"reset", fConfigDNE.Name(), "--skip", "--push", "dne"},
+		desc:    "valid topology push with config missing single device invalid",
+		args:    []string{"reset", fConfigDNE.Name(), "--skip", "--push", "nonexistent"},
 		wantErr: "not found",
 	}}
 
@@ -328,6 +328,178 @@ func (f *fakeTopologyManager) Show(_ context.Context) (*cpb.ShowTopologyResponse
 	}, nil
 }
 
+func TestGenerateRing(t *testing.T) {
+	tests := []struct {
+		desc       string
+		args       []string
+		inTopo     *tpb.Topology
+		wantErr    string
+		wantTopo   *tpb.Topology
+		outputFile string
+	}{{
+		desc:    "no args",
+		args:    []string{"generate", "ring"},
+		wantErr: "invalid args",
+	}, {
+		desc:    "missing links arg",
+		args:    []string{"generate", "ring", "a", "b"},
+		wantErr: "invalid args",
+	}, {
+		desc:    "too many args",
+		args:    []string{"generate", "ring", "a", "b", "c", "d"},
+		wantErr: "invalid args",
+	}, {
+		desc:    "invalid count",
+		args:    []string{"generate", "ring", "a", "b", "8"},
+		inTopo:  &tpb.Topology{Nodes: []*tpb.Node{{Name: "n1"}}},
+		wantErr: "invalid count",
+	}, {
+		desc:    "zero count",
+		args:    []string{"generate", "ring", "a", "0", "8"},
+		inTopo:  &tpb.Topology{Nodes: []*tpb.Node{{Name: "n1"}}},
+		wantErr: "count must be greater than 1",
+	}, {
+		desc:    "invalid links",
+		args:    []string{"generate", "ring", "a", "3", "b"},
+		inTopo:  &tpb.Topology{Nodes: []*tpb.Node{{Name: "n1"}}},
+		wantErr: "invalid links",
+	}, {
+		desc:    "zero links",
+		args:    []string{"generate", "ring", "a", "3", "0"},
+		inTopo:  &tpb.Topology{Nodes: []*tpb.Node{{Name: "n1"}}},
+		wantErr: "links must be positive",
+	}, {
+		desc:    "file not found",
+		args:    []string{"generate", "ring", "nonexistent.textproto", "2", "8"},
+		wantErr: "no such file",
+	}, {
+		desc:    "empty topology",
+		args:    []string{"generate", "ring", "a", "2", "8"},
+		inTopo:  &tpb.Topology{},
+		wantErr: "no nodes in topology",
+	}, {
+		desc: "valid",
+		args: []string{"generate", "ring", "a", "3", "8"},
+		inTopo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{{
+				Name:   "r1",
+				Vendor: tpb.Vendor_ALPINE,
+			}},
+		},
+		wantTopo: &tpb.Topology{
+			Name: "test-ring",
+			Nodes: []*tpb.Node{{
+				Name:   "r1-0",
+				Vendor: tpb.Vendor_ALPINE,
+			}, {
+				Name:   "r1-1",
+				Vendor: tpb.Vendor_ALPINE,
+			}, {
+				Name:   "r1-2",
+				Vendor: tpb.Vendor_ALPINE,
+			}},
+			Links: []*tpb.Link{
+				{ANode: "r1-0", AInt: "eth1", ZNode: "r1-1", ZInt: "eth9"},
+				{ANode: "r1-0", AInt: "eth2", ZNode: "r1-1", ZInt: "eth10"},
+				{ANode: "r1-0", AInt: "eth3", ZNode: "r1-1", ZInt: "eth11"},
+				{ANode: "r1-0", AInt: "eth4", ZNode: "r1-1", ZInt: "eth12"},
+				{ANode: "r1-0", AInt: "eth5", ZNode: "r1-1", ZInt: "eth13"},
+				{ANode: "r1-0", AInt: "eth6", ZNode: "r1-1", ZInt: "eth14"},
+				{ANode: "r1-0", AInt: "eth7", ZNode: "r1-1", ZInt: "eth15"},
+				{ANode: "r1-0", AInt: "eth8", ZNode: "r1-1", ZInt: "eth16"},
+				{ANode: "r1-1", AInt: "eth1", ZNode: "r1-2", ZInt: "eth9"},
+				{ANode: "r1-1", AInt: "eth2", ZNode: "r1-2", ZInt: "eth10"},
+				{ANode: "r1-1", AInt: "eth3", ZNode: "r1-2", ZInt: "eth11"},
+				{ANode: "r1-1", AInt: "eth4", ZNode: "r1-2", ZInt: "eth12"},
+				{ANode: "r1-1", AInt: "eth5", ZNode: "r1-2", ZInt: "eth13"},
+				{ANode: "r1-1", AInt: "eth6", ZNode: "r1-2", ZInt: "eth14"},
+				{ANode: "r1-1", AInt: "eth7", ZNode: "r1-2", ZInt: "eth15"},
+				{ANode: "r1-1", AInt: "eth8", ZNode: "r1-2", ZInt: "eth16"},
+				{ANode: "r1-2", AInt: "eth1", ZNode: "r1-0", ZInt: "eth9"},
+				{ANode: "r1-2", AInt: "eth2", ZNode: "r1-0", ZInt: "eth10"},
+				{ANode: "r1-2", AInt: "eth3", ZNode: "r1-0", ZInt: "eth11"},
+				{ANode: "r1-2", AInt: "eth4", ZNode: "r1-0", ZInt: "eth12"},
+				{ANode: "r1-2", AInt: "eth5", ZNode: "r1-0", ZInt: "eth13"},
+				{ANode: "r1-2", AInt: "eth6", ZNode: "r1-0", ZInt: "eth14"},
+				{ANode: "r1-2", AInt: "eth7", ZNode: "r1-0", ZInt: "eth15"},
+				{ANode: "r1-2", AInt: "eth8", ZNode: "r1-0", ZInt: "eth16"},
+			},
+		},
+	}, {
+		desc: "valid custom links",
+		args: []string{"generate", "ring", "a", "2", "4"},
+		inTopo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{{
+				Name:   "r1",
+				Vendor: tpb.Vendor_ALPINE,
+			}},
+		},
+		wantTopo: &tpb.Topology{
+			Name: "test-ring",
+			Nodes: []*tpb.Node{{
+				Name:   "r1-0",
+				Vendor: tpb.Vendor_ALPINE,
+			}, {
+				Name:   "r1-1",
+				Vendor: tpb.Vendor_ALPINE,
+			}},
+			Links: []*tpb.Link{
+				{ANode: "r1-0", AInt: "eth1", ZNode: "r1-1", ZInt: "eth5"},
+				{ANode: "r1-0", AInt: "eth2", ZNode: "r1-1", ZInt: "eth6"},
+				{ANode: "r1-0", AInt: "eth3", ZNode: "r1-1", ZInt: "eth7"},
+				{ANode: "r1-0", AInt: "eth4", ZNode: "r1-1", ZInt: "eth8"},
+				{ANode: "r1-1", AInt: "eth1", ZNode: "r1-0", ZInt: "eth5"},
+				{ANode: "r1-1", AInt: "eth2", ZNode: "r1-0", ZInt: "eth6"},
+				{ANode: "r1-1", AInt: "eth3", ZNode: "r1-0", ZInt: "eth7"},
+				{ANode: "r1-1", AInt: "eth4", ZNode: "r1-0", ZInt: "eth8"},
+			},
+		},
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			cmd := New()
+			buf := bytes.NewBuffer([]byte{})
+			cmd.SetOut(buf)
+
+			var inFile *os.File
+			var closer func()
+			if tt.inTopo != nil {
+				inFile, closer = writeTopology(t, tt.inTopo)
+				tt.args[2] = inFile.Name()
+				defer closer()
+			}
+
+			cmd.SetArgs(tt.args)
+			err := cmd.ExecuteContext(context.Background())
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Fatalf("generateRingFn() failed: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+
+			ext := filepath.Ext(inFile.Name())
+			outFileName := inFile.Name()[0:len(inFile.Name())-len(ext)] + "-output" + ext
+			defer os.Remove(outFileName)
+
+			outBytes, err := os.ReadFile(outFileName)
+			if err != nil {
+				t.Fatalf("Failed to read output file: %v", err)
+			}
+			gotTopo := &tpb.Topology{}
+			if err := prototext.Unmarshal(outBytes, gotTopo); err != nil {
+				t.Fatalf("Failed to unmarshal output topology: %v", err)
+			}
+			if diff := cmp.Diff(tt.wantTopo, gotTopo, protocmp.Transform()); diff != "" {
+				t.Errorf("generateRingFn() output topology diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestService(t *testing.T) {
 	validProto := &tpb.Topology{}
 	if err := prototext.Unmarshal([]byte(validPbTxt), validProto); err != nil {
@@ -399,10 +571,10 @@ func TestPush(t *testing.T) {
 	defer os.Remove(confFile.Name())
 	tWithConfig := &tpb.Topology{
 		Nodes: []*tpb.Node{{
-			Name:   "configable",
+			Name:   "configurable",
 			Vendor: tpb.Vendor(1003),
 		}, {
-			Name:   "notconfigable",
+			Name:   "notconfigurable",
 			Vendor: tpb.Vendor(1004),
 		}},
 	}
@@ -422,22 +594,22 @@ func TestPush(t *testing.T) {
 	}, {
 		desc:    "missing args",
 		wantErr: "invalid args",
-		args:    []string{"push", fConfig.Name(), "configable"},
+		args:    []string{"push", fConfig.Name(), "configurable"},
 	}, {
 		desc:    "no file",
-		args:    []string{"push", fConfig.Name(), "configable", "filedne"},
+		args:    []string{"push", fConfig.Name(), "configurable", "nonexistentfile"},
 		wantErr: "no such file",
 	}, {
 		desc:    "valid file invalid device",
 		args:    []string{"push", fConfig.Name(), "foo", confFile.Name()},
 		wantErr: `node "foo" not found`,
 	}, {
-		desc:    "valid file notconfigable device",
-		args:    []string{"push", fConfig.Name(), "notconfigable", confFile.Name()},
+		desc:    "valid file notconfigurable device",
+		args:    []string{"push", fConfig.Name(), "notconfigurable", confFile.Name()},
 		wantErr: "does not implement ConfigPusher",
 	}, {
 		desc: "valid file",
-		args: []string{"push", fConfig.Name(), "configable", confFile.Name()},
+		args: []string{"push", fConfig.Name(), "configurable", confFile.Name()},
 	}}
 
 	rCmd := New()

@@ -100,7 +100,7 @@ func TestNew(t *testing.T) {
 					},
 				},
 				Constraints: map[string]string{
-					"cpu": "2",
+					"cpu": "2000m",
 				},
 			},
 		},
@@ -109,7 +109,7 @@ func TestNew(t *testing.T) {
 			Model: ModelXRD,
 			Os:    "ios-xr",
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -206,7 +206,7 @@ func TestNew(t *testing.T) {
 				"eth3": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "1",
+				"cpu":    "1000m",
 				"memory": "2Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -307,7 +307,7 @@ func TestNew(t *testing.T) {
 				"eth36": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -427,7 +427,7 @@ func TestNew(t *testing.T) {
 				"eth72": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -554,7 +554,7 @@ func TestNew(t *testing.T) {
 				"eth32": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -651,7 +651,7 @@ func TestNew(t *testing.T) {
 				"eth32": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -778,7 +778,7 @@ func TestNew(t *testing.T) {
 				"eth64": {},
 			},
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "20Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -902,6 +902,21 @@ var (
 			Model:  ModelXRD,
 		},
 	}
+
+	nodeXRDInvalidPath = &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "xrd",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{
+				Env: map[string]string{
+					"XR_EVERY_BOOT_CONFIG": "/etc/config/test;invalid",
+				},
+			},
+			Model: ModelXRD,
+		},
+	}
 )
 
 func TestNodeStatus(t *testing.T) {
@@ -966,10 +981,31 @@ func TestResetCfg(t *testing.T) {
 		testFile string
 	}{
 		{
-			// kne returns unimplemented error for xrd
-			desc:    "unimplemented reset for xrd",
+			// device returns error when the startup config is not initialized.
+			desc:     "failed reset for XRd (not initialized)",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_reset_config_failure",
+		},
+		{
+			// device returns error when the startup config is invalid.
+			desc:     "failed reset for XRd (invalid)",
+			wantErr:  true,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_reset_config_failure_invalid",
+		},
+		{
+			// device returns error when startup_config path contains invalid characters
+			desc:    "failed reset for XRd (invalid path characters)",
 			wantErr: true,
-			ni:      nodeXRD,
+			ni:      nodeXRDInvalidPath,
+		},
+		{
+			// device returns success after applying the startup config
+			desc:     "successful reset for xrd",
+			wantErr:  false,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_reset_config_success",
 		},
 		{
 			// device returns error when the startup config is not initialized.
@@ -987,7 +1023,7 @@ func TestResetCfg(t *testing.T) {
 		},
 		{
 			// device returns success after applying the startup config
-			desc:     "successful reset ",
+			desc:     "successful reset for 8000e",
 			wantErr:  false,
 			ni:       node8000e,
 			testFile: "testdata/reset_config_success",
@@ -1031,11 +1067,18 @@ func TestPushCfg(t *testing.T) {
 		testConf string
 	}{
 		{
-			desc:     "unimplemented push config for xrd",
+			desc:     "successful push config for xrd",
+			wantErr:  false,
+			ni:       nodeXRD,
+			testFile: "testdata/xrd_push_config_success",
+			testConf: "testdata/valid_config",
+		},
+		{
+			desc:     "failed push config for xrd",
 			wantErr:  true,
 			ni:       nodeXRD,
-			testFile: "testdata/push_config_success",
-			testConf: "testdata/valid_config",
+			testFile: "testdata/xrd_push_config_failure",
+			testConf: "testdata/invalid_config",
 		},
 		{
 			desc:     "successful push config for 8000e",
@@ -1091,5 +1134,83 @@ func TestGenerateSelfSigned(t *testing.T) {
 	want := codes.Unimplemented
 	if s, ok := status.FromError(err); !ok || s.Code() != want {
 		t.Fatalf("GenerateSelfSigned() unexpected error get %v, want %v", s, want)
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	tests := []struct {
+		name       string
+		node       *Node
+		wantCPU    string
+		wantMemory string
+	}{
+		{
+			name:       "Case: Node.Impl is nil",
+			node:       &Node{Impl: nil},
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
+		},
+		{
+			name:       "Case: Node.Impl.Proto is nil",
+			node:       &Node{Impl: &node.Impl{Proto: nil}},
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
+		},
+		{
+			name: "Case: Model is '8201'",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{Model: "8201"},
+				},
+			},
+			wantCPU:    default8000eConstraints.CPU,
+			wantMemory: default8000eConstraints.Memory,
+		},
+		{
+			name: "Case: Model is empty string",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{},
+				},
+			},
+			wantCPU:    defaultXRDConstraints.CPU,
+			wantMemory: defaultXRDConstraints.Memory,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			constraints := tt.node.DefaultNodeConstraints()
+			if constraints.CPU != tt.wantCPU {
+				t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, tt.wantCPU)
+			}
+
+			if constraints.Memory != tt.wantMemory {
+				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
+			}
+		})
+	}
+}
+
+func TestValidPathRegexp(t *testing.T) {
+	tests := []struct {
+		path      string
+		wantValid bool
+	}{
+		{"/disk0:/startup-config", true},
+		{"/etc/config/xr.cfg", true},
+		{"/etc/config/test;path", false},
+		{"/path/with spaces", false},
+		{"/path/test$cfg", false},
+		{"/path/test`cfg`", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got := validPathRegexp.MatchString(tt.path)
+			if got != tt.wantValid {
+				t.Errorf("validPathRegexp.MatchString(%q) = %v, want %v", tt.path, got, tt.wantValid)
+			}
+		})
 	}
 }

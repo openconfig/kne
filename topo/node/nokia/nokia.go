@@ -17,6 +17,7 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	srlinuxv1 "github.com/srl-labs/srl-controller/api/v1"
 	"github.com/srl-labs/srlinux-scrapli"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -41,6 +42,60 @@ var (
 	// newSrlinuxClient returns a controller-runtime client for srlinux
 	// resources. This can be set to a fake for unit testing.
 	newSrlinuxClient = newSrlinuxClientWithSchema
+
+	defaultConstraints = node.Constraints{
+		CPU:    "2000m", // 2000 milliCPUs
+		Memory: "4Gi",   // 4 GB RAM
+	}
+
+	configEscaper = strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		"`", "\\`",
+		"$", `\$`,
+	)
+)
+
+var (
+	defaultNode = tpb.Node{
+		Name: "default_srlinux_node",
+		Services: map[uint32]*tpb.Service{
+			443: {
+				Names:  []string{"ssl"},
+				Inside: 443,
+			},
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 22,
+			},
+			9339: {
+				Names:  []string{"gnmi", "gnoi", "gnsi"},
+				Inside: 57400,
+			},
+			9340: {
+				Names:  []string{"gribi"},
+				Inside: 57401,
+			},
+			9559: {
+				Names:  []string{"p4rt"},
+				Inside: 9559,
+			},
+		},
+		Model: "ixrd2",
+		Os:    "nokia_srlinux",
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_NOKIA.String(),
+			node.OndatraRoleLabel: node.OndatraRoleDUT,
+		},
+		Config: &tpb.Config{
+			Image:     "ghcr.io/nokia/srlinux:latest",
+			InitImage: node.DefaultInitContainerImage,
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
+		},
+	}
 )
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
@@ -55,13 +110,6 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	n := &Node{
 		Impl: nodeImpl,
 	}
-
-	c, err := newSrlinuxClient(n.RestConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	n.ControllerClient = c
 
 	return n, nil
 }
@@ -85,8 +133,6 @@ type Node struct {
 
 	// scrapli options used in testing
 	testOpts []scrapliutil.Option
-
-	ControllerClient ctrlclient.Client
 }
 
 // Add validations for interfaces the node provides
@@ -148,9 +194,9 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 		return err
 	}
 
-	// replace quotes in the config with escaped quotes, so that we can echo this config
+	// replace quotes and special characters in the config with escaped characters, so that we can echo this config
 	// via `echo` CLI commands.
-	cfg := strings.ReplaceAll(string(cfgBytes), `"`, `\"`)
+	cfg := escapeConfig(cfgBytes)
 
 	log.V(1).Infof("config to push:\n%s", cfg)
 
@@ -199,6 +245,11 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	return nil
 }
 
+// escapeConfig escapes special characters in cfgBytes.
+func escapeConfig(cfgBytes []byte) string {
+	return configEscaper.Replace(string(cfgBytes))
+}
+
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
@@ -227,6 +278,7 @@ func (n *Node) Create(ctx context.Context) error {
 				Command:           n.GetProto().GetConfig().GetCommand(),
 				Args:              n.GetProto().GetConfig().GetArgs(),
 				Image:             n.GetProto().GetConfig().GetImage(),
+				InitImage:         n.GetProto().GetConfig().GetInitImage(),
 				Env:               n.GetProto().GetConfig().GetEnv(),
 				EntryCommand:      n.GetProto().GetConfig().GetEntryCommand(),
 				ConfigPath:        n.GetProto().GetConfig().GetConfigPath(),
@@ -245,9 +297,12 @@ func (n *Node) Create(ctx context.Context) error {
 			Version:     n.GetProto().GetVersion(),
 		},
 	}
-
-	err := n.ControllerClient.Create(ctx, srl)
+	c, err := newSrlinuxClient(n.RestConfig)
 	if err != nil {
+		return err
+	}
+
+	if err := c.Create(ctx, srl); err != nil {
 		return err
 	}
 
@@ -308,8 +363,16 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	return nil, nil
 }
 
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
+}
+
 func (n *Node) Delete(ctx context.Context) error {
-	err := n.ControllerClient.Delete(ctx, &srlinuxv1.Srlinux{
+	c, err := newSrlinuxClient(n.RestConfig)
+	if err != nil {
+		return err
+	}
+	err = c.Delete(ctx, &srlinuxv1.Srlinux{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: n.GetNamespace(), Name: n.Name(),
 		},
@@ -328,35 +391,15 @@ func (n *Node) Delete(ctx context.Context) error {
 }
 
 func defaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			443: {
-				Names:  []string{"ssl"},
-				Inside: 443,
-			},
-			22: {
-				Names:  []string{"ssh"},
-				Inside: 22,
-			},
-			9339: {
-				Names:  []string{"gnmi", "gnoi", "gnsi"},
-				Inside: 57400,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 57401,
-			},
-			9559: {
-				Names:  []string{"p4rt"},
-				Inside: 9559,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	if pb.Model == "" {
-		pb.Model = "ixrd2"
+		pb.Model = defaultNodeClone.Model
 	}
 	if pb.Os == "" {
-		pb.Os = "nokia_srlinux"
+		pb.Os = defaultNodeClone.Os
 	}
 	if pb.Labels == nil {
 		pb.Labels = map[string]string{}
@@ -377,7 +420,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "ghcr.io/nokia/srlinux:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
+	}
+	if pb.Config.InitImage == "" {
+		pb.Config.InitImage = defaultNodeClone.Config.InitImage
 	}
 	// SR Linux default name for config file is either config.json or config.cli.
 	// This depends on the extension of the provided startup-config file.
@@ -393,10 +439,10 @@ func defaults(pb *tpb.Node) *tpb.Node {
 		pb.Constraints = map[string]string{}
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = "2"
+		pb.Constraints["cpu"] = defaultConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = "4Gi"
+		pb.Constraints["memory"] = defaultConstraints.Memory
 	}
 	return pb
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -80,7 +81,7 @@ func init() {
 type server struct {
 	cpb.UnimplementedTopologyManagerServer
 
-	muDeploy    sync.Mutex // guards deployements map
+	muDeploy    sync.Mutex // guards deployments map
 	deployments map[string]*deploy.Deployment
 	muTopo      sync.Mutex        // guards topos map
 	topos       map[string][]byte // stores the topology protobuf from the initial topology creation request
@@ -131,6 +132,7 @@ func newDeployment(req *cpb.CreateClusterRequest) (*deploy.Deployment, error) {
 			Network:                     req.GetKubeadm().Network,
 			AllowControlPlaneScheduling: req.GetKubeadm().AllowControlPlaneScheduling,
 			CredentialProviderConfig:    req.GetKubeadm().CredentialProviderConfig,
+			ImageRepository:             req.GetKubeadm().ImageRepository,
 		}
 		switch t := req.GetKubeadm().GetPodNetworkAddOnManifest().GetManifestData().(type) {
 		case *cpb.Manifest_Data:
@@ -419,8 +421,17 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 		return nil, status.Errorf(codes.AlreadyExists, "topology %q already exists", req.Topology.GetName())
 	}
 
+	// Iterate through nodes and fix up the config file path if needed.
+	// This is not needed if the initial configuration has been provided
+	// in config_data.
 	for _, node := range topoPb.Nodes {
+		// If config data is set then continue
+		if len(node.GetConfig().GetData()) > 0 {
+			log.Infof("node %q: found config data leaving untouched.", node.Name)
+			continue
+		}
 		if node.GetConfig() == nil || node.GetConfig().GetFile() == "" {
+			log.Infof("node %q: not initial config skipping", node.Name)
 			// A config section is not required: you are allowed to bring up a
 			// topology with no initial config.
 			continue
@@ -434,6 +445,7 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 			return nil, status.Errorf(codes.InvalidArgument, "config file not found for node %q: %v", node.GetName(), err)
 		}
 		node.GetConfig().ConfigData = &tpb.Config_File{File: path}
+		log.Infof("node %q: fixed config path to %q", node.Name, path)
 	}
 	// Saves the original topology protobuf.
 	txtPb, err := prototext.Marshal(topoPb)
@@ -461,9 +473,16 @@ func (s *server) CreateTopology(ctx context.Context, req *cpb.CreateTopologyRequ
 	}
 
 	s.topos[topoPb.GetName()] = txtPb
+
+	ti, err := tm.Show(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to validate topology state: %v", err)
+	}
+
 	return &cpb.CreateTopologyResponse{
 		TopologyName: req.Topology.GetName(),
 		State:        cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+		Topology:     ti.GetTopology(),
 	}, nil
 }
 
@@ -630,6 +649,8 @@ func main() {
 			PermitWithoutStream: true,
 			MinTime:             time.Second * 10,
 		}),
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+		grpc.MaxSendMsgSize(math.MaxInt32),
 	)
 	cpb.RegisterTopologyManagerServer(s, newServer())
 	log.Infof("Controller server listening at %v", lis.Addr())

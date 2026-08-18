@@ -142,6 +142,18 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}()
 	configModeRetrySleep = time.Millisecond
 
+	origCertGenTimeout := certGenTimeout
+	defer func() {
+		certGenTimeout = origCertGenTimeout
+	}()
+	certGenTimeout = time.Second * 2
+
+	origConfigModeTimeout := configModeTimeout
+	defer func() {
+		configModeTimeout = origConfigModeTimeout
+	}()
+	configModeTimeout = time.Second * 2
+
 	tests := []struct {
 		desc     string
 		wantErr  bool
@@ -175,6 +187,29 @@ func TestGenerateSelfSigned(t *testing.T) {
 			wantErr:  true,
 			ni:       ni,
 			testFile: "testdata/generate_certificate_config_mode_failure",
+		},
+		{
+			// invalid cert name contains invalid characters
+			desc:     "invalid cert name characters",
+			wantErr:  true,
+			testFile: "testdata/generate_certificate_failure",
+			ni: &node.Impl{
+				KubeClient: ki,
+				Namespace:  "test",
+				Proto: &tpb.Node{
+					Name:   "pod1",
+					Vendor: tpb.Vendor_JUNIPER,
+					Config: &tpb.Config{
+						Cert: &tpb.CertificateCfg{
+							Config: &tpb.CertificateCfg_SelfSigned{
+								SelfSigned: &tpb.SelfSignedCertCfg{
+									CertName: "grpc-cert;invalid",
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -213,6 +248,72 @@ func TestGenerateSelfSigned(t *testing.T) {
 			err = n.GenerateSelfSigned(ctx)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("generating self signed cert failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestGRPCConfig(t *testing.T) {
+	tests := []struct {
+		desc string
+		ni   *node.Impl
+		want []string
+	}{
+		{
+			desc: "new grpc server config",
+			ni: &node.Impl{
+				KubeClient: fake.NewSimpleClientset(),
+				Namespace:  "test",
+				Proto: &tpb.Node{
+					Name:   "pod1",
+					Vendor: tpb.Vendor_JUNIPER,
+					Config: &tpb.Config{
+						ConfigFile: "foo",
+						ConfigPath: "/",
+						ConfigData: &tpb.Config_Data{
+							Data: []byte("config file data"),
+						},
+					},
+					Labels: map[string]string{
+						"legacy_grpc_server_config": "disabled",
+					},
+				},
+			},
+			want: []string{
+				"set system services http servers server grpc-server-9339",
+				"set system services http servers server grpc-server-9339 port 9339",
+				"set system services http servers server grpc-server-9339 grpc gnmi",
+				"set system services http servers server grpc-server-9339 grpc gnoi",
+				"set system services http servers server grpc-server-9339 grpc gnsi",
+				"set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert",
+				"set system services http servers server grpc-server-9339 listen-address 0.0.0.0",
+				"set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300",
+				"set system services http servers server grpc-server-9340",
+				"set system services http servers server grpc-server-9340 port 9340",
+				"set system services http servers server grpc-server-9340 grpc gribi",
+				"set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert",
+				"set system services http servers server grpc-server-9340 listen-address 0.0.0.0",
+				"set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300",
+				"set system services http servers server grpc-server-9559",
+				"set system services http servers server grpc-server-9559 port 9559",
+				"set system services http servers server grpc-server-9559 grpc p4",
+				"set system services http servers server grpc-server-9559 tls local-certificate grpc-server-cert",
+				"set system services http servers server grpc-server-9559 listen-address 0.0.0.0",
+				"set system services http servers server grpc-server-9559 grpc all-grpc max-connections 300",
+				"commit",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			nImpl, err := New(tt.ni)
+			if err != nil {
+				t.Fatalf("failed creating kne juniper node")
+			}
+			n, _ := nImpl.(*Node)
+			got := n.GRPCConfig()
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("GRPCConfig() returned unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -440,7 +541,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -454,15 +555,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -518,7 +619,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -532,15 +633,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -596,7 +697,7 @@ func TestNew(t *testing.T) {
 			Os:    "evo",
 			Model: "cptx",
 			Constraints: map[string]string{
-				"cpu":    "8",
+				"cpu":    "8000m",
 				"memory": "8Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -610,15 +711,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -663,7 +764,7 @@ func TestNew(t *testing.T) {
 			Model: "ncptx",
 			Os:    "evo",
 			Constraints: map[string]string{
-				"cpu":    "4",
+				"cpu":    "4000m",
 				"memory": "4Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -677,15 +778,15 @@ func TestNew(t *testing.T) {
 				},
 				9339: {
 					Names:  []string{"gnmi", "gnoi", "gnsi"},
-					Inside: 32767,
+					Inside: 9339,
 				},
 				9340: {
 					Names:  []string{"gribi"},
-					Inside: 32767,
+					Inside: 9340,
 				},
 				9559: {
 					Names:  []string{"p4rt"},
-					Inside: 32767,
+					Inside: 9559,
 				},
 			},
 			Labels: map[string]string{
@@ -732,6 +833,84 @@ func TestNew(t *testing.T) {
 			err = n.Create(context.Background())
 			if s := errdiff.Check(err, tt.cErr); s != "" {
 				t.Fatalf("Unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	tests := []struct {
+		name       string
+		node       *Node
+		wantCPU    string
+		wantMemory string
+	}{
+		{
+			name:       "Case: Node.Impl is nil",
+			node:       &Node{Impl: nil},
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
+		},
+		{
+			name:       "Case: Node.Impl.Proto is nil",
+			node:       &Node{Impl: &node.Impl{Proto: nil}},
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
+		},
+		{
+			name: "Case: Model is cptx",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{Model: "cptx"},
+				},
+			},
+			wantCPU:    defaultCPTXConstraints.CPU,
+			wantMemory: defaultCPTXConstraints.Memory,
+		},
+		{
+			name: "Case: Model is empty string",
+			node: &Node{
+				Impl: &node.Impl{
+					Proto: &tpb.Node{},
+				},
+			},
+			wantCPU:    defaultNCPTXConstraints.CPU,
+			wantMemory: defaultNCPTXConstraints.Memory,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			constraints := tt.node.DefaultNodeConstraints()
+			if constraints.CPU != tt.wantCPU {
+				t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, tt.wantCPU)
+			}
+
+			if constraints.Memory != tt.wantMemory {
+				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
+			}
+		})
+	}
+}
+
+func TestValidCertNameRegexp(t *testing.T) {
+	tests := []struct {
+		certName  string
+		wantValid bool
+	}{
+		{"grpc-server-cert", true},
+		{"my_cert.v1-2", true},
+		{"cert;invalid", false},
+		{"cert$invalid", false},
+		{"cert/invalid", false},
+		{"cert name spaces", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.certName, func(t *testing.T) {
+			got := validCertNameRegexp.MatchString(tt.certName)
+			if got != tt.wantValid {
+				t.Errorf("validCertNameRegexp.MatchString(%q) = %v, want %v", tt.certName, got, tt.wantValid)
 			}
 		})
 	}

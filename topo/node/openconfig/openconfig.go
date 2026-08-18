@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
@@ -28,6 +29,7 @@ import (
 	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
@@ -40,6 +42,80 @@ const (
 	// modelLemming is a string used in the topology to specify that a lemming (github.com/openconfig/lemming)
 	// device instance should be created.
 	modelLemming string = "LEMMING"
+)
+
+var (
+	defaultLemmingConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
+	defaultLemmingNode = tpb.Node{
+		Name: "default_lemming_node",
+		Services: map[uint32]*tpb.Service{
+			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
+			9339: {
+				Names:  []string{"gnmi", "gnoi", "gnsi"},
+				Inside: 9339,
+			},
+			9340: {
+				Names:  []string{"gribi"},
+				Inside: 9340,
+			},
+		},
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_OPENCONFIG.String(),
+			node.OndatraRoleLabel: node.OndatraRoleDUT,
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultLemmingConstraints.CPU,
+			"memory": defaultLemmingConstraints.Memory,
+		},
+		Config: &tpb.Config{
+			Image:        "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga",
+			InitImage:    node.DefaultInitContainerImage,
+			Command:      []string{"/lemming/lemming"},
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- /bin/bash", "default_lemming_node"),
+			Cert: &tpb.CertificateCfg{
+				Config: &tpb.CertificateCfg_SelfSigned{
+					SelfSigned: &tpb.SelfSignedCertCfg{
+						CommonName: "default_lemming_node",
+						KeySize:    2048,
+					},
+				},
+			},
+		},
+	}
+
+	defaultMagnaNode = tpb.Node{
+		Name: "default_magna_node",
+		Services: map[uint32]*tpb.Service{
+			40051: {
+				Names:  []string{"grpc"},
+				Inside: 40051,
+			},
+			50051: {
+				Names:  []string{"gnmi"},
+				Inside: 50051,
+			},
+		},
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_OPENCONFIG.String(),
+			node.OndatraRoleLabel: node.OndatraRoleATE,
+		},
+		Config: &tpb.Config{
+			Image: "magna:latest",
+			Command: []string{
+				"/app/magna",
+				"-v=2",
+				"-alsologtostderr",
+				"-port=40051",
+				"-telemetry_port=50051",
+				"-certfile=/data/cert.pem",
+				"-keyfile=/data/key.pem",
+			},
+			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", "default_magna_node"),
+		},
+	}
 )
 
 // New creates a new instance of a node based on the specified model.
@@ -104,8 +180,15 @@ func (n *Node) lemmingCreate(ctx context.Context) error {
 	ports := map[string]lemmingv1.ServicePort{}
 
 	for k, v := range n.Proto.Services {
+		insidePort := v.Inside
+		if insidePort > math.MaxUint16 {
+			return fmt.Errorf("inside port %d out of range (max: %d)", insidePort, math.MaxUint16)
+		}
+		if k > math.MaxUint16 {
+			return fmt.Errorf("outside port %d out of range (max: %d)", k, math.MaxUint16)
+		}
 		ports[v.Name] = lemmingv1.ServicePort{
-			InnerPort: int32(v.Inside),
+			InnerPort: int32(insidePort),
 			OuterPort: int32(k),
 		}
 	}
@@ -164,6 +247,15 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	}
 }
 
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	switch n.Impl.Proto.Model {
+	case modelLemming:
+		return defaultLemmingConstraints
+	default:
+		return node.Constraints{}
+	}
+}
+
 func (n *Node) lemmingStatus(ctx context.Context) (node.Status, error) {
 	cs, err := clientFn(n.RestConfig)
 	if err != nil {
@@ -219,17 +311,18 @@ func (n *Node) GenerateSelfSigned(context.Context) error {
 }
 
 func lemmingDefaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultLemmingNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	if pb.Config.InitImage == "" {
 		pb.Config.InitImage = node.DefaultInitContainerImage
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{"/lemming/lemming"}
+		pb.Config.Command = defaultNodeClone.Config.Command
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- /bin/bash", pb.Name)
@@ -245,41 +338,32 @@ func lemmingDefaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Constraints == nil {
-		pb.Constraints = map[string]string{}
+		pb.Constraints = defaultNodeClone.Constraints
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = "0.5"
+		pb.Constraints["cpu"] = defaultLemmingConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = "1Gi"
+		pb.Constraints["memory"] = defaultLemmingConstraints.Memory
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{}
+		pb.Labels = defaultNodeClone.Labels
 	}
 	if pb.Labels["vendor"] == "" {
-		pb.Labels["vendor"] = tpb.Vendor_OPENCONFIG.String()
+		pb.Labels["vendor"] = defaultNodeClone.Labels["vendor"]
 	}
 
 	// Always explicitly specify that lemming is a DUT, this cannot be overridden by the user.
 	pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
 
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
-			9339: {
-				Names:  []string{"gnmi", "gnoi", "gnsi"},
-				Inside: 9339,
-			},
-			9340: {
-				Names:  []string{"gribi"},
-				Inside: 9340,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	return pb
 }
 
 func magnaDefaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultMagnaNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
@@ -287,15 +371,7 @@ func magnaDefaults(pb *tpb.Node) *tpb.Node {
 		pb.Services = map[uint32]*tpb.Service{}
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{
-			"/app/magna",
-			"-v=2",
-			"-alsologtostderr",
-			"-port=40051",
-			"-telemetry_port=50051",
-			"-certfile=/data/cert.pem",
-			"-keyfile=/data/key.pem",
-		}
+		pb.Config.Command = defaultNodeClone.Config.Command
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- sh", pb.Name)
@@ -303,7 +379,7 @@ func magnaDefaults(pb *tpb.Node) *tpb.Node {
 	if pb.Config.Image == "" {
 		// TODO(robjs): add public container location once the first iteration is pushed.
 		// Currently, this image can be built from github.com/openconfig/magna.
-		pb.Config.Image = "magna:latest"
+		pb.Config.Image = defaultMagnaNode.Config.Image
 	}
 
 	if _, ok := pb.Services[40051]; !ok {

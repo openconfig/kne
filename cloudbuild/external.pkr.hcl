@@ -1,7 +1,7 @@
 packer {
   required_plugins {
     googlecompute = {
-      version = ">= 1.1.1"
+      version = "= 1.1.6"
       source  = "github.com/hashicorp/googlecompute"
     }
   }
@@ -28,6 +28,7 @@ source "googlecompute" "kne-image" {
   project_id          = "gep-kne"
   source_image_family = "debian-12"
   disk_size           = 50
+  disk_type           = "pd-ssd"
   image_name          = "kne-external-${var.build_id}"
   image_family        = "kne-external-untested"
   image_labels = {
@@ -52,12 +53,20 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing golang...",
-      "curl -O https://dl.google.com/go/go1.21.3.linux-amd64.tar.gz",
-      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.21.3.linux-amd64.tar.gz",
-      "rm go1.21.3.linux-amd64.tar.gz",
+      "curl -O https://dl.google.com/go/go1.26.5.linux-amd64.tar.gz",
+      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.5.linux-amd64.tar.gz",
+      "rm go1.26.5.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Installing libpcap-dev...",
+      "sudo apt-get update",
+      "sudo apt-get install libpcap-dev -y",
     ]
   }
 
@@ -77,6 +86,7 @@ build {
       "echo \"fs.inotify.max_user_watches=25600000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"fs.inotify.max_queued_events=13107200\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
+      "echo \"br_netfilter\" | sudo tee -a /etc/modules-load.d/br_netfilter.conf",   # ensure br_netfilter module is loaded instead of relying on docker-ce (https://github.com/moby/moby/issues/48948)
       "sudo sysctl -p",
     ]
   }
@@ -84,10 +94,13 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing kubectl...",
-      "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg",
-      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+      "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg",
+      "echo \"deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /\" | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get update",
-      "sudo apt-get install kubelet kubeadm kubectl -y",
+      // kube-proxy requires conntrack to route traffic, and kubeadm v1.31+ enforces it in preflight checks
+      "sudo apt-get install conntrack -y",
+      // TODO: Remove pin when kubectl reports a version number other than `v0.0.0-master+$Format:%H$`.
+      "sudo apt-get install kubelet kubeadm kubectl=1:578.0.0-0 -y",
       "kubectl version --client",
       "echo 'source <(kubectl completion bash)' >> ~/.bashrc",
       "echo 'alias k=kubectl' >> ~/.bashrc",
@@ -108,33 +121,40 @@ build {
       "echo Installing multinode cluster dependencies...",
       "git clone https://github.com/flannel-io/flannel.git",
       "curl --create-dirs -o third_party/licenses/flannel/LICENSE https://raw.githubusercontent.com/flannel-io/flannel/master/LICENSE",
-      "git clone https://github.com/Mirantis/cri-dockerd.git",
-      "cd cri-dockerd",
-      "PATH=$PATH:/usr/local/go/bin",
-      "/home/$USER/go/bin/go-licenses check github.com/Mirantis/cri-dockerd --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
-      "/home/$USER/go/bin/go-licenses save github.com/Mirantis/cri-dockerd --save_path=\"../third_party/licenses/cri-dockerd\" --ignore=$(go list std | awk 'NR > 1 { printf(\",\") } { printf(\"%s\",$0) } END { print \"\" }')",
-      "make cri-dockerd",
-      "sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd",
-      "sudo install packaging/systemd/* /etc/systemd/system",
-      "sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service",
-      "sudo systemctl daemon-reload",
-      "sudo systemctl enable cri-docker.socket",
-      "sudo systemctl enable cri-docker.service",
+      "sudo modprobe br_netfilter",
+      "echo \"1\" > sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables",
+      "echo \"1\" > sudo tee /proc/sys/net/ipv4/ip_forward",
+      "sudo sysctl --system",
+      "sudo sysctl -p",
+      "sudo mkdir -p /etc/containerd",
+      "sudo containerd config default | sudo tee /etc/containerd/config.toml",
+      // TODO: config.toml edits should be generated using a TOML parsing library.
+      "sudo sed -i 's/^disabled_plugins = \\[\"cri\"\\]/#disabled_plugins = \\[\"cri\"\\]/' /etc/containerd/config.toml",
+      "echo \"Setting containerd to use systemd cgroup driver...\"",
+      "sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml",
+      "echo \"Setting containerd to default to 'kne-external' repo for the sandbox image...\"",
+      "sudo sed -i 's/registry.k8s.io/us-west1-docker.pkg.dev\\/kne-external\\/kne/g' /etc/containerd/config.toml",
+      "echo \"Configuring containerd registry mirrors...\"",
+      "sudo sed -i 's/config_path = .*/config_path = \"\\/etc\\/containerd\\/certs.d\"/' /etc/containerd/config.toml",
+      "sudo mkdir -p /etc/containerd/certs.d/registry.k8s.io",
+      "echo 'server = \"https://registry.k8s.io\"\n\n[host.\"https://us-west1-docker.pkg.dev/v2/kne-external/kne\"]\n  capabilities = [\"pull\", \"resolve\"]\n  override_path = true' | sudo tee /etc/containerd/certs.d/registry.k8s.io/hosts.toml",
+      "sudo systemctl restart containerd",
       "cd $HOME",
       "git clone https://github.com/kubernetes/cloud-provider-gcp.git",
-      "curl -Lo bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 && sudo install bazel /usr/local/bin/",
       "cd cloud-provider-gcp",
       "curl --create-dirs -o third_party/licenses/cloud-provider-gcp/LICENSE https://raw.githubusercontent.com/kubernetes/cloud-provider-gcp/master/LICENSE",
-      "bazel build cmd/auth-provider-gcp",
+      "export PATH=$PATH:/usr/local/go/bin",
+      "make auth-provider-gcp-linux-amd64",
       "sudo mkdir -p /etc/kubernetes/bin/",
-      "sudo cp bazel-bin/cmd/auth-provider-gcp/auth-provider-gcp_/auth-provider-gcp /etc/kubernetes/bin/",
+      # Directory is derived from same commands as in the cloud-provider-gcp Makefile
+      "sudo cp release/`git describe --tags --always --dirty | sed 's|.*/||'`/auth-provider-gcp/linux/amd64/auth-provider-gcp /etc/kubernetes/bin/",
     ]
   }
 
   provisioner "shell" {
     inline = [
       "echo Installing kind...",
-      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.22.0",
+      "/usr/local/go/bin/go install sigs.k8s.io/kind@v0.24.0",
       "curl --create-dirs -o third_party/licenses/kind/LICENSE https://raw.githubusercontent.com/kubernetes-sigs/kind/main/LICENSE",
       "sudo cp /home/$USER/go/bin/kind /usr/local/bin/",
       "/home/$USER/go/bin/kind version",

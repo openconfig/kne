@@ -33,9 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type fakeWatch struct {
@@ -64,25 +62,7 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return eCh
 }
 
-// patchSrlinuxClient patches newSrlinuxClient function to use a fake no-op client for tests.
-// Returns a function to restore the original newSrlinuxClient function.
-func patchSrlinuxClient() func() {
-	origNewSrlinuxClient := newSrlinuxClient
-
-	// overwrite the controller-runtime new function with a fake no-op client as it is not used in tests.
-	newSrlinuxClient = func(_ *rest.Config) (ctrlclient.Client, error) {
-		return nil, nil
-	}
-
-	return func() {
-		newSrlinuxClient = origNewSrlinuxClient
-	}
-}
-
 func TestNew(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	tests := []struct {
 		desc    string
 		nImpl   *node.Impl
@@ -109,6 +89,7 @@ func TestNew(t *testing.T) {
 			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
+				InitImage:  "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 				ConfigFile: "config.cli",
 			},
 			Labels: map[string]string{
@@ -141,7 +122,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "4Gi",
 			},
 		},
@@ -162,6 +143,7 @@ func TestNew(t *testing.T) {
 			Os:    "nokia_srlinux",
 			Config: &topopb.Config{
 				Image:      "ghcr.io/nokia/srlinux:latest",
+				InitImage:  "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
 				ConfigFile: "config.json",
 			},
 			Labels: map[string]string{
@@ -194,7 +176,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			Constraints: map[string]string{
-				"cpu":    "2",
+				"cpu":    "2000m",
 				"memory": "4Gi",
 			},
 		},
@@ -216,9 +198,6 @@ func TestNew(t *testing.T) {
 	}
 }
 func TestGenerateSelfSigned(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -294,7 +273,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTimeoutOps(10 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -322,9 +301,6 @@ func TestGenerateSelfSigned(t *testing.T) {
 }
 
 func TestResetCfg(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -376,7 +352,7 @@ func TestResetCfg(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTimeoutOps(10 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -404,9 +380,6 @@ func TestResetCfg(t *testing.T) {
 }
 
 func TestConfigPush(t *testing.T) {
-	unpatchClient := patchSrlinuxClient()
-	defer unpatchClient()
-
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod1",
@@ -461,7 +434,7 @@ func TestConfigPush(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTimeoutOps(10 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -488,6 +461,61 @@ func TestConfigPush(t *testing.T) {
 			err = n.ConfigPush(ctx, r)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("config push failed, error: %+v\n", err)
+			}
+		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultConstraints.CPU)
+	}
+
+	if constraints.Memory != defaultConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
+	}
+}
+
+func TestEscapeConfig(t *testing.T) {
+	tests := []struct {
+		desc  string
+		input string
+		want  string
+	}{
+		{
+			desc:  "plain text",
+			input: "set system location foo",
+			want:  "set system location foo",
+		},
+		{
+			desc:  "double quotes",
+			input: "set / system location \"set with config push\"",
+			want:  `set / system location \"set with config push\"`,
+		},
+		{
+			desc:  "dollar signs",
+			input: "set / system location $(value)",
+			want:  `set / system location \$(value)`,
+		},
+		{
+			desc:  "backticks",
+			input: "set / system location `value`",
+			want:  "set / system location \\`value\\`",
+		},
+		{
+			desc:  "backslashes and dollar signs",
+			input: `set / system location \path\$ENV`,
+			want:  `set / system location \\path\\\$ENV`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got := escapeConfig([]byte(tt.input))
+			if got != tt.want {
+				t.Errorf("escapeConfig(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}

@@ -3,11 +3,12 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"testing"
 	"time"
 
-	dtypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types/network"
+	dclient "github.com/moby/moby/client"
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnmi/errdiff"
@@ -15,15 +16,19 @@ import (
 	"github.com/openconfig/kne/deploy/mocks"
 	kexec "github.com/openconfig/kne/exec"
 	fexec "github.com/openconfig/kne/exec/fake"
+	epb "github.com/openconfig/kne/proto/event"
 	"github.com/pkg/errors"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
+	"google.golang.org/protobuf/testing/protocmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
+	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
 	"k8s.io/klog/v2"
 )
@@ -60,19 +65,27 @@ func TestKubeadmSpec(t *testing.T) {
 		desc: "create cluster",
 		k:    &KubeadmSpec{},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
 	}, {
-		desc: "use cri-docker",
+		desc: "use containerd",
 		k: &KubeadmSpec{
-			CRISocket: "unix:///var/run/cri-dockerd.sock",
+			CRISocket: "unix:///var/run/containerd/containerd.sock",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"systemctl", "enable", "--now", "cri-docker.socket"}},
-			{Cmd: "sudo", Args: []string{"systemctl", "enable", "--now", "cri-docker.service"}},
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--cri-socket", "unix:///var/run/cri-dockerd.sock"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--cri-socket", "unix:///var/run/containerd/containerd.sock", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
+	}, {
+		desc: "custom image repository",
+		k: &KubeadmSpec{
+			ImageRepository: "registry.k8s.io",
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "registry.k8s.io"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
@@ -82,7 +95,7 @@ func TestKubeadmSpec(t *testing.T) {
 			AllowControlPlaneScheduling: true,
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
@@ -93,7 +106,7 @@ func TestKubeadmSpec(t *testing.T) {
 			PodNetworkAddOnManifestData: []byte("manifest yaml"),
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"apply", "-f", "-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
@@ -104,7 +117,7 @@ func TestKubeadmSpec(t *testing.T) {
 			Network: "my-network",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 		},
 	}}
@@ -615,42 +628,48 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return f.ch
 }
 
-//go:generate mockgen -destination=mocks/mock_dnetwork.go -package=mocks github.com/docker/docker/client  NetworkAPIClient
+//go:generate go run github.com/golang/mock/mockgen@v1.6.0 -destination=mocks/mock_dnetwork.go -package=mocks github.com/moby/moby/client NetworkAPIClient
 
 func TestMetalLBSpec(t *testing.T) {
-	nl := []dtypes.NetworkResource{
+	nl := []network.Summary{
 		{
-			Name: "kind",
-			IPAM: network.IPAM{
-				Config: []network.IPAMConfig{
-					{
-						Subnet: "172.18.0.0/16",
-					},
-					{
-						Subnet: "127::0/64",
+			Network: network.Network{
+				Name: "kind",
+				IPAM: network.IPAM{
+					Config: []network.IPAMConfig{
+						{
+							Subnet: netip.MustParsePrefix("172.18.0.0/16"),
+						},
+						{
+							Subnet: netip.MustParsePrefix("127::0/64"),
+						},
 					},
 				},
 			},
 		},
 		{
-			Name: "bridge",
-			IPAM: network.IPAM{
-				Config: []network.IPAMConfig{
-					{
-						Subnet: "192.18.0.0/16",
-					},
-					{
-						Subnet: "129::0/64",
+			Network: network.Network{
+				Name: "bridge",
+				IPAM: network.IPAM{
+					Config: []network.IPAMConfig{
+						{
+							Subnet: netip.MustParsePrefix("192.18.0.0/16"),
+						},
+						{
+							Subnet: netip.MustParsePrefix("129::0/64"),
+						},
 					},
 				},
 			},
 		},
 		{
-			Name: "docker",
-			IPAM: network.IPAM{
-				Config: []network.IPAMConfig{
-					{
-						Subnet: "1.1.1.1/16",
+			Network: network.Network{
+				Name: "docker",
+				IPAM: network.IPAM{
+					Config: []network.IPAMConfig{
+						{
+							Subnet: netip.MustParsePrefix("1.1.1.1/16"),
+						},
 					},
 				},
 			},
@@ -742,7 +761,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -792,7 +811,7 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("dclient error"))
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{}, fmt.Errorf("dclient error"))
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -857,7 +876,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -916,7 +935,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -981,7 +1000,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -1039,7 +1058,7 @@ func TestMetalLBSpec(t *testing.T) {
 			}
 			mi, err := mfake.NewSimpleClientset(tt.mObjects...)
 			if err != nil {
-				t.Fatalf("faild to create fake client: %v", err)
+				t.Fatalf("failed to create fake client: %v", err)
 			}
 
 			tt.m.SetKClient(ki)
@@ -2113,5 +2132,183 @@ func checkCmds(t *testing.T, cmds *fexec.Command) {
 	t.Helper()
 	if err := cmds.Done(); err != nil {
 		t.Errorf("%v", err)
+	}
+}
+
+type mockCluster struct {
+	deployErr  error
+	deleteErr  error
+	healthyErr error
+	name       string
+}
+
+func (m *mockCluster) Deploy(context.Context) error         { return m.deployErr }
+func (m *mockCluster) Delete() error                        { return m.deleteErr }
+func (m *mockCluster) Healthy() error                       { return m.healthyErr }
+func (m *mockCluster) GetName() string                      { return m.name }
+func (m *mockCluster) GetDockerNetworkResourceName() string { return "network" }
+func (m *mockCluster) Apply([]byte) error                   { return nil }
+
+type mockIngress struct {
+	deployErr  error
+	healthyErr error
+}
+
+func (m *mockIngress) Deploy(context.Context) error        { return m.deployErr }
+func (m *mockIngress) SetKClient(kubernetes.Interface)     {}
+func (m *mockIngress) Healthy(context.Context) error       { return m.healthyErr }
+func (m *mockIngress) SetRCfg(*rest.Config)                {}
+func (m *mockIngress) SetDockerNetworkResourceName(string) {}
+
+type mockCNI struct {
+	deployErr  error
+	healthyErr error
+}
+
+func (m *mockCNI) Deploy(context.Context) error    { return m.deployErr }
+func (m *mockCNI) SetKClient(kubernetes.Interface) {}
+func (m *mockCNI) Healthy(context.Context) error   { return m.healthyErr }
+
+type mockController struct {
+	deployErr  error
+	healthyErr error
+}
+
+func (m *mockController) Deploy(context.Context) error    { return m.deployErr }
+func (m *mockController) SetKClient(kubernetes.Interface) {}
+func (m *mockController) Healthy(context.Context) error   { return m.healthyErr }
+
+func TestDeploymentHealthy(t *testing.T) {
+	tests := []struct {
+		name    string
+		d       *Deployment
+		wantErr bool
+	}{
+		{
+			name: "healthy",
+			d: &Deployment{
+				Cluster: &mockCluster{},
+				Ingress: &mockIngress{},
+				CNI:     &mockCNI{},
+				Controllers: []Controller{
+					&mockController{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "cluster unhealthy",
+			d: &Deployment{
+				Cluster: &mockCluster{healthyErr: errors.New("cluster unhealthy")},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ingress unhealthy",
+			d: &Deployment{
+				Cluster: &mockCluster{},
+				Ingress: &mockIngress{healthyErr: errors.New("ingress unhealthy")},
+			},
+			wantErr: true,
+		},
+		{
+			name: "cni unhealthy",
+			d: &Deployment{
+				Cluster: &mockCluster{},
+				Ingress: &mockIngress{},
+				CNI:     &mockCNI{healthyErr: errors.New("cni unhealthy")},
+			},
+			wantErr: true,
+		},
+		{
+			name: "controller unhealthy",
+			d: &Deployment{
+				Cluster: &mockCluster{},
+				Ingress: &mockIngress{},
+				CNI:     &mockCNI{},
+				Controllers: []Controller{
+					&mockController{healthyErr: errors.New("controller unhealthy")},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.d.Healthy(context.Background()); (err != nil) != tt.wantErr {
+				t.Errorf("Deployment.Healthy() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDeploymentEvent(t *testing.T) {
+	d := &Deployment{
+		Cluster: &KindSpec{},
+		Ingress: &MetalLBSpec{},
+		CNI:     &MeshnetSpec{},
+		Controllers: []Controller{
+			&CEOSLabSpec{},
+			&IxiaTGSpec{},
+			&SRLinuxSpec{},
+			&LemmingSpec{},
+			&CdnosSpec{},
+		},
+	}
+	got := d.event()
+	want := &epb.Cluster{
+		Cluster: epb.Cluster_CLUSTER_TYPE_KIND,
+		Ingress: epb.Cluster_INGRESS_TYPE_METALLB,
+		Cni:     epb.Cluster_CNI_TYPE_MESHNET,
+		Controllers: []epb.Cluster_ControllerType{
+			epb.Cluster_CONTROLLER_TYPE_CEOSLAB,
+			epb.Cluster_CONTROLLER_TYPE_IXIATG,
+			epb.Cluster_CONTROLLER_TYPE_SRLINUX,
+			epb.Cluster_CONTROLLER_TYPE_LEMMING,
+			epb.Cluster_CONTROLLER_TYPE_CDNOS,
+		},
+	}
+	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+		t.Errorf("Deployment.event() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCheckDependencies(t *testing.T) {
+	origExecLookPath := execLookPath
+	defer func() { execLookPath = origExecLookPath }()
+
+	tests := []struct {
+		name     string
+		lookPath func(string) (string, error)
+		wantErr  bool
+	}{
+		{
+			name: "all dependencies present",
+			lookPath: func(string) (string, error) {
+				return "/bin/path", nil
+			},
+			wantErr: false,
+		},
+		{
+			name: "dependency missing",
+			lookPath: func(file string) (string, error) {
+				if file == "kubectl" {
+					return "", errors.New("not found")
+				}
+				return "/bin/path", nil
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			execLookPath = tt.lookPath
+			d := &Deployment{}
+			if err := d.checkDependencies(); (err != nil) != tt.wantErr {
+				t.Errorf("Deployment.checkDependencies() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

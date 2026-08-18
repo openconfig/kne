@@ -7,15 +7,44 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 jobs:
   go:
-    uses: openconfig/common-ci/.github/workflows/go.yml@66c8f8f6a58d5f9c9e84efe89f542b08cb6a0a33
+    uses: openconfig/common-ci/.github/workflows/go.yml@857df491097bf7b7260afb6661be1d616f67faa2 # v0.4.0
+    permissions:
+      contents: read
+      packages: read
+      statuses: write
     with:
+      go-versions: "['1.26']"
       coverage-excludes-regex: /cloudbuild
       tests-excludes-regex: /cloudbuild
       race-tests-excludes-regex: /cloudbuild
       skip-race-tests: true
-      go-versions: "['1.21']"
 
-  linter:
-    uses: openconfig/common-ci/.github/workflows/linter.yml@66c8f8f6a58d5f9c9e84efe89f542b08cb6a0a33
+  lint:
+    uses: openconfig/common-ci/.github/workflows/linter.yml@857df491097bf7b7260afb6661be1d616f67faa2 # v0.4.0
+    permissions:
+      contents: read
+      packages: read
+
+  meshnet:
+    name: Meshnet Go Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
+      - name: Install dependencies
+        run: sudo apt-get install -y libpcap-dev
+      - name: Run Go tests
+        working-directory: ./third_party/meshnet
+        run: make test

@@ -107,3 +107,15 @@ func TestCdnosDefaults(t *testing.T) {
 		t.Errorf("Services is nil")
 	}
 }
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultConstraints.CPU)
+	}
+
+	if constraints.Memory != defaultConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
+	}
+}
