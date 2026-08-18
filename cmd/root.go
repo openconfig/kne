@@ -21,6 +21,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/openconfig/kne/cmd/deploy"
+	"github.com/openconfig/kne/cmd/internal"
 	"github.com/openconfig/kne/cmd/topology"
 	"github.com/openconfig/kne/topo"
 	"github.com/spf13/cobra"
@@ -64,6 +65,7 @@ environment.`,
 	root.AddCommand(topology.New())
 	root.AddCommand(deploy.NewDeploy())
 	root.AddCommand(deploy.NewTeardown())
+	root.AddCommand(internal.New())
 	return root
 }
 

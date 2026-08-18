@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/docker/docker/api/types/network"
-	dclient "github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/network"
+	dclient "github.com/moby/moby/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
 	"github.com/openconfig/kne/cluster/kind"
@@ -41,12 +41,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const defaultKubeadmImageRepository = "us-west1-docker.pkg.dev/kne-external/kne"
+
 var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
 	healthTimeout   = time.Minute
-	criDocker       = "cri-docker"
 
 	// Stubs for testing.
 	execLookPath       = exec.LookPath
@@ -206,6 +207,12 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if err != nil {
 		return fmt.Errorf("failed to create k8s config: %w", err)
 	}
+	if rCfg.QPS == 0 {
+		rCfg.QPS = 100
+	}
+	if rCfg.Burst == 0 {
+		rCfg.Burst = 200
+	}
 	kClient, err := kubernetes.NewForConfig(rCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create k8s client: %w", err)
@@ -218,7 +225,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	// Watch the container status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, kClient, cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
@@ -426,6 +433,7 @@ type KubeadmSpec struct {
 	TokenTTL                    string `yaml:"tokenTTL"`
 	Network                     string `yaml:"network"`
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
+	ImageRepository             string `yaml:"imageRepository"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -446,15 +454,6 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	args := []string{"kubeadm", "init"}
 	if k.CRISocket != "" {
 		args = append(args, "--cri-socket", k.CRISocket)
-		// If using cri-docker, then ensure the components are running.
-		if strings.Contains(k.CRISocket, criDocker) {
-			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".socket"); err != nil {
-				return err
-			}
-			if err := run.LogCommand("sudo", "systemctl", "enable", "--now", criDocker+".service"); err != nil {
-				return err
-			}
-		}
 	}
 	if k.PodNetworkCIDR != "" {
 		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
@@ -462,6 +461,11 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.TokenTTL != "" {
 		args = append(args, "--token-ttl", k.TokenTTL)
 	}
+	imageRepository := defaultKubeadmImageRepository
+	if k.ImageRepository != "" {
+		imageRepository = k.ImageRepository
+	}
+	args = append(args, "--image-repository", imageRepository)
 	log.Infof("Creating kubeadm cluster with: %v", args)
 	if out, err := run.OutLogCommand("sudo", args...); err != nil {
 		msg := []string{}
@@ -932,24 +936,27 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if _, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{}); err != nil {
 		log.Infof("Applying metallb ingress config")
 		// Get Network information from docker.
-		nr, err := m.dClient.NetworkList(ctx, network.ListOptions{})
+		nr, err := m.dClient.NetworkList(ctx, dclient.NetworkListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get docker network list: %w", err)
 		}
-		var network network.Inspect
-		for _, v := range nr {
+		var netSummary network.Summary
+		for _, v := range nr.Items {
 			name := m.dockerNetworkResourceName
 			if name == "" {
 				name = "bridge"
 			}
 			if v.Name == name {
-				network = v
+				netSummary = v
 				break
 			}
 		}
 		var n *net.IPNet
-		for _, ipRange := range network.IPAM.Config {
-			_, ipNet, err := net.ParseCIDR(ipRange.Subnet)
+		for _, ipRange := range netSummary.IPAM.Config {
+			if !ipRange.Subnet.IsValid() {
+				continue
+			}
+			_, ipNet, err := net.ParseCIDR(ipRange.Subnet.String())
 			if err != nil {
 				return fmt.Errorf("failed to parse cidr: %w", err)
 			}

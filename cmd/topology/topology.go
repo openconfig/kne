@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/openconfig/gnmi/errlist"
 	cpb "github.com/openconfig/kne/proto/controller"
@@ -61,6 +63,18 @@ func New() *cobra.Command {
 	}
 	resetCfgCmd.Flags().Bool("skip", false, "skip nodes if they are not resetable")
 	resetCfgCmd.Flags().Bool("push", false, "additionally push orginal topology configuration")
+	generateCmd := &cobra.Command{
+		Use:   "generate",
+		Short: "Generates a topology of a given type.",
+	}
+	ringCmd := &cobra.Command{
+		Use:   "ring <topology> <count> <links>",
+		Short: "generates a ring topology of count devices using the first node in input topology file with links between each pair of devices",
+		Long:  "For example, `generate ring topology.textproto 3 1` will generate a ring: node1[1]->node2[2], node2[1]->node3[1], node3[2]->node1[2]",
+		RunE:  generateRingFn,
+	}
+	generateCmd.AddCommand(ringCmd)
+
 	topoCmd := &cobra.Command{
 		Use:   "topology",
 		Short: "Topology commands.",
@@ -70,6 +84,7 @@ func New() *cobra.Command {
 	topoCmd.AddCommand(serviceCmd)
 	topoCmd.AddCommand(watchCmd)
 	topoCmd.AddCommand(resetCfgCmd)
+	topoCmd.AddCommand(generateCmd)
 	return topoCmd
 }
 
@@ -161,6 +176,79 @@ func resetCfgFn(cmd *cobra.Command, args []string) error {
 		}
 	}
 	return errList.Err()
+}
+
+func generateRingFn(cmd *cobra.Command, args []string) error {
+	if len(args) != 3 {
+		return fmt.Errorf("%s: invalid args", cmd.Use)
+	}
+	links, err := strconv.Atoi(args[2])
+	if err != nil {
+		return fmt.Errorf("%s: invalid links: %w", cmd.Use, err)
+	}
+	if links <= 0 {
+		return fmt.Errorf("%s: links must be positive", cmd.Use)
+	}
+	count, err := strconv.Atoi(args[1])
+	if err != nil {
+		return fmt.Errorf("%s: invalid count: %w", cmd.Use, err)
+	}
+	if count <= 1 {
+		return fmt.Errorf("%s: count must be greater than 1", cmd.Use)
+	}
+	topopb, err := topo.Load(args[0])
+	if err != nil {
+		return fmt.Errorf("%s: %w", cmd.Use, err)
+	}
+	if len(topopb.GetNodes()) == 0 {
+		return fmt.Errorf("%s: no nodes in topology", cmd.Use)
+	}
+	baseNode := topopb.GetNodes()[0]
+
+	newTopo := &tpb.Topology{
+		Name:  topopb.GetName() + "-ring",
+		Nodes: []*tpb.Node{},
+	}
+	// Add nodes
+	for i := 0; i < count; i++ {
+		n := &tpb.Node{
+			Name:     fmt.Sprintf("%s-%d", baseNode.GetName(), i),
+			Vendor:   baseNode.GetVendor(),
+			Model:    baseNode.GetModel(),
+			Os:       baseNode.GetOs(),
+			Config:   baseNode.GetConfig(),
+			Services: baseNode.GetServices(),
+		}
+		newTopo.Nodes = append(newTopo.Nodes, n)
+	}
+	// Add links
+	for i := 0; i < count; i++ {
+		for j := 1; j <= links; j++ {
+			aNode := fmt.Sprintf("%s-%d", baseNode.GetName(), i)
+			aInt := fmt.Sprintf("eth%d", j)
+			zNodeIndex := (i + 1) % count
+			zNode := fmt.Sprintf("%s-%d", baseNode.GetName(), zNodeIndex)
+			zInt := fmt.Sprintf("eth%d", j+links)
+			newTopo.Links = append(newTopo.Links, &tpb.Link{
+				ANode: aNode,
+				AInt:  aInt,
+				ZNode: zNode,
+				ZInt:  zInt,
+			})
+		}
+	}
+	ext := filepath.Ext(args[0])
+	base := strings.TrimSuffix(args[0], ext)
+	outFileName := base + "-output" + ext
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(newTopo)
+	if err != nil {
+		return fmt.Errorf("failed to marshal new topology: %w", err)
+	}
+	if err := os.WriteFile(outFileName, b, 0600); err != nil {
+		return fmt.Errorf("failed to write output topology file: %w", err)
+	}
+	log.Infof("Successfully wrote new topology to %q", outFileName)
+	return nil
 }
 
 func pushFn(cmd *cobra.Command, args []string) error {

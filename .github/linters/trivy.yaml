@@ -1,0 +1,8 @@
+scan:
+  skip-dirs:
+    - manifests
+    - load
+    - deploy
+    - x/webhook
+    - x/wire
+    - init_wait

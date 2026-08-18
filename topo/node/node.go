@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	tpb "github.com/openconfig/kne/proto/topo"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
@@ -63,6 +63,8 @@ type Implementation interface {
 	BackToBackLoop() bool
 	// ValidateConstraints validates the host with the node's constraints.
 	ValidateConstraints() error
+	// DefaultNodeConstraints exports the node's default constraints.
+	DefaultNodeConstraints() Constraints
 }
 
 // Certer provides an interface for working with certs on nodes.
@@ -108,6 +110,14 @@ var (
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
 	tempCfgDir  = "/tmp/kne"
 )
+
+// Constraints struct holds the values for node constraints like CPU, Memory.
+// The constraints are represented as strings grok format.
+// For example, CPU: "1000m" or "500m" , etc. Memory: "1Gi" or "2Gi" etc.
+type Constraints struct {
+	CPU    string
+	Memory string
+}
 
 var (
 	// Stubs for testing
@@ -192,7 +202,7 @@ func (n *Impl) TopologySpecs(context.Context) ([]*topologyv1.Topology, error) {
 }
 
 const (
-	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga"
+	DefaultInitContainerImage = "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga"
 )
 
 func ToEnvVar(kv map[string]string) []corev1.EnvVar {
@@ -260,6 +270,11 @@ func (n *Impl) ValidateConstraints() error {
 	}
 
 	return errorList.Err()
+}
+
+// DefaultNodeConstraints - Returns default constraints of the node. It returns an empty struct by default.
+func (n *Impl) DefaultNodeConstraints() Constraints {
+	return Constraints{}
 }
 
 // validateBoundedInteger - Evaluates a constraint if is within a bound of max - min integer. It defaults any unspecified upper bound to infinity,
@@ -428,7 +443,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 								MatchExpressions: []metav1.LabelSelectorRequirement{{
 									Key:      "topo",
 									Operator: "In",
-									Values:   []string{pb.Name},
+									Values:   []string{n.Namespace},
 								}},
 							},
 							TopologyKey: "kubernetes.io/hostname",
@@ -751,17 +766,17 @@ func (n *Impl) BackToBackLoop() bool {
 }
 
 func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
-	var links []topologyv1.Link
+	links := []topologyv1.Link{}
 	for ifcName, ifc := range n.Interfaces {
 		if ifcName == "eth0" {
 			log.Infof("Found mgmt interface ignoring for Meshnet: %q", ifcName)
 			continue
 		}
 		if ifc.PeerIntName == "" {
-			return nil, fmt.Errorf("interface %q PeerIntName canot be empty", ifcName)
+			return nil, fmt.Errorf("interface %q PeerIntName cannot be empty", ifcName)
 		}
 		if ifc.PeerName == "" {
-			return nil, fmt.Errorf("interface %q PeerName canot be empty", ifcName)
+			return nil, fmt.Errorf("interface %q PeerName cannot be empty", ifcName)
 		}
 		links = append(links, topologyv1.Link{
 			UID:       int(ifc.Uid),

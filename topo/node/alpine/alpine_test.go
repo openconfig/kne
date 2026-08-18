@@ -62,6 +62,10 @@ func TestNew(t *testing.T) {
 					Inside: 22,
 				},
 			},
+			Constraints: map[string]string{
+				"cpu":    "500m",
+				"memory": "1Gi",
+			},
 		},
 	}, {
 		desc: "provided alpine container",
@@ -84,6 +88,10 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
+			},
+			Constraints: map[string]string{
+				"cpu":    "500m",
+				"memory": "1Gi",
 			},
 		},
 	}, {
@@ -121,6 +129,10 @@ func TestNew(t *testing.T) {
 					Name:   "ssh",
 					Inside: 22,
 				},
+			},
+			Constraints: map[string]string{
+				"cpu":    "500m",
+				"memory": "1Gi",
 			},
 		},
 	}}
@@ -321,5 +333,17 @@ func TestCreatePod(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultConstraints.CPU)
+	}
+
+	if constraints.Memory != defaultConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
 	}
 }

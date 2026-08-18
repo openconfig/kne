@@ -19,9 +19,13 @@ import (
 	"context"
 	"fmt"
 
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	epb "github.com/openconfig/kne/proto/event"
 	"github.com/pborman/uuid"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	log "k8s.io/klog/v2"
@@ -35,30 +39,33 @@ const (
 // Reporter is a client that reports KNE usage events using PubSub.
 type Reporter struct {
 	client *pubsub.Client
-	topic  *pubsub.Topic
+	topic  *pubsub.Publisher
 }
 
 // NewReporter creates a new Reporter with a PubSub client for the given
 // project and topic.
-func NewReporter(ctx context.Context, projectID, topicID string) (*Reporter, error) {
+func NewReporter(ctx context.Context, projectID, topicID string, opts ...option.ClientOption) (*Reporter, error) {
 	if projectID == "" {
 		projectID = defaultProjectID
 	}
 	if topicID == "" {
 		topicID = defaultTopicID
 	}
-	c, err := pubsub.NewClient(ctx, projectID)
+	c, err := pubsub.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new pubsub client: %w", err)
 	}
-	t := c.Topic(topicID)
-	ok, err := t.Exists(ctx)
+	_, err = c.TopicAdminClient.GetTopic(ctx, &pubsubpb.GetTopicRequest{
+		Topic: fmt.Sprintf("projects/%s/topics/%s", projectID, topicID),
+	})
 	if err != nil {
+		c.Close()
+		if status.Code(err) == codes.NotFound {
+			return nil, fmt.Errorf("topic %q does not exist in project %q", topicID, projectID)
+		}
 		return nil, fmt.Errorf("failed to check if topic %q exists: %w", topicID, err)
 	}
-	if !ok {
-		return nil, fmt.Errorf("topic %q does not exist in project %q", topicID, projectID)
-	}
+	t := c.Publisher(topicID)
 	return &Reporter{client: c, topic: t}, nil
 }
 

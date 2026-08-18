@@ -26,22 +26,63 @@ import (
 	"os"
 	"path/filepath"
 
-	cdnosv1 "github.com/drivenets/cdnos-controller/api/v1"
 	"github.com/drivenets/cdnos-controller/api/v1/clientset"
-	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"k8s.io/client-go/rest"
+
+	cdnosv1 "github.com/drivenets/cdnos-controller/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
+
+	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 const (
 	// modelCdnos is a string used in the topology to specify that a cdnos
 	// device instance should be created.
 	modelCdnos string = "CDNOS"
+)
+
+var (
+	defaultConstraints = node.Constraints{
+		CPU:    "500m", // 500 milliCPUs
+		Memory: "1Gi",  // 1 GB RAM
+	}
+	defaultNode = tpb.Node{
+		Services: map[uint32]*tpb.Service{
+			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 9339,
+			},
+			830: {
+				Names:  []string{"netconf"},
+				Inside: 830,
+			},
+			50051: {
+				Names:  []string{"gnmi"},
+				Inside: 50051,
+			},
+		},
+		Config: &tpb.Config{
+			ConfigFile: "default",
+			ConfigPath: "/config_load",
+			Image:      "registry.dev.drivenets.net/devops/cdnos:latest",
+			Command:    []string{"/define_notif_net.sh"},
+		},
+		Constraints: map[string]string{
+			"cpu":    defaultConstraints.CPU,
+			"memory": defaultConstraints.Memory,
+		},
+		Labels: map[string]string{
+			"vendor":              tpb.Vendor_DRIVENETS.String(),
+			node.OndatraRoleLabel: node.OndatraRoleDUT,
+		},
+	}
 )
 
 // New creates a new instance of a node based on the specified model.
@@ -215,23 +256,24 @@ func (n *Node) GenerateSelfSigned(context.Context) error {
 }
 
 func cdnosDefaults(pb *tpb.Node) *tpb.Node {
+	defaultNodeClone := proto.Clone(&defaultNode).(*tpb.Node)
 	if pb.Config == nil {
 		pb.Config = &tpb.Config{}
 	}
 	if pb.Config.ConfigFile == "" {
-		pb.Config.ConfigFile = "default"
+		pb.Config.ConfigFile = defaultNodeClone.Config.ConfigFile
 	}
 	if pb.Config.ConfigPath == "" {
-		pb.Config.ConfigPath = "/config_load"
+		pb.Config.ConfigPath = defaultNodeClone.Config.ConfigPath
 	}
 	if pb.Config.Image == "" {
-		pb.Config.Image = "registry.dev.drivenets.net/devops/cdnos:latest"
+		pb.Config.Image = defaultNodeClone.Config.Image
 	}
 	if pb.Config.InitImage == "" {
 		pb.Config.InitImage = node.DefaultInitContainerImage
 	}
 	if len(pb.GetConfig().GetCommand()) == 0 {
-		pb.Config.Command = []string{"/define_notif_net.sh"}
+		pb.Config.Command = defaultNodeClone.Config.Command
 	}
 	if pb.Config.EntryCommand == "" {
 		pb.Config.EntryCommand = fmt.Sprintf("kubectl exec -it %s -- /bin/bash", pb.Name)
@@ -247,42 +289,32 @@ func cdnosDefaults(pb *tpb.Node) *tpb.Node {
 		}
 	}
 	if pb.Constraints == nil {
-		pb.Constraints = map[string]string{}
+		pb.Constraints = defaultNodeClone.Constraints
 	}
 	if pb.Constraints["cpu"] == "" {
-		pb.Constraints["cpu"] = "0.5"
+		pb.Constraints["cpu"] = defaultConstraints.CPU
 	}
 	if pb.Constraints["memory"] == "" {
-		pb.Constraints["memory"] = "1Gi"
+		pb.Constraints["memory"] = defaultConstraints.Memory
 	}
 	if pb.Labels == nil {
-		pb.Labels = map[string]string{}
+		pb.Labels = defaultNodeClone.Labels
 	}
 	if pb.Labels["vendor"] == "" {
-		pb.Labels["vendor"] = tpb.Vendor_DRIVENETS.String()
+		pb.Labels["vendor"] = defaultNodeClone.Labels["vendor"]
 	}
 
 	// Always explicitly specify that cdnos is a DUT, this cannot be overridden by the user.
-	pb.Labels[node.OndatraRoleLabel] = node.OndatraRoleDUT
+	pb.Labels[node.OndatraRoleLabel] = defaultNodeClone.Labels[node.OndatraRoleLabel]
 
 	if pb.Services == nil {
-		pb.Services = map[uint32]*tpb.Service{
-			// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=gnmi
-			22: {
-				Names:  []string{"ssh"},
-				Inside: 9339,
-			},
-			830: {
-				Names:  []string{"netconf"},
-				Inside: 830,
-			},
-			50051: {
-				Names:  []string{"gnmi"},
-				Inside: 50051,
-			},
-		}
+		pb.Services = defaultNodeClone.Services
 	}
 	return pb
+}
+
+func (n *Node) DefaultNodeConstraints() node.Constraints {
+	return defaultConstraints
 }
 
 func init() {

@@ -326,7 +326,7 @@ func TestNew(t *testing.T) {
 				"ondatra-role": "DUT",
 			},
 			Constraints: map[string]string{
-				"cpu":    "0.5",
+				"cpu":    "500m",
 				"memory": "1Gi",
 			},
 			Services: map[uint32]*tpb.Service{
@@ -593,5 +593,21 @@ func TestNew(t *testing.T) {
 				t.Fatalf("New() failed: diff %s", d)
 			}
 		})
+	}
+}
+
+func TestDefaultNodeConstraints(t *testing.T) {
+	n := &Node{
+		Impl: &node.Impl{
+			Proto: &tpb.Node{Model: modelLemming},
+		},
+	}
+	constraints := n.DefaultNodeConstraints()
+	if constraints.CPU != defaultLemmingConstraints.CPU {
+		t.Errorf("DefaultNodeConstraints() returned unexpected CPU: got %s, want %s", constraints.CPU, defaultLemmingConstraints.CPU)
+	}
+
+	if constraints.Memory != defaultLemmingConstraints.Memory {
+		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultLemmingConstraints.Memory)
 	}
 }

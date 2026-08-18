@@ -1,0 +1,76 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package v1beta1
+
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+//go:generate controller-gen object paths=$GOFILE
+
+// TopologySpec defines the desired state of Topology.
+// +k8s:deepcopy-gen=true
+type TopologySpec struct {
+	metav1.TypeMeta `json:",inline"`
+	Links           []Link `json:"links"`
+}
+
+// TopologyStatus defines the observed state of Topology.
+// +k8s:deepcopy-gen=true
+type TopologyStatus struct {
+	metav1.TypeMeta `json:",inline"`
+	// Deprecated: Do not use. Skipped links are managed reactively by the daemon controller.
+	Skipped         []Skipped `json:"skipped"`
+	SrcIP           string    `json:"src_ip"`
+	NetNS           string    `json:"net_ns"`
+	ContainerID     string    `json:"container_id"`
+	PlumbingError   string    `json:"plumbing_error,omitempty"`
+}
+
+// Skipped represents a skipped interface connection.
+// Deprecated: Do not use.
+// +k8s:deepcopy-gen=true
+type Skipped struct {
+	PodName string `json:"pod_name"`
+	LinkId  int64  `json:"link_id"`
+}
+
+// Link defines a network link between local and peer interfaces/pods.
+// +k8s:deepcopy-gen=true
+type Link struct {
+	LocalIntf string `json:"local_intf"`
+	LocalIP   string `json:"local_ip"`
+	PeerIntf  string `json:"peer_intf"`
+	PeerIP    string `json:"peer_ip"`
+	PeerPod   string `json:"peer_pod"`
+	UID       int    `json:"uid"`
+}
+
+// Topology is the Schema for the topologies API.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type Topology struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Status TopologyStatus `json:"status"`
+	Spec   TopologySpec   `json:"spec"`
+}
+
+// TopologyList contains a list of Topology.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type TopologyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	Items []Topology `json:"items"`
+}
