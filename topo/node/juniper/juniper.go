@@ -36,11 +36,11 @@ var (
 	// Wait for PKI cert infra
 	certGenTimeout = 15 * time.Minute
 	// Time between polls
-	certGenRetrySleep = 30 * time.Second
+	certGenRetrySleep = 5 * time.Second
 	// Wait for config mode
 	configModeTimeout = 15 * time.Minute
 	// Time between polls - config mode
-	configModeRetrySleep = 30 * time.Second
+	configModeRetrySleep = 5 * time.Second
 	// Default gRPC port
 	defaultGrpcPort = uint32(9339)
 
@@ -195,26 +195,30 @@ func (n *Node) GRPCConfig() []string {
 			port = service.GetInside()
 		}
 	}
-	log.Infof("gNMI Port %d", port)
+	certName := "grpc-server-cert"
+	if selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned(); selfSigned != nil && selfSigned.GetCertName() != "" {
+		certName = selfSigned.GetCertName()
+	}
+	log.Infof("gNMI Port %d, certName %s", port, certName)
 	return []string{
 		"set system services http servers server grpc-server-9339",
 		fmt.Sprintf("set system services http servers server grpc-server-9339 port %d", port),
 		"set system services http servers server grpc-server-9339 grpc gnmi",
 		"set system services http servers server grpc-server-9339 grpc gnoi",
 		"set system services http servers server grpc-server-9339 grpc gnsi",
-		"set system services http servers server grpc-server-9339 tls local-certificate grpc-server-cert",
+		fmt.Sprintf("set system services http servers server grpc-server-9339 tls local-certificate %s", certName),
 		"set system services http servers server grpc-server-9339 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9339 grpc all-grpc max-connections 300",
 		"set system services http servers server grpc-server-9340",
 		"set system services http servers server grpc-server-9340 port 9340",
 		"set system services http servers server grpc-server-9340 grpc gribi",
-		"set system services http servers server grpc-server-9340 tls local-certificate grpc-server-cert",
+		fmt.Sprintf("set system services http servers server grpc-server-9340 tls local-certificate %s", certName),
 		"set system services http servers server grpc-server-9340 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9340 grpc all-grpc max-connections 300",
 		"set system services http servers server grpc-server-9559",
 		"set system services http servers server grpc-server-9559 port 9559",
 		"set system services http servers server grpc-server-9559 grpc p4",
-		"set system services http servers server grpc-server-9559 tls local-certificate grpc-server-cert",
+		fmt.Sprintf("set system services http servers server grpc-server-9559 tls local-certificate %s", certName),
 		"set system services http servers server grpc-server-9559 listen-address 0.0.0.0",
 		"set system services http servers server grpc-server-9559 grpc all-grpc max-connections 300",
 		"commit",
@@ -297,6 +301,9 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 
 // GenerateSelfSigned generates a self-signed TLS certificate using Junos PKI
 func (n *Node) GenerateSelfSigned(ctx context.Context) error {
+	if n.KubeClient == nil {
+		return errors.New("kubeclient is nil")
+	}
 	selfSigned := n.Proto.GetConfig().GetCert().GetSelfSigned()
 	if selfSigned == nil {
 		log.Infof("%s - no cert config", n.Name())
@@ -308,24 +315,38 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 	}
 	log.Infof("%s - generating self signed certs", n.Name())
 	log.Infof("%s - waiting for pod to be running", n.Name())
-	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(
-			fields.Set{metav1.ObjectNameField: n.Name()},
-		).String(),
-	})
-	if err != nil {
-		return err
-	}
-	for e := range w.ResultChan() {
-		p, ok := e.Object.(*corev1.Pod)
-		if !ok {
-			continue
+	pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	if err == nil && pod.Status.Phase == corev1.PodRunning {
+		log.Infof("%s - pod already running.", n.Name())
+	} else {
+		w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
+			FieldSelector: fields.SelectorFromSet(
+				fields.Set{metav1.ObjectNameField: n.Name()},
+			).String(),
+		})
+		if err != nil {
+			return err
 		}
-		if p.Status.Phase == corev1.PodRunning {
-			break
+		defer w.Stop()
+		var running bool
+		for e := range w.ResultChan() {
+			p, ok := e.Object.(*corev1.Pod)
+			if !ok {
+				continue
+			}
+			if p.Status.Phase == corev1.PodRunning {
+				running = true
+				break
+			}
 		}
+		if !running {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("%s - watch closed before pod reached running phase", n.Name())
+		}
+		log.Infof("%s - pod running.", n.Name())
 	}
-	log.Infof("%s - pod running.", n.Name())
 
 	if err := n.SpawnCLIConn(); err != nil {
 		return err
@@ -448,7 +469,8 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 
 	// Reset applies factory config which doesn't contain gRPC config
 	// send gRPC config
-	multiresp, err = n.cliConn.SendConfigs(n.GRPCConfig())
+	grpcConfigs := n.GRPCConfig()
+	multiresp, err = n.cliConn.SendConfigs(grpcConfigs)
 	if err != nil {
 		return err
 	}
@@ -490,15 +512,6 @@ func (n *Node) Create(ctx context.Context) error {
 			},
 		},
 		Spec: corev1.PodSpec{
-			InitContainers: []corev1.Container{{
-				Name:  fmt.Sprintf("init-%s", n.Name()),
-				Image: initContainerImage,
-				Args: []string{
-					fmt.Sprintf("%d", len(pb.GetInterfaces())+1),
-					fmt.Sprintf("%d", pb.GetConfig().Sleep),
-				},
-				ImagePullPolicy: "IfNotPresent",
-			}},
 			Containers: []corev1.Container{{
 				Name:            n.Name(),
 				Image:           pb.Config.Image,
@@ -600,24 +613,137 @@ func (n *Node) Create(ctx context.Context) error {
 	for label, v := range n.GetProto().GetLabels() {
 		pod.ObjectMeta.Labels[label] = v
 	}
-	if pb.Config.ConfigData != nil {
-		vol, err := n.CreateConfig(ctx)
-		if err != nil {
-			return err
-		}
-		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
-		vm := corev1.VolumeMount{
-			Name:      node.ConfigVolumeName,
-			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
-			ReadOnly:  true,
-		}
-		if vol.VolumeSource.ConfigMap != nil {
-			vm.SubPath = pb.Config.ConfigFile
-		}
-		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
-		}
+
+	configFile := pb.Config.ConfigFile
+	if configFile == "" {
+		configFile = "juniper.conf"
 	}
+	configDstPath := "/config-dst"
+	configSrcPath := "/config-src"
+	initScript := fmt.Sprintf(`
+/entrypoint.sh "$1" "$2"
+mkdir -p %[1]s
+if [ -f %[2]s/%[3]s ]; then
+  cp %[2]s/%[3]s %[1]s/%[3]s
+else
+  cat << 'EOF' > %[1]s/%[3]s
+system {
+    root-authentication {
+        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/";
+    }
+    services {
+        ssh {
+            root-login allow;
+        }
+    }
+}
+EOF
+fi
+IP4=$(ip -4 addr show dev eth0 2>/dev/null | awk '/inet /{print $2}' | head -n1)
+GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$IP4" ]; then
+  if grep -q "FXP0ADDR" %[1]s/%[3]s; then
+    sed -i "s|FXP0ADDR|$IP4|g" %[1]s/%[3]s
+  elif ! grep -q "re0:mgmt-0" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet {
+                address $IP4;
+            }
+        }
+    }
+}
+EOF
+  fi
+fi
+if [ -n "$GW4" ]; then
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    static {
+        route 0.0.0.0/0 next-hop $GW4;
+    }
+}
+EOF
+fi
+IP6=$(ip -6 addr show dev eth0 2>/dev/null | awk '/inet6 /{print $2}' | grep -v '^fe80' | head -n1)
+GW6=$(ip -6 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$IP6" ]; then
+  if ! grep -q "family inet6" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet6 {
+                address $IP6;
+            }
+        }
+    }
+}
+EOF
+  fi
+fi
+if [ -n "$GW6" ]; then
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    rib inet6.0 {
+        static {
+            route ::/0 next-hop $GW6;
+        }
+    }
+}
+EOF
+fi
+`, configDstPath, configSrcPath, configFile)
+
+	var initVolumeMounts []corev1.VolumeMount
+	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+		Name: node.ConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	})
+	initVolumeMounts = append(initVolumeMounts, corev1.VolumeMount{
+		Name:      node.ConfigVolumeName,
+		MountPath: configDstPath,
+	})
+	vm := corev1.VolumeMount{
+		Name:      node.ConfigVolumeName,
+		MountPath: pb.Config.ConfigPath + "/" + configFile,
+		SubPath:   configFile,
+		ReadOnly:  true,
+	}
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, vm)
+	}
+
+	if vol, err := n.CreateConfig(ctx); err != nil {
+		return err
+	} else if vol != nil {
+		vol.Name = "startup-config-src-volume"
+		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		initVolumeMounts = append(initVolumeMounts, corev1.VolumeMount{
+			Name:      "startup-config-src-volume",
+			MountPath: configSrcPath,
+			ReadOnly:  true,
+		})
+	}
+
+	pod.Spec.InitContainers = []corev1.Container{{
+		Name:    fmt.Sprintf("init-%s", n.Name()),
+		Image:   initContainerImage,
+		Command: []string{"/bin/sh", "-c"},
+		Args: []string{
+			initScript,
+			"init",
+			fmt.Sprintf("%d", len(pb.GetInterfaces())+1),
+			fmt.Sprintf("%d", pb.GetConfig().Sleep),
+		},
+		ImagePullPolicy: "IfNotPresent",
+		VolumeMounts:    initVolumeMounts,
+	}}
+
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create pod for %q: %w", pb.Name, err)
