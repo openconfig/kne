@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -268,10 +269,12 @@ func TestK8sStoreGWire(t *testing.T) {
 	var storedWStatus []interface{}
 	for _, tc := range test_cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			_ = wires.AddInMem(tc.store, nil)
 			err := tc.store.K8sStoreGWire()
 			if err != nil {
 				t.Fatalf("could not add gwire status into k8s data-store")
 			}
+			FlushK8sStatusQueue()
 			storedWStatus = append(storedWStatus, *CreateWireStatus(tc.store, nodeName))
 			wObjsOnNd, err := cs.Namespace(tc.store.TopoNamespace).Get(context.Background(), nodeName, metav1.GetOptions{})
 			if err != nil {
@@ -298,6 +301,178 @@ func TestK8sStoreGWire(t *testing.T) {
 		})
 	}
 	//t.Logf("TestK8sStoreGWire: passed")
+}
+
+func TestK8sStoreGWire_MultiNamespaceBatch(t *testing.T) {
+	cs := setUp(t)
+	nodeName, err := findNodeName()
+	if err != nil {
+		t.Fatalf("could not retrieve node name: %v", err)
+	}
+
+	wireNs1 := &GRPCWire{
+		UID:                   1,
+		TopoNamespace:         "topo-ns1",
+		LocalPodNetNS:         "netns1",
+		LocalNodeIfaceName:    "eth1-node1",
+		LocalPodName:          "pod1",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.1.1.1",
+		WireIfaceIDOnPeerNode: 101,
+		PeerNodeIP:            "192.168.1.2",
+	}
+	wireNs2 := &GRPCWire{
+		UID:                   2,
+		TopoNamespace:         "topo-ns2",
+		LocalPodNetNS:         "netns2",
+		LocalNodeIfaceName:    "eth1-node2",
+		LocalPodName:          "pod2",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.2.2.2",
+		WireIfaceIDOnPeerNode: 201,
+		PeerNodeIP:            "192.168.1.3",
+	}
+
+	_ = wires.AddInMem(wireNs1, nil)
+	_ = wires.AddInMem(wireNs2, nil)
+
+	// Enqueue both updates to be batched together
+	if err := wireNs1.K8sStoreGWire(); err != nil {
+		t.Fatalf("failed to store wireNs1: %v", err)
+	}
+	if err := wireNs2.K8sStoreGWire(); err != nil {
+		t.Fatalf("failed to store wireNs2: %v", err)
+	}
+
+	FlushK8sStatusQueue()
+
+	// Verify topo-ns1 has wireNs1
+	wObjs1, err := cs.Namespace("topo-ns1").Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get topo-ns1 object: %v", err)
+	}
+	items1, _, _ := unstructured.NestedSlice(wObjs1.Object, kStatus, kGrpcWireItems)
+	if len(items1) != 1 {
+		t.Fatalf("expected 1 item in topo-ns1, got %d", len(items1))
+	}
+	var ws1 grpcwirev1.GWireStatus
+	_ = runtime.DefaultUnstructuredConverter.FromUnstructured(items1[0].(map[string]interface{}), &ws1)
+	if ws1.TopoNamespace != "topo-ns1" || ws1.LocalPodName != "pod1" {
+		t.Errorf("unexpected status in topo-ns1: %+v", ws1)
+	}
+
+	// Verify topo-ns2 has wireNs2
+	wObjs2, err := cs.Namespace("topo-ns2").Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get topo-ns2 object: %v", err)
+	}
+	items2, _, _ := unstructured.NestedSlice(wObjs2.Object, kStatus, kGrpcWireItems)
+	if len(items2) != 1 {
+		t.Fatalf("expected 1 item in topo-ns2, got %d", len(items2))
+	}
+	var ws2 grpcwirev1.GWireStatus
+	_ = runtime.DefaultUnstructuredConverter.FromUnstructured(items2[0].(map[string]interface{}), &ws2)
+	if ws2.TopoNamespace != "topo-ns2" || ws2.LocalPodName != "pod2" {
+		t.Errorf("unexpected status in topo-ns2: %+v", ws2)
+	}
+}
+
+func TestFlushK8sStatusQueue_Concurrent(t *testing.T) {
+	_ = setUp(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			wire := &GRPCWire{
+				UID:                   1000 + id,
+				TopoNamespace:         "topo-flush",
+				LocalPodNetNS:         "netns-flush",
+				LocalNodeIfaceName:    "eth1-flush",
+				LocalPodName:          "pod-flush",
+				LocalPodIfaceName:     "eth1",
+				LocalPodIP:            "10.0.0.1",
+				WireIfaceIDOnPeerNode: int64(100 + id),
+				PeerNodeIP:            "192.168.1.10",
+			}
+			_ = wires.AddInMem(wire, nil)
+			_ = wire.K8sStoreGWire()
+			FlushK8sStatusQueue()
+		}(i)
+	}
+	wg.Wait()
+}
+
+func TestK8sStoreGWire_CreateThenDeleteGhostWirePrevention(t *testing.T) {
+	cs := setUp(t)
+	nodeName, err := findNodeName()
+	if err != nil {
+		t.Fatalf("could not retrieve node name: %v", err)
+	}
+
+	wire := &GRPCWire{
+		UID:                   999,
+		TopoNamespace:         "topo-ghost",
+		LocalPodNetNS:         "netns-ghost",
+		LocalNodeIfaceName:    "eth1-ghost",
+		LocalPodName:          "pod-ghost",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.9.9.9",
+		WireIfaceIDOnPeerNode: 999,
+		PeerNodeIP:            "192.168.9.9",
+	}
+
+	// 1. Add to in-memory and enqueue async creation
+	_ = wires.AddInMem(wire, nil)
+	if err := wire.K8sStoreGWire(); err != nil {
+		t.Fatalf("failed to store wire: %v", err)
+	}
+
+	// 2. Immediately delete wire from memory and call K8sDelGWire
+	_ = wires.AtomicDelete(wire)
+	if err := wire.K8sDelGWire(); err != nil {
+		t.Fatalf("failed to delete wire: %v", err)
+	}
+
+	// 3. Flush any residual queue items
+	FlushK8sStatusQueue()
+
+	// 4. Verify no ghost wire exists in K8s
+	wObjs, err := cs.Namespace("topo-ghost").Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err == nil {
+		items, _, _ := unstructured.NestedSlice(wObjs.Object, kStatus, kGrpcWireItems)
+		if len(items) != 0 {
+			t.Fatalf("expected 0 items after deletion, got %d ghost items: %+v", len(items), items)
+		}
+	}
+}
+
+func TestCreateWireStatus_ConcurrentUpdateRace(t *testing.T) {
+	wire := &GRPCWire{
+		UID:                   555,
+		TopoNamespace:         "topo-race",
+		LocalPodNetNS:         "netns-race",
+		LocalNodeIfaceName:    "eth1-race",
+		LocalPodName:          "pod-race",
+		LocalPodIfaceName:     "eth1",
+		LocalPodIP:            "10.5.5.5",
+		WireIfaceIDOnPeerNode: 0,
+		PeerNodeIP:            "192.168.5.5",
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func(id int) {
+			defer wg.Done()
+			wire.UpdateWire(int64(id), nil)
+		}(i)
+		go func() {
+			defer wg.Done()
+			_ = CreateWireStatus(wire, "node1")
+		}()
+	}
+	wg.Wait()
 }
 
 // TestK8sDelGWire covers gwire status delete, update and get commands

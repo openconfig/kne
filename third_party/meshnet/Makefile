@@ -16,7 +16,7 @@ all: docker
 
 ## Run unit tests
 test:
-	go test ./...
+	go test -race ./...
 
 ## Run unit tests for Reconciliation
 recon-test:

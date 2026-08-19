@@ -28,6 +28,7 @@ source "googlecompute" "kne-image" {
   project_id          = "gep-kne"
   source_image_family = "debian-12"
   disk_size           = 50
+  disk_type           = "pd-ssd"
   image_name          = "kne-external-${var.build_id}"
   image_family        = "kne-external-untested"
   image_labels = {
@@ -52,9 +53,9 @@ build {
   provisioner "shell" {
     inline = [
       "echo Installing golang...",
-      "curl -O https://dl.google.com/go/go1.26.0.linux-amd64.tar.gz",
-      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.0.linux-amd64.tar.gz",
-      "rm go1.26.0.linux-amd64.tar.gz",
+      "curl -O https://dl.google.com/go/go1.26.5.linux-amd64.tar.gz",
+      "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.5.linux-amd64.tar.gz",
+      "rm go1.26.5.linux-amd64.tar.gz",
       "echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc",
       "echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc",
       "/usr/local/go/bin/go version",
@@ -98,7 +99,8 @@ build {
       "sudo apt-get update",
       // kube-proxy requires conntrack to route traffic, and kubeadm v1.31+ enforces it in preflight checks
       "sudo apt-get install conntrack -y",
-      "sudo apt-get install kubelet kubeadm kubectl -y",
+      // TODO: Remove pin when kubectl reports a version number other than `v0.0.0-master+$Format:%H$`.
+      "sudo apt-get install kubelet kubeadm kubectl=1:578.0.0-0 -y",
       "kubectl version --client",
       "echo 'source <(kubectl completion bash)' >> ~/.bashrc",
       "echo 'alias k=kubectl' >> ~/.bashrc",

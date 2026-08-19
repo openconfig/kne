@@ -515,6 +515,52 @@ func TestCreate(t *testing.T) {
 			},
 		},
 	}, {
+		desc: "success single DUT without links",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+			},
+			Links: []*tpb.Link{},
+		},
+	}, {
+		desc: "success multi DUT without links",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "r1",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						1000: {
+							Name: "ssh",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+				{
+					Name:   "r2",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+			},
+			Links: []*tpb.Link{},
+		},
+	}, {
 		desc: "success with hanging pod + timeout",
 		topo: &tpb.Topology{
 			Name: "test",
@@ -555,7 +601,7 @@ func TestCreate(t *testing.T) {
 				},
 			},
 		},
-		wantErr: `Node "bad" (vendor: "1002", model: ""): Status FAILED`,
+		wantErr: `node "bad" (vendor: "1002", model: ""): status FAILED`,
 	}, {
 		desc: "failed to report metrics, create still passes",
 		opts: []Option{WithUsageReporting(true, "", "")},

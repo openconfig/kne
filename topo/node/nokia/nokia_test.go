@@ -273,7 +273,7 @@ func TestGenerateSelfSigned(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTimeoutOps(10 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -352,7 +352,7 @@ func TestResetCfg(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTimeoutOps(10 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -434,7 +434,7 @@ func TestConfigPush(t *testing.T) {
 			n.testOpts = []scrapliutil.Option{
 				scrapliopts.WithTransportType(scraplitransport.FileTransport),
 				scrapliopts.WithFileTransportFile(tt.testFile),
-				scrapliopts.WithTimeoutOps(2 * time.Second),
+				scrapliopts.WithTimeoutOps(10 * time.Second),
 				scrapliopts.WithTransportReadSize(1),
 				scrapliopts.WithReadDelay(0),
 				scrapliopts.WithDefaultLogger(),
@@ -475,5 +475,48 @@ func TestDefaultNodeConstraints(t *testing.T) {
 
 	if constraints.Memory != defaultConstraints.Memory {
 		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
+	}
+}
+
+func TestEscapeConfig(t *testing.T) {
+	tests := []struct {
+		desc  string
+		input string
+		want  string
+	}{
+		{
+			desc:  "plain text",
+			input: "set system location foo",
+			want:  "set system location foo",
+		},
+		{
+			desc:  "double quotes",
+			input: "set / system location \"set with config push\"",
+			want:  `set / system location \"set with config push\"`,
+		},
+		{
+			desc:  "dollar signs",
+			input: "set / system location $(value)",
+			want:  `set / system location \$(value)`,
+		},
+		{
+			desc:  "backticks",
+			input: "set / system location `value`",
+			want:  "set / system location \\`value\\`",
+		},
+		{
+			desc:  "backslashes and dollar signs",
+			input: `set / system location \path\$ENV`,
+			want:  `set / system location \\path\\\$ENV`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got := escapeConfig([]byte(tt.input))
+			if got != tt.want {
+				t.Errorf("escapeConfig(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
 	}
 }

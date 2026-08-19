@@ -16,10 +16,6 @@ root@cptx2> request security pki local-certificate generate-self-signed certific
 Self-signed certificate generated and loaded successfully
 
 root@cptx2>
-root@cptx2>exit
-
-root@cptx2>
-
 root@cptx2> configure
 error: unknown command: configure
 Configuration is allowed only from the Routing Engine with GlobalIPOwner attribute assigned. Please check "show system nodes" command output.
@@ -120,4 +116,5 @@ root@cptx2#
 root@cptx2# exit configuration-mode
 Exiting configuration mode
 
-root@cptx2> exit
+root@cptx2>
+root@cptx2>

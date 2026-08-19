@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
 	scraplilogging "github.com/scrapli/scrapligo/logging"
@@ -308,10 +308,19 @@ func convertSysctlNameToProcSysPath(sysctlName string) string {
 }
 
 func (n *Impl) readConfig() ([]byte, error) {
+	if n.Proto == nil || n.Proto.Config == nil {
+		return nil, nil
+	}
 	switch v := n.Proto.Config.GetConfigData().(type) {
 	case *tpb.Config_File:
+		if v == nil {
+			return nil, nil
+		}
 		return os.ReadFile(filepath.Join(n.BasePath, v.File))
 	case *tpb.Config_Data:
+		if v == nil {
+			return nil, nil
+		}
 		return v.Data, nil
 	case nil:
 		return nil, nil
@@ -443,7 +452,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 								MatchExpressions: []metav1.LabelSelectorRequirement{{
 									Key:      "topo",
 									Operator: "In",
-									Values:   []string{pb.Name},
+									Values:   []string{n.Namespace},
 								}},
 							},
 							TopologyKey: "kubernetes.io/hostname",
@@ -627,7 +636,7 @@ func (n *Impl) Exec(ctx context.Context, cmd []string, stdin io.Reader, stdout i
 		return err
 	}
 	log.Infof("Execing %s on %s", cmd, n.Name())
-	return exec.Stream(remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
@@ -766,7 +775,7 @@ func (n *Impl) BackToBackLoop() bool {
 }
 
 func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
-	var links []topologyv1.Link
+	links := []topologyv1.Link{}
 	for ifcName, ifc := range n.Interfaces {
 		if ifcName == "eth0" {
 			log.Infof("Found mgmt interface ignoring for Meshnet: %q", ifcName)

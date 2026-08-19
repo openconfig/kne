@@ -1,5 +1,5 @@
 # GRPC generation
-FROM golang:1.25.11 AS proto_base
+FROM golang:1.26.6 AS proto_base
 
 WORKDIR /src
 
@@ -15,7 +15,7 @@ RUN buf lint && buf generate -v
 
 #---------------------------------------------- Stage 2: Build Base : Build meshnet binaries (Plugin & daemon) - ---------------------------------
 # Building the binaries
-FROM golang:1.25.11 AS build_base
+FROM golang:1.26.6 AS build_base
 
 
 WORKDIR /go/src/github.com/openconfig/kne/third_party/meshnet
@@ -26,7 +26,6 @@ COPY go.sum .
 RUN go mod download && \
     apt-get update -y && \
     apt-get install -y --no-install-recommends \
-        libpcap-dev \
         libsystemd-dev && \
     rm -rf /var/lib/apt/lists/*
 
@@ -44,7 +43,7 @@ COPY --from=proto_base /src/ .
 
 
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o meshnet plugin/meshnet.go plugin/grpcwires-plugin.go && \
-    GOOS=${TARGETOS} CGO_ENABLED=1 GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o meshnetd daemon/main.go
+    GOOS=${TARGETOS} CGO_ENABLED=0 GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o meshnetd daemon/main.go
 
 
 #----------------------------------------------------- Final Container ---------------------------------
@@ -54,8 +53,7 @@ FROM debian:13-slim
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        jq \
-        libpcap-dev && \
+        jq && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /go/src/github.com/openconfig/kne/third_party/meshnet/meshnet /

@@ -2,60 +2,38 @@ package grpcwire
 
 import (
 	"context"
-	"fmt"
-	"net"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/google/gopacket/pcap"
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
-	koko "github.com/redhat-nfvpe/koko/api"
 )
 
 func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolResponse, error) {
-	locInf, err := net.InterfaceByName(wireDef.WireIfNameOnLocalNode)
+	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"daemon":  "meshnetd",
 			"overlay": "gRPC",
-		}).Errorf("[ADD-WIRE:LOCAL-END]For pod %s failed to retrieve interface ID for interface %v. error:%v", wireDef.LocalPodName, wireDef.WireIfNameOnLocalNode, err)
+		}).Errorf("[ADD-WIRE:LOCAL-END] For pod %s failed to create/attach TAP interface %s in netns %s: %v",
+			wireDef.LocalPodName, wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)
 		return &mpb.BoolResponse{Response: false}, err
 	}
 
-	// update tx checksumming to off
-	err = wireutil.SetTxChecksumOff(wireDef.IntfNameInPod, wireDef.LocalPodNetNs)
-	if err != nil {
-		log.Errorf("Error in setting tx checksum-off on interface %s, ns %s, pod %s: %v", wireDef.IntfNameInPod, wireDef.LocalPodNetNs, wireDef.LocalPodName, err)
-		// generate error and continue
-	} else {
-		log.Infof("Setting tx checksum-off on interface %s, pod %s is successful", wireDef.IntfNameInPod, wireDef.LocalPodName)
-	}
-
-	//Using google gopacket for packet receive. An alternative could be using socket. Not sure it it provides any advantage over gopacket.
-	wrHandle, err := pcap.OpenLive(wireDef.WireIfNameOnLocalNode, 65365, true, pcap.BlockForever)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"daemon":  "meshnetd",
-			"overlay": "gRPC",
-		}).Errorf("[ADD-WIRE:LOCAL-END]Could not open interface for send/recv packets for containers local iface id %d. error:%v", locInf.Index, err)
-		return &mpb.BoolResponse{Response: false}, err
-	}
-
-	aWire := CreateGWire(locInf.Index, wireDef.WireIfNameOnLocalNode, make(chan struct{}), wireDef)
+	wireID := NextIndex()
+	aWire := CreateGWire(int(wireID), wireDef.IntfNameInPod, make(chan struct{}), wireDef)
 	aWire.IsReady = false
 	aWire.Originator = HOST_CREATED_WIRE
 	aWire.OriginatorIP = "unknown"
 
 	// Add the newly created wire in the in memory wire-map and k8S data store
-	AddWireInMemNDataStore(aWire, wrHandle)
+	AddWireInMemNDataStore(aWire, tapFile)
 
 	log.WithFields(log.Fields{
 		"daemon":  "meshnetd",
 		"overlay": "gRPC",
-	}).Infof("[ADD-WIRE:LOCAL-END]For pod %s@%s, node iface id %d starting the local packet receive thread", wireDef.LocalPodName, wireDef.IntfNameInPod, locInf.Index)
-	// TODO: handle error here
+	}).Infof("[ADD-WIRE:LOCAL-END] For pod %s@%s, wire id %d starting local packet receive thread", wireDef.LocalPodName, wireDef.IntfNameInPod, wireID)
+
 	go RecvFrmLocalPodThread(aWire, aWire.LocalNodeIfaceName)
 
 	return &mpb.BoolResponse{Response: true}, nil
@@ -64,10 +42,9 @@ func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolRe
 // A remote peer can tell the local node to create/update the local end of the grpc-wire.
 // At the local end if the wire is already created then update the wire properties.
 // This updation can happen when a pod is deleted and recreated again. This is not very uncommon in K8S to move
-// a pod from node A to node B dynamically
-func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct{}) (*GRPCWire, error) {
-
-	var err error
+// a pod from node A to node B dynamically.
+// Returns the wire, whether it was freshly created (true) or updated (false), and any error.
+func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct{}) (*GRPCWire, bool, error) {
 
 	// If this wire is already created, then only update the already created wire properties like stopC.
 	// This can happen due to a race between the local and remote peer.
@@ -76,78 +53,26 @@ func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct
 	grpcWire, ok := UpdateWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid), wireDef.WireIfIdOnPeerNode, stopC)
 	if ok {
 		grpcOvrlyLogger.Infof("[CREATE-UPDATE-WIRE] At remote end this grpc-wire is already created by %s. Local interface id : %d peer interface id : %d", grpcWire.Originator, grpcWire.LocalNodeIfaceID, grpcWire.WireIfaceIDOnPeerNode)
-		return grpcWire, nil
+		return grpcWire, false, nil
 	}
 
-	outIfNm, err := GenNodeIfaceName(wireDef.LocalPodName, wireDef.IntfNameInPod)
+	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
-		return nil, fmt.Errorf("[ADD-WIRE:REMOTE-END] could not get current network namespace: %v", err)
+		grpcOvrlyLogger.Errorf("[ADD-WIRE:REMOTE-END] Error creating/attaching TAP interface %s in netns %s: %v",
+			wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)
+		return nil, false, err
 	}
 
-	currNs, err := ns.GetCurrentNS()
-	if err != nil {
-		return nil, fmt.Errorf("[ADD-WIRE:REMOTE-END] could not get current network namespace: %v", err)
-	}
+	wireID := NextIndex()
+	grpcOvrlyLogger.Infof("[ADD-WIRE:REMOTE-END] Trigger from %s:%d : Successfully created/attached TAP interface %s@%s (wire id %d).",
+		wireDef.PeerNodeIp, wireDef.WireIfIdOnPeerNode, wireDef.IntfNameInPod, wireDef.LocalPodName, wireID)
 
-	/* Create the veth to connect the pod with the meshnet daemon running on the node */
-	hostEndVeth := koko.VEth{
-		NsName:   currNs.Path(),
-		LinkName: outIfNm,
-	}
-
-	inIfNm := wireDef.IntfNameInPod
-	inContainerVeth := koko.VEth{
-		NsName:   wireDef.LocalPodNetNs,
-		LinkName: inIfNm,
-	}
-
-	if wireDef.LocalPodIp != "" {
-		ipAddr, ipSubnet, err := net.ParseCIDR(wireDef.LocalPodIp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create remote end of GRPC wire(%s@%s), failed to parse CIDR %s: %w",
-				inIfNm, wireDef.LocalPodName, wireDef.LocalPodIp, err)
-		}
-		inContainerVeth.IPAddr = []net.IPNet{{
-			IP:   ipAddr,
-			Mask: ipSubnet.Mask,
-		}}
-	}
-
-	if err = koko.MakeVeth(inContainerVeth, hostEndVeth); err != nil {
-		grpcOvrlyLogger.Errorf("[ADD-WIRE:REMOTE-END] Error creating vEth pair (in:%s <--> out:%s).  Error-> %s", inIfNm, outIfNm, err)
-		return nil, err
-	}
-	if err := wireutil.SetTxChecksumOff(inContainerVeth.LinkName, inContainerVeth.NsName); err != nil {
-		grpcOvrlyLogger.Errorf("Error in setting tx checksum-off on interface %s, pod %s: %v", inContainerVeth.LinkName, wireDef.LocalPodName, err)
-		// not returning
-	}
-	locIface, err := net.InterfaceByName(hostEndVeth.LinkName)
-	if err != nil {
-		// let the caller handle the error
-		grpcOvrlyLogger.Errorf("[ADD-WIRE:REMOTE-END] Remote end could not get interface index for %s. error:%v", hostEndVeth.LinkName, err)
-		return nil, err
-	}
-	grpcOvrlyLogger.Infof("[ADD-WIRE:REMOTE-END] Trigger from %s:%d : Successfully created remote pod to node vEth pair %s@%s <--> %s(%d).",
-		wireDef.PeerNodeIp, wireDef.WireIfIdOnPeerNode, inIfNm, wireDef.LocalPodName, outIfNm, locIface.Index)
-	aWire := CreateGWire(locIface.Index, hostEndVeth.LinkName, stopC, wireDef)
-	/* Utilizing google gopacket for polling for packets from the node. This seems to be the
-	   simplest way to get all packets.
-	   As an alternative to google gopacket(pcap), a socket based implementation is possible.
-	   Not sure if socket based implementation can bring any advantage or not.
-
-	   Near term will replace pcap by socket.
-	*/
-	wrHandle, err := pcap.OpenLive(hostEndVeth.LinkName, 65365, true, pcap.BlockForever)
-	if err != nil {
-		// let the caller handle the error
-		grpcOvrlyLogger.Errorf("[ADD-WIRE:REMOTE-END] At remote end could not open interface (%d) for sed/recv packets for containers. error:%v", locIface.Index, err)
-		return nil, err
-	}
+	aWire := CreateGWire(int(wireID), wireDef.IntfNameInPod, stopC, wireDef)
 
 	// Add the created wire in the in memory wire-map and k8S data store
-	AddWireInMemNDataStore(aWire, wrHandle)
+	AddWireInMemNDataStore(aWire, tapFile)
 
-	return aWire, nil
+	return aWire, true, nil
 }
 
 // When the remote peer tells the local node to remove the local end of the grpc-wire info

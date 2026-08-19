@@ -181,7 +181,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		Name:   string(cniArgs.K8S_POD_NAME),
 		KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
 	})
-	if err != nil {
+	if err != nil || localPod == nil {
 		log.Errorf("Add: Pod %s:%s was not a topology pod returning", string(cniArgs.K8S_POD_NAMESPACE), string(cniArgs.K8S_POD_NAME))
 		return types.PrintResult(result, n.CNIVersion)
 	}
@@ -208,32 +208,61 @@ func cmdAdd(args *skel.CmdArgs) error {
 	log.Infof("Add[%s]: Successfully registered pod alive status with meshnet daemon", string(cniArgs.K8S_POD_NAME))
 
 	if len(localPod.Links) > 0 {
-		waitCtx, cancel := context.WithDeadline(ctx, startTime.Add(15*time.Second))
+		waitCtx, cancel := context.WithDeadline(ctx, startTime.Add(30*time.Second))
 		defer cancel()
-		_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
-			ticker := time.NewTicker(50 * time.Millisecond)
-			defer ticker.Stop()
-			for {
-				ready := true
-				for _, link := range localPod.Links {
+
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			allAreReady := true
+			for _, link := range localPod.Links {
+				// Check if interface exists in container netns
+				_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 					if _, err := netlink.LinkByName(link.LocalIntf); err != nil {
-						ready = false
-						break
+						allAreReady = false
+					}
+					return nil
+				})
+				if !allAreReady {
+					break
+				}
+
+				// For inter-node gRPC links, check if the gRPC wire is fully established on the daemon
+				if interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
+					peerPod, err := meshnetClient.Get(ctx, &mpb.PodQuery{
+						Name:   link.PeerPod,
+						KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
+					})
+					// Only check gRPC wire readiness if peer is on a different node
+					if err == nil && peerPod != nil && peerPod.SrcIp != "" && peerPod.SrcIp != localPod.SrcIp {
+						wireDef := &mpb.WireDef{
+							LocalPodNetNs: args.Netns,
+							LinkUid:       link.Uid,
+						}
+						resp, err := meshnetClient.GRPCWireExists(waitCtx, wireDef)
+						if err != nil || !resp.Response {
+							allAreReady = false
+							break
+						}
 					}
 				}
-				if ready {
-					log.Infof("Add[%s]: All %d interfaces ready in container namespace", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
-					return nil
-				}
-				select {
-				case <-waitCtx.Done():
-					log.Infof("Add[%s]: Bounded readiness wait expired (%d links); asynchronous completion will continue", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
-					return nil
-				case <-ticker.C:
-				}
 			}
-		})
+
+			if allAreReady {
+				log.Infof("Add[%s]: All %d interfaces and gRPC wires are ready", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
+				break
+			}
+
+			select {
+			case <-waitCtx.Done():
+				log.Warnf("Add[%s]: Readiness wait timed out (%d links); proceeding asynchronously", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
+				goto WaitDone
+			case <-ticker.C:
+			}
+		}
 	}
+WaitDone:
 
 	return types.PrintResult(result, n.CNIVersion)
 }
@@ -362,6 +391,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	return nil
 }
 
+// SetInterNodeLinkType reads the inter-node link configuration file to set the default overlay mode (GRPC or VXLAN).
 func SetInterNodeLinkType() {
 	// TODO: Find a more appropriate (if any) way to figure out intended link type
 	// As of today, daemon gets the intended link type from env INTER_NODE_LINK_TYPE

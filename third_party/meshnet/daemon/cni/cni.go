@@ -1,3 +1,4 @@
+// Package cni handles CNI configuration file installation and cleanup for meshnet.
 package cni
 
 import (
