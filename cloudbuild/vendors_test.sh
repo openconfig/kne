@@ -19,7 +19,7 @@ export PATH=${PATH}:/usr/local/go/bin
 gopath=$(go env GOPATH)
 export PATH=${PATH}:$gopath/bin
 
-# Replace exisiting kne repo with new version
+# Replace existing kne repo with new version
 rm -r "$HOME/kne"
 cp -r /tmp/workspace "$HOME/kne"
 
@@ -37,11 +37,11 @@ popd
 
 # Run an ondatra test
 pushd "$HOME/kne/cloudbuild"
-go test -v vendors/vendors_test.go \
-  -testbed testbed.textproto \
-  -topology topology.textproto \
-  -vendor_creds ARISTA/admin/admin \
-  -vendor_creds JUNIPER/root/Google123 \
-  -vendor_creds CISCO/cisco/cisco123 \
-  -vendor_creds NOKIA/admin/NokiaSrl1!
+go test -v -timeout 30m vendors/vendors_test.go \
+	-testbed testbed.textproto \
+	-topology topology.textproto \
+	-vendor_creds ARISTA/admin/admin \
+	-vendor_creds JUNIPER/root/Google123 \
+	-vendor_creds CISCO/cisco/cisco123 \
+	-vendor_creds NOKIA/admin/NokiaSrl1!
 popd

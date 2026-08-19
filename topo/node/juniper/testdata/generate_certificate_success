@@ -16,9 +16,6 @@ root@cptx2> request security pki local-certificate generate-self-signed certific
 Self-signed certificate generated and loaded successfully
 
 root@cptx2>
-root@cptx2>exit
-
-root@cptx2>
 root@cptx2> configure
 Entering configuration mode
 
@@ -112,4 +109,5 @@ root@cptx2#
 root@cptx2# exit configuration-mode
 Exiting configuration mode
 
-root@cptx2> exit
+root@cptx2>
+root@cptx2>

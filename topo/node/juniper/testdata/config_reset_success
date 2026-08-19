@@ -26,8 +26,6 @@ root@cptx2#
 root@cptx2# exit configuration-mode
 Exiting configuration mode
 
-root@cptx2> exit
-
 root@cptx2> configure
 Entering configuration mode
 
@@ -121,4 +119,5 @@ root@cptx2#
 root@cptx2# exit configuration-mode
 Exiting configuration mode
 
-root@cptx2> exit
+root@cptx2>
+root@cptx2>
