@@ -79,7 +79,7 @@ default                          kne-assembly-webhook-f5b8cf987-lpxjt           
 
 We can now create the KNE topology.
 
-*Note* The KNE topology must have the label `webhook:enabled` for each node, as in
+_Note_ The KNE topology must have the label `webhook:enabled` for each node, as in
 [this example](examples/topology.textproto),
 otherwise the webhook will ignore the pod upon create.
 

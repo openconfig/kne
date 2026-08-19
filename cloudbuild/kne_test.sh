@@ -19,7 +19,7 @@ export PATH=${PATH}:/usr/local/go/bin
 gopath=$(go env GOPATH)
 export PATH=${PATH}:$gopath/bin
 
-# Replace exisiting kne repo with new version
+# Replace existing kne repo with new version
 rm -r "$HOME/kne"
 cp -r /tmp/workspace "$HOME/kne"
 
@@ -44,7 +44,7 @@ kubectl get pods -A
 $cli teardown kne/deploy/kne/kind-bridge.yaml
 
 # Create a kind cluster with GAR access and image loading
-cat >/tmp/dep-cfg.yaml << EOF
+cat >/tmp/dep-cfg.yaml <<EOF
 cluster:
   kind: Kind
   spec:
@@ -76,8 +76,8 @@ kubectl get pods -A
 
 # Check for existence of preloaded image
 if ! docker exec kne-control-plane crictl images | grep "docker.io/networkop/init-wait"; then
-  echo "Unable to find preloaded image in cluster"
-  exit 1
+	echo "Unable to find preloaded image in cluster"
+	exit 1
 fi
 
 # Cleanup the cluster
@@ -96,7 +96,7 @@ sudo kubeadm init --cri-socket unix:///var/run/containerd/containerd.sock --pod-
 mkdir -p "$HOME"/.kube
 sudo cp /etc/kubernetes/admin.conf "$HOME"/.kube/config
 sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
-kubectl taint nodes --all node-role.kubernetes.io/control-plane-  # allows pods to be scheduled on control plane node
+kubectl taint nodes --all node-role.kubernetes.io/control-plane- # allows pods to be scheduled on control plane node
 kubectl apply -f kne/manifests/flannel/manifest.yaml
 docker network create multinode
 

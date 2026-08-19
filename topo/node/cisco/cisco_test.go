@@ -15,8 +15,12 @@ package cisco
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -902,6 +906,21 @@ var (
 			Model:  ModelXRD,
 		},
 	}
+
+	nodeXRDInvalidPath = &node.Impl{
+		KubeClient: ki,
+		Namespace:  "test",
+		Proto: &tpb.Node{
+			Name:   "xrd",
+			Vendor: tpb.Vendor_CISCO,
+			Config: &tpb.Config{
+				Env: map[string]string{
+					"XR_EVERY_BOOT_CONFIG": "/etc/config/test;invalid",
+				},
+			},
+			Model: ModelXRD,
+		},
+	}
 )
 
 func TestNodeStatus(t *testing.T) {
@@ -978,6 +997,12 @@ func TestResetCfg(t *testing.T) {
 			wantErr:  true,
 			ni:       nodeXRD,
 			testFile: "testdata/xrd_reset_config_failure_invalid",
+		},
+		{
+			// device returns error when startup_config path contains invalid characters
+			desc:    "failed reset for XRd (invalid path characters)",
+			wantErr: true,
+			ni:      nodeXRDInvalidPath,
 		},
 		{
 			// device returns success after applying the startup config
@@ -1116,6 +1141,195 @@ func TestGenerateSelfSigned(t *testing.T) {
 	}
 }
 
+func TestCreate(t *testing.T) {
+	tests := []struct {
+		desc              string
+		model             string
+		configData        []byte
+		wantInitCommand   []string
+		wantInitArgsLen   int
+		wantInitMountsLen int
+		wantMainMountsLen int
+		wantInitScriptSub []string
+		wantErr           bool
+	}{
+		{
+			desc:              "XRD with config data",
+			model:             ModelXRD,
+			configData:        []byte("hostname xrd"),
+			wantInitCommand:   []string{"/bin/sh", "-c"},
+			wantInitArgsLen:   4, // script, "init", num_intfs, sleep
+			wantInitMountsLen: 2, // /config-dst and /config-src
+			wantMainMountsLen: 2, // /run and /startup.cfg
+			wantInitScriptSub: []string{"/entrypoint.sh", "router static", "address-family ipv4 unicast", "address-family ipv6 unicast", "/config-dst"},
+		},
+		{
+			desc:              "XRD without config data",
+			model:             ModelXRD,
+			configData:        nil,
+			wantInitCommand:   []string{"/bin/sh", "-c"},
+			wantInitArgsLen:   4,
+			wantInitMountsLen: 1, // only /config-dst
+			wantMainMountsLen: 2, // /run and /startup.cfg
+			wantInitScriptSub: []string{"/entrypoint.sh", "router static", "address-family ipv4 unicast"},
+		},
+		{
+			desc:              "8201 non-XRD with config data",
+			model:             "8201",
+			configData:        []byte("hostname 8201"),
+			wantInitCommand:   nil, // default entrypoint
+			wantInitArgsLen:   2,   // num_intfs, sleep
+			wantInitMountsLen: 0,
+			wantMainMountsLen: 2, // /run and ConfigMap volume
+		},
+		{
+			desc:              "8201 non-XRD without config data",
+			model:             "8201",
+			configData:        nil,
+			wantInitCommand:   nil,
+			wantInitArgsLen:   2,
+			wantInitMountsLen: 0,
+			wantMainMountsLen: 1, // /run only
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset()
+			cfg := &tpb.Config{
+				ConfigFile: "startup.cfg",
+				ConfigPath: "/",
+			}
+			if tt.configData != nil {
+				cfg.ConfigData = &tpb.Config_Data{Data: tt.configData}
+			}
+			n := &Node{
+				Impl: &node.Impl{
+					Namespace:  "test",
+					KubeClient: ki,
+					Proto: &tpb.Node{
+						Name:       "node1",
+						Model:      tt.model,
+						Config:     cfg,
+						Interfaces: map[string]*tpb.Interface{
+							"eth1": {Name: "GigabitEthernet0/0/0/0"},
+						},
+					},
+				},
+			}
+			if err := n.Create(context.Background()); (err != nil) != tt.wantErr {
+				t.Fatalf("Create() unexpected error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "node1", metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("failed to get created pod: %v", err)
+			}
+			if len(pod.Spec.InitContainers) != 1 {
+				t.Fatalf("expected 1 init container, got %d", len(pod.Spec.InitContainers))
+			}
+			initC := pod.Spec.InitContainers[0]
+			if diff := cmp.Diff(tt.wantInitCommand, initC.Command); diff != "" {
+				t.Errorf("init container command diff (-want +got):\n%s", diff)
+			}
+			if len(initC.Args) != tt.wantInitArgsLen {
+				t.Errorf("init container args len = %d, want %d", len(initC.Args), tt.wantInitArgsLen)
+			}
+			if len(initC.VolumeMounts) != tt.wantInitMountsLen {
+				t.Errorf("init container volume mounts len = %d, want %d", len(initC.VolumeMounts), tt.wantInitMountsLen)
+			}
+			if len(pod.Spec.Containers[0].VolumeMounts) != tt.wantMainMountsLen {
+				t.Errorf("main container volume mounts len = %d, want %d", len(pod.Spec.Containers[0].VolumeMounts), tt.wantMainMountsLen)
+			}
+			for _, sub := range tt.wantInitScriptSub {
+				if !strings.Contains(initC.Args[0], sub) {
+					t.Errorf("init container script missing expected substring %q", sub)
+				}
+			}
+		})
+	}
+}
+
+func TestXRDInitScriptExecution(t *testing.T) {
+	tmpDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, "config-src")
+	dstDir := filepath.Join(tmpDir, "config-dst")
+	binDir := filepath.Join(tmpDir, "bin")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := "startup.cfg"
+	srcFile := filepath.Join(srcDir, configFile)
+	if err := os.WriteFile(srcFile, []byte("hostname xrd\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create fake entrypoint.sh in binDir
+	entrypointPath := filepath.Join(binDir, "entrypoint.sh")
+	if err := os.WriteFile(entrypointPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create fake ip command in binDir
+	ipPath := filepath.Join(binDir, "ip")
+	ipScript := `#!/bin/sh
+if [ "$1" = "-4" ] && [ "$2" = "route" ]; then
+  echo "default via 10.244.0.1 dev eth0"
+elif [ "$1" = "-6" ] && [ "$2" = "route" ]; then
+  echo "default via 2001:db8::1 dev eth0"
+fi
+`
+	if err := os.WriteFile(ipPath, []byte(ipScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	initScript := fmt.Sprintf(`
+%[4]s "$1" "$2"
+mkdir -p %[1]s
+if [ -f %[2]s/%[3]s ]; then
+  cp %[2]s/%[3]s %[1]s/%[3]s
+else
+  touch %[1]s/%[3]s
+fi
+GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$GW4" ]; then
+  printf '\nrouter static\n address-family ipv4 unicast\n  0.0.0.0/0 %%s\n !\n!\n' "$GW4" >> %[1]s/%[3]s
+fi
+GW6=$(ip -6 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$GW6" ]; then
+  printf '\nrouter static\n address-family ipv6 unicast\n  ::/0 %%s\n !\n!\n' "$GW6" >> %[1]s/%[3]s
+fi
+`, dstDir, srcDir, configFile, entrypointPath)
+
+	cmd := exec.Command("/bin/sh", "-c", initScript, "init", "2", "0")
+	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("script execution failed: %v, output: %s", err, string(out))
+	}
+
+	dstFile := filepath.Join(dstDir, configFile)
+	content, err := os.ReadFile(dstFile)
+	if err != nil {
+		t.Fatalf("failed to read generated config: %v", err)
+	}
+
+	got := string(content)
+	wantContains := []string{
+		"hostname xrd",
+		"router static\n address-family ipv4 unicast\n  0.0.0.0/0 10.244.0.1\n !\n!\n",
+		"router static\n address-family ipv6 unicast\n  ::/0 2001:db8::1\n !\n!\n",
+	}
+	for _, want := range wantContains {
+		if !strings.Contains(got, want) {
+			t.Errorf("generated config missing %q\nGot:\n%s", want, got)
+		}
+	}
+}
+
 func TestDefaultNodeConstraints(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -1166,6 +1380,29 @@ func TestDefaultNodeConstraints(t *testing.T) {
 
 			if constraints.Memory != tt.wantMemory {
 				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
+			}
+		})
+	}
+}
+
+func TestValidPathRegexp(t *testing.T) {
+	tests := []struct {
+		path      string
+		wantValid bool
+	}{
+		{"/disk0:/startup-config", true},
+		{"/etc/config/xr.cfg", true},
+		{"/etc/config/test;path", false},
+		{"/path/with spaces", false},
+		{"/path/test$cfg", false},
+		{"/path/test`cfg`", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got := validPathRegexp.MatchString(tt.path)
+			if got != tt.wantValid {
+				t.Errorf("validPathRegexp.MatchString(%q) = %v, want %v", tt.path, got, tt.wantValid)
 			}
 		})
 	}

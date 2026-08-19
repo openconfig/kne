@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: meshnet
+  labels:
+    k8s-app: meshnet
+spec:
+  selector:
+    matchLabels:
+      name: meshnet
+  template:
+    metadata:
+      labels:
+        name: meshnet
+    spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      serviceAccountName: meshnet
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: meshnet
+          securityContext:
+            privileged: true
+          image: us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga
+          imagePullPolicy: IfNotPresent
+          command: ["./entrypoint.sh"]
+          resources:
+            limits:
+              memory: 10G
+            requests:
+              cpu: 200m
+              memory: 1G
+          env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: INTER_NODE_LINK_TYPE
+              #value: GRPC
+              value: VXLAN
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: cni-cfg
+              mountPath: /etc/cni/net.d
+            - name: cni-bin
+              mountPath: /opt/cni/bin
+            - name: var-run-netns
+              mountPath: /var/run/netns
+              mountPropagation: Bidirectional
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: cni-bin
+          hostPath:
+            path: /opt/cni/bin
+        - name: cni-cfg
+          hostPath:
+            path: /etc/cni/net.d
+        - name: var-run-netns
+          hostPath:
+            path: /var/run/netns

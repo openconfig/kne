@@ -26,8 +26,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
-	topologyclientv1 "github.com/networkop/meshnet-cni/api/clientset/v1beta1"
-	topologyv1 "github.com/networkop/meshnet-cni/api/types/v1beta1"
 	"github.com/openconfig/gnmi/errlist"
 	"github.com/openconfig/kne/cluster/kind"
 	"github.com/openconfig/kne/events"
@@ -37,6 +35,8 @@ import (
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -53,15 +53,18 @@ import (
 
 	_ "github.com/openconfig/kne/topo/node/alpine"
 	_ "github.com/openconfig/kne/topo/node/arista"
+	_ "github.com/openconfig/kne/topo/node/ciena"
 	_ "github.com/openconfig/kne/topo/node/cisco"
 	_ "github.com/openconfig/kne/topo/node/drivenets"
 	_ "github.com/openconfig/kne/topo/node/forward"
 	_ "github.com/openconfig/kne/topo/node/gobgp"
 	_ "github.com/openconfig/kne/topo/node/host"
+	_ "github.com/openconfig/kne/topo/node/inclusterproxy"
 	_ "github.com/openconfig/kne/topo/node/juniper"
 	_ "github.com/openconfig/kne/topo/node/keysight"
 	_ "github.com/openconfig/kne/topo/node/nokia"
 	_ "github.com/openconfig/kne/topo/node/openconfig"
+	_ "github.com/openconfig/kne/topo/node/sonic"
 )
 
 var (
@@ -183,6 +186,12 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 		}
 		m.rCfg = rCfg
 	}
+	if m.rCfg.QPS < 100 {
+		m.rCfg.QPS = 100
+	}
+	if m.rCfg.Burst < 200 {
+		m.rCfg.Burst = 200
+	}
 	if m.kClient == nil {
 		kClient, err := kubernetes.NewForConfig(m.rCfg)
 		if err != nil {
@@ -265,7 +274,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 		}
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	// Watch the containter status of the pods so we can fail if a container fails to start running.
+	// Watch the container status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
@@ -406,10 +415,19 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 		}
 	}
 	stateMap := &stateMap{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, n := range m.nodes {
-		phase, _ := n.Status(ctx)
-		stateMap.setNodeState(n.Name(), phase)
+		wg.Add(1)
+		go func(nod node.Node) {
+			defer wg.Done()
+			phase, _ := nod.Status(ctx)
+			mu.Lock()
+			stateMap.setNodeState(nod.Name(), phase)
+			mu.Unlock()
+		}(n)
 	}
+	wg.Wait()
 	return &cpb.ShowTopologyResponse{
 		State:    stateMap.topologyState(),
 		Topology: m.topo,
@@ -421,13 +439,21 @@ func (m *Manager) Watch(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer watcher.Stop()
 	ch := watcher.ResultChan()
-	for e := range ch {
-		fmt.Println(e.Type)
-		pretty.Print(e.Object)
-		fmt.Println("")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case e, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			fmt.Println(e.Type)
+			pretty.Print(e.Object)
+			fmt.Println("")
+		}
 	}
-	return nil
 }
 
 // Nodes returns a map of node names to implementations in the current topology.
@@ -666,15 +692,28 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 		return fmt.Errorf("could not get meshnet topologies: %v", err)
 	}
 	log.V(2).Infof("Got topology specs for namespace %s: %+v", m.topo.Name, topologies)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
 	for _, t := range topologies {
-		log.Infof("Creating topology for meshnet node %s", t.ObjectMeta.Name)
-		sT, err := m.tClient.Topology(m.topo.Name).Create(ctx, t, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("could not create topology for meshnet node %s: %v", t.ObjectMeta.Name, err)
-		}
-		log.V(1).Infof("Meshnet Node:\n%+v\n", sT)
+		wg.Add(1)
+		go func(topo *topologyv1.Topology) {
+			defer wg.Done()
+			log.Infof("Creating topology for meshnet node %s", topo.Name)
+			sT, err := m.tClient.Topology(m.topo.Name).Create(ctx, topo, metav1.CreateOptions{})
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("could not create topology for meshnet node %s: %v", topo.Name, err)
+				}
+				mu.Unlock()
+				return
+			}
+			log.V(1).Infof("Meshnet Node:\n%+v\n", sT)
+		}(t)
 	}
-	return nil
+	wg.Wait()
+	return firstErr
 }
 
 // deleteMeshnetTopologies deletes meshnet resources for all available nodes.
@@ -697,27 +736,48 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 	foundAll := false
 	processed := make(map[string]bool)
 
+	type statusResult struct {
+		name  string
+		nod   node.Node
+		phase node.Status
+		err   error
+	}
+
 	// Check until end state or timeout sec expired
 	start := time.Now()
 	for (timeout == 0 || time.Since(start) < timeout) && !foundAll {
 		foundAll = true
+		var wg sync.WaitGroup
+		resCh := make(chan statusResult, len(m.nodes))
 		for name, n := range m.nodes {
-			if _, ok := processed[name]; ok {
+			if processed[name] {
 				continue
 			}
 
-			phase, err := n.Status(ctx)
-			if err != nil || phase == node.StatusFailed {
-				return fmt.Errorf("Node %s: Status %s Reason %v", n, phase, err)
+			wg.Add(1)
+			go func(name string, nod node.Node) {
+				defer wg.Done()
+				phase, err := nod.Status(ctx)
+				resCh <- statusResult{name: name, nod: nod, phase: phase, err: err}
+			}(name, n)
+		}
+		wg.Wait()
+		close(resCh)
+
+		for res := range resCh {
+			if res.err != nil || res.phase == node.StatusFailed {
+				return fmt.Errorf("node %s: status %s reason %v", res.nod, res.phase, res.err)
 			}
-			if phase == node.StatusRunning {
-				log.Infof("Node %s: Status %s", n, phase)
-				processed[name] = true
+			if res.phase == node.StatusRunning {
+				log.Infof("Node %s: Status %s", res.nod, res.phase)
+				processed[res.name] = true
 			} else {
 				foundAll = false
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		if !foundAll {
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 	if !foundAll {
 		log.Warningf("Failed to determine status of some node resources in %d sec", timeout)
@@ -741,18 +801,41 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 		Topologies: map[string]*topologyv1.Topology{},
 	}
 
-	for nodeName, n := range m.nodes {
-		pods, err := n.Pods(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("could not get pods for node %s: %v", nodeName, err)
-		}
-		r.Pods[nodeName] = pods
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
 
-		services, err := n.Services(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("could not get services for node %s: %v", nodeName, err)
-		}
-		r.Services[nodeName] = services
+	for nodeName, n := range m.nodes {
+		wg.Add(1)
+		go func(name string, nod node.Node) {
+			defer wg.Done()
+			pods, err := nod.Pods(ctx)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("could not get pods for node %s: %v", name, err)
+				}
+				mu.Unlock()
+				return
+			}
+			services, err := nod.Services(ctx)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("could not get services for node %s: %v", name, err)
+				}
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			r.Pods[name] = pods
+			r.Services[name] = services
+			mu.Unlock()
+		}(nodeName, n)
+	}
+	wg.Wait()
+	if firstErr != nil {
+		return nil, firstErr
 	}
 
 	tList, err := m.topologyResources(ctx)

@@ -47,6 +47,13 @@ var (
 		CPU:    "2000m", // 2000 milliCPUs
 		Memory: "4Gi",   // 4 GB RAM
 	}
+
+	configEscaper = strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		"`", "\\`",
+		"$", `\$`,
+	)
 )
 
 var (
@@ -187,9 +194,9 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 		return err
 	}
 
-	// replace quotes in the config with escaped quotes, so that we can echo this config
+	// replace quotes and special characters in the config with escaped characters, so that we can echo this config
 	// via `echo` CLI commands.
-	cfg := strings.ReplaceAll(string(cfgBytes), `"`, `\"`)
+	cfg := escapeConfig(cfgBytes)
 
 	log.V(1).Infof("config to push:\n%s", cfg)
 
@@ -238,6 +245,11 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	return nil
 }
 
+// escapeConfig escapes special characters in cfgBytes.
+func escapeConfig(cfgBytes []byte) string {
+	return configEscaper.Replace(string(cfgBytes))
+}
+
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
@@ -266,6 +278,7 @@ func (n *Node) Create(ctx context.Context) error {
 				Command:           n.GetProto().GetConfig().GetCommand(),
 				Args:              n.GetProto().GetConfig().GetArgs(),
 				Image:             n.GetProto().GetConfig().GetImage(),
+				InitImage:         n.GetProto().GetConfig().GetInitImage(),
 				Env:               n.GetProto().GetConfig().GetEnv(),
 				EntryCommand:      n.GetProto().GetConfig().GetEntryCommand(),
 				ConfigPath:        n.GetProto().GetConfig().GetConfigPath(),

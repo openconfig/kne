@@ -3,8 +3,7 @@
 ## Background
 
 A k8s cluster is made up of 1 or more nodes. Each node can hold up to 110 pods.
-See the official large cluster considerations
-[here](https://kubernetes.io/docs/setup/best-practices/cluster-large/). An
+See the [official large cluster considerations](https://kubernetes.io/docs/setup/best-practices/cluster-large/). An
 emulated DUT in KNE brings up 1 pod. An emulated ATE in KNE brings up 1 pod per
 port. Together with the controller pods and other dependency pods, this in turn
 restricts a KNE user using kind (a single node cluster) to less than ~100 DUTs +

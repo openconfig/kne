@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,30 +33,12 @@ import (
 	ktest "k8s.io/client-go/testing"
 )
 
-type fakeWatch struct {
-	e []watch.Event
-}
-
 // scrapliDebug checks if SCRAPLI_DEBUG env var is set.
 // used in testing to enable debug log of scrapligo.
 func scrapliDebug() bool {
 	_, set := os.LookupEnv("SCRAPLI_DEBUG")
 
 	return set
-}
-
-func (f *fakeWatch) Stop() {}
-
-func (f *fakeWatch) ResultChan() <-chan watch.Event {
-	eCh := make(chan watch.Event)
-	go func() {
-		for len(f.e) != 0 {
-			e := f.e[0]
-			f.e = f.e[1:]
-			eCh <- e
-		}
-	}()
-	return eCh
 }
 
 // removeCommentsFromConfig removes comment lines from a JunOS config file
@@ -91,22 +76,15 @@ func TestGenerateSelfSigned(t *testing.T) {
 	})
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{
-				{
-					// Test that watcher properly handles events with the wrong type.
-					Object: &corev1.ConfigMap{},
-				},
-				{
-					Object: &corev1.Pod{
-						Status: corev1.PodStatus{
-							Phase: corev1.PodRunning,
-						},
-					},
-				},
+		fw := watch.NewFakeWithChanSize(2, false)
+		// Test that watcher properly handles events with the wrong type.
+		fw.Add(&corev1.ConfigMap{})
+		fw.Add(&corev1.Pod{
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
 			},
-		}
-		return true, f, nil
+		})
+		return true, fw, nil
 	}
 	ki.PrependWatchReactor("*", reaction)
 
@@ -146,13 +124,13 @@ func TestGenerateSelfSigned(t *testing.T) {
 	defer func() {
 		certGenTimeout = origCertGenTimeout
 	}()
-	certGenTimeout = time.Second * 10
+	certGenTimeout = time.Second * 2
 
 	origConfigModeTimeout := configModeTimeout
 	defer func() {
 		configModeTimeout = origConfigModeTimeout
 	}()
-	configModeTimeout = time.Second * 10
+	configModeTimeout = time.Second * 2
 
 	tests := []struct {
 		desc     string
@@ -187,6 +165,57 @@ func TestGenerateSelfSigned(t *testing.T) {
 			wantErr:  true,
 			ni:       ni,
 			testFile: "testdata/generate_certificate_config_mode_failure",
+		},
+		{
+			// nil kubeclient
+			desc:    "nil kubeclient",
+			wantErr: true,
+			ni: &node.Impl{
+				Namespace: "test",
+				Proto:     ni.Proto,
+			},
+		},
+		{
+			// pod already running
+			desc:     "pod already running",
+			wantErr:  false,
+			testFile: "testdata/generate_certificate_success",
+			ni: &node.Impl{
+				KubeClient: fake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod1",
+						Namespace: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				}),
+				Namespace: "test",
+				Proto:     ni.Proto,
+			},
+		},
+		{
+			// invalid cert name contains invalid characters
+			desc:     "invalid cert name characters",
+			wantErr:  true,
+			testFile: "testdata/generate_certificate_failure",
+			ni: &node.Impl{
+				KubeClient: ki,
+				Namespace:  "test",
+				Proto: &tpb.Node{
+					Name:   "pod1",
+					Vendor: tpb.Vendor_JUNIPER,
+					Config: &tpb.Config{
+						Cert: &tpb.CertificateCfg{
+							Config: &tpb.CertificateCfg_SelfSigned{
+								SelfSigned: &tpb.SelfSignedCertCfg{
+									CertName: "grpc-cert;invalid",
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -304,16 +333,13 @@ func TestConfigPush(t *testing.T) {
 	})
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
+		fw := watch.NewFakeWithChanSize(1, false)
+		fw.Add(&corev1.Pod{
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		})
+		return true, fw, nil
 	}
 	ki.PrependWatchReactor("*", reaction)
 
@@ -398,18 +424,27 @@ func TestResetCfg(t *testing.T) {
 	})
 
 	reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
-		f := &fakeWatch{
-			e: []watch.Event{{
-				Object: &corev1.Pod{
-					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
-					},
-				},
-			}},
-		}
-		return true, f, nil
+		fw := watch.NewFakeWithChanSize(1, false)
+		fw.Add(&corev1.Pod{
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
+		})
+		return true, fw, nil
 	}
 	ki.PrependWatchReactor("*", reaction)
+
+	origConfigModeRetrySleep := configModeRetrySleep
+	defer func() {
+		configModeRetrySleep = origConfigModeRetrySleep
+	}()
+	configModeRetrySleep = time.Millisecond
+
+	origConfigModeTimeout := configModeTimeout
+	defer func() {
+		configModeTimeout = origConfigModeTimeout
+	}()
+	configModeTimeout = 100 * time.Millisecond
 
 	ni := &node.Impl{
 		KubeClient: ki,
@@ -867,5 +902,297 @@ func TestDefaultNodeConstraints(t *testing.T) {
 				t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, tt.wantMemory)
 			}
 		})
+	}
+}
+
+func TestValidCertNameRegexp(t *testing.T) {
+	tests := []struct {
+		certName  string
+		wantValid bool
+	}{
+		{"grpc-server-cert", true},
+		{"my_cert.v1-2", true},
+		{"cert;invalid", false},
+		{"cert$invalid", false},
+		{"cert/invalid", false},
+		{"cert name spaces", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.certName, func(t *testing.T) {
+			got := validCertNameRegexp.MatchString(tt.certName)
+			if got != tt.wantValid {
+				t.Errorf("validCertNameRegexp.MatchString(%q) = %v, want %v", tt.certName, got, tt.wantValid)
+			}
+		})
+	}
+}
+
+func TestCreate(t *testing.T) {
+	tests := []struct {
+		desc              string
+		configData        []byte
+		wantInitCommand   []string
+		wantInitArgsLen   int
+		wantInitMountsLen int
+		wantMainMountsLen int
+		wantInitScriptSub []string
+		wantErr           bool
+	}{
+		{
+			desc:              "cPTX with config data",
+			configData:        []byte("set system host-name ncptx"),
+			wantInitCommand:   []string{"/bin/sh", "-c"},
+			wantInitArgsLen:   4, // script, "init", num_intfs, sleep
+			wantInitMountsLen: 2, // /config-dst and /config-src
+			wantMainMountsLen: 5, // 4 base mounts (/run, /tmp, /dev/shm, /sys/fs/cgroup) + config mount
+			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0", "route 0.0.0.0/0 next-hop", "/config-dst/juniper.conf"},
+		},
+		{
+			desc:              "cPTX without config data",
+			configData:        nil,
+			wantInitCommand:   []string{"/bin/sh", "-c"},
+			wantInitArgsLen:   4,
+			wantInitMountsLen: 1, // only /config-dst
+			wantMainMountsLen: 5,
+			wantInitScriptSub: []string{"/entrypoint.sh", "re0:mgmt-0", "route 0.0.0.0/0 next-hop"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset()
+			cfg := &tpb.Config{
+				ConfigFile: "juniper.conf",
+				ConfigPath: "/home/evo/configdisk",
+			}
+			if tt.configData != nil {
+				cfg.ConfigData = &tpb.Config_Data{Data: tt.configData}
+			}
+			ni := &node.Impl{
+				Namespace:  "test",
+				KubeClient: ki,
+				Proto: &tpb.Node{
+					Name:       "ncptx",
+					Model:      "ncptx",
+					Vendor:     tpb.Vendor_JUNIPER,
+					Config:     cfg,
+					Interfaces: map[string]*tpb.Interface{
+						"eth1": {Name: "et-0/0/0:0"},
+					},
+				},
+			}
+			n, err := New(ni)
+			if err != nil {
+				t.Fatalf("New() unexpected error = %v", err)
+			}
+			if err := n.Create(context.Background()); (err != nil) != tt.wantErr {
+				t.Fatalf("Create() unexpected error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "ncptx", metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("failed to get created pod: %v", err)
+			}
+			if len(pod.Spec.InitContainers) != 1 {
+				t.Fatalf("expected 1 init container, got %d", len(pod.Spec.InitContainers))
+			}
+			initC := pod.Spec.InitContainers[0]
+			if diff := cmp.Diff(tt.wantInitCommand, initC.Command); diff != "" {
+				t.Errorf("init container command diff (-want +got):\n%s", diff)
+			}
+			if len(initC.Args) != tt.wantInitArgsLen {
+				t.Errorf("init container args len = %d, want %d", len(initC.Args), tt.wantInitArgsLen)
+			}
+			if len(initC.VolumeMounts) != tt.wantInitMountsLen {
+				t.Errorf("init container volume mounts len = %d, want %d", len(initC.VolumeMounts), tt.wantInitMountsLen)
+			}
+			if len(pod.Spec.Containers[0].VolumeMounts) != tt.wantMainMountsLen {
+				t.Errorf("main container volume mounts len = %d, want %d", len(pod.Spec.Containers[0].VolumeMounts), tt.wantMainMountsLen)
+			}
+			for _, sub := range tt.wantInitScriptSub {
+				if !strings.Contains(initC.Args[0], sub) {
+					t.Errorf("init container script missing expected substring %q", sub)
+				}
+			}
+		})
+	}
+}
+
+func TestJuniperInitScriptExecution(t *testing.T) {
+	tmpDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, "config-src")
+	dstDir := filepath.Join(tmpDir, "config-dst")
+	binDir := filepath.Join(tmpDir, "bin")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := "juniper.conf"
+	srcFile := filepath.Join(srcDir, configFile)
+	if err := os.WriteFile(srcFile, []byte("set system host-name ncptx\naddress FXP0ADDR;\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create fake entrypoint.sh in binDir
+	entrypointPath := filepath.Join(binDir, "entrypoint.sh")
+	if err := os.WriteFile(entrypointPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create fake ip command in binDir
+	ipPath := filepath.Join(binDir, "ip")
+	ipScript := `#!/bin/sh
+if [ "$1" = "-4" ] && [ "$2" = "addr" ]; then
+  echo "    inet 10.244.0.15/24 scope global eth0"
+elif [ "$1" = "-4" ] && [ "$2" = "route" ]; then
+  echo "default via 10.244.0.1 dev eth0"
+elif [ "$1" = "-6" ] && [ "$2" = "addr" ]; then
+  echo "    inet6 2001:db8::15/64 scope global"
+elif [ "$1" = "-6" ] && [ "$2" = "route" ]; then
+  echo "default via 2001:db8::1 dev eth0"
+fi
+`
+	if err := os.WriteFile(ipPath, []byte(ipScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	initScript := fmt.Sprintf(`
+%[4]s "$1" "$2"
+mkdir -p %[1]s
+if [ -f %[2]s/%[3]s ]; then
+  cp %[2]s/%[3]s %[1]s/%[3]s
+else
+  cat << 'EOF' > %[1]s/%[3]s
+system {
+    root-authentication {
+        encrypted-password "$6$7uA5z8vs$cmHIvL0aLU4ioWAHPR0PLeU/mJj.JO/5pQVQoqRlInK3fJNTLYLhwiDi.Q6gHhltSB3S1P/.raEsuDSH7akcJ/";
+    }
+    services {
+        ssh {
+            root-login allow;
+        }
+    }
+}
+EOF
+fi
+IP4=$(ip -4 addr show dev eth0 2>/dev/null | awk '/inet /{print $2}' | head -n1)
+GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$IP4" ]; then
+  if grep -q "FXP0ADDR" %[1]s/%[3]s; then
+    sed -i "s|FXP0ADDR|$IP4|g" %[1]s/%[3]s
+  elif ! grep -q "re0:mgmt-0" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet {
+                address $IP4;
+            }
+        }
+    }
+}
+EOF
+  fi
+fi
+if [ -n "$GW4" ]; then
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    static {
+        route 0.0.0.0/0 next-hop $GW4;
+    }
+}
+EOF
+fi
+IP6=$(ip -6 addr show dev eth0 2>/dev/null | awk '/inet6 /{print $2}' | grep -v '^fe80' | head -n1)
+GW6=$(ip -6 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$IP6" ]; then
+  if ! grep -q "family inet6" %[1]s/%[3]s; then
+    cat << EOF >> %[1]s/%[3]s
+interfaces {
+    re0:mgmt-0 {
+        unit 0 {
+            family inet6 {
+                address $IP6;
+            }
+        }
+    }
+}
+EOF
+  fi
+fi
+if [ -n "$GW6" ]; then
+  cat << EOF >> %[1]s/%[3]s
+routing-options {
+    rib inet6.0 {
+        static {
+            route ::/0 next-hop $GW6;
+        }
+    }
+}
+EOF
+fi
+`, dstDir, srcDir, configFile, entrypointPath)
+
+	// Test case 1: With existing source config
+	cmd := exec.Command("/bin/sh", "-c", initScript, "init", "2", "0")
+	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("script execution with source config failed: %v, output: %s", err, string(out))
+	}
+
+	dstFile := filepath.Join(dstDir, configFile)
+	content, err := os.ReadFile(dstFile)
+	if err != nil {
+		t.Fatalf("failed to read generated config: %v", err)
+	}
+
+	got := string(content)
+	if strings.Contains(got, "FXP0ADDR") {
+		t.Errorf("generated config contains invalid FXP0ADDR placeholder line\nGot:\n%s", got)
+	}
+	wantContains := []string{
+		"set system host-name ncptx",
+		"address 10.244.0.15/24;",
+		"route 0.0.0.0/0 next-hop 10.244.0.1;",
+		"address 2001:db8::15/64;",
+		"route ::/0 next-hop 2001:db8::1;",
+	}
+	for _, want := range wantContains {
+		if !strings.Contains(got, want) {
+			t.Errorf("generated config with source missing %q\nGot:\n%s", want, got)
+		}
+	}
+
+	// Test case 2: Without source config (should generate built-in default config with root password)
+	_ = os.Remove(srcFile)
+	_ = os.Remove(dstFile)
+
+	cmd2 := exec.Command("/bin/sh", "-c", initScript, "init", "2", "0")
+	cmd2.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
+	out2, err := cmd2.CombinedOutput()
+	if err != nil {
+		t.Fatalf("script execution without source config failed: %v, output: %s", err, string(out2))
+	}
+
+	content2, err := os.ReadFile(dstFile)
+	if err != nil {
+		t.Fatalf("failed to read default generated config: %v", err)
+	}
+
+	got2 := string(content2)
+	wantDefaultContains := []string{
+		"root-authentication",
+		"encrypted-password",
+		"address 10.244.0.15/24;",
+		"route 0.0.0.0/0 next-hop 10.244.0.1;",
+	}
+	for _, want := range wantDefaultContains {
+		if !strings.Contains(got2, want) {
+			t.Errorf("default generated config missing %q\nGot:\n%s", want, got2)
+		}
 	}
 }
