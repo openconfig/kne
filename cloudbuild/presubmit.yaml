@@ -1,3 +1,4 @@
+---
 steps:
   - id: kne_test
     name: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
@@ -8,7 +9,13 @@ steps:
       - USERNAME=user
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=kne-presubmit-kne-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-4 --boot-disk-size 200GB --boot-disk-type pd-ssd
+      - >-
+        INSTANCE_ARGS=--network cloudbuild-workers
+        --image-project gep-kne
+        --image-family kne
+        --machine-type e2-standard-4
+        --boot-disk-size 200GB
+        --boot-disk-type pd-ssd
       - REGION=us-central1
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=source /tmp/workspace/cloudbuild/kne_test.sh 2>&1
@@ -21,7 +28,14 @@ steps:
       - USERNAME=user
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=kne-presubmit-vendors-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-32 --boot-disk-size 200GB --boot-disk-type pd-ssd --enable-nested-virtualization
+      - >-
+        INSTANCE_ARGS=--network cloudbuild-workers
+        --image-project gep-kne
+        --image-family kne
+        --machine-type n2-standard-32
+        --boot-disk-size 200GB
+        --boot-disk-type pd-ssd
+        --enable-nested-virtualization
       - REGION=us-central1
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=source /tmp/workspace/cloudbuild/vendors_test.sh 2>&1
@@ -30,4 +44,5 @@ timeout: 2700s
 
 options:
   pool:
-    name: "projects/kne-external/locations/us-central1/workerPools/kne-cloudbuild-pool"
+    name: >-
+      projects/kne-external/locations/us-central1/workerPools/kne-cloudbuild-pool
