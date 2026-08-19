@@ -7,7 +7,7 @@ require (
 	github.com/containernetworking/plugins v1.9.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/h-fam/errdiff v1.0.2
 	github.com/openconfig/gnmi v0.14.1
 	github.com/redhat-nfvpe/koko v0.0.0-20241203052104-ec78eb8730bf
