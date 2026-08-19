@@ -186,10 +186,10 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 		}
 		m.rCfg = rCfg
 	}
-	if m.rCfg.QPS == 0 {
+	if m.rCfg.QPS < 100 {
 		m.rCfg.QPS = 100
 	}
-	if m.rCfg.Burst == 0 {
+	if m.rCfg.Burst < 200 {
 		m.rCfg.Burst = 200
 	}
 	if m.kClient == nil {
