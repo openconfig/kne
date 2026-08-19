@@ -2,9 +2,8 @@ package kubeadm
 
 import (
 	"os"
-	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/openconfig/gnmi/errdiff"
 	kexec "github.com/openconfig/kne/exec"
@@ -97,167 +96,69 @@ func checkCmds(t *testing.T, cmds *fexec.Command) {
 	}
 }
 
-func TestSetServiceNodePortRange(t *testing.T) {
-	origKubeAPIServerManifest := kubeAPIServerManifest
-	origSleepFn := sleepFn
-	origTimeout := apiserverWaitTimeout
-	origPollInterval := apiserverPollInterval
-	defer func() {
-		kubeAPIServerManifest = origKubeAPIServerManifest
-		sleepFn = origSleepFn
-		apiserverWaitTimeout = origTimeout
-		apiserverPollInterval = origPollInterval
-	}()
-	sleepFn = func(time.Duration) {}
-	apiserverWaitTimeout = 50 * time.Millisecond
-	apiserverPollInterval = time.Millisecond
-
-	manifestWithClusterIP := `apiVersion: v1
-kind: Pod
-metadata:
-  name: kube-apiserver
-spec:
-  containers:
-  - command:
-    - kube-apiserver
-    - --service-cluster-ip-range=10.96.0.0/12
-    - --advertise-address=192.168.1.10
-`
-	manifestWithKubeAPIServer := `apiVersion: v1
-kind: Pod
-metadata:
-  name: kube-apiserver
-spec:
-  containers:
-  - command:
-    - kube-apiserver
-    - --advertise-address=192.168.1.10
-`
-	manifestWithExistingRange := `apiVersion: v1
-kind: Pod
-metadata:
-  name: kube-apiserver
-spec:
-  containers:
-  - command:
-    - kube-apiserver
-    - --service-node-port-range=10000-32767
-`
-	manifestNoMatch := `apiVersion: v1
-kind: Pod
-metadata:
-  name: other-pod
-spec:
-  containers:
-  - command:
-    - other-command
-`
-
+func TestCreateInitConfigFile(t *testing.T) {
 	tests := []struct {
-		desc         string
-		manifestData string
-		nonExistent  bool
-		portRange    string
-		waitTimeout  time.Duration
-		resp         []fexec.Response
-		wantErr      string
+		desc             string
+		opts             InitConfigOptions
+		wantInitCfg      bool
+		wantYAMLContains []string
 	}{{
-		desc:         "success with service-cluster-ip-range target",
-		manifestData: manifestWithClusterIP,
-		portRange:    "10000-32767",
-		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
-			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
-			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Stdout: "ok"},
+		desc: "defaults",
+		opts: InitConfigOptions{
+			ImageRepository:      "us-west1-docker.pkg.dev/kne-external/kne",
+			ServiceNodePortRange: "10000-32767",
+		},
+		wantInitCfg: false,
+		wantYAMLContains: []string{
+			"apiVersion: kubeadm.k8s.io/v1beta3",
+			"kind: ClusterConfiguration",
+			"imageRepository: us-west1-docker.pkg.dev/kne-external/kne",
+			"service-node-port-range: 10000-32767",
 		},
 	}, {
-		desc:         "success with kube-apiserver fallback target",
-		manifestData: manifestWithKubeAPIServer,
-		portRange:    "10000-32767",
-		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
-			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
-			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Stdout: "ok"},
+		desc: "with CRI socket and pod network CIDR and token TTL",
+		opts: InitConfigOptions{
+			CRISocket:            "unix:///var/run/containerd/containerd.sock",
+			PodNetworkCIDR:       "10.244.0.0/16",
+			TokenTTL:             "0",
+			ImageRepository:      "registry.k8s.io",
+			ServiceNodePortRange: "20000-30000",
 		},
-	}, {
-		desc:        "manifest not found returns nil",
-		nonExistent: true,
-		portRange:   "10000-32767",
-	}, {
-		desc:         "manifest already contains service-node-port-range returns nil",
-		manifestData: manifestWithExistingRange,
-		portRange:    "10000-32767",
-	}, {
-		desc:         "could not find insertion point",
-		manifestData: manifestNoMatch,
-		portRange:    "10000-32767",
-		wantErr:      "could not find insertion point",
-	}, {
-		desc:         "failed to copy modified manifest",
-		manifestData: manifestWithClusterIP,
-		portRange:    "10000-32767",
-		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}, Err: "failed to copy"},
+		wantInitCfg: true,
+		wantYAMLContains: []string{
+			"kind: InitConfiguration",
+			"criSocket: unix:///var/run/containerd/containerd.sock",
+			"ttl: \"0\"",
+			"kind: ClusterConfiguration",
+			"imageRepository: registry.k8s.io",
+			"podSubnet: 10.244.0.0/16",
+			"service-node-port-range: 20000-30000",
 		},
-		wantErr: "failed to copy",
-	}, {
-		desc:         "success after retry",
-		manifestData: manifestWithClusterIP,
-		portRange:    "10000-32767",
-		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
-			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Err: "connection refused"},
-			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "old-args"},
-			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
-			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Err: "not ready"},
-			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Stdout: "--service-node-port-range=10000-32767"},
-			{Cmd: "kubectl", Args: []string{"get", "--raw", "/readyz"}, Stdout: "ok"},
-		},
-	}, {
-		desc:         "timed out waiting for apiserver",
-		manifestData: manifestWithClusterIP,
-		portRange:    "10000-32767",
-		waitTimeout:  time.Nanosecond,
-		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"cp", "-f", ".*", ".*"}},
-			{Cmd: "kubectl", Args: []string{"get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", ".*"}, Err: "connection refused"},
-		},
-		wantErr: "timed out waiting for kube-apiserver",
 	}}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			if tt.waitTimeout != 0 {
-				apiserverWaitTimeout = tt.waitTimeout
-			} else {
-				apiserverWaitTimeout = 50 * time.Millisecond
+			path, cleanup, err := CreateInitConfigFile(tt.opts)
+			if err != nil {
+				t.Fatalf("CreateInitConfigFile failed: %v", err)
 			}
-			if tt.nonExistent {
-				kubeAPIServerManifest = filepath.Join(t.TempDir(), "nonexistent.yaml")
-			} else {
-				f, err := os.CreateTemp(t.TempDir(), "kube-apiserver-*.yaml")
-				if err != nil {
-					t.Fatalf("Failed to create temp file: %v", err)
-				}
-				if _, err := f.WriteString(tt.manifestData); err != nil {
-					t.Fatalf("Failed to write temp manifest: %v", err)
-				}
-				if err := f.Close(); err != nil {
-					t.Fatalf("Failed to close temp manifest: %v", err)
-				}
-				kubeAPIServerManifest = f.Name()
-			}
+			defer cleanup()
 
-			fexec.LogCommand = func(s string) {
-				t.Logf("%s: %s", tt.desc, s)
+			b, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("Failed to read created config file: %v", err)
 			}
-			cmds := fexec.Commands(tt.resp)
-			kexec.Command = cmds.Command
-			defer checkCmds(t, cmds)
-
-			err := SetServiceNodePortRange(tt.portRange)
-			if s := errdiff.Substring(err, tt.wantErr); s != "" {
-				t.Fatalf("unexpected error: %s", s)
+			content := string(b)
+			if tt.wantInitCfg && !strings.Contains(content, "kind: InitConfiguration") {
+				t.Errorf("Expected InitConfiguration document in config, got:\n%s", content)
+			}
+			if !tt.wantInitCfg && strings.Contains(content, "kind: InitConfiguration") {
+				t.Errorf("Unexpected InitConfiguration document in config, got:\n%s", content)
+			}
+			for _, want := range tt.wantYAMLContains {
+				if !strings.Contains(content, want) {
+					t.Errorf("Config file missing %q, got:\n%s", want, content)
+				}
 			}
 		})
 	}

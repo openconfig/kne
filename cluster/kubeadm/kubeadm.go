@@ -1,105 +1,133 @@
 package kubeadm
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/openconfig/kne/exec/run"
 	log "k8s.io/klog/v2"
+	"sigs.k8s.io/yaml"
 )
 
 var (
-	kubeadmFlagPath       = "/var/lib/kubelet/kubeadm-flags.env"
-	kubeAPIServerManifest = "/etc/kubernetes/manifests/kube-apiserver.yaml"
-	apiserverWaitTimeout  = 60 * time.Second
-	apiserverPollInterval = time.Second
-	sleepFn               = time.Sleep
+	kubeadmFlagPath = "/var/lib/kubelet/kubeadm-flags.env"
 )
 
-// SetServiceNodePortRange sets the service node port range in the kube-apiserver manifest.
-func SetServiceNodePortRange(portRange string) error {
-	log.Infof("Setting service node port range to %q...", portRange)
-	b, err := os.ReadFile(kubeAPIServerManifest)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		// If read fails (e.g. due to permissions on root-owned manifest), try reading via sudo.
-		var sudoErr error
-		b, sudoErr = run.OutCommand("sudo", "cat", kubeAPIServerManifest)
-		if sudoErr != nil {
-			return fmt.Errorf("failed to read %s: %w", kubeAPIServerManifest, err)
-		}
-	}
-	content := string(b)
-	if strings.Contains(content, "--service-node-port-range=") {
-		return nil
-	}
-	target := "    - --service-cluster-ip-range="
-	idx := strings.Index(content, target)
-	if idx == -1 {
-		target = "    - kube-apiserver\n"
-		idx = strings.Index(content, target)
-		if idx == -1 {
-			return fmt.Errorf("could not find insertion point in %s", kubeAPIServerManifest)
-		}
-	}
-	endOfLine := strings.Index(content[idx:], "\n")
-	if endOfLine == -1 {
-		endOfLine = len(content) - idx
-	}
-	insertPos := idx + endOfLine + 1
-	flag := fmt.Sprintf("    - --service-node-port-range=%s\n", portRange)
-	newContent := content[:insertPos] + flag + content[insertPos:]
+// InitConfigOptions contains options for generating a kubeadm init configuration file.
+type InitConfigOptions struct {
+	CRISocket            string
+	PodNetworkCIDR       string
+	TokenTTL             string
+	ImageRepository      string
+	ServiceNodePortRange string
+}
 
-	f, err := os.CreateTemp("", "kne-apiserver-*.yaml")
-	if err != nil {
-		return err
+type initConfiguration struct {
+	APIVersion       string            `json:"apiVersion" yaml:"apiVersion"`
+	Kind             string            `json:"kind" yaml:"kind"`
+	NodeRegistration *nodeRegistration `json:"nodeRegistration,omitempty" yaml:"nodeRegistration,omitempty"`
+	BootstrapTokens  []bootstrapToken  `json:"bootstrapTokens,omitempty" yaml:"bootstrapTokens,omitempty"`
+}
+
+type nodeRegistration struct {
+	CRISocket string `json:"criSocket,omitempty" yaml:"criSocket,omitempty"`
+}
+
+type bootstrapToken struct {
+	TTL string `json:"ttl,omitempty" yaml:"ttl,omitempty"`
+}
+
+type clusterConfiguration struct {
+	APIVersion      string            `json:"apiVersion" yaml:"apiVersion"`
+	Kind            string            `json:"kind" yaml:"kind"`
+	ImageRepository string            `json:"imageRepository,omitempty" yaml:"imageRepository,omitempty"`
+	Networking      *networking       `json:"networking,omitempty" yaml:"networking,omitempty"`
+	APIServer       *apiServer        `json:"apiServer,omitempty" yaml:"apiServer,omitempty"`
+}
+
+type networking struct {
+	PodSubnet string `json:"podSubnet,omitempty" yaml:"podSubnet,omitempty"`
+}
+
+type apiServer struct {
+	ExtraArgs map[string]string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+}
+
+// CreateInitConfigFile creates a temporary kubeadm init configuration file.
+// The caller is responsible for calling the returned cleanup function when done.
+func CreateInitConfigFile(opts InitConfigOptions) (string, func(), error) {
+	var docs [][]byte
+
+	var initCfg initConfiguration
+	if opts.CRISocket != "" {
+		initCfg.NodeRegistration = &nodeRegistration{CRISocket: opts.CRISocket}
 	}
-	defer func() {
+	if opts.TokenTTL != "" {
+		initCfg.BootstrapTokens = []bootstrapToken{{TTL: opts.TokenTTL}}
+	}
+	if initCfg.NodeRegistration != nil || len(initCfg.BootstrapTokens) > 0 {
+		initCfg.APIVersion = "kubeadm.k8s.io/v1beta3"
+		initCfg.Kind = "InitConfiguration"
+		b, err := yaml.Marshal(initCfg)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to marshal InitConfiguration: %w", err)
+		}
+		docs = append(docs, b)
+	}
+
+	clusterCfg := clusterConfiguration{
+		APIVersion:      "kubeadm.k8s.io/v1beta3",
+		Kind:            "ClusterConfiguration",
+		ImageRepository: opts.ImageRepository,
+	}
+	if opts.PodNetworkCIDR != "" {
+		clusterCfg.Networking = &networking{PodSubnet: opts.PodNetworkCIDR}
+	}
+	portRange := opts.ServiceNodePortRange
+	if portRange == "" {
+		portRange = "10000-32767"
+	}
+	clusterCfg.APIServer = &apiServer{
+		ExtraArgs: map[string]string{
+			"service-node-port-range": portRange,
+		},
+	}
+	b, err := yaml.Marshal(clusterCfg)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to marshal ClusterConfiguration: %w", err)
+	}
+	docs = append(docs, b)
+
+	var buf bytes.Buffer
+	for i, doc := range docs {
+		if i > 0 {
+			buf.WriteString("---\n")
+		}
+		buf.Write(doc)
+	}
+
+	f, err := os.CreateTemp("", "kne-kubeadm-init-*.yaml")
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	cleanup := func() {
 		if err := os.Remove(f.Name()); err != nil && !os.IsNotExist(err) {
 			log.Warningf("Failed to remove temp file %q: %v", f.Name(), err)
 		}
-	}()
-	if _, err := f.WriteString(newContent); err != nil {
+	}
+	if _, err := f.Write(buf.Bytes()); err != nil {
 		_ = f.Close()
-		return err
+		cleanup()
+		return "", nil, fmt.Errorf("failed to write kubeadm config: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		return err
+		cleanup()
+		return "", nil, fmt.Errorf("failed to close kubeadm config file: %w", err)
 	}
-	if err := run.LogCommand("sudo", "cp", "-f", f.Name(), kubeAPIServerManifest); err != nil {
-		return err
-	}
-	return waitForAPIServer(portRange)
-}
 
-func waitForAPIServer(portRange string) error {
-	log.Infof("Waiting for kube-apiserver to restart with service node port range %q...", portRange)
-	deadline := time.Now().Add(apiserverWaitTimeout)
-	expectedFlag := fmt.Sprintf("--service-node-port-range=%s", portRange)
-	for {
-		sleepFn(apiserverPollInterval)
-		out, err := run.OutCommand("kubectl", "get", "pod", "-n", "kube-system", "-l", "component=kube-apiserver", "-o", "jsonpath={.items[*].spec.containers[*].command}")
-		if err != nil {
-			log.V(1).Infof("kube-apiserver not ready yet: %v", err)
-		} else if !strings.Contains(string(out), expectedFlag) {
-			log.V(1).Infof("kube-apiserver has not restarted with %q yet", expectedFlag)
-		} else {
-			readyOut, err := run.OutCommand("kubectl", "get", "--raw", "/readyz")
-			if err != nil || strings.TrimSpace(string(readyOut)) != "ok" {
-				log.V(1).Infof("kube-apiserver /readyz not ready yet: %v", err)
-			} else {
-				log.Infof("kube-apiserver is ready with service node port range %q", portRange)
-				return nil
-			}
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("timed out waiting for kube-apiserver to become ready after setting service node port range")
-		}
-	}
+	return f.Name(), cleanup, nil
 }
 
 // EnableCredentialProvider enables a credential provider according

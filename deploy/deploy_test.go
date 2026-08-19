@@ -65,7 +65,7 @@ func TestKubeadmSpec(t *testing.T) {
 		desc: "create cluster",
 		k:    &KubeadmSpec{},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
@@ -75,7 +75,7 @@ func TestKubeadmSpec(t *testing.T) {
 			CRISocket: "unix:///var/run/containerd/containerd.sock",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--cri-socket", "unix:///var/run/containerd/containerd.sock", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
@@ -85,7 +85,7 @@ func TestKubeadmSpec(t *testing.T) {
 			ImageRepository: "registry.k8s.io",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "registry.k8s.io"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
@@ -95,7 +95,7 @@ func TestKubeadmSpec(t *testing.T) {
 			AllowControlPlaneScheduling: true,
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"taint", "nodes", "--all", "node-role.kubernetes.io/control-plane:NoSchedule-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
@@ -106,7 +106,7 @@ func TestKubeadmSpec(t *testing.T) {
 			PodNetworkAddOnManifestData: []byte("manifest yaml"),
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "kubectl", Args: []string{"apply", "-f", "-"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
@@ -117,7 +117,7 @@ func TestKubeadmSpec(t *testing.T) {
 			Network: "my-network",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 		},
 	}, {
@@ -126,7 +126,7 @@ func TestKubeadmSpec(t *testing.T) {
 			ServiceNodePortRange: "20000-30000",
 		},
 		resp: []fexec.Response{
-			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--image-repository", "us-west1-docker.pkg.dev/kne-external/kne"}},
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
