@@ -20,8 +20,8 @@ gopath=$(go env GOPATH)
 export PATH=${PATH}:$gopath/bin
 
 # Replace existing kne repo with new version
-rm -r "$HOME/kne"
-cp -r /tmp/workspace "$HOME/kne"
+rm -rf "$HOME/kne"
+cp -rf /tmp/workspace "$HOME/kne"
 
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"

@@ -12,7 +12,7 @@ import (
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
-	"github.com/containernetworking/cni/pkg/types/current"
+	types100 "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
 	"github.com/containernetworking/plugins/pkg/ns"
 	koko "github.com/redhat-nfvpe/koko/api"
@@ -59,7 +59,7 @@ func init() {
 
 // -------------------------------------------------------------------------------------------------
 // loadConf loads information from cni.conf
-func loadConf(bytes []byte) (*netConf, *current.Result, error) {
+func loadConf(bytes []byte) (*netConf, *types100.Result, error) {
 	n := &netConf{}
 	if err := json.Unmarshal(bytes, n); err != nil {
 		return nil, nil, fmt.Errorf("failed to load netconf: %v", err)
@@ -68,17 +68,17 @@ func loadConf(bytes []byte) (*netConf, *current.Result, error) {
 	// Parse previous result.
 	if n.RawPrevResult == nil {
 		// return early if there was no previous result, which is allowed for DEL calls
-		return n, &current.Result{}, nil
+		return n, &types100.Result{}, nil
 	}
 
 	// Parse previous result.
-	var result *current.Result
+	var result *types100.Result
 	var err error
 	if err = version.ParsePrevResult(&n.NetConf); err != nil {
 		return nil, nil, fmt.Errorf("could not parse prevResult: %v", err)
 	}
 
-	result, err = current.NewResultFromResult(n.PrevResult)
+	result, err = types100.NewResultFromResult(n.PrevResult)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not convert result to current version: %v", err)
 	}

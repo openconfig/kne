@@ -20,8 +20,8 @@ gopath=$(go env GOPATH)
 export PATH=${PATH}:$gopath/bin
 
 # Replace existing kne repo with new version
-rm -r "$HOME/kne"
-cp -r /tmp/workspace "$HOME/kne"
+rm -rf "$HOME/kne"
+cp -rf /tmp/workspace "$HOME/kne"
 
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"
@@ -94,7 +94,7 @@ $cli teardown kne/deploy/kne/kubeadm.yaml
 ## Create a kubeadm single node cluster
 sudo kubeadm init --cri-socket unix:///var/run/containerd/containerd.sock --pod-network-cidr 10.244.0.0/16
 mkdir -p "$HOME"/.kube
-sudo cp /etc/kubernetes/admin.conf "$HOME"/.kube/config
+sudo cp -f /etc/kubernetes/admin.conf "$HOME"/.kube/config
 sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 kubectl taint nodes --all node-role.kubernetes.io/control-plane- # allows pods to be scheduled on control plane node
 kubectl apply -f kne/manifests/flannel/manifest.yaml
