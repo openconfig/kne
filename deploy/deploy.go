@@ -434,6 +434,7 @@ type KubeadmSpec struct {
 	Network                     string `yaml:"network"`
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
 	ImageRepository             string `yaml:"imageRepository"`
+	ServiceNodePortRange        string `yaml:"serviceNodePortRange"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -451,21 +452,26 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if err := k.checkDependencies(); err != nil {
 		return fmt.Errorf("failed to check for dependencies: %w", err)
 	}
-	args := []string{"kubeadm", "init"}
-	if k.CRISocket != "" {
-		args = append(args, "--cri-socket", k.CRISocket)
-	}
-	if k.PodNetworkCIDR != "" {
-		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
-	}
-	if k.TokenTTL != "" {
-		args = append(args, "--token-ttl", k.TokenTTL)
-	}
 	imageRepository := defaultKubeadmImageRepository
 	if k.ImageRepository != "" {
 		imageRepository = k.ImageRepository
 	}
-	args = append(args, "--image-repository", imageRepository)
+	portRange := "10000-32767"
+	if k.ServiceNodePortRange != "" {
+		portRange = k.ServiceNodePortRange
+	}
+	cfgPath, cleanup, err := kubeadm.CreateInitConfigFile(kubeadm.InitConfigOptions{
+		CRISocket:            k.CRISocket,
+		PodNetworkCIDR:       k.PodNetworkCIDR,
+		TokenTTL:             k.TokenTTL,
+		ImageRepository:      imageRepository,
+		ServiceNodePortRange: portRange,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create kubeadm init config file: %w", err)
+	}
+	defer cleanup()
+	args := []string{"kubeadm", "init", "--config", cfgPath}
 	log.Infof("Creating kubeadm cluster with: %v", args)
 	if out, err := run.OutLogCommand("sudo", args...); err != nil {
 		msg := []string{}
