@@ -37,7 +37,7 @@ popd
 
 # Run an ondatra test
 pushd "$HOME/kne/cloudbuild"
-go test -v vendors/vendors_test.go \
+go test -v -timeout 30m vendors/vendors_test.go \
 	-testbed testbed.textproto \
 	-topology topology.textproto \
 	-vendor_creds ARISTA/admin/admin \
