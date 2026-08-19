@@ -189,15 +189,6 @@ func (n *Node) Create(ctx context.Context) error {
 			},
 		},
 		Spec: corev1.PodSpec{
-			InitContainers: []corev1.Container{{
-				Name:  fmt.Sprintf("init-%s", n.Name()),
-				Image: initContainerImage,
-				Args: []string{
-					fmt.Sprintf("%d", len(pb.GetInterfaces())+1),
-					fmt.Sprintf("%d", pb.GetConfig().Sleep),
-				},
-				ImagePullPolicy: "IfNotPresent",
-			}},
 			Containers: []corev1.Container{{
 				Name:            n.Name(),
 				Image:           pb.Config.Image,
@@ -247,22 +238,105 @@ func (n *Node) Create(ctx context.Context) error {
 	for label, v := range n.GetProto().GetLabels() {
 		pod.ObjectMeta.Labels[label] = v
 	}
-	if pb.Config.ConfigData != nil {
-		vol, err := n.CreateConfig(ctx)
-		if err != nil {
-			return err
+
+	if pb.Model == ModelXRD {
+		configFile := pb.Config.ConfigFile
+		if configFile == "" {
+			configFile = "startup.cfg"
 		}
-		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+		configDstPath := "/config-dst"
+		configSrcPath := "/config-src"
+		initScript := fmt.Sprintf(`
+/entrypoint.sh "$1" "$2"
+mkdir -p %[1]s
+if [ -f %[2]s/%[3]s ]; then
+  cp %[2]s/%[3]s %[1]s/%[3]s
+else
+  touch %[1]s/%[3]s
+fi
+GW4=$(ip -4 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$GW4" ]; then
+  printf '\nrouter static\n address-family ipv4 unicast\n  0.0.0.0/0 %%s\n !\n!\n' "$GW4" >> %[1]s/%[3]s
+fi
+GW6=$(ip -6 route show default 2>/dev/null | awk '{print $3}' | head -n1)
+if [ -n "$GW6" ]; then
+  printf '\nrouter static\n address-family ipv6 unicast\n  ::/0 %%s\n !\n!\n' "$GW6" >> %[1]s/%[3]s
+fi
+`, configDstPath, configSrcPath, configFile)
+
+		var initVolumeMounts []corev1.VolumeMount
+		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+			Name: node.ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
+		initVolumeMounts = append(initVolumeMounts, corev1.VolumeMount{
+			Name:      node.ConfigVolumeName,
+			MountPath: configDstPath,
+		})
 		vm := corev1.VolumeMount{
 			Name:      node.ConfigVolumeName,
-			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+			MountPath: pb.Config.ConfigPath + "/" + configFile,
+			SubPath:   configFile,
 			ReadOnly:  true,
 		}
-		if vol.VolumeSource.ConfigMap != nil {
-			vm.SubPath = pb.Config.ConfigFile
+		for i := range pod.Spec.Containers {
+			pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, vm)
 		}
-		for i, c := range pod.Spec.Containers {
-			pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
+
+		if vol, err := n.CreateConfig(ctx); err != nil {
+			return err
+		} else if vol != nil {
+			vol.Name = "startup-config-src-volume"
+			pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+			initVolumeMounts = append(initVolumeMounts, corev1.VolumeMount{
+				Name:      "startup-config-src-volume",
+				MountPath: configSrcPath,
+				ReadOnly:  true,
+			})
+		}
+
+		pod.Spec.InitContainers = []corev1.Container{{
+			Name:    fmt.Sprintf("init-%s", n.Name()),
+			Image:   initContainerImage,
+			Command: []string{"/bin/sh", "-c"},
+			Args: []string{
+				initScript,
+				"init",
+				fmt.Sprintf("%d", len(pb.GetInterfaces())+1),
+				fmt.Sprintf("%d", pb.GetConfig().Sleep),
+			},
+			ImagePullPolicy: "IfNotPresent",
+			VolumeMounts:    initVolumeMounts,
+		}}
+	} else {
+		pod.Spec.InitContainers = []corev1.Container{{
+			Name:  fmt.Sprintf("init-%s", n.Name()),
+			Image: initContainerImage,
+			Args: []string{
+				fmt.Sprintf("%d", len(pb.GetInterfaces())+1),
+				fmt.Sprintf("%d", pb.GetConfig().Sleep),
+			},
+			ImagePullPolicy: "IfNotPresent",
+		}}
+		if pb.Config.ConfigData != nil {
+			vol, err := n.CreateConfig(ctx)
+			if err != nil {
+				return err
+			}
+			pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
+			vm := corev1.VolumeMount{
+				Name:      node.ConfigVolumeName,
+				MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
+				ReadOnly:  true,
+			}
+			if vol.ConfigMap != nil {
+				vm.SubPath = pb.Config.ConfigFile
+			}
+			for i, c := range pod.Spec.Containers {
+				pod.Spec.Containers[i].VolumeMounts = append(c.VolumeMounts, vm)
+			}
 		}
 	}
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
@@ -618,16 +692,22 @@ func (n *Node) SpawnCLIConn() error {
 	}
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
+	if err != nil {
+		return err
+	}
 	// TODO: add the following pattern in the scrapli/scrapligo/blob/main/assets/platforms/cisco_iosxr.yaml
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
 	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "No such file or directory")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "locked")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Configuration database")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Cannot commit")
 
 	if n.Proto.Model != ModelXRD {
 		n.cliConn.OnClose = endTelnet
 	}
 
-	return err
+	return nil
 }
 
 // SpawnCLIConnConf spawns a connection towards a IOSXR configuration CLI for XRd using `kubectl exec` terminal
@@ -651,8 +731,17 @@ func (n *Node) SpawnCLIConnConf() error {
 	opts = n.PatchCLIConnOpen("kubectl", []string{"bash", "/pkg/bin/xr_cli", "config"}, opts)
 	var err error
 	n.cliConn, err = n.GetCLIConn(scrapliPlatformName, opts)
+	if err != nil {
+		return err
+	}
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "ERROR")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Failed")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "No such file or directory")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "locked")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Configuration database")
+	n.cliConn.FailedWhenContains = append(n.cliConn.FailedWhenContains, "% Cannot commit")
 
-	return err
+	return nil
 }
 
 func endTelnet(d *scraplinetwork.Driver) error {
@@ -684,7 +773,7 @@ func (n *Node) ResetCfg(ctx context.Context) error {
 
 	var cmd string
 	if n.Proto.Model == ModelXRD {
-		// Copy the snooped management interface config from a know location and the startup config from
+		// Copy the snooped management interface config from a known location and the startup config from
 		// the mounted location so it can be applied. This is required to preserve the snooped management
 		// IP address and since the "copy" xr_cli command can only access files on disk 0/1.
 		// Send an additional return command to make sure any error messages are read.
@@ -756,11 +845,15 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	if resp.Failed == nil {
-		log.Infof("%s - finished config push", n.Impl.Proto.Name)
+	if resp.Failed != nil {
+		return resp.Failed
+	}
+	if strings.Contains(resp.Result, "% ") || strings.Contains(resp.Result, "error:") {
+		return fmt.Errorf("config push failed: %s", resp.Result)
 	}
 
-	return resp.Failed
+	log.Infof("%s - finished config push", n.Name())
+	return nil
 }
 
 func (n *Node) GenerateSelfSigned(context.Context) error {
