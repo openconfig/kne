@@ -3,10 +3,12 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types/network"
+	dclient "github.com/moby/moby/client"
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnmi/errdiff"
@@ -636,42 +638,48 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 	return f.ch
 }
 
-//go:generate mockgen -destination=mocks/mock_dnetwork.go -package=mocks github.com/docker/docker/client  NetworkAPIClient
+//go:generate go run github.com/golang/mock/mockgen@v1.6.0 -destination=mocks/mock_dnetwork.go -package=mocks github.com/moby/moby/client NetworkAPIClient
 
 func TestMetalLBSpec(t *testing.T) {
-	nl := []network.Inspect{
+	nl := []network.Summary{
 		{
-			Name: "kind",
-			IPAM: network.IPAM{
-				Config: []network.IPAMConfig{
-					{
-						Subnet: "172.18.0.0/16",
-					},
-					{
-						Subnet: "127::0/64",
+			Network: network.Network{
+				Name: "kind",
+				IPAM: network.IPAM{
+					Config: []network.IPAMConfig{
+						{
+							Subnet: netip.MustParsePrefix("172.18.0.0/16"),
+						},
+						{
+							Subnet: netip.MustParsePrefix("127::0/64"),
+						},
 					},
 				},
 			},
 		},
 		{
-			Name: "bridge",
-			IPAM: network.IPAM{
-				Config: []network.IPAMConfig{
-					{
-						Subnet: "192.18.0.0/16",
-					},
-					{
-						Subnet: "129::0/64",
+			Network: network.Network{
+				Name: "bridge",
+				IPAM: network.IPAM{
+					Config: []network.IPAMConfig{
+						{
+							Subnet: netip.MustParsePrefix("192.18.0.0/16"),
+						},
+						{
+							Subnet: netip.MustParsePrefix("129::0/64"),
+						},
 					},
 				},
 			},
 		},
 		{
-			Name: "docker",
-			IPAM: network.IPAM{
-				Config: []network.IPAMConfig{
-					{
-						Subnet: "1.1.1.1/16",
+			Network: network.Network{
+				Name: "docker",
+				IPAM: network.IPAM{
+					Config: []network.IPAMConfig{
+						{
+							Subnet: netip.MustParsePrefix("1.1.1.1/16"),
+						},
 					},
 				},
 			},
@@ -763,7 +771,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -813,7 +821,7 @@ func TestMetalLBSpec(t *testing.T) {
 			IPCount: 20,
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("dclient error"))
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{}, fmt.Errorf("dclient error"))
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -878,7 +886,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -937,7 +945,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
@@ -1002,7 +1010,7 @@ func TestMetalLBSpec(t *testing.T) {
 			},
 		},
 		mockExpects: func(m *mocks.MockNetworkAPIClient) {
-			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(nl, nil)
+			m.EXPECT().NetworkList(gomock.Any(), gomock.Any()).Return(dclient.NetworkListResult{Items: nl}, nil)
 		},
 		mockKClient: func(k *fake.Clientset) {
 			reaction := func(action ktest.Action) (handled bool, ret watch.Interface, err error) {
