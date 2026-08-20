@@ -3,19 +3,19 @@ module github.com/openconfig/kne/third_party/meshnet
 go 1.26.0
 
 require (
-	github.com/containernetworking/cni v0.8.1
-	github.com/containernetworking/plugins v0.9.1
+	github.com/containernetworking/cni v1.3.0
+	github.com/containernetworking/plugins v1.9.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
-	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/h-fam/errdiff v1.0.2
 	github.com/openconfig/gnmi v0.14.1
 	github.com/redhat-nfvpe/koko v0.0.0-20241203052104-ec78eb8730bf
 	github.com/safchain/ethtool v0.7.0
-	github.com/sirupsen/logrus v1.10.0
+	github.com/sirupsen/logrus v1.10.1
 	github.com/vishvananda/netlink v1.3.1
-	golang.org/x/sys v0.45.0
-	google.golang.org/grpc v1.83.0
+	golang.org/x/sys v0.47.0
+	google.golang.org/grpc v1.83.1
 	google.golang.org/protobuf v1.36.12
 	k8s.io/apimachinery v0.36.3
 	k8s.io/client-go v0.36.3
@@ -24,7 +24,7 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
-	github.com/Microsoft/go-winio v0.6.0 // indirect
+	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
@@ -43,6 +43,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

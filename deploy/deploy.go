@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/docker/docker/api/types/network"
-	dclient "github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/network"
+	dclient "github.com/moby/moby/client"
 	"github.com/openconfig/gnmi/errlist"
 	metallbclientv1 "github.com/openconfig/kne/api/metallb/clientset/v1beta1"
 	"github.com/openconfig/kne/cluster/kind"
@@ -207,10 +207,10 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if err != nil {
 		return fmt.Errorf("failed to create k8s config: %w", err)
 	}
-	if rCfg.QPS == 0 {
+	if rCfg.QPS < 100 {
 		rCfg.QPS = 100
 	}
-	if rCfg.Burst == 0 {
+	if rCfg.Burst < 200 {
 		rCfg.Burst = 200
 	}
 	kClient, err := kubernetes.NewForConfig(rCfg)
@@ -434,6 +434,7 @@ type KubeadmSpec struct {
 	Network                     string `yaml:"network"`
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
 	ImageRepository             string `yaml:"imageRepository"`
+	ServiceNodePortRange        string `yaml:"serviceNodePortRange"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -451,21 +452,26 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if err := k.checkDependencies(); err != nil {
 		return fmt.Errorf("failed to check for dependencies: %w", err)
 	}
-	args := []string{"kubeadm", "init"}
-	if k.CRISocket != "" {
-		args = append(args, "--cri-socket", k.CRISocket)
-	}
-	if k.PodNetworkCIDR != "" {
-		args = append(args, "--pod-network-cidr", k.PodNetworkCIDR)
-	}
-	if k.TokenTTL != "" {
-		args = append(args, "--token-ttl", k.TokenTTL)
-	}
 	imageRepository := defaultKubeadmImageRepository
 	if k.ImageRepository != "" {
 		imageRepository = k.ImageRepository
 	}
-	args = append(args, "--image-repository", imageRepository)
+	portRange := "10000-32767"
+	if k.ServiceNodePortRange != "" {
+		portRange = k.ServiceNodePortRange
+	}
+	cfgPath, cleanup, err := kubeadm.CreateInitConfigFile(kubeadm.InitConfigOptions{
+		CRISocket:            k.CRISocket,
+		PodNetworkCIDR:       k.PodNetworkCIDR,
+		TokenTTL:             k.TokenTTL,
+		ImageRepository:      imageRepository,
+		ServiceNodePortRange: portRange,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create kubeadm init config file: %w", err)
+	}
+	defer cleanup()
+	args := []string{"kubeadm", "init", "--config", cfgPath}
 	log.Infof("Creating kubeadm cluster with: %v", args)
 	if out, err := run.OutLogCommand("sudo", args...); err != nil {
 		msg := []string{}
@@ -936,24 +942,27 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 	if _, err = m.mClient.IPAddressPool("metallb-system").Get(ctx, "kne-service-pool", metav1.GetOptions{}); err != nil {
 		log.Infof("Applying metallb ingress config")
 		// Get Network information from docker.
-		nr, err := m.dClient.NetworkList(ctx, network.ListOptions{})
+		nr, err := m.dClient.NetworkList(ctx, dclient.NetworkListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get docker network list: %w", err)
 		}
-		var network network.Inspect
-		for _, v := range nr {
+		var netSummary network.Summary
+		for _, v := range nr.Items {
 			name := m.dockerNetworkResourceName
 			if name == "" {
 				name = "bridge"
 			}
 			if v.Name == name {
-				network = v
+				netSummary = v
 				break
 			}
 		}
 		var n *net.IPNet
-		for _, ipRange := range network.IPAM.Config {
-			_, ipNet, err := net.ParseCIDR(ipRange.Subnet)
+		for _, ipRange := range netSummary.IPAM.Config {
+			if !ipRange.Subnet.IsValid() {
+				continue
+			}
+			_, ipNet, err := net.ParseCIDR(ipRange.Subnet.String())
 			if err != nil {
 				return fmt.Errorf("failed to parse cidr: %w", err)
 			}
