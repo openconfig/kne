@@ -114,7 +114,10 @@ var (
 	}
 )
 
-var podIsUpRegex = regexp.MustCompile(`Router up`)
+var (
+	podIsUpRegex     = regexp.MustCompile(`Router up`)
+	podIsFailedRegex = regexp.MustCompile(`Router failed to come up|FATAL sim:|LoginTimeoutError`)
+)
 
 func New(nodeImpl *node.Impl) (node.Node, error) {
 	if nodeImpl == nil {
@@ -180,6 +183,19 @@ func (n *Node) Create(ctx context.Context) error {
 		tty = true
 		stdin = true
 	}
+	var readinessProbe *corev1.Probe
+	if pb.Model != ModelXRD {
+		readinessProbe = &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				Exec: &corev1.ExecAction{
+					Command: []string{"sh", "-c", "grep -q 'Router up' /nobackup/vxr.out/logs/localhost/sim-check.log 2>/dev/null || grep -q 'Router up' /var/log/vxr.log 2>/dev/null"},
+				},
+			},
+			InitialDelaySeconds: 30,
+			PeriodSeconds:       10,
+			FailureThreshold:    30,
+		}
+	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: n.Name(),
@@ -200,6 +216,7 @@ func (n *Node) Create(ctx context.Context) error {
 				Resources:       node.ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
 				SecurityContext: secContext,
+				ReadinessProbe:  readinessProbe,
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      fmt.Sprintf("%s-run-mount", pb.Name),
 					ReadOnly:  false,
@@ -630,6 +647,11 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 		pb := n.Proto
 		if pb.GetModel() != ModelXRD {
 			req := n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &corev1.PodLogOptions{})
+			if isNode8000eFailed(ctx, req) {
+				log.Warningf("Cisco %s node %s failed to boot", n.Proto.Model, n.Name())
+				return node.StatusFailed, fmt.Errorf("cisco %s node %s failed to boot", n.Proto.Model, n.Name())
+			}
+			req = n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &corev1.PodLogOptions{})
 			if !isNode8000eUp(ctx, req) {
 				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
 				return node.StatusPending, nil
@@ -660,6 +682,20 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 		return false
 	}
 	return podIsUpRegex.Match(buf.Bytes())
+}
+
+func isNode8000eFailed(ctx context.Context, req *rest.Request) bool {
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return false
+	}
+	defer podLogs.Close()
+	buf := new(bytes.Buffer)
+	len, err := io.Copy(buf, podLogs)
+	if err != nil || len == 0 {
+		return false
+	}
+	return podIsFailedRegex.Match(buf.Bytes())
 }
 
 // No op function to override default network on open function.
