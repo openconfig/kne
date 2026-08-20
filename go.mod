@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	cloud.google.com/go/cloudbuild v1.32.0
-	cloud.google.com/go/pubsub/v2 v2.6.1
+	cloud.google.com/go/pubsub/v2 v2.6.2
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/drivenets/cdnos-controller v1.7.9
@@ -17,7 +17,7 @@ require (
 	github.com/open-traffic-generator/keng-operator v0.4.2
 	github.com/open-traffic-generator/snappi/gosnappi v1.61.0
 	github.com/openconfig/gnmi v0.14.1
-	github.com/openconfig/kne/third_party/meshnet v0.4.1
+	github.com/openconfig/kne/third_party/meshnet v0.5.0
 	github.com/openconfig/lemming/operator v0.2.7
 	github.com/openconfig/ondatra v0.14.6
 	github.com/pborman/uuid v1.2.1
@@ -34,7 +34,7 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.22.0
 	google.golang.org/api v0.293.0
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.1
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.3
