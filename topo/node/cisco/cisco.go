@@ -188,7 +188,10 @@ func (n *Node) Create(ctx context.Context) error {
 		readinessProbe = &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
 				Exec: &corev1.ExecAction{
-					Command: []string{"sh", "-c", "grep -q 'Router up' /nobackup/vxr.out/logs/localhost/sim-check.log 2>/dev/null || grep -q 'Router up' /var/log/vxr.log 2>/dev/null"},
+					Command: []string{
+						"sh", "-c",
+						"grep -q 'Router up' /nobackup/root/pyvxr/vxr.out/logs/console.R0.log 2>/dev/null",
+					},
 				},
 			},
 			InitialDelaySeconds: 30,
