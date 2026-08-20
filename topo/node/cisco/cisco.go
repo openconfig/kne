@@ -675,7 +675,11 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 	if err != nil {
 		return false
 	}
-	defer podLogs.Close()
+	defer func() {
+		if err := podLogs.Close(); err != nil {
+			log.V(2).Infof("Failed to close pod logs stream: %v", err)
+		}
+	}()
 	buf := new(bytes.Buffer)
 	len, err := io.Copy(buf, podLogs)
 	if err != nil || len == 0 {
@@ -689,7 +693,11 @@ func isNode8000eFailed(ctx context.Context, req *rest.Request) bool {
 	if err != nil {
 		return false
 	}
-	defer podLogs.Close()
+	defer func() {
+		if err := podLogs.Close(); err != nil {
+			log.V(2).Infof("Failed to close pod logs stream: %v", err)
+		}
+	}()
 	buf := new(bytes.Buffer)
 	len, err := io.Copy(buf, podLogs)
 	if err != nil || len == 0 {
