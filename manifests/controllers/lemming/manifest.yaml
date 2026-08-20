@@ -534,7 +534,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: us-west1-docker.pkg.dev/openconfig-lemming/release/operator:v0.2.4
+        image: us-west1-docker.pkg.dev/openconfig-lemming/release/operator:v0.2.8
         livenessProbe:
           httpGet:
             path: /healthz
@@ -550,11 +550,11 @@ spec:
           periodSeconds: 10
         resources:
           limits:
-            cpu: 500m
-            memory: 128Mi
+            cpu: "2"
+            memory: 1Gi
           requests:
-            cpu: 10m
-            memory: 64Mi
+            cpu: 100m
+            memory: 256Mi
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
