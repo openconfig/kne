@@ -16,11 +16,16 @@ import (
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 )
 
-var grpcOvrlyLogger *log.Entry = nil
+var (
+	grpcOvrlyLogger *log.Entry = log.WithFields(log.Fields{"daemon": "meshnetd", "overlay": "gRPC"})
+	initLoggerOnce  sync.Once
+)
 
 // InitLogger initializes logrus logging for the gRPC overlay daemon.
 func InitLogger() {
-	grpcOvrlyLogger = log.WithFields(log.Fields{"daemon": "meshnetd", "overlay": "gRPC"})
+	initLoggerOnce.Do(func() {
+		grpcOvrlyLogger = log.WithFields(log.Fields{"daemon": "meshnetd", "overlay": "gRPC"})
+	})
 }
 
 var packetPool = sync.Pool{
@@ -86,16 +91,25 @@ type GRPCWire struct {
 	LocalPodIfaceName string // Name the interface which is inside the local pod who will consume packets over this wire. This is for debugging
 	LocalPodNetNS     string
 
-	/*Peer pod information*/
-	WireIfaceIDOnPeerNode int64  // Peer end of the wire interface ID which is present in peer node
-	PeerNodeIP            string // Peer node IP
-
-	IsReady      bool               // Is this wire ip.
 	Originator   grpcWireOriginator // create by local host or create on trigger from remote host. This is for debugging.
 	OriginatorIP string             // IP address of the host created it. This is for debugging.
 
-	StopC chan struct{} // the channel to send stop signal to the receive thread.
-	mu    sync.Mutex
+	stopOnce sync.Once
+
+	mu                    sync.Mutex
+	IsReady               bool          // Is this wire ready.
+	WireIfaceIDOnPeerNode int64         // Peer end of the wire interface ID which is present in peer node
+	PeerNodeIP            string        // Peer node IP
+	StopC                 chan struct{} // the channel to send stop signal to the receive thread.
+}
+
+// CloseStopC safely closes the wire's StopC channel at most once.
+func (wire *GRPCWire) CloseStopC() {
+	wire.stopOnce.Do(func() {
+		if wire.StopC != nil {
+			close(wire.StopC)
+		}
+	})
 }
 
 type linkKey struct {
@@ -132,7 +146,7 @@ func CreateGWire(locIfIndex int, locIfNm string, stopC chan struct{}, wireDef *m
 }
 
 // update the wire with the given input and mark the wire ready
-func (wire *GRPCWire) UpdateWire(peerIntfId int64, stopC chan struct{}) {
+func (wire *GRPCWire) UpdateWire(peerIntfId int64, peerNodeIP string, stopC chan struct{}) {
 	wire.mu.Lock()
 	defer wire.mu.Unlock()
 	if wire.StopC == nil {
@@ -142,10 +156,18 @@ func (wire *GRPCWire) UpdateWire(peerIntfId int64, stopC chan struct{}) {
 			wire.StopC = make(chan struct{})
 		}
 	}
-	if !wire.IsReady {
-		wire.WireIfaceIDOnPeerNode = peerIntfId
+	wire.WireIfaceIDOnPeerNode = peerIntfId
+	if peerNodeIP != "" && wire.PeerNodeIP != peerNodeIP {
+		if wire.PeerNodeIP != "" {
+			streamMgr.ReleaseStream(wire.TopoNamespace, wire.PeerNodeIP)
+		}
+		wire.PeerNodeIP = peerNodeIP
+		_ = streamMgr.GetOrCreateStream(wire.TopoNamespace, peerNodeIP)
+	} else if peerNodeIP != "" {
+		wire.PeerNodeIP = peerNodeIP
 	}
 	wire.IsReady = true
+	go wire.K8sStoreGWire()
 }
 
 // GetWireByUID returns wire matching the provided namespace and linkUID.
@@ -155,7 +177,7 @@ func GetWireByUID(namespace string, linkUID int) (*GRPCWire, bool) {
 
 // For the given uid if the wire exists, then update the wire properties.
 // Returns true if a wire exists, also the wire structure that got modified
-func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan struct{}) (*GRPCWire, bool) {
+func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, peerNodeIP string, stopC chan struct{}) (*GRPCWire, bool) {
 	wires.mu.Lock()
 	wire, ok := wires.wires[linkKey{
 		namespace: namespace,
@@ -163,35 +185,36 @@ func UpdateWireByUID(namespace string, linkUID int, peerIntfId int64, stopC chan
 	}]
 	wires.mu.Unlock()
 	if ok {
-		wire.UpdateWire(peerIntfId, stopC)
+		wire.UpdateWire(peerIntfId, peerNodeIP, stopC)
 	}
 	return wire, ok
 }
 
-// WireDownByUID - stops packet collection from the connected pod
+// WireDownByUID stops packet collection and cleans up the wire for the given link UID.
 func WireDownByUID(namespace string, linkUID int) error {
 	wires.mu.Lock()
 	wire, ok := wires.wires[linkKey{
 		namespace: namespace,
 		linkUID:   linkUID,
 	}]
+	if !ok {
+		for _, w := range wires.wires {
+			if w.UID == linkUID && (namespace == "" || w.TopoNamespace == namespace || w.LocalPodNetNS == namespace) {
+				wire = w
+				ok = true
+				break
+			}
+		}
+	}
 	wires.mu.Unlock()
 
 	if ok {
-		wire.mu.Lock()
-		defer wire.mu.Unlock()
-		grpcOvrlyLogger.Infof("WireDownByUID: Making wire down from db, %s@%s-%s@%d, peer fid %d, link uid %d",
+		grpcOvrlyLogger.Infof("WireDownByUID: Removing wire from db, %s@%s-%s@%d, peer fid %d, link uid %d",
 			wire.LocalPodName, wire.LocalPodIfaceName, wire.LocalNodeIfaceName, wire.LocalNodeIfaceID, wire.WireIfaceIDOnPeerNode, linkUID)
-		if wire.IsReady {
-			if wire.StopC != nil {
-				close(wire.StopC)
-			}
-			wire.IsReady = false
-		}
-	} else {
-		grpcOvrlyLogger.Infof("WireDownByUID: Did not find entry to make down from db, uid %d, ns %s",
-			linkUID, namespace)
+		return RemoveWireAcrosAll(wire, true)
 	}
+	grpcOvrlyLogger.Infof("WireDownByUID: Did not find entry to make down from db, uid %d, ns %s",
+		linkUID, namespace)
 	return nil
 }
 
@@ -249,12 +272,8 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 
 	// stop the packet receive thread for this pod
 	wire.mu.Lock()
-	if wire.IsReady {
-		if wire.StopC != nil {
-			close(wire.StopC)
-		}
-		wire.IsReady = false
-	}
+	wire.CloseStopC()
+	wire.IsReady = false
 	wire.mu.Unlock()
 
 	// Close and remove the TAP file handle
@@ -302,10 +321,25 @@ func RecvFrmLocalPodThread(wire *GRPCWire, locIfNm string) error {
 		return err
 	}
 
-	nodeStream := streamMgr.GetOrCreateStream(wire.TopoNamespace, wire.PeerNodeIP)
-	defer streamMgr.ReleaseStream(wire.TopoNamespace, wire.PeerNodeIP)
+	wire.mu.Lock()
+	peerIP := wire.PeerNodeIP
+	topoNs := wire.TopoNamespace
+	wire.mu.Unlock()
 
-	return forwardPackets(tapFile, nodeStream, wire, locIfNm)
+	if peerIP != "" {
+		_ = streamMgr.GetOrCreateStream(topoNs, peerIP)
+	}
+	defer func() {
+		wire.mu.Lock()
+		currIP := wire.PeerNodeIP
+		currNs := wire.TopoNamespace
+		wire.mu.Unlock()
+		if currIP != "" {
+			streamMgr.ReleaseStream(currNs, currIP)
+		}
+	}()
+
+	return forwardPackets(tapFile, nil, wire, locIfNm)
 }
 
 func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIfNm string) error {
@@ -336,6 +370,9 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 		case <-wire.StopC:
 			grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: closing connection with remote peer-iface@peer-node-ip: %d@%s/%d from %s@%s",
 				wire.WireIfaceIDOnPeerNode, wire.PeerNodeIP, wire.LocalNodeIfaceID, wire.LocalPodName, wire.LocalPodIfaceName)
+			if closer, ok := reader.(io.Closer); ok {
+				_ = closer.Close()
+			}
 			return io.EOF
 		case res := <-readChan:
 			bufPtr := res.buf
@@ -364,9 +401,11 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 			wire.mu.Lock()
 			isReady := wire.IsReady
 			peerIntfID := wire.WireIfaceIDOnPeerNode
+			peerNodeIP := wire.PeerNodeIP
+			topoNs := wire.TopoNamespace
 			wire.mu.Unlock()
 
-			if !isReady || peerIntfID <= 0 {
+			if !isReady || peerIntfID <= 0 || peerNodeIP == "" {
 				// Remote peer handshake is still in progress; skip sending to unassigned wire ID 0
 				packetPool.Put(bufPtr)
 				continue
@@ -382,7 +421,13 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", n, pktType)
 			}
 
-			if !sender.Send(payload) {
+			sent := false
+			if sender != nil {
+				sent = sender.Send(payload)
+			} else {
+				sent = streamMgr.Send(topoNs, peerNodeIP, payload)
+			}
+			if !sent {
 				grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: Could not queue packet over stream %s@%s (queue full)", wire.LocalPodName, wire.LocalNodeIfaceName)
 			}
 			packetPool.Put(bufPtr)

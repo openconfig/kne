@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/containernetworking/cni/pkg/skel"
@@ -211,31 +212,46 @@ func cmdAdd(args *skel.CmdArgs) error {
 		waitCtx, cancel := context.WithDeadline(ctx, startTime.Add(30*time.Second))
 		defer cancel()
 
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
+		pollInterval := 100 * time.Millisecond
+		maxInterval := 1 * time.Second
+		peerNodeCache := make(map[string]string)
 
 		for {
 			allAreReady := true
-			for _, link := range localPod.Links {
-				// Check if interface exists in container netns
-				_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
-					if _, err := netlink.LinkByName(link.LocalIntf); err != nil {
-						allAreReady = false
+
+			// Check all interfaces in container netns in a single netns switch
+			presentIntfs := make(map[string]bool)
+			_ = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
+				if list, err := netlink.LinkList(); err == nil {
+					for _, l := range list {
+						presentIntfs[l.Attrs().Name] = true
 					}
-					return nil
-				})
-				if !allAreReady {
+				}
+				return nil
+			})
+
+			for _, link := range localPod.Links {
+				if !presentIntfs[link.LocalIntf] {
+					allAreReady = false
 					break
 				}
 
 				// For inter-node gRPC links, check if the gRPC wire is fully established on the daemon
 				if interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
-					peerPod, err := meshnetClient.Get(ctx, &mpb.PodQuery{
-						Name:   link.PeerPod,
-						KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
-					})
+					peerSrcIP, cached := peerNodeCache[link.PeerPod]
+					if !cached {
+						peerPod, err := meshnetClient.Get(waitCtx, &mpb.PodQuery{
+							Name:   link.PeerPod,
+							KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
+						})
+						if err == nil && peerPod != nil && peerPod.SrcIp != "" {
+							peerSrcIP = peerPod.SrcIp
+							peerNodeCache[link.PeerPod] = peerSrcIP
+						}
+					}
+
 					// Only check gRPC wire readiness if peer is on a different node
-					if err == nil && peerPod != nil && peerPod.SrcIp != "" && peerPod.SrcIp != localPod.SrcIp {
+					if peerSrcIP != "" && peerSrcIP != localPod.SrcIp {
 						wireDef := &mpb.WireDef{
 							LocalPodNetNs: args.Netns,
 							LinkUid:       link.Uid,
@@ -258,7 +274,11 @@ func cmdAdd(args *skel.CmdArgs) error {
 			case <-waitCtx.Done():
 				log.Warnf("Add[%s]: Readiness wait timed out (%d links); proceeding asynchronously", string(cniArgs.K8S_POD_NAME), len(localPod.Links))
 				goto WaitDone
-			case <-ticker.C:
+			case <-time.After(pollInterval):
+				pollInterval = time.Duration(float64(pollInterval) * 1.5)
+				if pollInterval > maxInterval {
+					pollInterval = maxInterval
+				}
 			}
 		}
 	}
@@ -347,7 +367,7 @@ func cmdDel(args *skel.CmdArgs) error {
 			KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
 		})
 
-		if peerPod.SrcIp != localPodSrcIp {
+		if peerPod != nil && peerPod.SrcIp != localPodSrcIp {
 			// they are on different hosts
 			if interNodeLinkType == wireutil.INTER_NODE_LINK_GRPC {
 				// for this link bring the grpc wire down
@@ -374,19 +394,6 @@ func cmdDel(args *skel.CmdArgs) error {
 			// instead of failing, just log the error and move on
 			log.Errorf("Del: Error removing Veth link %s (%s) on pod %s: %v", link.LocalIntf, linkType, localPod.Name, err)
 		}
-
-		// Setting reversed skipped flag so that this pod will try to connect veth pair on restart
-		log.Infof("Del: Setting skip-reverse flag on peer %s@%s(link id %d) for local interface %s", link.PeerPod, link.PeerIntf, link.Uid, link.LocalIntf)
-		ok, err := meshnetClient.SkipReverse(ctx, &mpb.SkipQuery{
-			Pod:    localPod.Name,
-			Peer:   link.PeerPod,
-			LinkId: link.Uid,
-			KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
-		})
-		if err != nil || !ok.Response {
-			log.Errorf("Del: Failed to set skip reversed flag on our peer %s", link.PeerPod)
-			return err
-		}
 	}
 	return nil
 }
@@ -399,12 +406,12 @@ func SetInterNodeLinkType() {
 	// via means of file on host (which is read below) containing the value GRPC or VXLAN
 	b, err := os.ReadFile("/etc/cni/net.d/meshnet-inter-node-link-type")
 	if err != nil {
-		log.Warningf("Could not read iner node link type: %v", err)
+		log.Warningf("Could not read inner node link type: %v", err)
 		// use the default value
 		return
 	}
 
-	interNodeLinkType = string(b)
+	interNodeLinkType = strings.TrimSpace(string(b))
 }
 
 // -------------------------------------------------------------------------------------------------

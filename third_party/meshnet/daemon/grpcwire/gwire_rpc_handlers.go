@@ -2,6 +2,7 @@ package grpcwire
 
 import (
 	"context"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
@@ -9,7 +10,19 @@ import (
 	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 )
 
+var createWireMu sync.Mutex
+
 func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolResponse, error) {
+	createWireMu.Lock()
+	defer createWireMu.Unlock()
+
+	if wire, ok := GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid)); ok && wire != nil {
+		wire.mu.Lock()
+		wire.Originator = HOST_CREATED_WIRE
+		wire.mu.Unlock()
+		return &mpb.BoolResponse{Response: true}, nil
+	}
+
 	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -45,14 +58,16 @@ func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolRe
 // a pod from node A to node B dynamically.
 // Returns the wire, whether it was freshly created (true) or updated (false), and any error.
 func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct{}) (*GRPCWire, bool, error) {
+	createWireMu.Lock()
+	defer createWireMu.Unlock()
 
 	// If this wire is already created, then only update the already created wire properties like stopC.
 	// This can happen due to a race between the local and remote peer.
 	// This can also happen when a pod in one end of the wire is deleted and created again.
 	// In all cases link creation happen only once but it can get updated multiple times.
-	grpcWire, ok := UpdateWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid), wireDef.WireIfIdOnPeerNode, stopC)
+	grpcWire, ok := UpdateWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid), wireDef.WireIfIdOnPeerNode, wireDef.PeerNodeIp, stopC)
 	if ok {
-		grpcOvrlyLogger.Infof("[CREATE-UPDATE-WIRE] At remote end this grpc-wire is already created by %s. Local interface id : %d peer interface id : %d", grpcWire.Originator, grpcWire.LocalNodeIfaceID, grpcWire.WireIfaceIDOnPeerNode)
+		grpcOvrlyLogger.Infof("[CREATE-UPDATE-WIRE] At remote end this grpc-wire is already created by %s. Local interface id : %d peer interface id : %d peer node IP : %s", grpcWire.Originator, grpcWire.LocalNodeIfaceID, grpcWire.WireIfaceIDOnPeerNode, grpcWire.PeerNodeIP)
 		return grpcWire, false, nil
 	}
 
@@ -77,13 +92,11 @@ func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct
 
 // When the remote peer tells the local node to remove the local end of the grpc-wire info
 func GRPCWireDownRemoteTriggered(wireDef *mpb.WireDef) error {
-
-	err := WireDownByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
-	if err != nil {
-		grpcOvrlyLogger.Infof("[WIRE-DOWN] Remote end failed in making down wire end in pod %s@%s,. Link uid : %d",
-			wireDef.LocalPodName, wireDef.IntfNameInPod, wireDef.LinkUid)
-		return nil
+	if _, ok := GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid)); ok {
+		return WireDownByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
 	}
-
-	return nil
+	if wireDef.TopoNs != "" {
+		return WireDownByUID(wireDef.TopoNs, int(wireDef.LinkUid))
+	}
+	return WireDownByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
 }
