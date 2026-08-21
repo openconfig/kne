@@ -22,6 +22,8 @@ func main() {
 	}
 	defer cni.Cleanup()
 
+	wireutil.TuneSystem()
+
 	isDebug := flag.Bool("d", false, "enable degugging")
 	grpcPort, err := strconv.Atoi(os.Getenv("GRPC_PORT"))
 	if err != nil || grpcPort == 0 {
