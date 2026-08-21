@@ -63,6 +63,9 @@ func (m *Meshnet) clearPodAliveStatus(ctx context.Context, topo *unstructured.Un
 
 // toUnstructured converts any Kubernetes object into *unstructured.Unstructured.
 func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
 	if u, ok := obj.(*unstructured.Unstructured); ok {
 		return u, nil
 	}
@@ -173,20 +176,27 @@ func (m *Meshnet) cleanupRemovedPodLinks(ctx context.Context, topo *unstructured
 				wire.UID, wire.LocalPodName, wire.LocalPodIfaceName)
 
 			if wire.PeerNodeIP != "" && wire.PeerNodeIP != m.nodeIP && wire.PeerNodeIP != "localhost" && wire.PeerNodeIP != "127.0.0.1" {
-				url := fmt.Sprintf("%s:%d", wire.PeerNodeIP, wireutil.GRPCDefaultPort)
-				url = strings.TrimSpace(url)
-				if remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
-					remoteClient := mpb.NewRemoteClient(remoteConn)
-					rpcCtx, rpcCancel := context.WithTimeout(ctx, 5*time.Second)
-					_, _ = remoteClient.GRPCWireDownRemote(rpcCtx, &mpb.WireDef{
-						TopoNs:        wire.TopoNamespace,
-						LocalPodName:  wire.LocalPodName,
-						LocalPodNetNs: wire.LocalPodNetNS,
-						LinkUid:       int64(wire.UID),
-					})
-					rpcCancel()
-					remoteConn.Close()
-				}
+				peerIP := wire.PeerNodeIP
+				topoNs := wire.TopoNamespace
+				podName := wire.LocalPodName
+				podNetNs := wire.LocalPodNetNS
+				linkUID := int64(wire.UID)
+				go func() {
+					url := fmt.Sprintf("%s:%d", peerIP, wireutil.GRPCDefaultPort)
+					url = strings.TrimSpace(url)
+					if remoteConn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
+						defer remoteConn.Close()
+						remoteClient := mpb.NewRemoteClient(remoteConn)
+						rpcCtx, rpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						defer rpcCancel()
+						_, _ = remoteClient.GRPCWireDownRemote(rpcCtx, &mpb.WireDef{
+							TopoNs:        topoNs,
+							LocalPodName:  podName,
+							LocalPodNetNs: podNetNs,
+							LinkUid:       linkUID,
+						})
+					}
+				}()
 			}
 
 			_ = grpcwire.RemoveWireAcrosAll(wire, true)
@@ -883,6 +893,9 @@ func (m *Meshnet) RunControllerLoop(ctx context.Context) {
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
+				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+					obj = tombstone.Obj
+				}
 				topo, err := toUnstructured(obj)
 				if err != nil || topo == nil {
 					return

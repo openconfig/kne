@@ -91,17 +91,16 @@ type GRPCWire struct {
 	LocalPodIfaceName string // Name the interface which is inside the local pod who will consume packets over this wire. This is for debugging
 	LocalPodNetNS     string
 
-	/*Peer pod information*/
-	WireIfaceIDOnPeerNode int64  // Peer end of the wire interface ID which is present in peer node
-	PeerNodeIP            string // Peer node IP
-
-	IsReady      bool               // Is this wire ip.
 	Originator   grpcWireOriginator // create by local host or create on trigger from remote host. This is for debugging.
 	OriginatorIP string             // IP address of the host created it. This is for debugging.
 
-	StopC    chan struct{} // the channel to send stop signal to the receive thread.
 	stopOnce sync.Once
-	mu       sync.Mutex
+
+	mu                    sync.Mutex
+	IsReady               bool          // Is this wire ready.
+	WireIfaceIDOnPeerNode int64         // Peer end of the wire interface ID which is present in peer node
+	PeerNodeIP            string        // Peer node IP
+	StopC                 chan struct{} // the channel to send stop signal to the receive thread.
 }
 
 // CloseStopC safely closes the wire's StopC channel at most once.
