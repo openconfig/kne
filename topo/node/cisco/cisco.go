@@ -35,6 +35,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
@@ -115,7 +116,7 @@ var (
 )
 
 var (
-	podIsUpRegex     = regexp.MustCompile(`Router up`)
+	podIsUpRegex     = regexp.MustCompile(`Router up|Vxr up`)
 	podIsFailedRegex = regexp.MustCompile(`Router failed to come up|FATAL sim:|LoginTimeoutError`)
 )
 
@@ -187,16 +188,13 @@ func (n *Node) Create(ctx context.Context) error {
 	if pb.Model != ModelXRD {
 		readinessProbe = &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"sh", "-c",
-						"grep -q 'Router up' /nobackup/root/pyvxr/vxr.out/logs/console.R0.log 2>/dev/null",
-					},
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt(57400),
 				},
 			},
-			InitialDelaySeconds: 30,
+			InitialDelaySeconds: 10,
 			PeriodSeconds:       10,
-			FailureThreshold:    30,
+			FailureThreshold:    60,
 		}
 	}
 	pod := &corev1.Pod{
