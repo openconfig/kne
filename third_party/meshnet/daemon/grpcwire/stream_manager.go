@@ -24,7 +24,15 @@ type NodeStream struct {
 	key      nodeStreamKey
 	pktChan  chan *mpb.Packet
 	stopChan chan struct{}
+	stopOnce sync.Once
 	refCount int
+}
+
+// Stop safely closes the stopChan at most once.
+func (s *NodeStream) Stop() {
+	s.stopOnce.Do(func() {
+		close(s.stopChan)
+	})
 }
 
 type nodeStreamManager struct {
@@ -89,9 +97,33 @@ func (m *nodeStreamManager) ReleaseStream(topoNs string, peerIP string) {
 
 	st.refCount--
 	if st.refCount <= 0 {
-		close(st.stopChan)
+		st.Stop()
 		delete(m.streams, key)
 	}
+}
+
+// Send enqueues a packet payload to be transmitted over the multiplexed gRPC stream for the given topo and peer IP.
+func (m *nodeStreamManager) Send(topoNs string, peerIP string, pkt *mpb.Packet) bool {
+	if peerIP == "" || pkt == nil {
+		return false
+	}
+	if topoNs == "" {
+		topoNs = "default"
+	}
+	key := nodeStreamKey{
+		topoNs: topoNs,
+		peerIP: peerIP,
+	}
+
+	m.mu.Lock()
+	st, ok := m.streams[key]
+	m.mu.Unlock()
+
+	if !ok {
+		return false
+	}
+
+	return st.Send(pkt)
 }
 
 // Send enqueues a packet payload to be transmitted over the multiplexed gRPC stream.
