@@ -29,6 +29,20 @@ go build -o kne
 cli="$HOME/kne/kne_cli/kne"
 popd
 
+# Sync host kubernetes packages with the apt repo defined in external.pkr.hcl if needed
+target_repo=$(grep -o 'https://pkgs.k8s.io/core:/stable:/v[0-9.]*/deb/' "$HOME/kne/cloudbuild/external.pkr.hcl" | head -n 1)
+if [ -n "$target_repo" ]; then
+	target_ver=$(echo "$target_repo" | grep -o 'v[0-9.]*')
+	current_kubeadm=$(kubeadm version -o short 2>/dev/null || true)
+	if [[ "$current_kubeadm" != ${target_ver}* ]]; then
+		echo "Syncing host kubeadm/kubelet from $current_kubeadm to $target_ver..."
+		curl -fsSL "https://pkgs.k8s.io/core:/stable:/${target_ver}/deb/Release.key" | sudo gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+		echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] ${target_repo} /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+		sudo apt-get update -y
+		sudo apt-get install -y --allow-change-held-packages --allow-downgrades kubeadm kubelet
+	fi
+fi
+
 # Deploy a kind cluster
 pushd "$HOME"
 $cli deploy kne/deploy/kne/kind-bridge.yaml --report_usage=false
@@ -50,8 +64,6 @@ cluster:
   spec:
     name: kne
     recycle: True
-    version: v0.17.0
-    image: 'kindest/node:v1.26.0'
     googleArtifactRegistries:
       - us-west1-docker.pkg.dev
     containerImages:

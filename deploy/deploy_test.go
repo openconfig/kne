@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/network"
-	dclient "github.com/moby/moby/client"
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
+	"github.com/moby/moby/api/types/network"
+	dclient "github.com/moby/moby/client"
 	"github.com/openconfig/gnmi/errdiff"
 	mfake "github.com/openconfig/kne/api/metallb/clientset/v1beta1/fake"
 	"github.com/openconfig/kne/deploy/mocks"
@@ -24,7 +24,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	kversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/watch"
+	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
@@ -130,6 +132,16 @@ func TestKubeadmSpec(t *testing.T) {
 			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
 			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
 		},
+	}, {
+		desc: "custom kubernetes version",
+		k: &KubeadmSpec{
+			KubernetesVersion: "v1.36.1",
+		},
+		resp: []fexec.Response{
+			{Cmd: "sudo", Args: []string{"kubeadm", "init", "--config", ".*"}},
+			{Cmd: "sudo", Args: []string{"cat", "/etc/kubernetes/admin.conf"}},
+			{Cmd: "docker", Args: []string{"network", "create", "kne-kubeadm-.*"}},
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -224,7 +236,7 @@ func TestKindSpec(t *testing.T) {
 			Name: "test",
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 	}, {
 		desc: "create cluster with recycle",
@@ -234,7 +246,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kubectl", Args: []string{"cluster-info", "--context", "kind-test"}, Err: "already exists"},
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 	}, {
 		desc: "exists cluster with recycle",
@@ -258,7 +270,7 @@ func TestKindSpec(t *testing.T) {
 			Name: "test",
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}, Err: "failed to create cluster"},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}, Err: "failed to create cluster"},
 		},
 		wantErr: "failed to create cluster",
 	}, {
@@ -268,7 +280,7 @@ func TestKindSpec(t *testing.T) {
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev", "us-central1-docker.pkg.dev"},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 	}, {
 		desc: "create cluster with GAR - failure",
@@ -277,7 +289,7 @@ func TestKindSpec(t *testing.T) {
 			GoogleArtifactRegistries: []string{"us-west1-docker.pkg.dev", "us-central1-docker.pkg.dev"},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 		setupGARErr: true,
 		wantErr:     "failed to setup GAR access",
@@ -369,7 +381,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
 			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
 			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
@@ -385,7 +397,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull"},
 			{Cmd: "docker", Args: []string{"pull", "docker"}},
 			{Cmd: "docker", Args: []string{"tag", "docker", "local"}},
@@ -400,7 +412,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}, Err: "failed to pull", Stdout: "not found"},
 		},
 		wantErr: "not found",
@@ -413,7 +425,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}},
 			{Cmd: "docker", Args: []string{"tag", "docker", "local"}, Err: "failed to tag"},
 		},
@@ -427,7 +439,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}},
 			{Cmd: "docker", Args: []string{"tag", "docker", "local"}},
 			{Cmd: "kind", Args: []string{"load", "docker-image", "local", "--name", "test"}, Err: "failed to load"},
@@ -442,7 +454,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 		wantErr: "source container must not be empty",
 	}, {
@@ -454,7 +466,7 @@ func TestKindSpec(t *testing.T) {
 			},
 		},
 		resp: []fexec.Response{
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 			{Cmd: "docker", Args: []string{"pull", "docker"}},
 			{Cmd: "kind", Args: []string{"load", "docker-image", "docker", "--name", "test"}},
 		},
@@ -541,7 +553,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.15.0 go1.18.2 linux/amd64"},
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 	}, {
 		desc: "kind prerelease version pass",
@@ -551,7 +563,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.15.0-prelease go1.18.2 linux/amd64"},
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 	}, {
 		desc: "kind version pass - major",
@@ -561,7 +573,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v1.15.0 go1.18.2 linux/amd64"},
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 	}, {
 		desc: "kind version pass - patch",
@@ -571,7 +583,7 @@ func TestKindSpec(t *testing.T) {
 		},
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.15.1 go1.18.2 linux/amd64"},
-			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
 	}}
 	for _, tt := range tests {
@@ -2318,6 +2330,105 @@ func TestCheckDependencies(t *testing.T) {
 			d := &Deployment{}
 			if err := d.checkDependencies(); (err != nil) != tt.wantErr {
 				t.Errorf("Deployment.checkDependencies() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateClusterVersion(t *testing.T) {
+	tests := []struct {
+		desc          string
+		cluster       Cluster
+		serverVersion string
+		wantErr       string
+	}{{
+		desc:          "kubeadm default matching version",
+		cluster:       &KubeadmSpec{},
+		serverVersion: defaultKubernetesVersion,
+	}, {
+		desc: "kubeadm custom matching version",
+		cluster: &KubeadmSpec{
+			KubernetesVersion: "v1.35.8",
+		},
+		serverVersion: "v1.35.8",
+	}, {
+		desc: "kubeadm version mismatch",
+		cluster: &KubeadmSpec{
+			KubernetesVersion: "v1.36.1",
+		},
+		serverVersion: "v1.26.0",
+		wantErr:       "cluster server version mismatch: got v1.26.0, want v1.36.1",
+	}, {
+		desc:          "kind default matching version",
+		cluster:       &KindSpec{},
+		serverVersion: extractVersionFromImage(defaultKindNodeImage),
+	}, {
+		desc: "kind image matching version",
+		cluster: &KindSpec{
+			Image: "kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5",
+		},
+		serverVersion: "v1.36.1",
+	}, {
+		desc: "kind image version mismatch",
+		cluster: &KindSpec{
+			Image: "kindest/node:v1.36.1",
+		},
+		serverVersion: "v1.26.0",
+		wantErr:       "cluster server version mismatch: got v1.26.0, want v1.36.1",
+	}, {
+		desc:          "external cluster skipped",
+		cluster:       &ExternalSpec{},
+		serverVersion: "v1.26.0",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			kClient := fake.NewSimpleClientset()
+			if fakeDisc, ok := kClient.Discovery().(*fakediscovery.FakeDiscovery); ok {
+				fakeDisc.FakedServerVersion = &kversion.Info{
+					GitVersion: tt.serverVersion,
+				}
+			}
+			d := &Deployment{
+				Cluster: tt.cluster,
+			}
+			err := d.validateClusterVersion(kClient)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("unexpected error: %s", s)
+			}
+		})
+	}
+}
+
+func TestExtractVersionFromImage(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{{
+		input: "kindest/node:v1.36.1",
+		want:  "v1.36.1",
+	}, {
+		input: "kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5",
+		want:  "v1.36.1",
+	}, {
+		input: "us-west1-docker.pkg.dev/kne-external/kne/kindest/node:v1.36.1",
+		want:  "v1.36.1",
+	}, {
+		input: "kindest/node:1.36.1",
+		want:  "v1.36.1",
+	}, {
+		input: "kindest/node:latest",
+		want:  "",
+	}, {
+		input: "",
+		want:  "",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := extractVersionFromImage(tt.input)
+			if got != tt.want {
+				t.Errorf("extractVersionFromImage(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
