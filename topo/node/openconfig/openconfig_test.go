@@ -20,18 +20,20 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/gnmi/errdiff"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/openconfig/lemming/operator/api/clientset"
-	"github.com/openconfig/lemming/operator/api/clientset/fake"
 	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -122,11 +124,12 @@ func TestCreate(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			cs := fake.NewSimpleClientset()
+			s := runtime.NewScheme()
+			cs := fakedynamic.NewSimpleDynamicClient(s)
 			cs.PrependReactor("create", "lemmings", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 				return tt.createErr != nil, nil, tt.createErr
 			})
-			clientFn = func(c *rest.Config) (clientset.Interface, error) {
+			clientFn = func(c *rest.Config) (dynamic.Interface, error) {
 				return cs, tt.clientFnErr
 			}
 
@@ -137,11 +140,15 @@ func TestCreate(t *testing.T) {
 			if tt.wantErr != "" {
 				return
 			}
-			got, err := cs.LemmingV1alpha1().Lemmings("default").Get(context.Background(), "test", metav1.GetOptions{})
+			unstruct, err := cs.Resource(lemmingGVR).Namespace("default").Get(context.Background(), "test", metav1.GetOptions{})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := cmp.Diff(tt.want, got); d != "" {
+			got := &lemmingv1.Lemming{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, got); err != nil {
+				t.Fatal(err)
+			}
+			if d := cmp.Diff(tt.want, got, cmpopts.EquateEmpty()); d != "" {
 				t.Errorf("unexpected diff (-want +got):\n%s", d)
 			}
 		})
@@ -187,15 +194,17 @@ func TestLemmingStatus(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			cs := fake.NewSimpleClientset()
+			s := runtime.NewScheme()
+			cs := fakedynamic.NewSimpleDynamicClient(s)
 			cs.PrependReactor("get", "lemmings", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-				return true, &lemmingv1.Lemming{
+				u, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&lemmingv1.Lemming{
 					Status: lemmingv1.LemmingStatus{
 						Phase: tt.inPhase,
 					},
-				}, tt.getErr
+				})
+				return true, &unstructured.Unstructured{Object: u}, tt.getErr
 			})
-			clientFn = func(c *rest.Config) (clientset.Interface, error) {
+			clientFn = func(c *rest.Config) (dynamic.Interface, error) {
 				return cs, tt.clientFnErr
 			}
 			n := &Node{&node.Impl{Proto: &tpb.Node{}}}
@@ -259,11 +268,12 @@ func TestLemmingDelete(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			cs := fake.NewSimpleClientset()
+			s := runtime.NewScheme()
+			cs := fakedynamic.NewSimpleDynamicClient(s)
 			cs.PrependReactor("delete", "lemmings", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 				return true, nil, tt.deleteErr
 			})
-			clientFn = func(c *rest.Config) (clientset.Interface, error) {
+			clientFn = func(c *rest.Config) (dynamic.Interface, error) {
 				return cs, tt.clientFnErr
 			}
 			n := &Node{&node.Impl{Proto: &tpb.Node{}}}

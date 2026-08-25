@@ -25,12 +25,15 @@ import (
 
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
-	"github.com/openconfig/lemming/operator/api/clientset"
 	lemmingv1 "github.com/openconfig/lemming/operator/api/lemming/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 )
@@ -155,8 +158,14 @@ var (
 	_ node.Resetter     = (*Node)(nil)
 )
 
-var clientFn = func(c *rest.Config) (clientset.Interface, error) {
-	return clientset.NewForConfig(c)
+var lemmingGVR = schema.GroupVersionResource{
+	Group:    "lemming.openconfig.net",
+	Version:  "v1alpha1",
+	Resource: "lemmings",
+}
+
+var clientFn = func(c *rest.Config) (dynamic.Interface, error) {
+	return dynamic.NewForConfig(c)
 }
 
 func (n *Node) Create(ctx context.Context) error {
@@ -229,7 +238,11 @@ func (n *Node) lemmingCreate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get kubernetes client: %v", err)
 	}
-	if _, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Create(ctx, dut, metav1.CreateOptions{}); err != nil {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(dut)
+	if err != nil {
+		return fmt.Errorf("failed to convert lemming to unstructured: %w", err)
+	}
+	if _, err := cs.Resource(lemmingGVR).Namespace(n.Namespace).Create(ctx, &unstructured.Unstructured{Object: u}, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create lemming: %v", err)
 	}
 	return nil
@@ -261,8 +274,12 @@ func (n *Node) lemmingStatus(ctx context.Context) (node.Status, error) {
 	if err != nil {
 		return node.StatusUnknown, err
 	}
-	got, err := cs.LemmingV1alpha1().Lemmings(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
+	unstruct, err := cs.Resource(lemmingGVR).Namespace(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
 	if err != nil {
+		return node.StatusUnknown, err
+	}
+	var got lemmingv1.Lemming
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &got); err != nil {
 		return node.StatusUnknown, err
 	}
 	switch got.Status.Phase {
@@ -294,7 +311,7 @@ func (n *Node) lemmingDelete(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return cs.LemmingV1alpha1().Lemmings(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
+	return cs.Resource(lemmingGVR).Namespace(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
 }
 
 func (n *Node) ResetCfg(ctx context.Context) error {
