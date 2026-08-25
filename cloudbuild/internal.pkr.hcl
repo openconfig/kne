@@ -97,6 +97,7 @@ build {
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga & pids=\"$pids $!\"",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga & pids=\"$pids $!\"",
       "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga & pids=\"$pids $!\"",
+      "sudo docker pull us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga & pids=\"$pids $!\"",
       "echo 'Waiting for all docker pulls to complete...'",
       "for pid in $pids; do wait \"$pid\" || exit 1; done",
       "echo 'All docker images pulled successfully.'",
