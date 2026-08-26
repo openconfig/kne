@@ -33,28 +33,30 @@ func TestNew(t *testing.T) {
 	if flag.DefValue != "50058" {
 		t.Errorf("got default listen_port = %q, want %q", flag.DefValue, "50058")
 	}
+
+	peerFlag := cmd.Flag("peer")
+	if peerFlag == nil {
+		t.Fatalf("missing --peer flag")
+	}
 }
 
-func TestRunBridgeCancel(t *testing.T) {
+func TestRunServerCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	errCh := make(chan error, 1)
 	go func() {
-		// Use port 0 or a high unused test port; here we pass port 0 so the OS assigns an ephemeral port,
-		// or pass 0 to test listener binding & cancellation.
-		errCh <- runBridge(ctx, 0)
+		errCh <- runServer(ctx, 0)
 	}()
 
-	// Allow server to spin up, then cancel context to trigger clean shutdown
 	time.Sleep(50 * time.Millisecond)
 	cancel()
 
 	select {
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("runBridge returned error on context cancellation: %v", err)
+			t.Fatalf("runServer returned error on context cancellation: %v", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatalf("runBridge did not terminate after context cancellation")
+		t.Fatalf("runServer did not terminate after context cancellation")
 	}
 }
