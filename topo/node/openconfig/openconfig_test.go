@@ -103,6 +103,10 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		want: &lemmingv1.Lemming{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: lemmingv1.GroupVersion.String(),
+				Kind:       "Lemming",
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test",
 				Namespace: "default",

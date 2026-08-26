@@ -203,6 +203,10 @@ func (n *Node) lemmingCreate(ctx context.Context) error {
 	}
 
 	dut := &lemmingv1.Lemming{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: lemmingv1.GroupVersion.String(),
+			Kind:       "Lemming",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nodeSpec.Name,
 			Namespace: n.Namespace,
