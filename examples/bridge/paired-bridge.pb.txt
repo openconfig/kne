@@ -23,10 +23,9 @@ nodes: {
 }
 nodes: {
     name: "bridge-server"
-    vendor: HOST
+    vendor: FORWARD
     config: {
         image: "us-west1-docker.pkg.dev/kne-external/kne/bridge:latest"
-        command: ["/usr/local/bin/kne", "bridge", "server", "--listen_port=50058", "--logtostderr"]
     }
     services: {
         key: 50058
@@ -38,10 +37,10 @@ nodes: {
 }
 nodes: {
     name: "bridge-client"
-    vendor: HOST
+    vendor: FORWARD
     config: {
         image: "us-west1-docker.pkg.dev/kne-external/kne/bridge:latest"
-        command: ["/usr/local/bin/kne", "bridge", "client", "--peer=service-bridge-server:50058", "--interface=eth1", "--logtostderr"]
+        args: ["client", "--peer=service-bridge-server:50058", "--interface=eth1"]
     }
 }
 nodes: {

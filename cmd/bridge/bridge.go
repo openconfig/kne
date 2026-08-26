@@ -45,6 +45,12 @@ func New() *cobra.Command {
 		Use:     "bridge",
 		Aliases: []string{"packet-bridge", "packet_bridge"},
 		Short:   "Start the KNE packet bridge daemon in server or client mode",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Default daemon logs to stderr so container logs and kubectl logs work out-of-the-box.
+			if f := cmd.Flags().Lookup("logtostderr"); f != nil && !f.Changed {
+				_ = f.Value.Set("true")
+			}
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if peerAddress != "" {
 				return runClient(cmd.Context(), bridge.ClientConfig{
