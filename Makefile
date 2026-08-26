@@ -47,7 +47,21 @@ install: build
 .PHONY: bridge-docker
 ## Build bridge docker image
 bridge-docker:
-	docker build -t $(BRIDGE_DOCKER_IMAGE):$(TAG) -f deploy/bridge/Dockerfile .
+	docker build \
+		-t $(BRIDGE_DOCKER_IMAGE):$(TAG) \
+		-t $(BRIDGE_DOCKER_IMAGE):latest \
+		-f deploy/bridge/Dockerfile .
+
+.PHONY: kind-load-bridge
+## Load bridge docker image into kind cluster
+kind-load-bridge:
+	kind load docker-image --name $(KIND_CLUSTER_NAME) $(BRIDGE_DOCKER_IMAGE):latest
+
+.PHONY: bridge-release
+## Release bridge docker image
+bridge-release:
+	docker push $(BRIDGE_DOCKER_IMAGE):$(TAG)
+	docker push $(BRIDGE_DOCKER_IMAGE):latest
 
 .PHONY: meshnet-docker
 ## Build meshnet docker image
