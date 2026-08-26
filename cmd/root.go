@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/kr/pretty"
+	"github.com/openconfig/kne/cmd/bridge"
 	"github.com/openconfig/kne/cmd/deploy"
 	"github.com/openconfig/kne/cmd/internal"
 	"github.com/openconfig/kne/cmd/topology"
@@ -66,6 +67,7 @@ environment.`,
 	root.AddCommand(deploy.NewDeploy())
 	root.AddCommand(deploy.NewTeardown())
 	root.AddCommand(internal.New())
+	root.AddCommand(bridge.New())
 	return root
 }
 
