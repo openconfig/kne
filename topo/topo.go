@@ -35,7 +35,6 @@ import (
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
-	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
 	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/grpc/codes"
@@ -44,7 +43,11 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -76,6 +79,12 @@ var (
 
 	// Stubs for testing.
 	kindClusterIsKind = kind.ClusterIsKind
+
+	meshnetGVR = schema.GroupVersionResource{
+		Group:    topologyv1.GroupName,
+		Version:  topologyv1.GroupVersion,
+		Resource: "topologies",
+	}
 )
 
 // Manager is a topology manager for a cluster instance.
@@ -85,7 +94,7 @@ type Manager struct {
 	nodes          map[string]node.Node
 	kubecfg        string
 	kClient        kubernetes.Interface
-	tClient        topologyclientv1.Interface
+	dClient        dynamic.Interface
 	rCfg           *rest.Config
 	basePath       string
 	skipDeleteWait bool
@@ -118,9 +127,9 @@ func WithKubeClient(c kubernetes.Interface) Option {
 	}
 }
 
-func WithTopoClient(c topologyclientv1.Interface) Option {
+func WithDynamicClient(c dynamic.Interface) Option {
 	return func(m *Manager) {
-		m.tClient = c
+		m.dClient = c
 	}
 }
 
@@ -199,12 +208,12 @@ func New(topo *tpb.Topology, opts ...Option) (*Manager, error) {
 		}
 		m.kClient = kClient
 	}
-	if m.tClient == nil {
-		tClient, err := topologyclientv1.NewForConfig(m.rCfg)
+	if m.dClient == nil {
+		dClient, err := dynamic.NewForConfig(m.rCfg)
 		if err != nil {
 			return nil, err
 		}
-		m.tClient = tClient
+		m.dClient = dClient
 	}
 	if err := m.load(); err != nil {
 		return nil, fmt.Errorf("failed to load topology: %w", err)
@@ -435,7 +444,7 @@ func (m *Manager) Show(ctx context.Context) (*cpb.ShowTopologyResponse, error) {
 }
 
 func (m *Manager) Watch(ctx context.Context) error {
-	watcher, err := m.tClient.Topology(m.topo.Name).Watch(ctx, metav1.ListOptions{})
+	watcher, err := m.dClient.Resource(meshnetGVR).Namespace(m.topo.Name).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -700,7 +709,20 @@ func (m *Manager) createMeshnetTopologies(ctx context.Context) error {
 		go func(topo *topologyv1.Topology) {
 			defer wg.Done()
 			log.Infof("Creating topology for meshnet node %s", topo.Name)
-			sT, err := m.tClient.Topology(m.topo.Name).Create(ctx, topo, metav1.CreateOptions{})
+			topo.TypeMeta = metav1.TypeMeta{
+				Kind:       "Topology",
+				APIVersion: topologyv1.SchemeGroupVersion.String(),
+			}
+			obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(topo)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("could not convert topology for meshnet node %s to unstructured: %w", topo.Name, err)
+				}
+				mu.Unlock()
+				return
+			}
+			sT, err := m.dClient.Resource(meshnetGVR).Namespace(m.topo.Name).Create(ctx, &unstructured.Unstructured{Object: obj}, metav1.CreateOptions{})
 			if err != nil {
 				mu.Lock()
 				if firstErr == nil {
@@ -724,7 +746,7 @@ func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 	}
 	var errs errlist.List
 	for _, n := range nodes {
-		if err := m.tClient.Topology(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
+		if err := m.dClient.Resource(meshnetGVR).Namespace(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
 			errs.Add(fmt.Errorf("failed to delete meshnet node %q: %w", n.ObjectMeta.Name, err))
 		}
 	}
@@ -851,14 +873,18 @@ func (m *Manager) Resources(ctx context.Context) (*Resources, error) {
 
 // topologyResources gets the topology CRDs for the cluster.
 func (m *Manager) topologyResources(ctx context.Context) ([]*topologyv1.Topology, error) {
-	topology, err := m.tClient.Topology(m.topo.Name).List(ctx, metav1.ListOptions{})
+	unstructList, err := m.dClient.Resource(meshnetGVR).Namespace(m.topo.Name).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get topology CRDs: %v", err)
 	}
 
-	items := make([]*topologyv1.Topology, len(topology.Items))
-	for i := range items {
-		items[i] = &topology.Items[i]
+	items := make([]*topologyv1.Topology, len(unstructList.Items))
+	for i := range unstructList.Items {
+		item := &topologyv1.Topology{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructList.Items[i].UnstructuredContent(), item); err != nil {
+			return nil, fmt.Errorf("failed to decode topology CRD: %w", err)
+		}
+		items[i] = item
 	}
 
 	return items, nil
