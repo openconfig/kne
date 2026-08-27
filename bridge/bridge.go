@@ -90,7 +90,7 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 		Ifindex:  iface.Index,
 	}
 	if err := unix.Bind(fd, &sll); err != nil {
-		unix.Close(fd)
+		_ = unix.Close(fd)
 		return nil, fmt.Errorf("failed to bind raw socket to %s (index %d): %w", ifaceName, iface.Index, err)
 	}
 

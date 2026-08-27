@@ -85,7 +85,9 @@ func TestTransmitBidirectionalStream(t *testing.T) {
 	defer cancel()
 
 	server := NewServer(ctx)
-	defer server.Close()
+	defer func() {
+		_ = server.Close()
+	}()
 
 	fakeIO := newFakeReadWriter()
 	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
@@ -101,7 +103,7 @@ func TestTransmitBidirectionalStream(t *testing.T) {
 	}()
 	defer grpcServer.Stop()
 
-	conn, err := grpc.DialContext(ctx, "bufnet",
+	conn, err := grpc.NewClient("passthrough://bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
 		}),
@@ -110,7 +112,9 @@ func TestTransmitBidirectionalStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := wpb.NewWireClient(conn)
 	streamCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth1"))
@@ -201,7 +205,9 @@ func TestTransmitMissingInterfaceMetadata(t *testing.T) {
 	defer cancel()
 
 	server := NewServer(ctx)
-	defer server.Close()
+	defer func() {
+		_ = server.Close()
+	}()
 
 	lis := bufconn.Listen(1024 * 1024)
 	grpcServer := grpc.NewServer()
@@ -212,7 +218,7 @@ func TestTransmitMissingInterfaceMetadata(t *testing.T) {
 	}()
 	defer grpcServer.Stop()
 
-	conn, err := grpc.DialContext(ctx, "bufnet",
+	conn, err := grpc.NewClient("passthrough://bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
 		}),
@@ -221,7 +227,9 @@ func TestTransmitMissingInterfaceMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := wpb.NewWireClient(conn)
 
@@ -252,7 +260,9 @@ func TestTransmitSocketOpenerError(t *testing.T) {
 	defer cancel()
 
 	server := NewServer(ctx)
-	defer server.Close()
+	defer func() {
+		_ = server.Close()
+	}()
 
 	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
 		return nil, fmt.Errorf("interface %s does not exist", ifaceName)
@@ -267,7 +277,7 @@ func TestTransmitSocketOpenerError(t *testing.T) {
 	}()
 	defer grpcServer.Stop()
 
-	conn, err := grpc.DialContext(ctx, "bufnet",
+	conn, err := grpc.NewClient("passthrough://bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
 		}),
@@ -276,7 +286,9 @@ func TestTransmitSocketOpenerError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := wpb.NewWireClient(conn)
 	streamCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "nonexistent0"))
@@ -308,7 +320,7 @@ func TestServerCloseToTeardown(t *testing.T) {
 	sub := demux.subscribe()
 
 	// Closing server should cancel parent context, closing subscriber channels and socket handler
-	server.Close()
+	_ = server.Close()
 
 	select {
 	case _, ok := <-sub:
