@@ -4,7 +4,7 @@ This example demonstrates bridging Layer 2 Ethernet frames across independent to
 
 ## Architecture
 
-```
+```text
 [ host1 (192.168.1.1/24) ]
            |
        (eth1 link)
@@ -25,28 +25,35 @@ There is no direct Meshnet link between `host1` and `host2`. All packets (ARP re
 ## Running the Example
 
 1. **Deploy the Topology:**
+
    ```bash
    kne create examples/bridge/paired-bridge.pb.txt
    ```
 
 2. **Verify Connectivity via Native Ping:**
+
    Execute standard Linux `ping` from `host1` to `host2`:
+
    ```bash
    kubectl exec -it host1 -- ping -c 4 192.168.1.2
    ```
 
    Execute ping from `host2` to `host1`:
+
    ```bash
    kubectl exec -it host2 -- ping -c 4 192.168.1.1
    ```
 
 3. **Inspect Captured Traffic (Optional):**
+
    Run `tcpdump` inside `host2` to observe the Ethernet frames arriving across the bridge:
+
    ```bash
    kubectl exec -it host2 -- tcpdump -i eth1 -n
    ```
 
 4. **Teardown:**
+
    ```bash
    kne delete examples/bridge/paired-bridge.pb.txt
    ```
@@ -58,6 +65,7 @@ There is no direct Meshnet link between `host1` and `host2`. All packets (ARP re
 You can also run `bridge client` directly on a development workstation to bridge local host traffic into a KNE cluster topology:
 
 1. **Create a local veth pair on your workstation:**
+
    ```bash
    sudo ip link add veth-kne type veth peer name veth-host
    sudo ip link set veth-kne up
@@ -66,12 +74,15 @@ You can also run `bridge client` directly on a development workstation to bridge
    ```
 
 2. **Run the KNE bridge client on the local interface:**
+
    Find the external IP/NodePort for `service-bridge-server` via `kne topology service`, then run:
+
    ```bash
    sudo kne bridge client --peer=<BRIDGE_SERVICE_IP>:50058 --interface=veth-kne
    ```
 
 3. **Ping directly from the host:**
+
    ```bash
    ping -I veth-host 192.168.1.2
    ```

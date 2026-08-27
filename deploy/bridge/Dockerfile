@@ -20,8 +20,9 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/kne ./kne_cli
 
-FROM alpine:latest
+FROM alpine:3.24.1
 
+# hadolint ignore=DL3018
 RUN apk add --no-cache iproute2 ca-certificates
 
 COPY --from=builder /bin/kne /usr/local/bin/kne
