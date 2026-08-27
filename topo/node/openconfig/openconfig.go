@@ -260,7 +260,7 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	case modelLemming:
 		return n.lemmingStatus(ctx)
 	default:
-		return node.StatusUnknown, fmt.Errorf("invalid model specified.")
+		return node.StatusUnknown, fmt.Errorf("invalid model specified")
 	}
 }
 
