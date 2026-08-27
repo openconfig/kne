@@ -20,11 +20,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	log "k8s.io/klog/v2"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -39,9 +40,11 @@ var (
 	// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
 	ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
-	// newSrlinuxClient returns a controller-runtime client for srlinux
-	// resources. This can be set to a fake for unit testing.
-	newSrlinuxClient = newSrlinuxClientWithSchema
+	srlGVR = schema.GroupVersionResource{
+		Group:    srlinuxv1.GroupVersion.Group,
+		Version:  srlinuxv1.GroupVersion.Version,
+		Resource: "srlinuxes",
+	}
 
 	defaultConstraints = node.Constraints{
 		CPU:    "2000m", // 2000 milliCPUs
@@ -112,19 +115,6 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	}
 
 	return n, nil
-}
-
-// newSrlinuxClientWithSchema returns a controller-runtime client for srlinux and loads its schema.
-func newSrlinuxClientWithSchema(c *rest.Config) (ctrlclient.Client, error) {
-	// initialize the controller-runtime client with srlinux scheme
-	scheme := runtime.NewScheme()
-
-	err := srlinuxv1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctrlclient.New(c, ctrlclient.Options{Scheme: scheme})
 }
 
 type Node struct {
@@ -297,12 +287,18 @@ func (n *Node) Create(ctx context.Context) error {
 			Version:     n.GetProto().GetVersion(),
 		},
 	}
-	c, err := newSrlinuxClient(n.RestConfig)
+	srlMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(srl)
+	if err != nil {
+		return err
+	}
+	srlUnstructured := &unstructured.Unstructured{Object: srlMap}
+
+	c, err := dynamic.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
 
-	if err := c.Create(ctx, srl); err != nil {
+	if _, err := c.Resource(srlGVR).Namespace(n.Namespace).Create(ctx, srlUnstructured, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
@@ -368,16 +364,11 @@ func (n *Node) DefaultNodeConstraints() node.Constraints {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	c, err := newSrlinuxClient(n.RestConfig)
+	c, err := dynamic.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
-	err = c.Delete(ctx, &srlinuxv1.Srlinux{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: n.GetNamespace(), Name: n.Name(),
-		},
-	})
-	if err != nil {
+	if err := c.Resource(srlGVR).Namespace(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	if err := n.DeleteService(ctx); err != nil {
