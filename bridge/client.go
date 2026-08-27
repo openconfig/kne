@@ -110,7 +110,11 @@ func (c *Client) Run(ctx context.Context) error {
 			return ctx.Err()
 		}
 
-		klog.Warningf("Bridge stream disconnected: %v. Reconnecting in %v...", err, c.cfg.RetryInterval)
+		if err == nil || err == io.EOF {
+			klog.Infof("Bridge stream closed by peer. Reconnecting in %v...", c.cfg.RetryInterval)
+		} else {
+			klog.Warningf("Bridge stream disconnected: %v. Reconnecting in %v...", err, c.cfg.RetryInterval)
+		}
 		select {
 		case <-time.After(c.cfg.RetryInterval):
 		case <-ctx.Done():
