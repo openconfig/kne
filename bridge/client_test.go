@@ -140,3 +140,48 @@ func TestBridgeClientShutdown(t *testing.T) {
 		t.Fatalf("Timed out waiting for client to shut down")
 	}
 }
+
+func TestNewClientValidation(t *testing.T) {
+	// Case 1: Empty peer address
+	if _, err := NewClient(ClientConfig{}); err == nil {
+		t.Fatalf("Expected error for empty PeerAddress, got nil")
+	}
+
+	// Case 2: Defaults populated
+	c, err := NewClient(ClientConfig{PeerAddress: "localhost:50058"})
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	if c.cfg.LocalInterface != "eth1" {
+		t.Errorf("got LocalInterface = %q, want %q", c.cfg.LocalInterface, "eth1")
+	}
+	if c.cfg.RemoteInterface != "eth1" {
+		t.Errorf("got RemoteInterface = %q, want %q", c.cfg.RemoteInterface, "eth1")
+	}
+	if c.cfg.RetryInterval != 2*time.Second {
+		t.Errorf("got RetryInterval = %v, want %v", c.cfg.RetryInterval, 2*time.Second)
+	}
+	if c.socketOpener == nil {
+		t.Errorf("expected socketOpener to be set")
+	}
+
+	// Case 3: Custom values preserved
+	c2, err := NewClient(ClientConfig{
+		PeerAddress:     "192.168.1.1:50058",
+		LocalInterface:  "eth2",
+		RemoteInterface: "eth3",
+		RetryInterval:   5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	if c2.cfg.LocalInterface != "eth2" {
+		t.Errorf("got LocalInterface = %q, want %q", c2.cfg.LocalInterface, "eth2")
+	}
+	if c2.cfg.RemoteInterface != "eth3" {
+		t.Errorf("got RemoteInterface = %q, want %q", c2.cfg.RemoteInterface, "eth3")
+	}
+	if c2.cfg.RetryInterval != 5*time.Second {
+		t.Errorf("got RetryInterval = %v, want %v", c2.cfg.RetryInterval, 5*time.Second)
+	}
+}

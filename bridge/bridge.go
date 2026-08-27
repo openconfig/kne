@@ -37,6 +37,13 @@ const (
 	socketBufferSizeBytes = 4 * 1024 * 1024 // 4 MB
 )
 
+var packetPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, maxFrameSize)
+		return &b
+	},
+}
+
 // htons converts host byte order to network byte order in an endian-safe manner.
 func htons(v uint16) int {
 	var b [2]byte
@@ -103,9 +110,11 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 
 // ReadPacket reads a single raw Ethernet frame from the socket, ignoring outgoing echo frames.
 func (s *SocketHandler) ReadPacket() ([]byte, error) {
-	buf := make([]byte, maxFrameSize)
+	bufPtr := packetPool.Get().(*[]byte)
+	defer packetPool.Put(bufPtr)
+
 	for {
-		n, from, err := unix.Recvfrom(s.fd, buf, 0)
+		n, from, err := unix.Recvfrom(s.fd, *bufPtr, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +125,7 @@ func (s *SocketHandler) ReadPacket() ([]byte, error) {
 			}
 		}
 		pkt := make([]byte, n)
-		copy(pkt, buf[:n])
+		copy(pkt, (*bufPtr)[:n])
 		return pkt, nil
 	}
 }
@@ -181,6 +190,7 @@ func (d *InterfaceDemux) closeHandler() {
 // holding the RLock and deadlocking unsubscriptions or starving other subscribers of raw socket frames.
 func (d *InterfaceDemux) readLoop() {
 	defer func() {
+		d.cancel()
 		d.closeHandler()
 		d.mu.Lock()
 		for ch := range d.listeners {
