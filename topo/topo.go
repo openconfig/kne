@@ -556,7 +556,7 @@ func setLinkPeer(nodeName string, podName string, link *topologyv1.Link, peerSpe
 		for _, peerLink := range peerSpec.Spec.Links {
 			// make sure self ifc and peer ifc belong to same link (and hence UID) but are not the same interfaces
 			if peerLink.UID == link.UID && !(nodeName == link.PeerPod && peerLink.LocalIntf == link.LocalIntf) {
-				link.PeerPod = peerSpec.ObjectMeta.Name
+				link.PeerPod = peerSpec.Name
 				link.PeerIntf = peerLink.LocalIntf
 				return nil
 			}
@@ -593,7 +593,7 @@ func (m *Manager) topologySpecs(ctx context.Context) ([]*topologyv1.Topology, er
 					return nil, fmt.Errorf("specs do not exist for node %s", link.PeerPod)
 				}
 
-				if err := setLinkPeer(nodeName, spec.ObjectMeta.Name, link, peerSpecs); err != nil {
+				if err := setLinkPeer(nodeName, spec.Name, link, peerSpecs); err != nil {
 					return nil, err
 				}
 			}
@@ -746,8 +746,8 @@ func (m *Manager) deleteMeshnetTopologies(ctx context.Context) error {
 	}
 	var errs errlist.List
 	for _, n := range nodes {
-		if err := m.dClient.Resource(meshnetGVR).Namespace(m.topo.Name).Delete(ctx, n.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
-			errs.Add(fmt.Errorf("failed to delete meshnet node %q: %w", n.ObjectMeta.Name, err))
+		if err := m.dClient.Resource(meshnetGVR).Namespace(m.topo.Name).Delete(ctx, n.Name, metav1.DeleteOptions{}); err != nil {
+			errs.Add(fmt.Errorf("failed to delete meshnet node %q: %w", n.Name, err))
 		}
 	}
 	return errs.Err()
