@@ -92,7 +92,7 @@ func (c *Client) Run(ctx context.Context) error {
 		}
 
 		klog.Infof("Connecting to bridge server at %s...", c.cfg.PeerAddress)
-		conn, err := grpc.DialContext(ctx, c.cfg.PeerAddress, dialOpts...)
+		conn, err := grpc.NewClient(c.cfg.PeerAddress, dialOpts...)
 		if err != nil {
 			klog.Errorf("Failed to dial %s: %v. Retrying in %v...", c.cfg.PeerAddress, err, c.cfg.RetryInterval)
 			select {
@@ -128,7 +128,9 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 	if err != nil {
 		return fmt.Errorf("failed to open local interface %s: %w", c.cfg.LocalInterface, err)
 	}
-	defer handler.Close()
+	defer func() {
+		_ = handler.Close()
+	}()
 
 	client := wpb.NewWireClient(conn)
 	streamCtx, streamCancel := context.WithCancel(ctx)
