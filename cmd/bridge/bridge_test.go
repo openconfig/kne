@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/openconfig/kne/bridge"
 )
 
 func TestNew(t *testing.T) {
@@ -58,5 +60,50 @@ func TestRunServerCancel(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("runServer did not terminate after context cancellation")
+	}
+}
+
+func TestRunClientCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- runClient(ctx, bridge.ClientConfig{
+			PeerAddress:    "nonexistent:50058",
+			LocalInterface: "eth1",
+			RetryInterval:  10 * time.Millisecond,
+		})
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("runClient returned error on context cancellation: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("runClient did not terminate after context cancellation")
+	}
+}
+
+func TestClientSubcommandMissingPeer(t *testing.T) {
+	cmd := New()
+	cmd.SetArgs([]string{"client"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("Expected error when running client without --peer, got nil")
+	}
+}
+
+func TestPersistentPreRunE(t *testing.T) {
+	cmd := New()
+	if err := cmd.PersistentPreRunE(cmd, []string{}); err != nil {
+		t.Fatalf("PersistentPreRunE failed: %v", err)
+	}
+	flag := cmd.Flags().Lookup("logtostderr")
+	if flag != nil && flag.Value.String() != "true" {
+		t.Errorf("got logtostderr = %q, want %q", flag.Value.String(), "true")
 	}
 }

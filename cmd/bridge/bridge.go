@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -41,15 +40,22 @@ func New() *cobra.Command {
 		retryInterval   time.Duration
 	)
 
-	bridgeCmd := &cobra.Command{
+	var bridgeCmd *cobra.Command
+	bridgeCmd = &cobra.Command{
 		Use:     "bridge",
 		Aliases: []string{"packet-bridge", "packet_bridge"},
 		Short:   "Start the KNE packet bridge daemon in server or client mode",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Default daemon logs to stderr so container logs and kubectl logs work out-of-the-box.
 			if f := cmd.Flags().Lookup("logtostderr"); f != nil && !f.Changed {
 				_ = f.Value.Set("true")
 			}
+			for p := cmd.Parent(); p != nil; p = p.Parent() {
+				if p != bridgeCmd && p.PersistentPreRunE != nil {
+					return p.PersistentPreRunE(cmd, args)
+				}
+			}
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if peerAddress != "" {
@@ -113,19 +119,8 @@ func runServer(ctx context.Context, listenPort int) error {
 	}
 	log.Infof("KNE Packet Bridge Server listening on %s", addr)
 
-	bridgeCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		select {
-		case sig := <-sigChan:
-			log.Infof("Received signal %v, initiating shutdown...", sig)
-			cancel()
-		case <-bridgeCtx.Done():
-		}
-	}()
+	bridgeCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	bridgeServer := bridge.NewServer(bridgeCtx)
 	defer bridgeServer.Close()
@@ -147,19 +142,8 @@ func runServer(ctx context.Context, listenPort int) error {
 }
 
 func runClient(ctx context.Context, cfg bridge.ClientConfig) error {
-	bridgeCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		select {
-		case sig := <-sigChan:
-			log.Infof("Received signal %v, initiating client shutdown...", sig)
-			cancel()
-		case <-bridgeCtx.Done():
-		}
-	}()
+	bridgeCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	client, err := bridge.NewClient(cfg)
 	if err != nil {
