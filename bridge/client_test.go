@@ -33,7 +33,9 @@ func TestBridgeClientBidirectionalForwarding(t *testing.T) {
 
 	// 1. Setup Server
 	server := NewServer(ctx)
-	defer server.Close()
+	defer func() {
+		_ = server.Close()
+	}()
 
 	serverIO := newFakeReadWriter()
 	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
@@ -52,7 +54,7 @@ func TestBridgeClientBidirectionalForwarding(t *testing.T) {
 	// 2. Setup Client
 	clientIO := newFakeReadWriter()
 	client, err := NewClient(ClientConfig{
-		PeerAddress:     "bufnet",
+		PeerAddress:     "passthrough://bufnet",
 		LocalInterface:  "eth1",
 		RemoteInterface: "eth1",
 		RetryInterval:   100 * time.Millisecond,

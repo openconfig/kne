@@ -123,7 +123,9 @@ func runServer(ctx context.Context, listenPort int) error {
 	defer stop()
 
 	bridgeServer := bridge.NewServer(bridgeCtx)
-	defer bridgeServer.Close()
+	defer func() {
+		_ = bridgeServer.Close()
+	}()
 
 	grpcServer := grpc.NewServer()
 	wpb.RegisterWireServer(grpcServer, bridgeServer)
