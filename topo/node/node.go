@@ -763,7 +763,6 @@ func (n *Impl) GetCLIConn(platform string, opts []scrapliutil.Option) (*scraplin
 		}
 
 		log.V(1).Infof("%s - Cli ready.", n.Name())
-
 		return d, nil
 	}
 }
