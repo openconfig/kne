@@ -27,6 +27,8 @@ nodes: {
     config: {
         image: "us-west1-docker.pkg.dev/kne-external/kne/bridge:latest"
     }
+    # Expose the packet bridge service externally via a K8s LoadBalancer Service.
+    # Required when connecting a bridge client from outside the cluster (e.g. Borg or workstation).
     services: {
         key: 50058
         value: {
