@@ -1136,9 +1136,12 @@ func (m *MeshnetSpec) Healthy(ctx context.Context) error {
 		return err
 	}
 	for {
+		if ctx.Err() != nil {
+			return fmt.Errorf("context canceled before meshnet healthy: %w", ctx.Err())
+		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context canceled before meshnet healthy")
+			return fmt.Errorf("context canceled before meshnet healthy: %w", ctx.Err())
 		case e, ok := <-w.ResultChan():
 			if !ok {
 				return fmt.Errorf("watch channel closed before meshnet healthy")
@@ -1440,9 +1443,12 @@ func deploymentHealthy(ctx context.Context, c kubernetes.Interface, name string)
 	}
 	ch := w.ResultChan()
 	for {
+		if ctx.Err() != nil {
+			return fmt.Errorf("context canceled before %q healthy: %w", name, ctx.Err())
+		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context canceled before %q healthy", name)
+			return fmt.Errorf("context canceled before %q healthy: %w", name, ctx.Err())
 		case e, ok := <-ch:
 			if !ok {
 				return fmt.Errorf("watch channel closed before %q healthy", name)
