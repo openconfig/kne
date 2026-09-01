@@ -225,6 +225,12 @@ func (n *Node) GRPCConfig() []string {
 	}
 }
 
+var junosErrorRegex = regexp.MustCompile(`(?im)(\berror:|\bcommit error\b|\bsyntax error\b)`)
+
+func isJunosError(result string) bool {
+	return junosErrorRegex.MatchString(result)
+}
+
 // Waits and retries until CLI config mode is up and config is applied
 func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
 	log.Infof("Waiting for config to be pushed (timeout: %v) node %s", configModeTimeout, n.Name())
@@ -246,8 +252,8 @@ func (n *Node) waitConfigInfraReadyAndPushConfigs(configs []string) error {
 					log.Infof("Config mode ready. Config commit done. Node %s", n.Name())
 					return nil
 				}
-				if strings.Contains(resp.Result, "error:") {
-					log.Infof("Config mode not ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
+				if isJunosError(resp.Result) {
+					log.Infof("Config mode not ready. Retrying in %v. Node %s Response %s", configModeRetrySleep, n.Name(), multiresp.JoinedResult())
 				}
 			}
 		}
@@ -281,17 +287,37 @@ func (n *Node) waitCertInfraReadyAndPushCert() error {
 		if err != nil {
 			return fmt.Errorf("failed sending generate-self-signed commands: %v", err)
 		}
+		if len(multiresp.Responses) < len(commands) {
+			log.Infof("Incomplete response count from device. Retrying in %v. Node %s", certGenRetrySleep, n.Name())
+			time.Sleep(certGenRetrySleep)
+			continue
+		}
+		hasError := false
 		for _, resp := range multiresp.Responses {
 			if resp.Failed != nil {
 				return resp.Failed
 			}
-			if strings.Contains(resp.Result, "successfully") {
-				log.Infof("Cert Infra ready. Configured Certs. Node %s, Response %s", n.Name(), multiresp.JoinedResult())
-				return nil
-			}
-			if strings.Contains(resp.Result, "error:") {
+			if isJunosError(resp.Result) && !strings.Contains(strings.ToLower(resp.Result), "already exists") {
+				hasError = true
 				log.Infof("Cert infra isn't ready. Retrying in %v. Node %s Response %s", certGenRetrySleep, n.Name(), multiresp.JoinedResult())
+				break
 			}
+		}
+
+		// Dynamically locate the response for the generate-self-signed command
+		var certGenResult string
+		for i, cmd := range commands {
+			if strings.Contains(cmd, "generate-self-signed") && i < len(multiresp.Responses) {
+				certGenResult = multiresp.Responses[i].Result
+				break
+			}
+		}
+
+		certGenSuccess := strings.Contains(strings.ToLower(certGenResult), "successfully") || strings.Contains(strings.ToLower(certGenResult), "already exists")
+
+		if !hasError && certGenSuccess {
+			log.Infof("Cert Infra ready. Configured Certs. Node %s, Response %s", n.Name(), multiresp.JoinedResult())
+			return nil
 		}
 		time.Sleep(certGenRetrySleep)
 	}

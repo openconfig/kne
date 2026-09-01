@@ -68,6 +68,31 @@ func removeCommentsFromConfig(t *testing.T, r io.Reader) io.Reader {
 	return &buf
 }
 
+func TestIsJunosError(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"error: Command aborted as key pair already exists", true},
+		{"[edit]\nerror: Schema was updated in background, failing the commit", true},
+		{"root@ncptx# commit\nerror: Commit failed: Schema mismatch/updated.", true},
+		{"commit error", true},
+		{"syntax error", true},
+		{"ERROR: fatal error occurred", true},
+		{"set interfaces et-0/0/0 description \"ignore-error\"", false},
+		{"domain-name error.com", false},
+		{"0 errors found in commit check", false},
+		{"Self-signed certificate generated and loaded successfully", false},
+	}
+
+	for _, tt := range tests {
+		got := isJunosError(tt.input)
+		if got != tt.want {
+			t.Errorf("isJunosError(%q) = %v; want %v", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestGenerateSelfSigned(t *testing.T) {
 	ki := fake.NewSimpleClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -146,11 +171,18 @@ func TestGenerateSelfSigned(t *testing.T) {
 			testFile: "testdata/generate_certificate_success",
 		},
 		{
-			// device returns "Error: something bad happened" -- we expect to fail
-			desc:     "failure",
-			wantErr:  true,
+			// device returns "error: Command aborted as key pair/certificate already exists" -- expected to succeed idempotently
+			desc:     "success cert already exists",
+			wantErr:  false,
 			ni:       ni,
 			testFile: "testdata/generate_certificate_failure",
+		},
+		{
+			// key pair generation succeeds with 'successfully' but self-signed cert generation fails
+			desc:     "failure key success cert failure",
+			wantErr:  true,
+			ni:       ni,
+			testFile: "testdata/generate_certificate_key_success_cert_failure",
 		},
 		{
 			// device returns config mode error but we eventually recover
@@ -973,10 +1005,10 @@ func TestCreate(t *testing.T) {
 				Namespace:  "test",
 				KubeClient: ki,
 				Proto: &tpb.Node{
-					Name:       "ncptx",
-					Model:      "ncptx",
-					Vendor:     tpb.Vendor_JUNIPER,
-					Config:     cfg,
+					Name:   "ncptx",
+					Model:  "ncptx",
+					Vendor: tpb.Vendor_JUNIPER,
+					Config: cfg,
 					Interfaces: map[string]*tpb.Interface{
 						"eth1": {Name: "et-0/0/0:0"},
 					},
