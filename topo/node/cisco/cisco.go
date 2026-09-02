@@ -184,18 +184,15 @@ func (n *Node) Create(ctx context.Context) error {
 		tty = true
 		stdin = true
 	}
-	var readinessProbe *corev1.Probe
-	if pb.Model != ModelXRD {
-		readinessProbe = &corev1.Probe{
-			ProbeHandler: corev1.ProbeHandler{
-				TCPSocket: &corev1.TCPSocketAction{
-					Port: intstr.FromInt(57400),
-				},
+	readinessProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(57400),
 			},
-			InitialDelaySeconds: 10,
-			PeriodSeconds:       10,
-			FailureThreshold:    60,
-		}
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		FailureThreshold:    60,
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
