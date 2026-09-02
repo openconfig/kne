@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 )
@@ -546,6 +547,16 @@ func (n *Node) Create(ctx context.Context) error {
 				Env:             node.ToEnvVar(pb.Config.Env),
 				Resources:       node.ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						TCPSocket: &corev1.TCPSocketAction{
+							Port: intstr.FromInt(22),
+						},
+					},
+					InitialDelaySeconds: 10,
+					PeriodSeconds:       10,
+					FailureThreshold:    60,
+				},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
 					RunAsUser:  pointer.Int64(0),
