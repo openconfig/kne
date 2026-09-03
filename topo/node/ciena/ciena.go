@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
@@ -237,6 +238,16 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: ptr.To(true),
+				},
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						TCPSocket: &corev1.TCPSocketAction{
+							Port: intstr.FromInt(22),
+						},
+					},
+					InitialDelaySeconds: 10,
+					PeriodSeconds:       10,
+					FailureThreshold:    60,
 				},
 				VolumeMounts: extraMounts,
 			}},
