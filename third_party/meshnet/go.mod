@@ -3,7 +3,7 @@ module github.com/openconfig/kne/third_party/meshnet
 go 1.26.0
 
 require (
-	github.com/containernetworking/cni v1.3.0
+	github.com/containernetworking/cni v1.3.1
 	github.com/containernetworking/plugins v1.9.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
