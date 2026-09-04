@@ -22,6 +22,7 @@ type InitConfigOptions struct {
 	TokenTTL             string
 	ImageRepository      string
 	ServiceNodePortRange string
+	KubernetesVersion    string
 }
 
 type initConfiguration struct {
@@ -40,11 +41,12 @@ type bootstrapToken struct {
 }
 
 type clusterConfiguration struct {
-	APIVersion      string            `json:"apiVersion" yaml:"apiVersion"`
-	Kind            string            `json:"kind" yaml:"kind"`
-	ImageRepository string            `json:"imageRepository,omitempty" yaml:"imageRepository,omitempty"`
-	Networking      *networking       `json:"networking,omitempty" yaml:"networking,omitempty"`
-	APIServer       *apiServer        `json:"apiServer,omitempty" yaml:"apiServer,omitempty"`
+	APIVersion        string      `json:"apiVersion" yaml:"apiVersion"`
+	Kind              string      `json:"kind" yaml:"kind"`
+	KubernetesVersion string      `json:"kubernetesVersion,omitempty" yaml:"kubernetesVersion,omitempty"`
+	ImageRepository   string      `json:"imageRepository,omitempty" yaml:"imageRepository,omitempty"`
+	Networking        *networking `json:"networking,omitempty" yaml:"networking,omitempty"`
+	APIServer         *apiServer  `json:"apiServer,omitempty" yaml:"apiServer,omitempty"`
 }
 
 type networking struct {
@@ -78,9 +80,10 @@ func CreateInitConfigFile(opts InitConfigOptions) (string, func(), error) {
 	}
 
 	clusterCfg := clusterConfiguration{
-		APIVersion:      "kubeadm.k8s.io/v1beta3",
-		Kind:            "ClusterConfiguration",
-		ImageRepository: opts.ImageRepository,
+		APIVersion:        "kubeadm.k8s.io/v1beta3",
+		Kind:              "ClusterConfiguration",
+		KubernetesVersion: opts.KubernetesVersion,
+		ImageRepository:   opts.ImageRepository,
 	}
 	if opts.PodNetworkCIDR != "" {
 		clusterCfg.Networking = &networking{PodSubnet: opts.PodNetworkCIDR}
