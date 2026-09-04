@@ -134,6 +134,21 @@ func TestCreateInitConfigFile(t *testing.T) {
 			"podSubnet: 10.244.0.0/16",
 			"service-node-port-range: 20000-30000",
 		},
+	}, {
+		desc: "with kubernetes version",
+		opts: InitConfigOptions{
+			KubernetesVersion:    "v1.35.8",
+			ImageRepository:      "us-west1-docker.pkg.dev/kne-external/kne",
+			ServiceNodePortRange: "10000-32767",
+		},
+		wantInitCfg: false,
+		wantYAMLContains: []string{
+			"apiVersion: kubeadm.k8s.io/v1beta3",
+			"kind: ClusterConfiguration",
+			"kubernetesVersion: v1.35.8",
+			"imageRepository: us-west1-docker.pkg.dev/kne-external/kne",
+			"service-node-port-range: 10000-32767",
+		},
 	}}
 
 	for _, tt := range tests {

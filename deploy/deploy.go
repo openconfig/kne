@@ -41,7 +41,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const defaultKubeadmImageRepository = "us-west1-docker.pkg.dev/kne-external/kne"
+const (
+	defaultKubeadmImageRepository = "us-west1-docker.pkg.dev/kne-external/kne"
+	defaultKubernetesVersion      = "v1.36.1"
+	defaultKindNodeImage          = "kindest/node:v1.36.1"
+)
 
 var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
@@ -223,6 +227,11 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		return fmt.Errorf("kubectl version outside of supported range: %v", err)
 	}
 
+	log.Infof("Validating cluster server version")
+	if err := d.validateClusterVersion(kClient); err != nil {
+		return fmt.Errorf("cluster server version validation failed: %w", err)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	// Watch the container status of the pods so we can fail if a container fails to start running.
@@ -336,6 +345,65 @@ func parseVersion(s string) (semver.Version, error) {
 	return v, nil
 }
 
+func (d *Deployment) validateClusterVersion(kClient kubernetes.Interface) error {
+	info, err := kClient.Discovery().ServerVersion()
+	if err != nil {
+		return fmt.Errorf("failed to discover cluster server version: %w", err)
+	}
+	// Allow unconfigured fake discovery clients in unit tests.
+	if strings.Contains(info.GitVersion, "Format:%H") {
+		log.V(1).Infof("Skipping version validation on fake discovery client: %s", info.GitVersion)
+		return nil
+	}
+	serverVer, err := parseVersion(info.GitVersion)
+	if err != nil {
+		return fmt.Errorf("failed to parse server version %q: %w", info.GitVersion, err)
+	}
+
+	wantVerStr := ""
+	switch c := d.Cluster.(type) {
+	case *KubeadmSpec:
+		wantVerStr = c.KubernetesVersion
+		if wantVerStr == "" {
+			wantVerStr = defaultKubernetesVersion
+		}
+	case *KindSpec:
+		img := c.Image
+		if img == "" {
+			img = defaultKindNodeImage
+		}
+		wantVerStr = extractVersionFromImage(img)
+	}
+
+	if wantVerStr != "" {
+		wantVer, err := parseVersion(wantVerStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse expected version %q: %w", wantVerStr, err)
+		}
+		if serverVer.Major != wantVer.Major || serverVer.Minor != wantVer.Minor {
+			return fmt.Errorf("cluster server version mismatch: got %s, want %s", info.GitVersion, wantVerStr)
+		}
+		log.Infof("Validated cluster server version: %s matches expected %s", info.GitVersion, wantVerStr)
+	}
+	return nil
+}
+
+func extractVersionFromImage(img string) string {
+	if idx := strings.Index(img, "@"); idx != -1 {
+		img = img[:idx]
+	}
+	if idx := strings.LastIndex(img, ":"); idx != -1 {
+		tag := img[idx+1:]
+		if !strings.HasPrefix(tag, "v") && len(tag) > 0 && tag[0] >= '0' && tag[0] <= '9' {
+			tag = "v" + tag
+		}
+		if _, err := parseVersion(tag); err == nil {
+			return tag
+		}
+	}
+	return ""
+}
+
 func (d *Deployment) Delete() error {
 	log.Infof("Deleting cluster...")
 	if err := d.Cluster.Delete(); err != nil {
@@ -435,6 +503,7 @@ type KubeadmSpec struct {
 	AllowControlPlaneScheduling bool   `yaml:"allowControlPlaneScheduling"`
 	ImageRepository             string `yaml:"imageRepository"`
 	ServiceNodePortRange        string `yaml:"serviceNodePortRange"`
+	KubernetesVersion           string `yaml:"kubernetesVersion"`
 }
 
 func (k *KubeadmSpec) checkDependencies() error {
@@ -460,12 +529,17 @@ func (k *KubeadmSpec) Deploy(ctx context.Context) error {
 	if k.ServiceNodePortRange != "" {
 		portRange = k.ServiceNodePortRange
 	}
+	k8sVersion := defaultKubernetesVersion
+	if k.KubernetesVersion != "" {
+		k8sVersion = k.KubernetesVersion
+	}
 	cfgPath, cleanup, err := kubeadm.CreateInitConfigFile(kubeadm.InitConfigOptions{
 		CRISocket:            k.CRISocket,
 		PodNetworkCIDR:       k.PodNetworkCIDR,
 		TokenTTL:             k.TokenTTL,
 		ImageRepository:      imageRepository,
 		ServiceNodePortRange: portRange,
+		KubernetesVersion:    k8sVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create kubeadm init config file: %w", err)
@@ -647,9 +721,10 @@ func (k *KindSpec) create() error {
 	if k.Name != "" {
 		args = append(args, "--name", k.Name)
 	}
-	if k.Image != "" {
-		args = append(args, "--image", k.Image)
+	if k.Image == "" {
+		k.Image = defaultKindNodeImage
 	}
+	args = append(args, "--image", k.Image)
 	if k.Retain {
 		args = append(args, "--retain")
 	}
