@@ -26,6 +26,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 )
@@ -191,6 +192,16 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+			ReadinessProbe: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
 		},
 	}, {
 		desc: "sonic container with custom init image and interfaces",
@@ -235,6 +246,16 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+			ReadinessProbe: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
 		},
 	}, {
 		desc: "sonic container with config data",
@@ -272,6 +293,16 @@ func TestCreatePod(t *testing.T) {
 			ImagePullPolicy: "IfNotPresent",
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
+			},
+			ReadinessProbe: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
 			},
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      "startup-config-volume",
