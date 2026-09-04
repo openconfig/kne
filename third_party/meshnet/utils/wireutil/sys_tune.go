@@ -14,3 +14,9 @@ func GetEnvInt(key string, defaultVal int) int {
 	}
 	return defaultVal
 }
+
+// GetLinkTxQLen returns the configured link txqueuelen (default 10000, configurable via LINK_TXQUEUELEN).
+func GetLinkTxQLen() int {
+	return GetEnvInt("LINK_TXQUEUELEN", 10000)
+}
+

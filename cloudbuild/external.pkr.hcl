@@ -124,6 +124,7 @@ build {
       "sudo modprobe br_netfilter",
       "echo \"1\" > sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables",
       "echo \"1\" > sudo tee /proc/sys/net/ipv4/ip_forward",
+      "echo 'net.core.netdev_max_backlog = 10000\nnet.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.core.rmem_default = 16777216\nnet.core.wmem_default = 16777216' | sudo tee /etc/sysctl.d/99-kne.conf",
       "sudo sysctl --system",
       "sudo sysctl -p",
       "sudo mkdir -p /etc/containerd",
