@@ -192,16 +192,6 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
-			ReadinessProbe: &corev1.Probe{
-				ProbeHandler: corev1.ProbeHandler{
-					TCPSocket: &corev1.TCPSocketAction{
-						Port: intstr.FromInt(22),
-					},
-				},
-				InitialDelaySeconds: 10,
-				PeriodSeconds:       10,
-				FailureThreshold:    60,
-			},
 		},
 	}, {
 		desc: "sonic container with custom init image and interfaces",
@@ -246,16 +236,6 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
-			ReadinessProbe: &corev1.Probe{
-				ProbeHandler: corev1.ProbeHandler{
-					TCPSocket: &corev1.TCPSocketAction{
-						Port: intstr.FromInt(22),
-					},
-				},
-				InitialDelaySeconds: 10,
-				PeriodSeconds:       10,
-				FailureThreshold:    60,
-			},
 		},
 	}, {
 		desc: "sonic container with config data",
@@ -294,6 +274,52 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "startup-config-volume",
+				ReadOnly:  true,
+				MountPath: "/etc/sonic/config_db.json",
+				SubPath:   "config_db.json",
+			}},
+		},
+	}, {
+		desc: "sonic container with ssh service has readiness probe",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "sonic-node",
+				Config: &tpb.Config{
+					Image:   "sonicImage",
+					Command: []string{"sonicCommand"},
+					Args:    []string{"sonicArgs"},
+				},
+				Services: map[uint32]*tpb.Service{
+					22: {
+						Name:   "ssh",
+						Inside: 22,
+					},
+				},
+			},
+		},
+		wantInitCtr: corev1.Container{
+			Name:  "init-sonic-node",
+			Image: node.DefaultInitContainerImage,
+			Args:  []string{"1", "0", "1"},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+		wantSonicCtr: corev1.Container{
+			Name:    "sonic-node",
+			Image:   "sonicImage",
+			Command: []string{"sonicCommand"},
+			Args:    []string{"sonicArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{},
+			},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
 			ReadinessProbe: &corev1.Probe{
 				ProbeHandler: corev1.ProbeHandler{
 					TCPSocket: &corev1.TCPSocketAction{
@@ -304,12 +330,6 @@ func TestCreatePod(t *testing.T) {
 				PeriodSeconds:       10,
 				FailureThreshold:    60,
 			},
-			VolumeMounts: []corev1.VolumeMount{{
-				Name:      "startup-config-volume",
-				ReadOnly:  true,
-				MountPath: "/etc/sonic/config_db.json",
-				SubPath:   "config_db.json",
-			}},
 		},
 	}}
 	for _, tt := range tests {

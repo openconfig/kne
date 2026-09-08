@@ -20,7 +20,6 @@ import (
 
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/proto"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
 	corev1 "k8s.io/api/core/v1"
@@ -123,16 +122,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: pointer.Bool(true),
 		},
-		ReadinessProbe: &corev1.Probe{
-			ProbeHandler: corev1.ProbeHandler{
-				TCPSocket: &corev1.TCPSocketAction{
-					Port: intstr.FromInt(22),
-				},
-			},
-			InitialDelaySeconds: 10,
-			PeriodSeconds:       10,
-			FailureThreshold:    60,
-		},
+		ReadinessProbe:  node.ServiceReadinessProbe(pb),
 	}}
 
 	pod := &corev1.Pod{

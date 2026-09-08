@@ -307,6 +307,12 @@ func TestNode_CreatePod_EquipmentFile(t *testing.T) {
 			Image:      "vrnetlab/ciena_waverouter:config",
 			VendorData: vendorData,
 		},
+		Services: map[uint32]*tpb.Service{
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 22,
+			},
+		},
 	}
 
 	n := &Node{

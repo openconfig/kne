@@ -365,7 +365,7 @@ func TestValidateConstraints(t *testing.T) {
 		constraintValues map[string]int
 	}{
 		{
-			desc: "Invalid case - contraint value is greater than upper bound",
+			desc: "Invalid case - constraint value is greater than upper bound",
 			node: &topopb.Node{
 				Name: "node1",
 				HostConstraints: []*topopb.HostConstraint{
@@ -453,6 +453,176 @@ func TestValidateConstraints(t *testing.T) {
 			err := n.ValidateConstraints()
 			if d := errdiff.Substring(err, tt.wantErr); d != "" {
 				t.Fatalf("ValidateConstraints() failed: %s", d)
+			}
+		})
+	}
+}
+
+func TestServiceReadinessProbe(t *testing.T) {
+	tests := []struct {
+		desc string
+		node *topopb.Node
+		want *corev1.Probe
+	}{
+		{
+			desc: "nil node",
+			node: nil,
+			want: nil,
+		},
+		{
+			desc: "no services",
+			node: &topopb.Node{},
+			want: nil,
+		},
+		{
+			desc: "ssh service",
+			node: &topopb.Node{
+				Services: map[uint32]*topopb.Service{
+					22: {
+						Name:   "ssh",
+						Inside: 22,
+					},
+				},
+			},
+			want: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
+		},
+		{
+			desc: "ssh service custom inside port",
+			node: &topopb.Node{
+				Services: map[uint32]*topopb.Service{
+					22: {
+						Name:   "ssh",
+						Inside: 2222,
+					},
+				},
+			},
+			want: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(2222),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
+		},
+		{
+			desc: "ssh service in names slice",
+			node: &topopb.Node{
+				Services: map[uint32]*topopb.Service{
+					22: {
+						Names:  []string{"ssh", "cli"},
+						Inside: 22,
+					},
+				},
+			},
+			want: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
+		},
+		{
+			desc: "gnmi service only",
+			node: &topopb.Node{
+				Services: map[uint32]*topopb.Service{
+					9339: {
+						Name:   "gnmi",
+						Inside: 57400,
+					},
+				},
+			},
+			want: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(57400),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
+		},
+		{
+			desc: "both ssh and gnmi prefers ssh",
+			node: &topopb.Node{
+				Services: map[uint32]*topopb.Service{
+					22: {
+						Name:   "ssh",
+						Inside: 22,
+					},
+					9339: {
+						Names:  []string{"gnmi", "gnoi"},
+						Inside: 57400,
+					},
+				},
+			},
+			want: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
+		},
+		{
+			desc: "unsupported service only",
+			node: &topopb.Node{
+				Services: map[uint32]*topopb.Service{
+					179: {
+						Name:   "bgp",
+						Inside: 179,
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			desc: "service with zero inside falls back to map key",
+			node: &topopb.Node{
+				Services: map[uint32]*topopb.Service{
+					22: {
+						Name:   "ssh",
+						Inside: 0,
+					},
+				},
+			},
+			want: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got := ServiceReadinessProbe(tt.node)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("ServiceReadinessProbe() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

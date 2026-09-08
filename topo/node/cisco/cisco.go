@@ -35,7 +35,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	log "k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
@@ -184,16 +183,7 @@ func (n *Node) Create(ctx context.Context) error {
 		tty = true
 		stdin = true
 	}
-	readinessProbe := &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(57400),
-			},
-		},
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
-		FailureThreshold:    60,
-	}
+	readinessProbe := node.ServiceReadinessProbe(pb)
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: n.Name(),
