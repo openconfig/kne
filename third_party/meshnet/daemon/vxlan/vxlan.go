@@ -13,6 +13,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
+	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 )
 
 var vxLanOvrlyLogger *log.Entry = nil
@@ -105,6 +106,20 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 			vxLanOvrlyLogger.Errorf(" MESHNETD: Error when creating a new Vxlan interface with koko: %s", err)
 			return err
 		}
+	}
+
+	// Tune txqueuelen inside the container netns (configurable via LINK_TXQUEUELEN)
+	if podNs, err := ns.GetNS(veth.NsName); err == nil {
+		_ = podNs.Do(func(_ ns.NetNS) error {
+			if link, err := netlink.LinkByName(veth.LinkName); err == nil {
+				txqLen := wireutil.GetLinkTxQLen()
+				if err := netlink.LinkSetTxQLen(link, txqLen); err != nil {
+					vxLanOvrlyLogger.Warnf("failed to set txqueuelen %d on %s inside %s: %v", txqLen, veth.LinkName, veth.NsName, err)
+				}
+			}
+			return nil
+		})
+		podNs.Close()
 	}
 
 	return nil

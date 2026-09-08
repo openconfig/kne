@@ -18,6 +18,8 @@ guide is broken up into multiple sections spanning multiple documents.
   a KNE topology after creation.
 - [Troubleshooting](troubleshoot.md): A troubleshooting guide if anything goes
   wrong along the way.
+- [Performance Tuning](performance_tuning.md): Recommended host kernel sysctls,
+  interface queue lengths, and gRPC flow control for high-density topologies.
 
 They are recommended to be done in order.
 
