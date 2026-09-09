@@ -305,6 +305,115 @@ func TestService(t *testing.T) {
 			},
 		}},
 	}, {
+		desc: "nodeport service valid",
+		node: &topopb.Node{
+			Name:   "dev-nodeport",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				50058: {
+					Name:   "wire",
+					Inside: 50058,
+					Type:   topopb.Service_NODE_PORT,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-nodeport",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-nodeport"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "wire",
+					Protocol:   "TCP",
+					Port:       50058,
+					TargetPort: intstr.FromInt(50058),
+					NodePort:   0,
+				}},
+				Selector: map[string]string{"app": "dev-nodeport"},
+				Type:     "NodePort",
+			},
+		}},
+	}, {
+		desc: "nodeport service with static port",
+		node: &topopb.Node{
+			Name:   "dev-nodeport-static",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				50058: {
+					Name:     "wire",
+					Inside:   50058,
+					Type:     topopb.Service_NODE_PORT,
+					NodePort: 30058,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-nodeport-static",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-nodeport-static"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "wire",
+					Protocol:   "TCP",
+					Port:       50058,
+					TargetPort: intstr.FromInt(50058),
+					NodePort:   30058,
+				}},
+				Selector: map[string]string{"app": "dev-nodeport-static"},
+				Type:     "NodePort",
+			},
+		}},
+	}, {
+		desc: "clusterip service valid",
+		node: &topopb.Node{
+			Name:   "dev-clusterip",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				8080: {
+					Name:   "http",
+					Inside: 8080,
+					Type:   topopb.Service_CLUSTER_IP,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-clusterip",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-clusterip"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "http",
+					Protocol:   "TCP",
+					Port:       8080,
+					TargetPort: intstr.FromInt(8080),
+					NodePort:   0,
+				}},
+				Selector: map[string]string{"app": "dev-clusterip"},
+				Type:     "ClusterIP",
+			},
+		}},
+	}, {
 		desc: "failed create duplicate",
 		node: &topopb.Node{
 			Name:   "dev1",

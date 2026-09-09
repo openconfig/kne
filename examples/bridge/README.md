@@ -75,10 +75,10 @@ You can also run `bridge client` directly on a development workstation to bridge
 
 2. **Run the KNE bridge client on the local interface:**
 
-   Find the external IP/NodePort for `service-bridge-server` via `kne topology service`, then run:
+   Find the worker node IP and NodePort (or external LoadBalancer IP) for `service-bridge-server` via `kne topology service examples/bridge/paired-bridge.pb.txt`, then run:
 
    ```bash
-   sudo kne bridge client --peer=<BRIDGE_SERVICE_IP>:50058 --interface=veth-kne
+   sudo kne bridge client --peer=<NODE_IP>:<NODE_PORT> --interface=veth-kne
    ```
 
 3. **Ping directly from the host:**

@@ -552,6 +552,7 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		log.Info("no services found")
 		return nil
 	}
+	svcType := corev1.ServiceTypeLoadBalancer
 	for k, v := range n.Proto.Services {
 		if v.Outside != 0 {
 			log.Warningf("Outside should not be set by user. The key is used as the target external port")
@@ -571,6 +572,14 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			Name:       v.Name,
 		}
 		servicePorts = append(servicePorts, sp)
+		switch v.Type {
+		case tpb.Service_NODE_PORT:
+			svcType = corev1.ServiceTypeNodePort
+		case tpb.Service_CLUSTER_IP:
+			if svcType != corev1.ServiceTypeNodePort {
+				svcType = corev1.ServiceTypeClusterIP
+			}
+		}
 	}
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -588,14 +597,16 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			Selector: map[string]string{
 				"app": n.Name(),
 			},
-			Type: "LoadBalancer",
-			// Do not allocate a NodePort for this LoadBalancer. MetalLB
-			// or the equivalent load balancer should handle exposing this service.
-			// Large topologies may try to allocate more NodePorts than are
-			// supported in default clusters.
-			// https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation
-			AllocateLoadBalancerNodePorts: pointer.Bool(false),
+			Type: svcType,
 		},
+	}
+	if svcType == corev1.ServiceTypeLoadBalancer {
+		// Do not allocate a NodePort for this LoadBalancer. MetalLB
+		// or the equivalent load balancer should handle exposing this service.
+		// Large topologies may try to allocate more NodePorts than are
+		// supported in default clusters.
+		// https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation
+		s.Spec.AllocateLoadBalancerNodePorts = pointer.Bool(false)
 	}
 	sS, err := n.KubeClient.CoreV1().Services(n.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil {
