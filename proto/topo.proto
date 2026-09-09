@@ -241,5 +241,6 @@ message Service {
   // duplicate values.
   repeated string names = 7;
 
-  Type type = 8;          // Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP)
+  // Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP).
+  Type type = 8;
 }
