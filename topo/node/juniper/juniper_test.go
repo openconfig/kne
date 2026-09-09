@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	ktest "k8s.io/client-go/testing"
@@ -1040,6 +1041,19 @@ func TestCreate(t *testing.T) {
 			}
 			if len(pod.Spec.Containers[0].VolumeMounts) != tt.wantMainMountsLen {
 				t.Errorf("main container volume mounts len = %d, want %d", len(pod.Spec.Containers[0].VolumeMounts), tt.wantMainMountsLen)
+			}
+			wantProbe := &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			}
+			if diff := cmp.Diff(wantProbe, pod.Spec.Containers[0].ReadinessProbe); diff != "" {
+				t.Errorf("container readiness probe mismatch (-want +got):\n%s", diff)
 			}
 			for _, sub := range tt.wantInitScriptSub {
 				if !strings.Contains(initC.Args[0], sub) {

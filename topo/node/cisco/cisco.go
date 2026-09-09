@@ -615,7 +615,8 @@ func defaults(pb *tpb.Node) (*tpb.Node, error) {
 }
 
 // Status returns the current node state.
-// For 8000e nodes it checks the logs and return running if log contains "Router up"
+// For 8000e nodes it checks the logs and return running if log contains "Router up" and pod is ready.
+// For XRD nodes it returns running if pod is ready.
 func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	p, err := n.Pods(ctx)
 	if err != nil {
@@ -635,33 +636,37 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 		pb := n.Proto
 		if pb.GetModel() != ModelXRD {
 			req := n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &corev1.PodLogOptions{})
-			if isNode8000eFailed(ctx, req) {
+			logBytes, err := getPodLogs(ctx, req)
+			if err != nil {
+				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+				return node.StatusPending, nil
+			}
+			if isNode8000eFailed(logBytes) {
 				log.Warningf("Cisco %s node %s failed to boot", n.Proto.Model, n.Name())
 				return node.StatusFailed, fmt.Errorf("cisco %s node %s failed to boot", n.Proto.Model, n.Name())
 			}
-			req = n.KubeClient.CoreV1().Pods(p[0].Namespace).GetLogs(p[0].Name, &corev1.PodLogOptions{})
-			if !isNode8000eUp(ctx, req) {
+			if !isNode8000eUp(logBytes) {
 				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
 				return node.StatusPending, nil
 			}
 		}
 		for _, cond := range p[0].Status.Conditions {
-			if cond.Type == corev1.PodReady && cond.Status != corev1.ConditionTrue {
-				log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
-				return node.StatusPending, nil
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				log.Infof("Cisco %s node %s status is %v ", n.Proto.Model, n.Name(), node.StatusRunning)
+				return node.StatusRunning, nil
 			}
 		}
-		log.Infof("Cisco %s node %s status is %v ", n.Proto.Model, n.Name(), node.StatusRunning)
-		return node.StatusRunning, nil
+		log.V(2).Infof("Cisco %s node %s status is %v", n.Proto.Model, n.Name(), node.StatusPending)
+		return node.StatusPending, nil
 	default:
 		return node.StatusUnknown, nil
 	}
 }
 
-func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
+func getPodLogs(ctx context.Context, req *rest.Request) ([]byte, error) {
 	podLogs, err := req.Stream(ctx)
 	if err != nil {
-		return false
+		return nil, err
 	}
 	defer func() {
 		if err := podLogs.Close(); err != nil {
@@ -669,29 +674,19 @@ func isNode8000eUp(ctx context.Context, req *rest.Request) bool {
 		}
 	}()
 	buf := new(bytes.Buffer)
-	len, err := io.Copy(buf, podLogs)
-	if err != nil || len == 0 {
-		return false
+	n, err := io.Copy(buf, podLogs)
+	if err != nil || n == 0 {
+		return nil, fmt.Errorf("failed to read pod logs or empty log")
 	}
-	return podIsUpRegex.Match(buf.Bytes())
+	return buf.Bytes(), nil
 }
 
-func isNode8000eFailed(ctx context.Context, req *rest.Request) bool {
-	podLogs, err := req.Stream(ctx)
-	if err != nil {
-		return false
-	}
-	defer func() {
-		if err := podLogs.Close(); err != nil {
-			log.V(2).Infof("Failed to close pod logs stream: %v", err)
-		}
-	}()
-	buf := new(bytes.Buffer)
-	len, err := io.Copy(buf, podLogs)
-	if err != nil || len == 0 {
-		return false
-	}
-	return podIsFailedRegex.Match(buf.Bytes())
+func isNode8000eUp(logBytes []byte) bool {
+	return podIsUpRegex.Match(logBytes)
+}
+
+func isNode8000eFailed(logBytes []byte) bool {
+	return podIsFailedRegex.Match(logBytes)
 }
 
 // No op function to override default network on open function.

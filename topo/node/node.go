@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -235,10 +236,17 @@ func ServiceReadinessProbe(pb *tpb.Node) *corev1.Probe {
 	if pb == nil || len(pb.Services) == 0 {
 		return nil
 	}
+	keys := make([]uint32, 0, len(pb.Services))
+	for k := range pb.Services {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
 	// Prefer SSH first (typically available at boot across all NOS), then gNMI
 	preferred := []string{"ssh", "gnmi"}
 	for _, pref := range preferred {
-		for k, svc := range pb.Services {
+		for _, k := range keys {
+			svc := pb.Services[k]
 			if svc == nil {
 				continue
 			}
