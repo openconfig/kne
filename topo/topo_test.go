@@ -1075,22 +1075,30 @@ func TestShow(t *testing.T) {
 	wantTopo.Nodes[0].Services[22].Outside = 22
 	wantTopo.Nodes[0].Services[22].OutsideIp = "192.168.16.50"
 	wantTopo.Nodes[0].Services[22].NodePort = 20001
+	wantTopo.Nodes[0].Services[22].Type = tpb.Service_LOAD_BALANCER
 	wantTopo.Nodes[1].PodIp = "10.0.1.2"
 	wantTopo.Nodes[1].Services[9337].Inside = 9337
 	wantTopo.Nodes[1].Services[9337].InsideIp = "10.1.1.2"
 	wantTopo.Nodes[1].Services[9337].Outside = 9337
 	wantTopo.Nodes[1].Services[9337].OutsideIp = "192.168.16.51"
 	wantTopo.Nodes[1].Services[9337].NodePort = 20002
+	wantTopo.Nodes[1].Services[9337].Type = tpb.Service_LOAD_BALANCER
 	wantTopo.Nodes[1].Services[9339].Inside = 9339
 	wantTopo.Nodes[1].Services[9339].InsideIp = "10.1.1.2"
 	wantTopo.Nodes[1].Services[9339].Outside = 9339
 	wantTopo.Nodes[1].Services[9339].OutsideIp = "192.168.16.51"
 	wantTopo.Nodes[1].Services[9339].NodePort = 20003
+	wantTopo.Nodes[1].Services[9339].Type = tpb.Service_LOAD_BALANCER
 	wantTopo.Nodes[2].PodIp = "10.0.1.3"
 
 	topoRemapPorts := proto.Clone(wantTopo).(*tpb.Topology)
 	topoRemapPorts.Nodes[1].Services[9337].Inside = 9339
 	wantTopoRemapPorts := proto.Clone(topoRemapPorts).(*tpb.Topology)
+
+	topoNodePort := proto.Clone(wantTopo).(*tpb.Topology)
+	topoNodePort.Nodes[0].Services[22].Type = tpb.Service_NODE_PORT
+	topoNodePort.Nodes[0].Services[22].OutsideIp = ""
+	wantTopoNodePort := proto.Clone(topoNodePort).(*tpb.Topology)
 
 	wantTopoPodUnhealthy := proto.Clone(wantTopo).(*tpb.Topology)
 	wantTopoPodUnhealthy.Nodes[0].PodIp = ""
@@ -1199,6 +1207,99 @@ func TestShow(t *testing.T) {
 		want: &cpb.ShowTopologyResponse{
 			State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
 			Topology: wantTopo,
+		},
+	}, {
+		desc: "success with nodeport service",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					PodIP:      "10.0.1.1",
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					PodIP:      "10.0.1.2",
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					PodIP:      "10.0.1.3",
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.1",
+					Type:      corev1.ServiceTypeNodePort,
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Protocol:   "TCP",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   20001,
+					}},
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.2",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "grpc",
+						Protocol:   "TCP",
+						Port:       9337,
+						TargetPort: intstr.FromInt(9337),
+						NodePort:   20002,
+					}, {
+						Name:       "gnmi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   20003,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.51",
+						}},
+					},
+				},
+			},
+		},
+		want: &cpb.ShowTopologyResponse{
+			State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+			Topology: wantTopoNodePort,
 		},
 	}, {
 		desc: "success with remapped ports",
