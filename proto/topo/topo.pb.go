@@ -1292,8 +1292,9 @@ type Service struct {
 	// the unspecified field is ignored.
 	// If both are provided, names in both fields are considered excluding any
 	// duplicate values.
-	Names []string     `protobuf:"bytes,7,rep,name=names,proto3" json:"names,omitempty"`
-	Type  Service_Type `protobuf:"varint,8,opt,name=type,proto3,enum=topo.Service_Type" json:"type,omitempty"` // Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP)
+	Names []string `protobuf:"bytes,7,rep,name=names,proto3" json:"names,omitempty"`
+	// Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP).
+	Type Service_Type `protobuf:"varint,8,opt,name=type,proto3,enum=topo.Service_Type" json:"type,omitempty"`
 }
 
 func (x *Service) Reset() {
