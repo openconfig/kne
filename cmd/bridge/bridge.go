@@ -28,6 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/alts"
+	"google.golang.org/grpc/keepalive"
 	log "k8s.io/klog/v2"
 )
 
@@ -134,7 +135,16 @@ func runServer(ctx context.Context, listenPort int, useALTS bool) error {
 		_ = bridgeServer.Close()
 	}()
 
-	var serverOpts []grpc.ServerOption
+	serverOpts := []grpc.ServerOption{
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             5 * time.Second,
+			PermitWithoutStream: true,
+		}),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    2 * time.Hour,
+			Timeout: 20 * time.Second,
+		}),
+	}
 	if useALTS {
 		creds := alts.NewServerCreds(alts.DefaultServerOptions())
 		serverOpts = append(serverOpts, grpc.Creds(creds))
