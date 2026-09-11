@@ -36,6 +36,14 @@ func TestNew(t *testing.T) {
 		t.Errorf("got default listen_port = %q, want %q", flag.DefValue, "50058")
 	}
 
+	altsFlag := cmd.Flag("alts")
+	if altsFlag == nil {
+		t.Fatalf("missing --alts flag")
+	}
+	if altsFlag.DefValue != "false" {
+		t.Errorf("got default alts = %q, want %q", altsFlag.DefValue, "false")
+	}
+
 	peerFlag := cmd.Flag("peer")
 	if peerFlag == nil {
 		t.Fatalf("missing --peer flag")
@@ -47,7 +55,7 @@ func TestRunServerCancel(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- runServer(ctx, 0)
+		errCh <- runServer(ctx, 0, false)
 	}()
 
 	time.Sleep(50 * time.Millisecond)

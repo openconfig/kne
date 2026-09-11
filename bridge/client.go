@@ -22,6 +22,7 @@ import (
 
 	wpb "github.com/openconfig/kne/proto/wire"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/alts"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"k8s.io/klog/v2"
@@ -41,6 +42,8 @@ type ClientConfig struct {
 	SocketOpener func(ifaceName string) (ReadWriter, error)
 	// RetryInterval is the delay before reconnecting if disconnected. Default 2s.
 	RetryInterval time.Duration
+	// UseALTS specifies whether to use ALTS transport credentials for DirectPath on GCE.
+	UseALTS bool
 }
 
 // Client connects to a remote bridge server and bridges packets to a local interface.
@@ -81,8 +84,14 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 func (c *Client) Run(ctx context.Context) error {
 	dialOpts := c.cfg.DialOpts
 	if len(dialOpts) == 0 {
-		dialOpts = []grpc.DialOption{
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		if c.cfg.UseALTS {
+			dialOpts = []grpc.DialOption{
+				grpc.WithTransportCredentials(alts.NewClientCreds(alts.DefaultClientOptions())),
+			}
+		} else {
+			dialOpts = []grpc.DialOption{
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+			}
 		}
 	}
 

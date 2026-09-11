@@ -340,7 +340,16 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 	}
 
 	pktChan := demux.subscribe()
-	defer demux.unsubscribe(pktChan)
+	defer func() {
+		demux.unsubscribe(pktChan)
+		klog.Infof("Wire.Transmit client disconnected from interface %q", ifaceName)
+	}()
+
+	// Send stream header immediately to flush HTTP/2 response headers so the client's stream.Header() unblocks.
+	if err := stream.SendHeader(metadata.MD{}); err != nil {
+		return fmt.Errorf("failed to send stream header for %s: %w", ifaceName, err)
+	}
+	klog.Infof("Wire.Transmit client connected for interface %q", ifaceName)
 
 	errChan := make(chan error, 2)
 
