@@ -122,6 +122,9 @@ func TestTransmitBidirectionalStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Transmit RPC failed: %v", err)
 	}
+	if _, err := stream.Header(); err != nil {
+		t.Fatalf("Failed to receive stream header: %v", err)
+	}
 
 	// 1. Test Egress (Raw Socket -> gRPC Client)
 	egressPacket := []byte{0x01, 0x02, 0x03, 0x04}

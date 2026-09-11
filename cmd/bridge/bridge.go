@@ -27,6 +27,7 @@ import (
 	wpb "github.com/openconfig/kne/proto/wire"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/alts"
 	log "k8s.io/klog/v2"
 )
 
@@ -38,6 +39,7 @@ func New() *cobra.Command {
 		localInterface  string
 		remoteInterface string
 		retryInterval   time.Duration
+		useALTS         bool
 	)
 
 	var bridgeCmd *cobra.Command
@@ -64,9 +66,10 @@ func New() *cobra.Command {
 					LocalInterface:  localInterface,
 					RemoteInterface: remoteInterface,
 					RetryInterval:   retryInterval,
+					UseALTS:         useALTS,
 				})
 			}
-			return runServer(cmd.Context(), listenPort)
+			return runServer(cmd.Context(), listenPort, useALTS)
 		},
 	}
 
@@ -75,15 +78,17 @@ func New() *cobra.Command {
 	bridgeCmd.Flags().StringVarP(&localInterface, "interface", "i", "eth1", "Local network interface to bridge (client mode)")
 	bridgeCmd.Flags().StringVar(&remoteInterface, "remote_interface", "", "Remote interface name on peer bridge server (client mode, defaults to --interface)")
 	bridgeCmd.Flags().DurationVar(&retryInterval, "retry_interval", 2*time.Second, "Reconnect retry delay when disconnected in client mode")
+	bridgeCmd.Flags().BoolVar(&useALTS, "alts", false, "Use ALTS transport credentials for DirectPath on GCE")
 
 	serverCmd := &cobra.Command{
 		Use:   "server",
 		Short: "Run the packet bridge as a gRPC Wire server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer(cmd.Context(), listenPort)
+			return runServer(cmd.Context(), listenPort, useALTS)
 		},
 	}
 	serverCmd.Flags().IntVar(&listenPort, "listen_port", 50058, "TCP port to listen for incoming gRPC Wire streaming connections")
+	serverCmd.Flags().BoolVar(&useALTS, "alts", false, "Use ALTS transport credentials for DirectPath on GCE")
 
 	clientCmd := &cobra.Command{
 		Use:   "client",
@@ -97,6 +102,7 @@ func New() *cobra.Command {
 				LocalInterface:  localInterface,
 				RemoteInterface: remoteInterface,
 				RetryInterval:   retryInterval,
+				UseALTS:         useALTS,
 			})
 		},
 	}
@@ -104,6 +110,7 @@ func New() *cobra.Command {
 	clientCmd.Flags().StringVarP(&localInterface, "interface", "i", "eth1", "Local network interface to bridge")
 	clientCmd.Flags().StringVar(&remoteInterface, "remote_interface", "", "Remote interface name on peer bridge server (defaults to --interface)")
 	clientCmd.Flags().DurationVar(&retryInterval, "retry_interval", 2*time.Second, "Reconnect retry delay when disconnected")
+	clientCmd.Flags().BoolVar(&useALTS, "alts", false, "Use ALTS transport credentials for DirectPath on GCE")
 
 	bridgeCmd.AddCommand(serverCmd)
 	bridgeCmd.AddCommand(clientCmd)
@@ -111,13 +118,13 @@ func New() *cobra.Command {
 	return bridgeCmd
 }
 
-func runServer(ctx context.Context, listenPort int) error {
+func runServer(ctx context.Context, listenPort int, useALTS bool) error {
 	addr := fmt.Sprintf(":%d", listenPort)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
-	log.Infof("KNE Packet Bridge Server listening on %s", addr)
+	log.Infof("KNE Packet Bridge Server listening on %s (alts=%v)", addr, useALTS)
 
 	bridgeCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -127,7 +134,13 @@ func runServer(ctx context.Context, listenPort int) error {
 		_ = bridgeServer.Close()
 	}()
 
-	grpcServer := grpc.NewServer()
+	var serverOpts []grpc.ServerOption
+	if useALTS {
+		creds := alts.NewServerCreds(alts.DefaultServerOptions())
+		serverOpts = append(serverOpts, grpc.Creds(creds))
+	}
+
+	grpcServer := grpc.NewServer(serverOpts...)
 	wpb.RegisterWireServer(grpcServer, bridgeServer)
 
 	go func() {
