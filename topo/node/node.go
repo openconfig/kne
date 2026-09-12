@@ -613,6 +613,60 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Created Service:\n%v\n", sS)
+
+	var proxyContainers []corev1.Container
+	for _, sp := range sS.Spec.Ports {
+		var needsProxy bool
+		if svc, ok := n.Proto.Services[uint32(sp.Port)]; ok && svc.GetV6HostProxy() {
+			needsProxy = true
+		} else {
+			for _, svc := range n.Proto.Services {
+				if svc.GetName() == sp.Name && svc.GetV6HostProxy() {
+					needsProxy = true
+					break
+				}
+			}
+		}
+		if needsProxy && sp.NodePort > 0 {
+			proxyContainers = append(proxyContainers, corev1.Container{
+				Name:  fmt.Sprintf("socat-%d", sp.NodePort),
+				Image: "alpine/socat:latest",
+				Args: []string{
+					fmt.Sprintf("TCP6-LISTEN:%d,fork,reuseaddr", sp.NodePort),
+					fmt.Sprintf("TCP4:127.0.0.1:%d", sp.NodePort),
+				},
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources: corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("64Mi"),
+					},
+				},
+			})
+		}
+	}
+	if len(proxyContainers) > 0 {
+		proxyPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("v6proxy-%s", n.Name()),
+				Labels: map[string]string{
+					"app":  fmt.Sprintf("v6proxy-%s", n.Name()),
+					"pod":  n.Name(),
+					"topo": n.Namespace,
+				},
+			},
+			Spec: corev1.PodSpec{
+				HostNetwork:                   true,
+				Containers:                    proxyContainers,
+				TerminationGracePeriodSeconds: pointer.Int64(0),
+			},
+		}
+		sProxyPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, proxyPod, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create host v6proxy pod: %w", err)
+		}
+		log.Infof("Created host v6proxy pod:\n%+v\n", sProxyPod)
+	}
 	return nil
 }
 
@@ -659,6 +713,12 @@ func (n *Impl) DeleteConfig(ctx context.Context) error {
 
 // DeleteService removes the service definition for the Node.
 func (n *Impl) DeleteService(ctx context.Context) error {
+	_ = n.KubeClient.CoreV1().Pods(n.Namespace).Delete(ctx, fmt.Sprintf("v6proxy-%s", n.Name()), metav1.DeleteOptions{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+		},
+		GracePeriodSeconds: pointer.Int64(0),
+	})
 	return n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.DeleteOptions{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
