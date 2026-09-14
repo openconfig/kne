@@ -29,6 +29,31 @@ go build -o kne
 cli="$HOME/kne/kne_cli/kne"
 popd
 
+# Sync host dependencies with external.pkr.hcl if needed
+target_kind_pkg=$(grep -o 'sigs.k8s.io/kind@v[0-9.]*' "$HOME/kne/cloudbuild/external.pkr.hcl" | head -n 1)
+if [ -n "$target_kind_pkg" ]; then
+	target_kind_ver=$(echo "$target_kind_pkg" | grep -o 'v[0-9.]*')
+	current_kind_ver=$(kind version 2>/dev/null | awk '{print $2}' || true)
+	if [[ "$current_kind_ver" != "$target_kind_ver" && "$current_kind_ver" != "${target_kind_ver#v}" ]]; then
+		echo "Syncing host kind from ${current_kind_ver:-none} to $target_kind_ver..."
+		go install "$target_kind_pkg"
+		sudo cp -f "$(go env GOPATH)/bin/kind" /usr/local/bin/
+	fi
+fi
+
+target_repo=$(grep -o 'https://pkgs.k8s.io/core:/stable:/v[0-9.]*/deb/' "$HOME/kne/cloudbuild/external.pkr.hcl" | head -n 1)
+if [ -n "$target_repo" ]; then
+	target_ver=$(echo "$target_repo" | grep -o 'v[0-9.]*')
+	current_kubeadm=$(kubeadm version -o short 2>/dev/null || true)
+	if [[ "$current_kubeadm" != ${target_ver}* ]]; then
+		echo "Syncing host kubeadm/kubelet from ${current_kubeadm:-none} to $target_ver..."
+		curl -fsSL "https://pkgs.k8s.io/core:/stable:/${target_ver}/deb/Release.key" | sudo gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+		echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] ${target_repo} /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+		sudo apt-get update -y
+		sudo apt-get install -y --allow-change-held-packages --allow-downgrades kubeadm kubelet
+	fi
+fi
+
 # Deploy a kind cluster
 pushd "$HOME"
 $cli deploy kne/deploy/kne/kind-bridge.yaml --report_usage=false
@@ -50,8 +75,6 @@ cluster:
   spec:
     name: kne
     recycle: True
-    version: v0.17.0
-    image: 'kindest/node:v1.26.0'
     googleArtifactRegistries:
       - us-west1-docker.pkg.dev
     containerImages:

@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	log "github.com/sirupsen/logrus"
@@ -46,8 +47,9 @@ type Meshnet struct {
 	s                 *grpc.Server
 	lis               net.Listener
 	nodeIP            string
-	dirtyChan         chan struct{}
 	interNodeLinkType string
+	topoCache         *TopologyCache
+	reconcileQueue    *ReconcileQueue
 }
 
 var mnetdLogger *log.Entry = nil
@@ -108,7 +110,7 @@ func New(cfg Config) (*Meshnet, error) {
 	// Otherwise there will be GRPC log for every packet sent as for link type GRPC, GRPC is also the data-plane. This is too
 	// much of log that does not help in debugging and K8S does log rotation very frequently.
 	defaultOpts := []grpc.ServerOption{
-		grpc.InitialWindowSize(4 * 1024 * 1024),     // 4MB stream window
+		grpc.InitialWindowSize(4 * 1024 * 1024),      // 4MB stream window
 		grpc.InitialConnWindowSize(16 * 1024 * 1024), // 16MB connection window
 		grpc.MaxRecvMsgSize(64 * 1024 * 1024),
 		grpc.MaxSendMsgSize(64 * 1024 * 1024),
@@ -132,8 +134,9 @@ func New(cfg Config) (*Meshnet, error) {
 		lis:               lis,
 		s:                 svr,
 		nodeIP:            os.Getenv("HOST_IP"),
-		dirtyChan:         make(chan struct{}, 1),
 		interNodeLinkType: lnkTyp,
+		topoCache:         NewTopologyCache(),
+		reconcileQueue:    NewReconcileQueue(50 * time.Millisecond),
 	}
 	mpb.RegisterLocalServer(m.s, m)
 	mpb.RegisterRemoteServer(m.s, m)

@@ -1,2 +1,3 @@
 [codespell]
 skip = *.pdf,*.png,*.jpg,*.gif,*.ico,*.sum,*.mod,*.pb.go,*go.sum,*/go.sum,vendor,.git
+ignore-words-list = dne

@@ -25,8 +25,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
+	dfake "k8s.io/client-go/dynamic/fake"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
@@ -161,14 +161,11 @@ func (nc *notCertable) GetProto() *tpb.Node {
 func TestNew(t *testing.T) {
 	node.Vendor(tpb.Vendor(1001), NewConfigurable)
 	node.Vendor(tpb.Vendor(1006), NewLoopbackable)
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset: %v", err)
-	}
+	tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 	opts := []Option{
 		WithClusterConfig(&rest.Config{}),
 		WithKubeClient(kfake.NewSimpleClientset()),
-		WithTopoClient(tf),
+		WithDynamicClient(tf),
 	}
 	tests := []struct {
 		desc      string
@@ -661,10 +658,7 @@ func TestCreate(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tf, err := tfake.NewSimpleClientset()
-			if err != nil {
-				t.Fatalf("cannot create fake topology clientset: %v", err)
-			}
+			tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 			kf := kfake.NewSimpleClientset()
 			kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
 				gAction, ok := action.(ktest.GetAction)
@@ -687,7 +681,7 @@ func TestCreate(t *testing.T) {
 			opts := []Option{
 				WithClusterConfig(&rest.Config{}),
 				WithKubeClient(kf),
-				WithTopoClient(tf),
+				WithDynamicClient(tf),
 			}
 			opts = append(opts, tt.opts...)
 			m, err := New(tt.topo, opts...)
@@ -1004,10 +998,7 @@ func TestDelete(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tf, err := tfake.NewSimpleClientset()
-			if err != nil {
-				t.Fatalf("cannot create fake topology clientset: %v", err)
-			}
+			tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 			kf := kfake.NewSimpleClientset(tt.k8sObjects...)
 			kf.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
 				f := &fakeWatch{
@@ -1028,7 +1019,7 @@ func TestDelete(t *testing.T) {
 			opts := []Option{
 				WithClusterConfig(&rest.Config{}),
 				WithKubeClient(kf),
-				WithTopoClient(tf),
+				WithDynamicClient(tf),
 				WithSkipDeleteWait(tt.skipWait),
 			}
 			m, err := New(tt.topo, opts...)
@@ -1566,14 +1557,11 @@ func TestShow(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tf, err := tfake.NewSimpleClientset()
-			if err != nil {
-				t.Fatalf("cannot create fake topology clientset: %v", err)
-			}
+			tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 			opts := []Option{
 				WithClusterConfig(&rest.Config{}),
 				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
-				WithTopoClient(tf),
+				WithDynamicClient(tf),
 			}
 			tTopo := proto.Clone(topo).(*tpb.Topology)
 			m, err := New(tTopo, opts...)
@@ -1762,14 +1750,11 @@ func TestResources(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tf, err := tfake.NewSimpleClientset(tt.topoObjects...)
-			if err != nil {
-				t.Fatalf("cannot create fake topology clientset: %v", err)
-			}
+			tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme, tt.topoObjects...)
 			opts := []Option{
 				WithClusterConfig(&rest.Config{}),
 				WithKubeClient(kfake.NewSimpleClientset(tt.k8sObjects...)),
-				WithTopoClient(tf),
+				WithDynamicClient(tf),
 			}
 			tTopo := proto.Clone(topo).(*tpb.Topology)
 			m, err := New(tTopo, opts...)
@@ -2132,16 +2117,13 @@ func TestOptions(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
-	tf, err := tfake.NewSimpleClientset(&topologyv1.Topology{
+	tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme, &topologyv1.Topology{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 		},
 	})
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset: %v", err)
-	}
 	m := &Manager{
-		tClient: tf,
+		dClient: tf,
 		topo: &tpb.Topology{
 			Name: "test",
 		},

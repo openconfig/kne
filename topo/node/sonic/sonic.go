@@ -122,6 +122,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: pointer.Bool(true),
 		},
+		ReadinessProbe:  node.ServiceReadinessProbe(pb),
 	}}
 
 	pod := &corev1.Pod{

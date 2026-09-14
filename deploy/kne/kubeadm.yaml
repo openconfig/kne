@@ -9,6 +9,7 @@ cluster:
     tokenTTL: 0 # no timeout
     podNetworkAddOnManifest: ../../manifests/flannel/manifest.yaml
     allowControlPlaneScheduling: true
+    kubernetesVersion: v1.36.1
 ingress:
   kind: MetalLB
   spec:

@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 )
@@ -134,13 +133,9 @@ func (t *topologyClient) Get(ctx context.Context, name string, opts metav1.GetOp
 }
 
 func (t *topologyClient) Create(ctx context.Context, topology *topologyv1.Topology, opts metav1.CreateOptions) (*topologyv1.Topology, error) {
-	gvk, err := apiutil.GVKForObject(topology, topologyv1.Scheme)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get gvk for Topology: %w", err)
-	}
 	topology.TypeMeta = metav1.TypeMeta{
-		Kind:       gvk.Kind,
-		APIVersion: gvk.GroupVersion().String(),
+		Kind:       "Topology",
+		APIVersion: topologyv1.SchemeGroupVersion.String(),
 	}
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(topology)
 	if err != nil {

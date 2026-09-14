@@ -3,7 +3,7 @@ KIND_CLUSTER_NAME := "kne"
 
 .PHONY: kind-install
 kind-install: 
-	go get sigs.k8s.io/kind@v0.11.1
+	go install sigs.k8s.io/kind@v0.32.0
 
 .PHONY: kind-stop
 kind-stop: 

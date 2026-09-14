@@ -30,11 +30,11 @@ type TopologySpec struct {
 type TopologyStatus struct {
 	metav1.TypeMeta `json:",inline"`
 	// Deprecated: Do not use. Skipped links are managed reactively by the daemon controller.
-	Skipped         []Skipped `json:"skipped"`
-	SrcIP           string    `json:"src_ip"`
-	NetNS           string    `json:"net_ns"`
-	ContainerID     string    `json:"container_id"`
-	PlumbingError   string    `json:"plumbing_error,omitempty"`
+	Skipped       []Skipped `json:"skipped"`
+	SrcIP         string    `json:"src_ip"`
+	NetNS         string    `json:"net_ns"`
+	ContainerID   string    `json:"container_id"`
+	PlumbingError string    `json:"plumbing_error,omitempty"`
 }
 
 // Skipped represents a skipped interface connection.

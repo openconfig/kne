@@ -74,6 +74,7 @@ message KubeadmSpec {
   bool allow_control_plane_scheduling = 6;
   string credential_provider_config = 7;
   string image_repository = 8;
+  string kubernetes_version = 9;
 }
 
 // External cluster specifications

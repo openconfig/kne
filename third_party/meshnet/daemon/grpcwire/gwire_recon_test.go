@@ -465,7 +465,7 @@ func TestCreateWireStatus_ConcurrentUpdateRace(t *testing.T) {
 		wg.Add(2)
 		go func(id int) {
 			defer wg.Done()
-			wire.UpdateWire(int64(id), nil)
+			wire.UpdateWire(int64(id), "10.5.5.5", make(chan struct{}))
 		}(i)
 		go func() {
 			defer wg.Done()

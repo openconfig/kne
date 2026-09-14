@@ -11,16 +11,17 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/kne/topo"
 	"github.com/openconfig/kne/topo/node"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
+	dfake "k8s.io/client-go/dynamic/fake"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 )
@@ -220,14 +221,11 @@ func TestReset(t *testing.T) {
 
 	rCmd := New()
 	origOpts := opts
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset")
-	}
+	tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 	opts = []topo.Option{
 		topo.WithClusterConfig(&rest.Config{}),
 		topo.WithKubeClient(kfake.NewSimpleClientset()),
-		topo.WithTopoClient(tf),
+		topo.WithDynamicClient(tf),
 	}
 	defer func() {
 		opts = origOpts
@@ -614,14 +612,11 @@ func TestPush(t *testing.T) {
 
 	rCmd := New()
 	origOpts := opts
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset")
-	}
+	tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 	opts = []topo.Option{
 		topo.WithClusterConfig(&rest.Config{}),
 		topo.WithKubeClient(kfake.NewSimpleClientset()),
-		topo.WithTopoClient(tf),
+		topo.WithDynamicClient(tf),
 	}
 	defer func() {
 		opts = origOpts

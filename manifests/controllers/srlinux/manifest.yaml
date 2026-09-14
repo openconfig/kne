@@ -26,159 +26,166 @@ spec:
     singular: srlinux
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    - jsonPath: .status.image
-      name: Image
-      type: string
-    - jsonPath: .status.status
-      name: Status
-      type: string
-    - jsonPath: .status.ready
-      name: Ready
-      type: boolean
-    - jsonPath: .status.startup-config.phase
-      name: Config
-      type: string
-    name: v1
-    schema:
-      openAPIV3Schema:
-        description: Srlinux is the Schema for the srlinuxes API.
-        properties:
-          apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-            type: string
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          license_key:
-            description: license key from license secret that contains a license file
-              for this Srlinux
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: SrlinuxSpec defines the desired state of Srlinux.
-            properties:
-              config:
-                description: NodeConfig represents srlinux node configuration parameters.
-                properties:
-                  args:
-                    description: Command args to pass into the pod.
-                    items:
-                      type: string
-                    type: array
-                  cert:
-                    description: CertificateCfg represents srlinux certificate configuration
-                      parameters.
-                    properties:
-                      cert_name:
-                        description: Certificate name on the node.
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        - jsonPath: .status.image
+          name: Image
+          type: string
+        - jsonPath: .status.status
+          name: Status
+          type: string
+        - jsonPath: .status.ready
+          name: Ready
+          type: boolean
+        - jsonPath: .status.startup-config.phase
+          name: Config
+          type: string
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: Srlinux is the Schema for the srlinuxes API.
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            license_key:
+              description:
+                license key from license secret that contains a license file
+                for this Srlinux
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: SrlinuxSpec defines the desired state of Srlinux.
+              properties:
+                config:
+                  description: NodeConfig represents srlinux node configuration parameters.
+                  properties:
+                    args:
+                      description: Command args to pass into the pod.
+                      items:
                         type: string
-                      common_name:
-                        description: Common name to set in the cert.
+                      type: array
+                    cert:
+                      description:
+                        CertificateCfg represents srlinux certificate configuration
+                        parameters.
+                      properties:
+                        cert_name:
+                          description: Certificate name on the node.
+                          type: string
+                        common_name:
+                          description: Common name to set in the cert.
+                          type: string
+                        key_name:
+                          description: Key name on the node.
+                          type: string
+                        key_size:
+                          description: RSA keysize to use for key generation.
+                          format: int32
+                          type: integer
+                      type: object
+                    command:
+                      description: Command to pass into pod.
+                      items:
                         type: string
-                      key_name:
-                        description: Key name on the node.
+                      type: array
+                    config_data_present:
+                      description:
+                        When set to true by kne, srlinux controller will
+                        attempt to mount the file with startup config to the pod
+                      type: boolean
+                    config_file:
+                      description:
+                        Startup configuration file name for the pod. Set
+                        in the kne topo and created by kne as a config map
+                      type: string
+                    config_path:
+                      description:
+                        Mount point for configuration inside the pod. Should
+                        point to a dir that contains ConfigFile
+                      type: string
+                    entry_command:
+                      description: Specific entry point command for accessing the pod.
+                      type: string
+                    env:
+                      additionalProperties:
                         type: string
-                      key_size:
-                        description: RSA keysize to use for key generation.
-                        format: int32
-                        type: integer
-                    type: object
-                  command:
-                    description: Command to pass into pod.
-                    items:
+                      description: Map of environment variables to pass into the pod.
+                      type: object
+                    image:
+                      description: Container image to use with for the SR Linux container.
                       type: string
-                    type: array
-                  config_data_present:
-                    description: When set to true by kne, srlinux controller will
-                      attempt to mount the file with startup config to the pod
-                    type: boolean
-                  config_file:
-                    description: Startup configuration file name for the pod. Set
-                      in the kne topo and created by kne as a config map
-                    type: string
-                  config_path:
-                    description: Mount point for configuration inside the pod. Should
-                      point to a dir that contains ConfigFile
-                    type: string
-                  entry_command:
-                    description: Specific entry point command for accessing the pod.
-                    type: string
-                  env:
-                    additionalProperties:
+                    init-image:
+                      description:
+                        Init container image to use with for the SR Linux
+                        container.
                       type: string
-                    description: Map of environment variables to pass into the pod.
-                    type: object
-                  image:
-                    description: Container image to use with for the SR Linux container.
+                    sleep:
+                      description: Sleep time before starting the pod.
+                      format: int32
+                      type: integer
+                  type: object
+                constraints:
+                  additionalProperties:
                     type: string
-                  init-image:
-                    description: Init container image to use with for the SR Linux
-                      container.
-                    type: string
-                  sleep:
-                    description: Sleep time before starting the pod.
-                    format: int32
-                    type: integer
-                type: object
-              constraints:
-                additionalProperties:
+                  type: object
+                model:
+                  description: Model encodes SR Linux variant (ixr-d3, ixr-6e, etc)
                   type: string
-                type: object
-              model:
-                description: Model encodes SR Linux variant (ixr-d3, ixr-6e, etc)
-                type: string
-              num-interfaces:
-                type: integer
-              version:
-                description: |-
-                  Version may be set in kne topology as a mean to explicitly provide version information
-                  in case it is not encoded in the image tag
-                type: string
-            type: object
-          status:
-            description: SrlinuxStatus defines the observed state of Srlinux.
-            properties:
-              image:
-                description: Image used to run srlinux pod
-                type: string
-              ready:
-                description: |-
-                  Ready is true if the srlinux NOS is ready to receive config.
-                  This is when management server is running and initial commit is processed.
-                type: boolean
-              startup-config:
-                description: StartupConfig contains the status of the startup-config.
-                properties:
-                  phase:
-                    description: 'Phase is the phase startup-config is in. Can be
-                      one of: "pending", "loaded", "not-provided", "failed".'
-                    type: string
-                type: object
-              status:
-                description: |-
-                  Status is the status of the srlinux custom resource.
-                  Can be one of: "created", "running", "error".
-                type: string
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
+                num-interfaces:
+                  type: integer
+                version:
+                  description: |-
+                    Version may be set in kne topology as a mean to explicitly provide version information
+                    in case it is not encoded in the image tag
+                  type: string
+              type: object
+            status:
+              description: SrlinuxStatus defines the observed state of Srlinux.
+              properties:
+                image:
+                  description: Image used to run srlinux pod
+                  type: string
+                ready:
+                  description: |-
+                    Ready is true if the srlinux NOS is ready to receive config.
+                    This is when management server is running and initial commit is processed.
+                  type: boolean
+                startup-config:
+                  description: StartupConfig contains the status of the startup-config.
+                  properties:
+                    phase:
+                      description:
+                        'Phase is the phase startup-config is in. Can be
+                        one of: "pending", "loaded", "not-provided", "failed".'
+                      type: string
+                  type: object
+                status:
+                  description: |-
+                    Status is the status of the srlinux custom resource.
+                    Can be one of: "created", "running", "error".
+                  type: string
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -206,89 +213,88 @@ metadata:
   name: srlinux-controller-leader-election-role
   namespace: srlinux-controller
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: srlinux-controller-manager-role
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - pods
-  - secrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - kne.srlinux.dev
-  resources:
-  - srlinuxes
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - kne.srlinux.dev
-  resources:
-  - srlinuxes/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - kne.srlinux.dev
-  resources:
-  - srlinuxes/status
-  verbs:
-  - get
-  - patch
-  - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - kne.srlinux.dev
+    resources:
+      - srlinuxes
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - kne.srlinux.dev
+    resources:
+      - srlinuxes/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - kne.srlinux.dev
+    resources:
+      - srlinuxes/status
+    verbs:
+      - get
+      - patch
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/component: kube-rbac-proxy
     app.kubernetes.io/created-by: srlinux-controller
     app.kubernetes.io/instance: metrics-reader
     app.kubernetes.io/managed-by: kustomize
@@ -296,16 +302,15 @@ metadata:
     app.kubernetes.io/part-of: srlinux-controller
   name: srlinux-controller-metrics-reader
 rules:
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/component: kube-rbac-proxy
     app.kubernetes.io/created-by: srlinux-controller
     app.kubernetes.io/instance: proxy-role
     app.kubernetes.io/managed-by: kustomize
@@ -313,18 +318,18 @@ metadata:
     app.kubernetes.io/part-of: srlinux-controller
   name: srlinux-controller-proxy-role
 rules:
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -343,9 +348,9 @@ roleRef:
   kind: Role
   name: srlinux-controller-leader-election-role
 subjects:
-- kind: ServiceAccount
-  name: srlinux-controller-controller-manager
-  namespace: srlinux-controller
+  - kind: ServiceAccount
+    name: srlinux-controller-controller-manager
+    namespace: srlinux-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -363,15 +368,14 @@ roleRef:
   kind: ClusterRole
   name: srlinux-controller-manager-role
 subjects:
-- kind: ServiceAccount
-  name: srlinux-controller-controller-manager
-  namespace: srlinux-controller
+  - kind: ServiceAccount
+    name: srlinux-controller-controller-manager
+    namespace: srlinux-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: kube-rbac-proxy
     app.kubernetes.io/created-by: srlinux-controller
     app.kubernetes.io/instance: proxy-rolebinding
     app.kubernetes.io/managed-by: kustomize
@@ -383,15 +387,14 @@ roleRef:
   kind: ClusterRole
   name: srlinux-controller-proxy-role
 subjects:
-- kind: ServiceAccount
-  name: srlinux-controller-controller-manager
-  namespace: srlinux-controller
+  - kind: ServiceAccount
+    name: srlinux-controller-controller-manager
+    namespace: srlinux-controller
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: kube-rbac-proxy
     app.kubernetes.io/created-by: srlinux-controller
     app.kubernetes.io/instance: controller-manager-metrics-service
     app.kubernetes.io/managed-by: kustomize
@@ -402,10 +405,10 @@ metadata:
   namespace: srlinux-controller
 spec:
   ports:
-  - name: https
-    port: 8443
-    protocol: TCP
-    targetPort: https
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: https
   selector:
     control-plane: controller-manager
 ---
@@ -438,74 +441,51 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/arch
-                operator: In
-                values:
-                - amd64
-                - arm64
-                - ppc64le
-                - s390x
-              - key: kubernetes.io/os
-                operator: In
-                values:
-                - linux
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                      - arm64
+                      - ppc64le
+                      - s390x
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
       containers:
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=0
-        image: registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.13.1
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 5m
-            memory: 64Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-      - args:
-        - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
-        - --leader-elect
-        command:
-        - /manager
-        image: ghcr.io/srl-labs/srl-controller:v0.7.1
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        name: manager
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
+        - args:
+            - --health-probe-bind-address=:8081
+            - --metrics-bind-address=127.0.0.1:8080
+            - --leader-elect
+          command:
+            - /manager
+          image: ghcr.io/srl-labs/srl-controller:v0.7.1
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          name: manager
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       securityContext:
         runAsNonRoot: true
       serviceAccountName: srlinux-controller-controller-manager

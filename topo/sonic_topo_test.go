@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
-	tfake "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1/fake"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/kne/topo"
 	_ "github.com/openconfig/kne/topo/node/sonic"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	dfake "k8s.io/client-go/dynamic/fake"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	rest "k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
@@ -20,10 +21,7 @@ import (
 func TestCreateSonicNode(t *testing.T) {
 	ctx := context.Background()
 
-	tf, err := tfake.NewSimpleClientset()
-	if err != nil {
-		t.Fatalf("cannot create fake topology clientset: %v", err)
-	}
+	tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 
 	kf := kfake.NewSimpleClientset()
 	kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
@@ -54,7 +52,7 @@ func TestCreateSonicNode(t *testing.T) {
 	opts := []topo.Option{
 		topo.WithClusterConfig(&rest.Config{}),
 		topo.WithKubeClient(kf),
-		topo.WithTopoClient(tf),
+		topo.WithDynamicClient(tf),
 	}
 
 	m, err := topo.New(spec, opts...)

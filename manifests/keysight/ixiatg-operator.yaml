@@ -9,8 +9,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: ixiatgs.network.keysight.com
 spec:
   group: network.keysight.com
@@ -21,110 +20,119 @@ spec:
     singular: ixiatg
   scope: Namespaced
   versions:
-  - name: v1beta1
-    schema:
-      openAPIV3Schema:
-        description: IxiaTG is the Schema for the ixiatg API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: IxiaTGSpec defines the desired state of IxiaTG
-            properties:
-              api_endpoint_map:
-                additionalProperties:
-                  description: IxiaTGSvcPort defines the endpoint services for configuration and stats for the OTG node
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          description: IxiaTG is the Schema for the ixiatg API
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: IxiaTGSpec defines the desired state of IxiaTG
+              properties:
+                api_endpoint_map:
+                  additionalProperties:
+                    description:
+                      IxiaTGSvcPort defines the endpoint services for configuration
+                      and stats for the OTG node
+                    properties:
+                      in:
+                        format: int32
+                        type: integer
+                      out:
+                        format: int32
+                        type: integer
+                    required:
+                      - in
+                    type: object
+                  description: ApiEndPoint as define in OTG config
+                  type: object
+                desired_state:
+                  description: Desired state by network emulation (KNE)
+                  type: string
+                init_container:
+                  description: Init container image of the node
                   properties:
-                    in:
+                    image:
+                      type: string
+                    sleep:
                       format: int32
                       type: integer
-                    out:
-                      format: int32
-                      type: integer
-                  required:
-                  - in
                   type: object
-                description: ApiEndPoint as define in OTG config
-                type: object
-              desired_state:
-                description: Desired state by network emulation (KNE)
-                type: string
-              init_container:
-                description: Init container image of the node
-                properties:
-                  image:
-                    type: string
-                  sleep:
-                    format: int32
-                    type: integer
-                type: object
-              interfaces:
-                description: Interfaces with DUT
-                items:
-                  description: IxiaTGSvcPort defines the endpoint ports for network traffic for the OTG node
+                interfaces:
+                  description: Interfaces with DUT
+                  items:
+                    description:
+                      IxiaTGSvcPort defines the endpoint ports for network
+                      traffic for the OTG node
+                    properties:
+                      group:
+                        type: string
+                      name:
+                        type: string
+                    required:
+                      - name
+                    type: object
+                  type: array
+                release:
+                  description: Version of the node
+                  type: string
+              type: object
+            status:
+              description: IxiaTGStatus defines the observed state of IxiaTG
+              properties:
+                api_endpoint:
+                  description: List of OTG service names
                   properties:
-                    group:
-                      type: string
-                    name:
-                      type: string
-                  required:
-                  - name
-                  type: object
-                type: array
-              release:
-                description: Version of the node
-                type: string
-            type: object
-          status:
-            description: IxiaTGStatus defines the observed state of IxiaTG
-            properties:
-              api_endpoint:
-                description: List of OTG service names
-                properties:
-                  pod_name:
-                    type: string
-                  service_names:
-                    items:
-                      type: string
-                    type: array
-                type: object
-              interfaces:
-                description: List of OTG port and pod mapping
-                items:
-                  description: IxiaTGIntfStatus defines the mapping between endpoint ports and encasing pods
-                  properties:
-                    interface:
-                      type: string
-                    name:
-                      type: string
                     pod_name:
                       type: string
+                    service_names:
+                      items:
+                        type: string
+                      type: array
                   type: object
-                type: array
-              reason:
-                description: Reason in case of failure
-                type: string
-              state:
-                description: Observed state
-                type: string
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
+                interfaces:
+                  description: List of OTG port and pod mapping
+                  items:
+                    description:
+                      IxiaTGIntfStatus defines the mapping between endpoint
+                      ports and encasing pods
+                    properties:
+                      interface:
+                        type: string
+                      name:
+                        type: string
+                      pod_name:
+                        type: string
+                    type: object
+                  type: array
+                reason:
+                  description: Reason in case of failure
+                  type: string
+                state:
+                  description: Observed state
+                  type: string
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -138,146 +146,120 @@ metadata:
   name: ixiatg-op-leader-election-role
   namespace: ixiatg-op-system
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: ixiatg-op-manager-role
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - network.keysight.com
-  resources:
-  - ixiatgs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - network.keysight.com
-  resources:
-  - ixiatgs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - network.keysight.com
-  resources:
-  - ixiatgs/status
-  verbs:
-  - get
-  - patch
-  - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - network.keysight.com
+    resources:
+      - ixiatgs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - network.keysight.com
+    resources:
+      - ixiatgs/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - network.keysight.com
+    resources:
+      - ixiatgs/status
+    verbs:
+      - get
+      - patch
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ixiatg-op-metrics-reader
 rules:
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ixiatg-op-proxy-role
 rules:
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -289,9 +271,9 @@ roleRef:
   kind: Role
   name: ixiatg-op-leader-election-role
 subjects:
-- kind: ServiceAccount
-  name: ixiatg-op-controller-manager
-  namespace: ixiatg-op-system
+  - kind: ServiceAccount
+    name: ixiatg-op-controller-manager
+    namespace: ixiatg-op-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -302,9 +284,9 @@ roleRef:
   kind: ClusterRole
   name: ixiatg-op-manager-role
 subjects:
-- kind: ServiceAccount
-  name: ixiatg-op-controller-manager
-  namespace: ixiatg-op-system
+  - kind: ServiceAccount
+    name: ixiatg-op-controller-manager
+    namespace: ixiatg-op-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -315,9 +297,9 @@ roleRef:
   kind: ClusterRole
   name: ixiatg-op-proxy-role
 subjects:
-- kind: ServiceAccount
-  name: ixiatg-op-controller-manager
-  namespace: ixiatg-op-system
+  - kind: ServiceAccount
+    name: ixiatg-op-controller-manager
+    namespace: ixiatg-op-system
 ---
 apiVersion: v1
 data:
@@ -327,7 +309,7 @@ data:
     health:
       healthProbeBindAddress: :8081
     metrics:
-      bindAddress: 127.0.0.1:8080
+      bindAddress: :8443
     webhook:
       port: 9443
     leaderElection:
@@ -347,9 +329,10 @@ metadata:
   namespace: ixiatg-op-system
 spec:
   ports:
-  - name: https
-    port: 8443
-    targetPort: https
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
   selector:
     control-plane: controller-manager
 ---
@@ -371,47 +354,43 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        image: registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.8.0
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-      - args:
-        - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
-        - --leader-elect
-        command:
-        - /manager
-        image: ghcr.io/open-traffic-generator/keng-operator:0.3.34
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        name: manager
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          limits:
-            cpu: 100m
-            memory: 200Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-      imagePullSecrets:
-      - name: ixia-pull-secret
+        - args:
+            - --health-probe-bind-address=:8081
+            - --metrics-bind-address=:8443
+            - --leader-elect
+          command:
+            - /manager
+          image: ghcr.io/open-traffic-generator/keng-operator:0.4.2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          name: manager
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 100m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 20Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - all
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
       securityContext:
         runAsNonRoot: true
       serviceAccountName: ixiatg-op-controller-manager

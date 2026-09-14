@@ -26,6 +26,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 )
@@ -279,6 +280,56 @@ func TestCreatePod(t *testing.T) {
 				MountPath: "/etc/sonic/config_db.json",
 				SubPath:   "config_db.json",
 			}},
+		},
+	}, {
+		desc: "sonic container with ssh service has readiness probe",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "sonic-node",
+				Config: &tpb.Config{
+					Image:   "sonicImage",
+					Command: []string{"sonicCommand"},
+					Args:    []string{"sonicArgs"},
+				},
+				Services: map[uint32]*tpb.Service{
+					22: {
+						Name:   "ssh",
+						Inside: 22,
+					},
+				},
+			},
+		},
+		wantInitCtr: corev1.Container{
+			Name:  "init-sonic-node",
+			Image: node.DefaultInitContainerImage,
+			Args:  []string{"1", "0", "1"},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+		wantSonicCtr: corev1.Container{
+			Name:    "sonic-node",
+			Image:   "sonicImage",
+			Command: []string{"sonicCommand"},
+			Args:    []string{"sonicArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{},
+			},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+			ReadinessProbe: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			},
 		},
 	}}
 	for _, tt := range tests {

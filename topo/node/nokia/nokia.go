@@ -20,11 +20,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	log "k8s.io/klog/v2"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -39,9 +40,11 @@ var (
 	// ErrIncompatibleCliConn raised when an invalid scrapligo cli transport type is found.
 	ErrIncompatibleCliConn = errors.New("incompatible cli connection in use")
 
-	// newSrlinuxClient returns a controller-runtime client for srlinux
-	// resources. This can be set to a fake for unit testing.
-	newSrlinuxClient = newSrlinuxClientWithSchema
+	srlGVR = schema.GroupVersionResource{
+		Group:    srlinuxv1.GroupVersion.Group,
+		Version:  srlinuxv1.GroupVersion.Version,
+		Resource: "srlinuxes",
+	}
 
 	defaultConstraints = node.Constraints{
 		CPU:    "2000m", // 2000 milliCPUs
@@ -114,19 +117,6 @@ func New(nodeImpl *node.Impl) (node.Node, error) {
 	return n, nil
 }
 
-// newSrlinuxClientWithSchema returns a controller-runtime client for srlinux and loads its schema.
-func newSrlinuxClientWithSchema(c *rest.Config) (ctrlclient.Client, error) {
-	// initialize the controller-runtime client with srlinux scheme
-	scheme := runtime.NewScheme()
-
-	err := srlinuxv1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctrlclient.New(c, ctrlclient.Options{Scheme: scheme})
-}
-
 type Node struct {
 	*node.Impl
 	cliConn *scraplinetwork.Driver
@@ -151,7 +141,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return nil
 	}
 	log.Infof("%s - generating self signed certs", n.Name())
-	log.Infof("%s - waiting for pod to be running", n.Name())
+	log.Infof("%s - waiting for pod to be ready", n.Name())
 	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(
 			fields.Set{metav1.ObjectNameField: n.Name()},
@@ -166,10 +156,19 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 			continue
 		}
 		if p.Status.Phase == corev1.PodRunning {
-			break
+			var ready bool
+			for _, cond := range p.Status.Conditions {
+				if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+					ready = true
+					break
+				}
+			}
+			if ready {
+				break
+			}
 		}
 	}
-	log.Infof("%s - pod running.", n.Name())
+	log.Infof("%s - pod ready.", n.Name())
 
 	if err := n.SpawnCLIConn(); err != nil {
 		return err
@@ -297,12 +296,18 @@ func (n *Node) Create(ctx context.Context) error {
 			Version:     n.GetProto().GetVersion(),
 		},
 	}
-	c, err := newSrlinuxClient(n.RestConfig)
+	srlMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(srl)
+	if err != nil {
+		return err
+	}
+	srlUnstructured := &unstructured.Unstructured{Object: srlMap}
+
+	c, err := dynamic.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
 
-	if err := c.Create(ctx, srl); err != nil {
+	if _, err := c.Resource(srlGVR).Namespace(n.Namespace).Create(ctx, srlUnstructured, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
@@ -368,16 +373,11 @@ func (n *Node) DefaultNodeConstraints() node.Constraints {
 }
 
 func (n *Node) Delete(ctx context.Context) error {
-	c, err := newSrlinuxClient(n.RestConfig)
+	c, err := dynamic.NewForConfig(n.RestConfig)
 	if err != nil {
 		return err
 	}
-	err = c.Delete(ctx, &srlinuxv1.Srlinux{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: n.GetNamespace(), Name: n.Name(),
-		},
-	})
-	if err != nil {
+	if err := c.Resource(srlGVR).Namespace(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	if err := n.DeleteService(ctx); err != nil {

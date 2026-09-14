@@ -37,6 +37,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -923,52 +924,214 @@ var (
 	}
 )
 
-func TestNodeStatus(t *testing.T) {
+func TestIsNode8000eFailed(t *testing.T) {
 	tests := []struct {
-		desc      string
-		status    node.Status
-		ni        *node.Impl
-		podLogErr bool
+		desc string
+		log  string
+		want bool
 	}{
 		{
-			desc:   "Status test for 8000e Node",
-			status: node.StatusRunning,
-			ni:     node8000e,
+			desc: "Router failed to come up",
+			log:  "Error: Router failed to come up after timeout",
+			want: true,
 		},
 		{
-			desc:      "Negative Status test for 8000e Node",
+			desc: "FATAL sim:",
+			log:  "2023-01-01 FATAL sim: initialization aborted",
+			want: true,
+		},
+		{
+			desc: "LoginTimeoutError",
+			log:  "Encountered LoginTimeoutError during boot",
+			want: true,
+		},
+		{
+			desc: "Normal log with Router up",
+			log:  "Router up and running",
+			want: false,
+		},
+		{
+			desc: "Empty log",
+			log:  "",
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if got := isNode8000eFailed([]byte(tt.log)); got != tt.want {
+				t.Errorf("isNode8000eFailed(%q) = %v, want %v", tt.log, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsNode8000eUp(t *testing.T) {
+	tests := []struct {
+		desc string
+		log  string
+		want bool
+	}{
+		{
+			desc: "Router up",
+			log:  "System initialized: Router up",
+			want: true,
+		},
+		{
+			desc: "Vxr up",
+			log:  "Line card online: Vxr up",
+			want: true,
+		},
+		{
+			desc: "Booting log",
+			log:  "Booting kernel...",
+			want: false,
+		},
+		{
+			desc: "Empty log",
+			log:  "",
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if got := isNode8000eUp([]byte(tt.log)); got != tt.want {
+				t.Errorf("isNode8000eUp(%q) = %v, want %v", tt.log, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeStatus(t *testing.T) {
+	tests := []struct {
+		desc       string
+		status     node.Status
+		model      string
+		phase      corev1.PodPhase
+		conditions []corev1.PodCondition
+		podLogErr  bool
+		podLogFail bool
+		wantErr    bool
+	}{
+		{
+			desc:   "Status running for 8000e Node when Ready and Up",
+			status: node.StatusRunning,
+			model:  "8201-32FH",
+			phase:  corev1.PodRunning,
+			conditions: []corev1.PodCondition{
+				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+			},
+		},
+		{
+			desc:   "Status pending for 8000e Node when Up but Not Ready",
+			status: node.StatusPending,
+			model:  "8201-32FH",
+			phase:  corev1.PodRunning,
+			conditions: []corev1.PodCondition{
+				{Type: corev1.PodReady, Status: corev1.ConditionFalse},
+			},
+		},
+		{
+			desc:      "Status pending for 8000e Node when log does not match up",
 			status:    node.StatusPending,
-			ni:        node8000e,
+			model:     "8201-32FH",
+			phase:     corev1.PodRunning,
 			podLogErr: true,
+			conditions: []corev1.PodCondition{
+				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+			},
 		},
 		{
-			desc:   "Status test for XRD Node",
+			desc:       "Status failed for 8000e Node when log contains failure pattern",
+			status:     node.StatusFailed,
+			model:      "8201-32FH",
+			phase:      corev1.PodRunning,
+			podLogFail: true,
+			wantErr:    true,
+		},
+		{
+			desc:   "Status running for XRD Node when Ready",
 			status: node.StatusRunning,
-			ni:     nodeXRD,
+			model:  ModelXRD,
+			phase:  corev1.PodRunning,
+			conditions: []corev1.PodCondition{
+				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+			},
 		},
 		{
-			desc:      "Status test for XRD Node, pod logs do not matter",
-			status:    node.StatusRunning,
-			ni:        nodeXRD,
-			podLogErr: true,
+			desc:   "Status pending for XRD Node when Not Ready",
+			status: node.StatusPending,
+			model:  ModelXRD,
+			phase:  corev1.PodRunning,
+			conditions: []corev1.PodCondition{
+				{Type: corev1.PodReady, Status: corev1.ConditionFalse},
+			},
+		},
+		{
+			desc:   "Status pending for XRD Node without Ready condition",
+			status: node.StatusPending,
+			model:  ModelXRD,
+			phase:  corev1.PodRunning,
+		},
+		{
+			desc:   "Status pending for PodPending phase",
+			status: node.StatusPending,
+			model:  ModelXRD,
+			phase:  corev1.PodPending,
+		},
+		{
+			desc:   "Status failed for PodFailed phase",
+			status: node.StatusFailed,
+			model:  ModelXRD,
+			phase:  corev1.PodFailed,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			ctx := context.Background()
-			if !tt.podLogErr {
+			podName := "test-pod"
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      podName,
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					Phase:      tt.phase,
+					Conditions: tt.conditions,
+				},
+			}
+			ki := fake.NewSimpleClientset(pod)
+			ni := &node.Impl{
+				KubeClient: ki,
+				Namespace:  "test",
+				Proto: &tpb.Node{
+					Name:   podName,
+					Vendor: tpb.Vendor_CISCO,
+					Config: &tpb.Config{},
+					Model:  tt.model,
+				},
+			}
+			if tt.podLogFail {
+				origPodIsFailedRegex := podIsFailedRegex
+				defer func() {
+					podIsFailedRegex = origPodIsFailedRegex
+				}()
+				podIsFailedRegex = regexp.MustCompile("fake log")
+			} else if !tt.podLogErr {
 				origPodIsUpRegex := podIsUpRegex
 				defer func() {
 					podIsUpRegex = origPodIsUpRegex
 				}()
 				podIsUpRegex = regexp.MustCompile("fake log") // this is the expected log from a fake pod
 			}
-			nImpl, _ := New(tt.ni)
+			nImpl, err := New(ni)
+			if err != nil {
+				t.Fatalf("New() failed: %v", err)
+			}
 			n, _ := nImpl.(*Node)
 			status, err := n.Status(ctx)
-			if err != nil {
-				t.Errorf("Error is not expected for Node Status")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("node.Status() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if status != tt.status {
 				t.Errorf("node.Status() = %v, want %v", status, tt.status)
@@ -1203,21 +1366,22 @@ func TestCreate(t *testing.T) {
 			if tt.configData != nil {
 				cfg.ConfigData = &tpb.Config_Data{Data: tt.configData}
 			}
-			n := &Node{
-				Impl: &node.Impl{
-					Namespace:  "test",
-					KubeClient: ki,
-					Proto: &tpb.Node{
-						Name:       "node1",
-						Model:      tt.model,
-						Config:     cfg,
-						Interfaces: map[string]*tpb.Interface{
-							"eth1": {Name: "GigabitEthernet0/0/0/0"},
-						},
+			nImpl, err := New(&node.Impl{
+				Namespace:  "test",
+				KubeClient: ki,
+				Proto: &tpb.Node{
+					Name:       "node1",
+					Model:      tt.model,
+					Config:     cfg,
+					Interfaces: map[string]*tpb.Interface{
+						"eth1": {Name: "GigabitEthernet0/0/0/0"},
 					},
 				},
+			})
+			if err != nil {
+				t.Fatalf("New() unexpected error = %v", err)
 			}
-			if err := n.Create(context.Background()); (err != nil) != tt.wantErr {
+			if err := nImpl.Create(context.Background()); (err != nil) != tt.wantErr {
 				t.Fatalf("Create() unexpected error = %v, wantErr = %v", err, tt.wantErr)
 			}
 			pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "node1", metav1.GetOptions{})
@@ -1239,6 +1403,19 @@ func TestCreate(t *testing.T) {
 			}
 			if len(pod.Spec.Containers[0].VolumeMounts) != tt.wantMainMountsLen {
 				t.Errorf("main container volume mounts len = %d, want %d", len(pod.Spec.Containers[0].VolumeMounts), tt.wantMainMountsLen)
+			}
+			wantProbe := &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(22),
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       10,
+				FailureThreshold:    60,
+			}
+			if diff := cmp.Diff(wantProbe, pod.Spec.Containers[0].ReadinessProbe); diff != "" {
+				t.Errorf("container readiness probe mismatch (-want +got):\n%s", diff)
 			}
 			for _, sub := range tt.wantInitScriptSub {
 				if !strings.Contains(initC.Args[0], sub) {

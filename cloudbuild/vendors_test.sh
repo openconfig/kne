@@ -29,6 +29,18 @@ go build -o kne
 cli="$HOME/kne/kne_cli/kne"
 popd
 
+# Sync host dependencies with external.pkr.hcl if needed
+target_kind_pkg=$(grep -o 'sigs.k8s.io/kind@v[0-9.]*' "$HOME/kne/cloudbuild/external.pkr.hcl" | head -n 1)
+if [ -n "$target_kind_pkg" ]; then
+	target_kind_ver=$(echo "$target_kind_pkg" | grep -o 'v[0-9.]*')
+	current_kind_ver=$(kind version 2>/dev/null | awk '{print $2}' || true)
+	if [[ "$current_kind_ver" != "$target_kind_ver" && "$current_kind_ver" != "${target_kind_ver#v}" ]]; then
+		echo "Syncing host kind from ${current_kind_ver:-none} to $target_kind_ver..."
+		go install "$target_kind_pkg"
+		sudo cp -f "$(go env GOPATH)/bin/kind" /usr/local/bin/
+	fi
+fi
+
 # Deploy a cluster + topo
 pushd "$HOME"
 $cli deploy kne/cloudbuild/vendors/deployment.yaml --report_usage=false

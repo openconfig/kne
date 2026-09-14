@@ -87,13 +87,11 @@ func L2AdvertisementGVR() schema.GroupVersionResource {
 }
 
 var (
-	groupVersion = metallbv1.GroupVersion
+	groupVersion = schema.GroupVersion{Group: "metallb.io", Version: "v1beta1"}
 	Scheme       = runtime.NewScheme()
 )
 
 func init() {
-	metallbv1.AddToScheme(Scheme)
-
 	metav1.AddToGroupVersion(Scheme, groupVersion)
 	metav1.AddMetaToScheme(Scheme)
 }

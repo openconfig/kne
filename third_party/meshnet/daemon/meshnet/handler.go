@@ -20,11 +20,20 @@ import (
 )
 
 func (m *Meshnet) getPod(ctx context.Context, name, ns string) (*unstructured.Unstructured, error) {
+	if m.topoCache != nil {
+		if topo := m.topoCache.Get(ns, name); topo != nil {
+			return topo, nil
+		}
+	}
 	if m.tClient == nil {
 		return nil, fmt.Errorf("topology client not initialized")
 	}
 	mnetdLogger.Debugf("Reading pod %s from K8s", name)
-	return m.tClient.Topology(ns).Unstructured(ctx, name, metav1.GetOptions{})
+	topo, err := m.tClient.Topology(ns).Unstructured(ctx, name, metav1.GetOptions{})
+	if err == nil && topo != nil && m.topoCache != nil {
+		m.topoCache.Put(topo)
+	}
+	return topo, err
 }
 
 func (m *Meshnet) updateStatus(ctx context.Context, obj *unstructured.Unstructured, ns string) error {
@@ -33,6 +42,9 @@ func (m *Meshnet) updateStatus(ctx context.Context, obj *unstructured.Unstructur
 	}
 	mnetdLogger.Infof("Update pod status %s from K8s", obj.GetName())
 	_, err := m.tClient.Topology(ns).Update(ctx, obj, metav1.UpdateOptions{})
+	if err == nil && m.topoCache != nil {
+		m.topoCache.Put(obj)
+	}
 	return err
 }
 

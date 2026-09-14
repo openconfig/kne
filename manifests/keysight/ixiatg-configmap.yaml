@@ -11,26 +11,26 @@ data:
         {
           "name": "controller",
           "path": "ghcr.io/open-traffic-generator/keng-controller",
-          "tag": "1.32.0-1"
+          "tag": "1.61.0-1"
         },
         {
           "name": "gnmi-server",
           "path": "ghcr.io/open-traffic-generator/otg-gnmi-server",
-          "tag": "1.32.0"
+          "tag": "1.61.0"
         },
         {
           "name": "traffic-engine",
           "path": "ghcr.io/open-traffic-generator/ixia-c-traffic-engine",
-          "tag": "1.8.0.245"
+          "tag": "1.8.0.544"
         },
         {
           "name": "protocol-engine",
           "path": "ghcr.io/open-traffic-generator/ixia-c-protocol-engine",
-          "tag": "1.00.0.457"
+          "tag": "1.00.0.534"
         },
         {
           "name": "ixhw-server",
           "path": "ghcr.io/open-traffic-generator/keng-layer23-hw-server",
-          "tag": "1.32.0-1"
+          "tag": "1.61.0-2"
         }]
     }

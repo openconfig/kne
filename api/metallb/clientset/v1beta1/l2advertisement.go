@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 type l2AdvertisementClient struct {
@@ -56,13 +55,9 @@ func (l *l2AdvertisementClient) Get(ctx context.Context, name string, opts metav
 }
 
 func (l *l2AdvertisementClient) Create(ctx context.Context, pool *metallbv1.L2Advertisement, opts metav1.CreateOptions) (*metallbv1.L2Advertisement, error) {
-	gvk, err := apiutil.GVKForObject(pool, Scheme)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get gvk for AddressPool: %w", err)
-	}
 	pool.TypeMeta = metav1.TypeMeta{
-		Kind:       gvk.Kind,
-		APIVersion: gvk.GroupVersion().String(),
+		Kind:       "L2Advertisement",
+		APIVersion: metallbv1.GroupVersion.String(),
 	}
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pool)
 	if err != nil {
