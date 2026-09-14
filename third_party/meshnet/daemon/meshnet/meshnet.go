@@ -3,16 +3,14 @@
 package meshnet
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
-
-	glogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -165,18 +163,49 @@ func (m *Meshnet) Stop() {
 	m.s.Stop()
 }
 
+func interceptorLogger(l log.FieldLogger) logging.Logger {
+	return logging.LoggerFunc(func(_ context.Context, lvl logging.Level, msg string, fields ...any) {
+		f := make(map[string]any, len(fields)/2)
+		i := logging.Fields(fields).Iterator()
+		for i.Next() {
+			k, v := i.At()
+			f[k] = v
+		}
+		entry := l.WithFields(f)
+
+		switch lvl {
+		case logging.LevelDebug:
+			entry.Debug(msg)
+		case logging.LevelInfo:
+			entry.Info(msg)
+		case logging.LevelWarn:
+			entry.Warn(msg)
+		case logging.LevelError:
+			entry.Error(msg)
+		default:
+			entry.Info(msg)
+		}
+	})
+}
+
+func replaceGrpcLogger(logger *log.Entry) {
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2(
+		logger.WriterLevel(log.InfoLevel),
+		logger.WriterLevel(log.WarnLevel),
+		logger.WriterLevel(log.ErrorLevel),
+	))
+}
+
 func newServerWithLogging(opts ...grpc.ServerOption) *grpc.Server {
 	lEntry := log.NewEntry(log.StandardLogger())
-	lOpts := []glogrus.Option{}
-	glogrus.ReplaceGrpcLogger(lEntry)
+	replaceGrpcLogger(lEntry)
 	opts = append(opts,
-		grpc_middleware.WithUnaryServerChain(
-			grpc_ctxtags.UnaryServerInterceptor(grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor)),
-			glogrus.UnaryServerInterceptor(lEntry, lOpts...),
+		grpc.ChainUnaryInterceptor(
+			logging.UnaryServerInterceptor(interceptorLogger(lEntry)),
 		),
-		grpc_middleware.WithStreamServerChain(
-			grpc_ctxtags.StreamServerInterceptor(grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor)),
-			glogrus.StreamServerInterceptor(lEntry, lOpts...),
-		))
+		grpc.ChainStreamInterceptor(
+			logging.StreamServerInterceptor(interceptorLogger(lEntry)),
+		),
+	)
 	return grpc.NewServer(opts...)
 }
