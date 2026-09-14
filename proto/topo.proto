@@ -244,6 +244,7 @@ message Service {
   // Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP).
   Type type = 8;
 
-  // If true, creates a companion hostNetwork daemon/pod to forward IPv6 traffic on the node_port to 127.0.0.1.
+  // If true, creates a companion hostNetwork daemon/pod to forward IPv6
+  // traffic on the node_port to 127.0.0.1.
   bool v6_host_proxy = 9;
 }
