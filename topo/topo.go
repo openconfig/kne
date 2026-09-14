@@ -942,7 +942,7 @@ var populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) erro
 	if s == nil || m == nil {
 		return fmt.Errorf("service and map must not be nil")
 	}
-	if len(s.Status.LoadBalancer.Ingress) == 0 {
+	if (s.Spec.Type == corev1.ServiceTypeLoadBalancer || s.Spec.Type == "") && len(s.Status.LoadBalancer.Ingress) == 0 {
 		return fmt.Errorf("service %s has no external loadbalancer configured", s.Name)
 	}
 	for _, p := range s.Spec.Ports {
@@ -961,7 +961,17 @@ var populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) erro
 		service.Inside = uint32(p.TargetPort.IntVal)
 		service.NodePort = uint32(p.NodePort)
 		service.InsideIp = s.Spec.ClusterIP
-		service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
+		if len(s.Status.LoadBalancer.Ingress) > 0 {
+			service.OutsideIp = s.Status.LoadBalancer.Ingress[0].IP
+		}
+		switch s.Spec.Type {
+		case corev1.ServiceTypeNodePort:
+			service.Type = tpb.Service_NODE_PORT
+		case corev1.ServiceTypeLoadBalancer:
+			service.Type = tpb.Service_LOAD_BALANCER
+		case corev1.ServiceTypeClusterIP:
+			service.Type = tpb.Service_CLUSTER_IP
+		}
 	}
 	return nil
 }

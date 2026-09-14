@@ -10,7 +10,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/gnmi/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
@@ -302,6 +304,115 @@ func TestService(t *testing.T) {
 				Selector:                      map[string]string{"app": "dev2"},
 				Type:                          "LoadBalancer",
 				AllocateLoadBalancerNodePorts: pointer.Bool(false),
+			},
+		}},
+	}, {
+		desc: "nodeport service valid",
+		node: &topopb.Node{
+			Name:   "dev-nodeport",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				50058: {
+					Name:   "wire",
+					Inside: 50058,
+					Type:   topopb.Service_NODE_PORT,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-nodeport",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-nodeport"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "wire",
+					Protocol:   "TCP",
+					Port:       50058,
+					TargetPort: intstr.FromInt(50058),
+					NodePort:   0,
+				}},
+				Selector: map[string]string{"app": "dev-nodeport"},
+				Type:     "NodePort",
+			},
+		}},
+	}, {
+		desc: "nodeport service with static port",
+		node: &topopb.Node{
+			Name:   "dev-nodeport-static",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				50058: {
+					Name:     "wire",
+					Inside:   50058,
+					Type:     topopb.Service_NODE_PORT,
+					NodePort: 30058,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-nodeport-static",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-nodeport-static"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "wire",
+					Protocol:   "TCP",
+					Port:       50058,
+					TargetPort: intstr.FromInt(50058),
+					NodePort:   30058,
+				}},
+				Selector: map[string]string{"app": "dev-nodeport-static"},
+				Type:     "NodePort",
+			},
+		}},
+	}, {
+		desc: "clusterip service valid",
+		node: &topopb.Node{
+			Name:   "dev-clusterip",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				8080: {
+					Name:   "http",
+					Inside: 8080,
+					Type:   topopb.Service_CLUSTER_IP,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-clusterip",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-clusterip"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "http",
+					Protocol:   "TCP",
+					Port:       8080,
+					TargetPort: intstr.FromInt(8080),
+					NodePort:   0,
+				}},
+				Selector: map[string]string{"app": "dev-clusterip"},
+				Type:     "ClusterIP",
 			},
 		}},
 	}, {
@@ -625,5 +736,107 @@ func TestServiceReadinessProbe(t *testing.T) {
 				t.Errorf("ServiceReadinessProbe() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestV6HostProxyDaemonSet(t *testing.T) {
+	ctx := context.Background()
+	kClient := kfake.NewSimpleClientset()
+	node := &topopb.Node{
+		Name:   "dev-v6proxy",
+		Vendor: topopb.Vendor(1001),
+		Services: map[uint32]*topopb.Service{
+			50058: {
+				Name:        "wire",
+				Inside:      50058,
+				Type:        topopb.Service_NODE_PORT,
+				NodePort:    30058,
+				V6HostProxy: true,
+			},
+			50059: {
+				Name:        "noproxy",
+				Inside:      50059,
+				Type:        topopb.Service_NODE_PORT,
+				NodePort:    30059,
+				V6HostProxy: false,
+			},
+		},
+	}
+	n := &Impl{
+		Namespace:  "test",
+		KubeClient: kClient,
+		RestConfig: &rest.Config{},
+		Proto:      node,
+	}
+
+	if err := n.CreateService(ctx); err != nil {
+		t.Fatalf("CreateService() failed: %v", err)
+	}
+
+	ds, err := kClient.AppsV1().DaemonSets("test").Get(ctx, "v6proxy-dev-v6proxy", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get expected daemonset: %v", err)
+	}
+
+	wantDS := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "v6proxy-dev-v6proxy",
+			Namespace: "test",
+			Labels: map[string]string{
+				"app":  "v6proxy-dev-v6proxy",
+				"pod":  "dev-v6proxy",
+				"topo": "test",
+			},
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app":  "v6proxy-dev-v6proxy",
+					"pod":  "dev-v6proxy",
+					"topo": "test",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app":  "v6proxy-dev-v6proxy",
+						"pod":  "dev-v6proxy",
+						"topo": "test",
+					},
+				},
+				Spec: corev1.PodSpec{
+					HostNetwork: true,
+					Containers: []corev1.Container{{
+						Name:  "socat-30058",
+						Image: "alpine/socat:latest",
+						Args: []string{
+							"TCP6-LISTEN:30058,fork,reuseaddr",
+							"TCP4:127.0.0.1:30058",
+						},
+						ImagePullPolicy: corev1.PullIfNotPresent,
+						Resources: corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("64Mi"),
+							},
+						},
+					}},
+					TerminationGracePeriodSeconds: pointer.Int64(0),
+				},
+			},
+		},
+	}
+
+	if s := cmp.Diff(wantDS, ds); s != "" {
+		t.Errorf("DaemonSet diff (-want +got):\n%s", s)
+	}
+
+	// Verify DeleteService deletes the DaemonSet
+	if err := n.DeleteService(ctx); err != nil {
+		t.Fatalf("DeleteService() failed: %v", err)
+	}
+
+	if _, err := kClient.AppsV1().DaemonSets("test").Get(ctx, "v6proxy-dev-v6proxy", metav1.GetOptions{}); err == nil {
+		t.Errorf("expected daemonset to be deleted, but still found")
 	}
 }

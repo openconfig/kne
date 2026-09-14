@@ -217,6 +217,12 @@ message SelfSignedCertCfg {
 // The user should specify inside port for this is the port the container will
 // listen on.
 message Service {
+  enum Type {
+    UNKNOWN = 0;
+    LOAD_BALANCER = 1;
+    NODE_PORT = 2;
+    CLUSTER_IP = 3;
+  }
   string name = 1;        // Name of the service (optional)
   uint32 inside = 2;      // Inside port to map Node (container listening port)
 
@@ -234,4 +240,11 @@ message Service {
   // If both are provided, names in both fields are considered excluding any
   // duplicate values.
   repeated string names = 7;
+
+  // Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP).
+  Type type = 8;
+
+  // If true, creates a companion hostNetwork daemon/pod to forward IPv6
+  // traffic on the node_port to 127.0.0.1.
+  bool v6_host_proxy = 9;
 }

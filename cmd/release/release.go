@@ -36,7 +36,50 @@ func New() *cobra.Command {
 		Use: "release",
 	}
 	cmd.AddCommand(meshnet())
+	cmd.AddCommand(bridge())
 	return cmd
+}
+
+func bridge() *cobra.Command {
+	return &cobra.Command{
+		Use:  "bridge <version>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("Validating working directory")
+			sha, err := validateWorkDir()
+			if err != nil {
+				var uncleanErr *UncleanWorkDirError
+				if errors.As(err, &uncleanErr) {
+					for _, r := range uncleanErr.Reasons {
+						fmt.Println(r)
+					}
+					ok, pErr := promptBool("Are you sure you want to continue")
+					if pErr != nil {
+						return pErr
+					}
+					if !ok {
+						return fmt.Errorf("repository in invalid state")
+					}
+				} else {
+					return err
+				}
+			}
+			fmt.Println("Running prerelease tests")
+			if err := triggerBuild(cmd.Context(), "kne-test", sha, false, nil); err != nil {
+				return err
+			}
+
+			tag := fmt.Sprintf("bridge/%s", args[0])
+			fmt.Println("Creating and Pushing Tag:", tag)
+			if err := createAndPushTag(tag); err != nil {
+				return err
+			}
+			fmt.Println("Building and Pushing container")
+			return triggerBuild(cmd.Context(), "bridge-release", tag, true, map[string]string{
+				"_IMAGE_TAG": args[0],
+			})
+		},
+	}
 }
 
 func meshnet() *cobra.Command {

@@ -21,6 +21,7 @@ import (
 	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scrapliplatform "github.com/scrapli/scrapligo/platform"
 	scrapliutil "github.com/scrapli/scrapligo/util"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -552,6 +553,7 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		log.Info("no services found")
 		return nil
 	}
+	svcType := corev1.ServiceTypeLoadBalancer
 	for k, v := range n.Proto.Services {
 		if v.Outside != 0 {
 			log.Warningf("Outside should not be set by user. The key is used as the target external port")
@@ -571,6 +573,14 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			Name:       v.Name,
 		}
 		servicePorts = append(servicePorts, sp)
+		switch v.Type {
+		case tpb.Service_NODE_PORT:
+			svcType = corev1.ServiceTypeNodePort
+		case tpb.Service_CLUSTER_IP:
+			if svcType != corev1.ServiceTypeNodePort {
+				svcType = corev1.ServiceTypeClusterIP
+			}
+		}
 	}
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -588,20 +598,87 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			Selector: map[string]string{
 				"app": n.Name(),
 			},
-			Type: "LoadBalancer",
-			// Do not allocate a NodePort for this LoadBalancer. MetalLB
-			// or the equivalent load balancer should handle exposing this service.
-			// Large topologies may try to allocate more NodePorts than are
-			// supported in default clusters.
-			// https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation
-			AllocateLoadBalancerNodePorts: pointer.Bool(false),
+			Type: svcType,
 		},
+	}
+	if svcType == corev1.ServiceTypeLoadBalancer {
+		// Do not allocate a NodePort for this LoadBalancer. MetalLB
+		// or the equivalent load balancer should handle exposing this service.
+		// Large topologies may try to allocate more NodePorts than are
+		// supported in default clusters.
+		// https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation
+		s.Spec.AllocateLoadBalancerNodePorts = pointer.Bool(false)
 	}
 	sS, err := n.KubeClient.CoreV1().Services(n.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	log.Infof("Created Service:\n%v\n", sS)
+
+	var proxyContainers []corev1.Container
+	for _, sp := range sS.Spec.Ports {
+		var needsProxy bool
+		if svc, ok := n.Proto.Services[uint32(sp.Port)]; ok && svc.GetV6HostProxy() {
+			needsProxy = true
+		} else {
+			for _, svc := range n.Proto.Services {
+				if svc.GetName() == sp.Name && svc.GetV6HostProxy() {
+					needsProxy = true
+					break
+				}
+			}
+		}
+		if needsProxy && sp.NodePort > 0 {
+			proxyContainers = append(proxyContainers, corev1.Container{
+				Name:  fmt.Sprintf("socat-%d", sp.NodePort),
+				Image: "alpine/socat:latest",
+				Args: []string{
+					fmt.Sprintf("TCP6-LISTEN:%d,fork,reuseaddr", sp.NodePort),
+					fmt.Sprintf("TCP4:127.0.0.1:%d", sp.NodePort),
+				},
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources: corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("64Mi"),
+					},
+				},
+			})
+		}
+	}
+	if len(proxyContainers) > 0 {
+		dsLabels := map[string]string{
+			"app":  fmt.Sprintf("v6proxy-%s", n.Name()),
+			"pod":  n.Name(),
+			"topo": n.Namespace,
+		}
+		proxyDS := &appsv1.DaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   fmt.Sprintf("v6proxy-%s", n.Name()),
+				Labels: dsLabels,
+			},
+			Spec: appsv1.DaemonSetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: dsLabels,
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: dsLabels,
+					},
+					Spec: corev1.PodSpec{
+						HostNetwork:                   true,
+						Containers:                    proxyContainers,
+						TerminationGracePeriodSeconds: pointer.Int64(0),
+					},
+				},
+			},
+		}
+		sProxyDS, err := n.KubeClient.AppsV1().DaemonSets(n.Namespace).Create(ctx, proxyDS, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create host v6proxy daemonset: %w", err)
+		}
+		log.Infof("Created host v6proxy daemonset:\n%+v\n", sProxyDS)
+	}
 	return nil
 }
 
@@ -648,6 +725,12 @@ func (n *Impl) DeleteConfig(ctx context.Context) error {
 
 // DeleteService removes the service definition for the Node.
 func (n *Impl) DeleteService(ctx context.Context) error {
+	_ = n.KubeClient.AppsV1().DaemonSets(n.Namespace).Delete(ctx, fmt.Sprintf("v6proxy-%s", n.Name()), metav1.DeleteOptions{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+		},
+		GracePeriodSeconds: pointer.Int64(0),
+	})
 	return n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.DeleteOptions{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
