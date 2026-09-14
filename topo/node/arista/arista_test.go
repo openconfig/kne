@@ -558,11 +558,12 @@ func TestResetCfg(t *testing.T) {
 
 func TestStatus(t *testing.T) {
 	tests := []struct {
-		desc      string
-		cantWatch bool
-		noPodYet  bool
-		phase     corev1.PodPhase
-		status    node.Status
+		desc       string
+		cantWatch  bool
+		noPodYet   bool
+		phase      corev1.PodPhase
+		conditions []corev1.PodCondition
+		status     node.Status
 	}{
 		{
 			desc:      "can't watch pod status",
@@ -581,9 +582,23 @@ func TestStatus(t *testing.T) {
 			status: node.StatusPending,
 		},
 		{
-			desc:   "pod running",
+			desc:   "pod running not ready",
 			phase:  corev1.PodRunning,
+			status: node.StatusPending,
+		},
+		{
+			desc:  "pod running and ready",
+			phase: corev1.PodRunning,
+			conditions: []corev1.PodCondition{{
+				Type:   corev1.PodReady,
+				Status: corev1.ConditionTrue,
+			}},
 			status: node.StatusRunning,
+		},
+		{
+			desc:   "pod failed",
+			phase:  corev1.PodFailed,
+			status: node.StatusFailed,
 		},
 	}
 
@@ -602,7 +617,8 @@ func TestStatus(t *testing.T) {
 						Namespace: ns,
 					},
 					Status: corev1.PodStatus{
-						Phase: tt.phase,
+						Phase:      tt.phase,
+						Conditions: tt.conditions,
 					},
 				})
 			}

@@ -177,7 +177,12 @@ func (n *Node) Status(ctx context.Context) (node.Status, error) {
 	case corev1.PodPending:
 		return node.StatusPending, nil
 	case corev1.PodRunning:
-		return node.StatusRunning, nil
+		for _, cond := range p[0].Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				return node.StatusRunning, nil
+			}
+		}
+		return node.StatusPending, nil
 	case corev1.PodFailed:
 		return node.StatusFailed, nil
 	default:

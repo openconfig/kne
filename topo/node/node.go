@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -229,6 +230,58 @@ func ToResourceRequirements(kv map[string]string) corev1.ResourceRequirements {
 	return r
 }
 
+// ServiceReadinessProbe returns a TCPSocket readiness probe for the node if a probeable service
+// (e.g. ssh, gnmi) is defined in its service map.
+func ServiceReadinessProbe(pb *tpb.Node) *corev1.Probe {
+	if pb == nil || len(pb.Services) == 0 {
+		return nil
+	}
+	keys := make([]uint32, 0, len(pb.Services))
+	for k := range pb.Services {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	// Prefer SSH first (typically available at boot across all NOS), then gNMI
+	preferred := []string{"ssh", "gnmi"}
+	for _, pref := range preferred {
+		for _, k := range keys {
+			svc := pb.Services[k]
+			if svc == nil {
+				continue
+			}
+			matched := strings.EqualFold(svc.Name, pref)
+			if !matched {
+				for _, name := range svc.Names {
+					if strings.EqualFold(name, pref) {
+						matched = true
+						break
+					}
+				}
+			}
+			if matched {
+				port := int(svc.Inside)
+				if port == 0 {
+					port = int(k)
+				}
+				if port > 0 {
+					return &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							TCPSocket: &corev1.TCPSocketAction{
+								Port: intstr.FromInt(port),
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       10,
+						FailureThreshold:    60,
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // Create will create the node in the k8s cluster with all services and config
 // maps.
 func (n *Impl) Create(ctx context.Context) error {
@@ -440,6 +493,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
 				},
+				ReadinessProbe: ServiceReadinessProbe(pb),
 			}},
 			TerminationGracePeriodSeconds: pointer.Int64(0),
 			NodeSelector:                  map[string]string{},

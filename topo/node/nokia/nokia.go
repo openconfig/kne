@@ -141,7 +141,7 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 		return nil
 	}
 	log.Infof("%s - generating self signed certs", n.Name())
-	log.Infof("%s - waiting for pod to be running", n.Name())
+	log.Infof("%s - waiting for pod to be ready", n.Name())
 	w, err := n.KubeClient.CoreV1().Pods(n.Namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(
 			fields.Set{metav1.ObjectNameField: n.Name()},
@@ -156,10 +156,19 @@ func (n *Node) GenerateSelfSigned(ctx context.Context) error {
 			continue
 		}
 		if p.Status.Phase == corev1.PodRunning {
-			break
+			var ready bool
+			for _, cond := range p.Status.Conditions {
+				if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+					ready = true
+					break
+				}
+			}
+			if ready {
+				break
+			}
 		}
 	}
-	log.Infof("%s - pod running.", n.Name())
+	log.Infof("%s - pod ready.", n.Name())
 
 	if err := n.SpawnCLIConn(); err != nil {
 		return err

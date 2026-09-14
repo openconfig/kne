@@ -238,7 +238,8 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: ptr.To(true),
 				},
-				VolumeMounts: extraMounts,
+				ReadinessProbe:  node.ServiceReadinessProbe(pb),
+				VolumeMounts:    extraMounts,
 			}},
 			Volumes:                       extraVolumes,
 			TerminationGracePeriodSeconds: ptr.To[int64](0),

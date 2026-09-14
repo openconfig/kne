@@ -25,7 +25,9 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -305,6 +307,12 @@ func TestNode_CreatePod_EquipmentFile(t *testing.T) {
 			Image:      "vrnetlab/ciena_waverouter:config",
 			VendorData: vendorData,
 		},
+		Services: map[uint32]*tpb.Service{
+			22: {
+				Names:  []string{"ssh"},
+				Inside: 22,
+			},
+		},
 	}
 
 	n := &Node{
@@ -336,6 +344,19 @@ func TestNode_CreatePod_EquipmentFile(t *testing.T) {
 	}
 	if ctr.Image != "vrnetlab/ciena_waverouter:config" {
 		t.Errorf("container image: got %q, want %q", ctr.Image, "vrnetlab/ciena_waverouter:config")
+	}
+	wantProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(22),
+			},
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		FailureThreshold:    60,
+	}
+	if diff := cmp.Diff(wantProbe, ctr.ReadinessProbe); diff != "" {
+		t.Errorf("container readiness probe mismatch (-want +got):\n%s", diff)
 	}
 	foundMount := false
 	for _, m := range ctr.VolumeMounts {

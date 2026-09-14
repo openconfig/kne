@@ -546,6 +546,7 @@ func (n *Node) Create(ctx context.Context) error {
 				Env:             node.ToEnvVar(pb.Config.Env),
 				Resources:       node.ToResourceRequirements(pb.Constraints),
 				ImagePullPolicy: "IfNotPresent",
+				ReadinessProbe:  node.ServiceReadinessProbe(pb),
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
 					RunAsUser:  pointer.Int64(0),
