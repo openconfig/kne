@@ -21,6 +21,7 @@ import (
 	scraplilogging "github.com/scrapli/scrapligo/logging"
 	scrapliplatform "github.com/scrapli/scrapligo/platform"
 	scrapliutil "github.com/scrapli/scrapligo/util"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -646,26 +647,37 @@ func (n *Impl) CreateService(ctx context.Context) error {
 		}
 	}
 	if len(proxyContainers) > 0 {
-		proxyPod := &corev1.Pod{
+		dsLabels := map[string]string{
+			"app":  fmt.Sprintf("v6proxy-%s", n.Name()),
+			"pod":  n.Name(),
+			"topo": n.Namespace,
+		}
+		proxyDS := &appsv1.DaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("v6proxy-%s", n.Name()),
-				Labels: map[string]string{
-					"app":  fmt.Sprintf("v6proxy-%s", n.Name()),
-					"pod":  n.Name(),
-					"topo": n.Namespace,
+				Name:   fmt.Sprintf("v6proxy-%s", n.Name()),
+				Labels: dsLabels,
+			},
+			Spec: appsv1.DaemonSetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: dsLabels,
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: dsLabels,
+					},
+					Spec: corev1.PodSpec{
+						HostNetwork:                   true,
+						Containers:                    proxyContainers,
+						TerminationGracePeriodSeconds: pointer.Int64(0),
+					},
 				},
 			},
-			Spec: corev1.PodSpec{
-				HostNetwork:                   true,
-				Containers:                    proxyContainers,
-				TerminationGracePeriodSeconds: pointer.Int64(0),
-			},
 		}
-		sProxyPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, proxyPod, metav1.CreateOptions{})
+		sProxyDS, err := n.KubeClient.AppsV1().DaemonSets(n.Namespace).Create(ctx, proxyDS, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create host v6proxy pod: %w", err)
+			return fmt.Errorf("failed to create host v6proxy daemonset: %w", err)
 		}
-		log.Infof("Created host v6proxy pod:\n%+v\n", sProxyPod)
+		log.Infof("Created host v6proxy daemonset:\n%+v\n", sProxyDS)
 	}
 	return nil
 }
@@ -713,9 +725,9 @@ func (n *Impl) DeleteConfig(ctx context.Context) error {
 
 // DeleteService removes the service definition for the Node.
 func (n *Impl) DeleteService(ctx context.Context) error {
-	_ = n.KubeClient.CoreV1().Pods(n.Namespace).Delete(ctx, fmt.Sprintf("v6proxy-%s", n.Name()), metav1.DeleteOptions{
+	_ = n.KubeClient.AppsV1().DaemonSets(n.Namespace).Delete(ctx, fmt.Sprintf("v6proxy-%s", n.Name()), metav1.DeleteOptions{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
+			APIVersion: "apps/v1",
 		},
 		GracePeriodSeconds: pointer.Int64(0),
 	})
