@@ -24,10 +24,6 @@ net.core.netdev_max_backlog = 10000
 # Increase maximum OS socket receive and send buffer sizes to 16 MB
 net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
-
-# Increase default OS socket receive and send buffer sizes to 16 MB
-net.core.rmem_default = 16777216
-net.core.wmem_default = 16777216
 ```
 
 Apply the configuration immediately:
@@ -43,13 +39,15 @@ sudo sysctl --system
   simultaneously receive bursty control-plane frames (e.g., initial link-state
   advertisements or topology convergence events). Increasing the backlog queue
   prevents kernel-level packet drops before frames reach container sockets.
-- **`net.core.rmem_max` / `wmem_max` / `rmem_default` / `wmem_default = 16777216` (16 MB)**:
-  Default Linux socket buffers (typically ~212 KB) are insufficient for large
+- **`net.core.rmem_max` / `wmem_max = 16777216` (16 MB)**:
+  Default Linux maximum socket buffer ceilings can be insufficient for large
   BGP updates, routing snapshots, or high-volume telemetry streams across
-  emulated nodes. Providing a 16 MB ceiling and default allows socket buffer
-  allocations (such as `SO_RCVBUF` / `SO_SNDBUF` of 4 MB used by high-performance
-  network bridges and routers) to allocate sufficient buffer memory without
-  kernel truncation or dropouts.
+  emulated nodes. Increasing `rmem_max` and `wmem_max` allows high-performance
+  applications and emulated network OS containers to request larger socket buffers
+  (e.g., via `SO_RCVBUF` / `SO_SNDBUF`) up to 16 MB without raising default memory
+  consumption for every socket. Default buffer sizes (`rmem_default` and `wmem_default`)
+  remain at standard Linux defaults (~212 KB) to prevent microservices containers
+  from exhausting memory when opening numerous internal IPC sockets.
 
 > **Note**: These sysctl settings are pre-baked into KNE GCE VM images built via
 > CloudBuild/Packer (`cloudbuild/internal.pkr.hcl` and
