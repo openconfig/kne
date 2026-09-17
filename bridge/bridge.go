@@ -18,31 +18,30 @@ package bridge
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
+	"syscall"
 
 	"golang.org/x/sys/unix"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 
 	wpb "github.com/openconfig/kne/proto/wire"
 )
 
 const (
-	maxFrameSize          = 65535
-	channelBufferCap      = 1000
-	socketBufferSizeBytes = 4 * 1024 * 1024 // 4 MB
+	maxFrameSize           = 65535
+	channelBufferCap       = 1000
+	maxSubscribersPerDemux = 32
+	socketBufferSizeBytes  = 4 * 1024 * 1024 // 4 MB
 )
-
-var packetPool = sync.Pool{
-	New: func() any {
-		b := make([]byte, maxFrameSize)
-		return &b
-	},
-}
 
 // htons converts host byte order to network byte order in an endian-safe manner.
 func htons(v uint16) int {
@@ -52,6 +51,7 @@ func htons(v uint16) int {
 }
 
 // ReadWriter abstracts the physical or simulated raw packet I/O for an interface.
+// Implementations MUST ensure that Close() interrupts any pending or concurrent ReadPacket() calls.
 type ReadWriter interface {
 	ReadPacket() ([]byte, error)
 	WritePacket(pkt []byte) error
@@ -59,9 +59,13 @@ type ReadWriter interface {
 }
 
 // SocketHandler manages a raw AF_PACKET socket bound to a specific Linux network interface.
+// It integrates with the Go runtime netpoller so that ReadPacket blocks without spinning,
+// and Close() immediately interrupts pending reads and prevents use-after-close errors.
 type SocketHandler struct {
 	ifaceName string
-	fd        int
+	f         *os.File
+	rc        syscall.RawConn
+	rbuf      []byte
 	closeOnce sync.Once
 }
 
@@ -76,6 +80,11 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, proto)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open raw socket for %s: %w", ifaceName, err)
+	}
+
+	if err := unix.SetNonblock(fd, true); err != nil {
+		_ = unix.Close(fd)
+		return nil, fmt.Errorf("failed to set non-blocking on %s: %w", ifaceName, err)
 	}
 
 	if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_RCVBUF, socketBufferSizeBytes); err != nil {
@@ -102,21 +111,35 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 		klog.Warningf("Failed to enable promiscuous mode on %s: %v", ifaceName, err)
 	}
 
+	f := os.NewFile(uintptr(fd), "packet-"+ifaceName)
+	rc, err := f.SyscallConn()
+	if err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("failed to get SyscallConn on %s: %w", ifaceName, err)
+	}
+
 	return &SocketHandler{
 		ifaceName: ifaceName,
-		fd:        fd,
+		f:         f,
+		rc:        rc,
+		rbuf:      make([]byte, maxFrameSize),
 	}, nil
 }
 
 // ReadPacket reads a single raw Ethernet frame from the socket, ignoring outgoing echo frames.
 func (s *SocketHandler) ReadPacket() ([]byte, error) {
-	bufPtr := packetPool.Get().(*[]byte)
-	defer packetPool.Put(bufPtr)
-
 	for {
-		n, from, err := unix.Recvfrom(s.fd, *bufPtr, 0)
-		if err != nil {
-			return nil, err
+		var n int
+		var from unix.Sockaddr
+		var serr error
+		if rerr := s.rc.Read(func(fd uintptr) bool {
+			n, from, serr = unix.Recvfrom(int(fd), s.rbuf, 0)
+			return serr != unix.EAGAIN
+		}); rerr != nil {
+			return nil, rerr
+		}
+		if serr != nil {
+			return nil, serr
 		}
 		// Filter out locally transmitted echo frames (PACKET_OUTGOING) to prevent infinite loops.
 		if sll, ok := from.(*unix.SockaddrLinklayer); ok {
@@ -125,22 +148,35 @@ func (s *SocketHandler) ReadPacket() ([]byte, error) {
 			}
 		}
 		pkt := make([]byte, n)
-		copy(pkt, (*bufPtr)[:n])
+		copy(pkt, s.rbuf[:n])
 		return pkt, nil
 	}
 }
 
 // WritePacket writes a raw Ethernet frame directly to the network interface.
 func (s *SocketHandler) WritePacket(pkt []byte) error {
-	_, err := unix.Write(s.fd, pkt)
-	return err
+	if len(pkt) == 0 {
+		return nil
+	}
+	if len(pkt) > maxFrameSize {
+		return fmt.Errorf("packet size %d exceeds max frame size %d", len(pkt), maxFrameSize)
+	}
+	var serr error
+	if werr := s.rc.Write(func(fd uintptr) bool {
+		_, serr = unix.Write(int(fd), pkt)
+		return serr != unix.EAGAIN
+	}); werr != nil {
+		return werr
+	}
+	return serr
 }
 
 // Close closes the underlying raw socket file descriptor once.
+// Closing interrupts any blocked or future ReadPacket / WritePacket calls via the runtime netpoller.
 func (s *SocketHandler) Close() error {
 	var err error
 	s.closeOnce.Do(func() {
-		err = unix.Close(s.fd)
+		err = s.f.Close()
 	})
 	return err
 }
@@ -148,15 +184,19 @@ func (s *SocketHandler) Close() error {
 // InterfaceDemux coordinates a single raw socket reader per interface with multiple gRPC clients.
 // This design prevents socket buffer race conditions and distributes captured frames to all active subscribers.
 type InterfaceDemux struct {
-	ifaceName     string
-	handler       ReadWriter
-	onClose       func(ifaceName string)
-	mu            sync.RWMutex
-	listeners     map[chan []byte]struct{}
-	droppedFrames atomic.Uint64
-	ctx           context.Context
-	cancel        context.CancelFunc
-	closeOnce     sync.Once
+	ifaceName          string
+	handler            ReadWriter
+	onClose            func(ifaceName string)
+	mu                 sync.RWMutex
+	listeners          map[chan []byte]struct{}
+	closed             bool
+	droppedFrames      atomic.Uint64
+	droppedWriteFrames atomic.Uint64
+	ctx                context.Context
+	cancel             context.CancelFunc
+	closeOnce          sync.Once
+	closeErr           error
+	wg                 sync.WaitGroup
 }
 
 // newInterfaceDemux constructs and starts a new InterfaceDemux for the specified interface.
@@ -170,19 +210,39 @@ func newInterfaceDemux(parentCtx context.Context, ifaceName string, handler Read
 		ctx:       ctx,
 		cancel:    cancel,
 	}
-	// Unblock unix.Recvfrom immediately when context is cancelled.
+	// Unblock pending ReadPacket calls when demux context is cancelled.
 	go func() {
 		<-d.ctx.Done()
-		d.closeHandler()
+		_ = d.closeHandler()
 	}()
-	go d.readLoop()
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+		d.readLoop()
+	}()
 	return d
 }
 
-func (d *InterfaceDemux) closeHandler() {
+func (d *InterfaceDemux) closeHandler() error {
 	d.closeOnce.Do(func() {
-		_ = d.handler.Close()
+		d.closeErr = d.handler.Close()
 	})
+	return d.closeErr
+}
+
+// write writes an ingress packet to the underlying interface handler after verifying that the demux is active.
+func (d *InterfaceDemux) write(pkt []byte) error {
+	if err := d.ctx.Err(); err != nil {
+		return net.ErrClosed
+	}
+	if len(pkt) == 0 {
+		return nil
+	}
+	if len(pkt) > maxFrameSize {
+		d.droppedWriteFrames.Add(1)
+		return fmt.Errorf("packet size %d exceeds max frame size %d", len(pkt), maxFrameSize)
+	}
+	return d.handler.WritePacket(pkt)
 }
 
 // readLoop continuously reads frames from the raw socket and broadcasts them to all active subscribers.
@@ -191,8 +251,9 @@ func (d *InterfaceDemux) closeHandler() {
 func (d *InterfaceDemux) readLoop() {
 	defer func() {
 		d.cancel()
-		d.closeHandler()
+		_ = d.closeHandler()
 		d.mu.Lock()
+		d.closed = true
 		for ch := range d.listeners {
 			close(ch)
 		}
@@ -204,45 +265,53 @@ func (d *InterfaceDemux) readLoop() {
 	}()
 
 	for {
-		select {
-		case <-d.ctx.Done():
-			return
-		default:
-			pkt, err := d.handler.ReadPacket()
-			if err != nil {
-				if d.ctx.Err() != nil {
-					return
-				}
-				klog.Errorf("Error reading packet from %s: %v", d.ifaceName, err)
+		pkt, err := d.handler.ReadPacket()
+		if err != nil {
+			if d.ctx.Err() != nil {
 				return
 			}
-			d.mu.RLock()
-			for ch := range d.listeners {
-				select {
-				case ch <- pkt:
-				case <-d.ctx.Done():
-					d.mu.RUnlock()
-					return
-				default:
-					total := d.droppedFrames.Add(1)
-					if total%1000 == 1 {
-						klog.Warningf("[%s] Demux subscriber queue full (buffer %d)! Dropping egress frame (total dropped: %d)",
-							d.ifaceName, channelBufferCap, total)
-					}
+			klog.Errorf("Error reading packet from %s: %v", d.ifaceName, err)
+			return
+		}
+		if d.ctx.Err() != nil {
+			return
+		}
+
+		d.mu.RLock()
+		if d.closed {
+			d.mu.RUnlock()
+			return
+		}
+		for ch := range d.listeners {
+			select {
+			case ch <- pkt:
+			default:
+				total := d.droppedFrames.Add(1)
+				if total%1000 == 1 {
+					klog.Warningf("[%s] Demux subscriber queue full (buffer %d)! Dropping egress frame (total dropped: %d)",
+						d.ifaceName, channelBufferCap, total)
 				}
 			}
-			d.mu.RUnlock()
 		}
+		d.mu.RUnlock()
 	}
 }
 
 // subscribe registers a new channel to receive captured frames from this interface.
-func (d *InterfaceDemux) subscribe() chan []byte {
-	ch := make(chan []byte, channelBufferCap)
+// Note: The returned channel receives slices sharing the same underlying packet data array across all
+// concurrent subscribers; callers must treat received []byte slices as immutable.
+func (d *InterfaceDemux) subscribe() (chan []byte, error) {
 	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.closed || d.ctx.Err() != nil {
+		return nil, fmt.Errorf("demux for %s is closed", d.ifaceName)
+	}
+	if len(d.listeners) >= maxSubscribersPerDemux {
+		return nil, fmt.Errorf("demux for %s reached maximum subscribers limit (%d)", d.ifaceName, maxSubscribersPerDemux)
+	}
+	ch := make(chan []byte, channelBufferCap)
 	d.listeners[ch] = struct{}{}
-	d.mu.Unlock()
-	return ch
+	return ch, nil
 }
 
 // unsubscribe removes a previously registered subscriber channel and closes it.
@@ -258,6 +327,13 @@ func (d *InterfaceDemux) unsubscribe(ch chan []byte) {
 // close cancels the demux context and terminates the read loop.
 func (d *InterfaceDemux) close() {
 	d.cancel()
+	_ = d.closeHandler()
+}
+
+// wait blocks until the read loop has finished and returns the socket close error.
+func (d *InterfaceDemux) wait() error {
+	d.wg.Wait()
+	return d.closeErr
 }
 
 // Server implements the wpb.WireServer gRPC service.
@@ -297,8 +373,15 @@ func (s *Server) getOrCreateDemux(ifaceName string) (*InterfaceDemux, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if d, exists := s.demuxers[ifaceName]; exists {
-		return d, nil
+	if err := s.ctx.Err(); err != nil {
+		return nil, status.Errorf(codes.Unavailable, "bridge server is shutting down: %v", err)
+	}
+
+	if d, ok := s.demuxers[ifaceName]; ok {
+		if d.ctx.Err() == nil {
+			return d, nil
+		}
+		delete(s.demuxers, ifaceName)
 	}
 
 	handler, err := s.socketOpener(ifaceName)
@@ -306,9 +389,12 @@ func (s *Server) getOrCreateDemux(ifaceName string) (*InterfaceDemux, error) {
 		return nil, fmt.Errorf("failed to open socket for interface %s: %w", ifaceName, err)
 	}
 
-	d := newInterfaceDemux(s.ctx, ifaceName, handler, func(name string) {
+	var d *InterfaceDemux
+	d = newInterfaceDemux(s.ctx, ifaceName, handler, func(name string) {
 		s.mu.Lock()
-		delete(s.demuxers, name)
+		if cur, ok := s.demuxers[name]; ok && cur == d {
+			delete(s.demuxers, name)
+		}
 		s.mu.Unlock()
 		klog.Infof("InterfaceDemux for %s cleaned up and removed from server cache", name)
 	})
@@ -336,10 +422,13 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 
 	demux, err := s.getOrCreateDemux(ifaceName)
 	if err != nil {
-		return fmt.Errorf("failed to get interface handler for %s: %w", ifaceName, err)
+		return err
 	}
 
-	pktChan := demux.subscribe()
+	pktChan, err := demux.subscribe()
+	if err != nil {
+		return status.Errorf(codes.Unavailable, "failed to subscribe to interface %s: %v", ifaceName, err)
+	}
 	defer func() {
 		demux.unsubscribe(pktChan)
 		klog.Infof("Wire.Transmit client disconnected from interface %q", ifaceName)
@@ -358,15 +447,24 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 		for {
 			select {
 			case <-stream.Context().Done():
-				errChan <- stream.Context().Err()
+				select {
+				case errChan <- stream.Context().Err():
+				default:
+				}
 				return
 			case pkt, ok := <-pktChan:
 				if !ok {
-					errChan <- io.EOF
+					select {
+					case errChan <- io.EOF:
+					default:
+					}
 					return
 				}
 				if err := stream.Send(&wpb.Packet{Data: pkt}); err != nil {
-					errChan <- err
+					select {
+					case errChan <- err:
+					default:
+					}
 					return
 				}
 			}
@@ -378,13 +476,25 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 		for {
 			req, err := stream.Recv()
 			if err != nil {
-				errChan <- err
+				select {
+				case errChan <- err:
+				default:
+				}
 				return
 			}
 			if pktData := req.GetData(); len(pktData) > 0 {
-				if err := demux.handler.WritePacket(pktData); err != nil {
-					errChan <- fmt.Errorf("failed to write packet to %s: %w", ifaceName, err)
-					return
+				if err := demux.write(pktData); err != nil {
+					if isFatalWriteError(err) {
+						select {
+						case errChan <- fmt.Errorf("fatal error writing packet to %s: %w", ifaceName, err):
+						default:
+						}
+						return
+					}
+					total := demux.droppedWriteFrames.Add(1)
+					if total%1000 == 1 {
+						klog.Warningf("[%s] Dropped ingress frame: %v (total dropped: %d)", ifaceName, err, total)
+					}
 				}
 			}
 		}
@@ -398,13 +508,44 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 	return err
 }
 
-// Close closes all underlying raw sockets and demuxers.
+// Close closes all underlying raw sockets and demuxers, waiting for read loops to finish.
 func (s *Server) Close() error {
 	s.cancel()
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	ds := make([]*InterfaceDemux, 0, len(s.demuxers))
 	for _, d := range s.demuxers {
-		d.close()
+		ds = append(ds, d)
 	}
-	return nil
+	s.mu.Unlock()
+
+	var errs []error
+	for _, d := range ds {
+		d.close()
+		if err := d.wait(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// isFatalWriteError determines if a write error is permanent and indicates socket/stream failure,
+// as opposed to a transient or per-packet error (e.g. EMSGSIZE, ENOBUFS).
+func isFatalWriteError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) ||
+		errors.Is(err, unix.EBADF) || errors.Is(err, unix.ENETDOWN) || errors.Is(err, unix.ENODEV) || errors.Is(err, unix.ESHUTDOWN) {
+		return true
+	}
+	var errno unix.Errno
+	if errors.As(err, &errno) {
+		switch errno {
+		case unix.EBADF, unix.ENETDOWN, unix.ENODEV, unix.ESHUTDOWN, unix.EINVAL:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }

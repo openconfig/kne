@@ -17,10 +17,12 @@ package bridge
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
 	wpb "github.com/openconfig/kne/proto/wire"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -185,5 +187,81 @@ func TestNewClientValidation(t *testing.T) {
 	}
 	if c2.cfg.RetryInterval != 5*time.Second {
 		t.Errorf("got RetryInterval = %v, want %v", c2.cfg.RetryInterval, 5*time.Second)
+	}
+}
+
+func TestClientIngressNonFatalError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 1. Setup Server
+	server := NewServer(ctx)
+	defer func() {
+		_ = server.Close()
+	}()
+
+	serverIO := newFakeReadWriter()
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		return serverIO, nil
+	})
+
+	lis := bufconn.Listen(1024 * 1024)
+	grpcServer := grpc.NewServer()
+	wpb.RegisterWireServer(grpcServer, server)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	defer grpcServer.Stop()
+
+	// 2. Setup Client with write error on first packet
+	clientIO := newFakeReadWriter()
+	clientIO.writeErr = fmt.Errorf("packet too large: %w", unix.EMSGSIZE)
+
+	client, err := NewClient(ClientConfig{
+		PeerAddress:     "passthrough://bufnet",
+		LocalInterface:  "eth1",
+		RemoteInterface: "eth1",
+		RetryInterval:   100 * time.Millisecond,
+		DialOpts: []grpc.DialOption{
+			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+				return lis.Dial()
+			}),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+		SocketOpener: func(ifaceName string) (ReadWriter, error) {
+			return clientIO, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+
+	clientCtx, clientCancel := context.WithCancel(ctx)
+	defer clientCancel()
+
+	go func() {
+		_ = client.Run(clientCtx)
+	}()
+
+	// Send frame from server to client: triggers non-fatal write error
+	serverIO.readChan <- []byte{0x01, 0x02}
+	time.Sleep(50 * time.Millisecond)
+
+	// Clear error and send valid frame: client should still be alive and receive it
+	clientIO.mu.Lock()
+	clientIO.writeErr = nil
+	clientIO.mu.Unlock()
+
+	validPkt := []byte{0xDE, 0xAD}
+	serverIO.readChan <- validPkt
+
+	select {
+	case received := <-clientIO.writeChan:
+		if !bytes.Equal(received, validPkt) {
+			t.Fatalf("Client received mismatch: got %v, want %v", received, validPkt)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("Timed out waiting for packet after non-fatal error")
 	}
 }

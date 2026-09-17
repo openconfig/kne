@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	wpb "github.com/openconfig/kne/proto/wire"
@@ -137,13 +138,16 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 	if err != nil {
 		return fmt.Errorf("failed to open local interface %s: %w", c.cfg.LocalInterface, err)
 	}
-	defer func() {
-		_ = handler.Close()
-	}()
 
 	client := wpb.NewWireClient(conn)
 	streamCtx, streamCancel := context.WithCancel(ctx)
-	defer streamCancel()
+
+	var wg sync.WaitGroup
+	defer func() {
+		streamCancel()
+		_ = handler.Close()
+		wg.Wait()
+	}()
 
 	outCtx := metadata.NewOutgoingContext(streamCtx, metadata.Pairs("interface", c.cfg.RemoteInterface))
 	stream, err := client.Transmit(outCtx)
@@ -155,41 +159,69 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 		c.cfg.LocalInterface, c.cfg.RemoteInterface, c.cfg.PeerAddress)
 
 	errChan := make(chan error, 2)
+	wg.Add(2)
 
 	// Egress loop: read from local raw socket, send to remote bridge server over gRPC
 	go func() {
+		defer wg.Done()
 		for {
-			select {
-			case <-streamCtx.Done():
-				errChan <- streamCtx.Err()
+			pkt, err := handler.ReadPacket()
+			if err != nil {
+				if streamCtx.Err() != nil {
+					return
+				}
+				select {
+				case errChan <- fmt.Errorf("read from %s error: %w", c.cfg.LocalInterface, err):
+				default:
+				}
 				return
-			default:
-				pkt, err := handler.ReadPacket()
-				if err != nil {
-					errChan <- fmt.Errorf("read from %s error: %w", c.cfg.LocalInterface, err)
+			}
+			if streamCtx.Err() != nil {
+				return
+			}
+			if err := stream.Send(&wpb.Packet{Data: pkt}); err != nil {
+				if streamCtx.Err() != nil {
 					return
 				}
-				if err := stream.Send(&wpb.Packet{Data: pkt}); err != nil {
-					errChan <- fmt.Errorf("stream send error: %w", err)
-					return
+				select {
+				case errChan <- fmt.Errorf("stream send error: %w", err):
+				default:
 				}
+				return
 			}
 		}
 	}()
 
 	// Ingress loop: receive from remote bridge server over gRPC, inject into local raw socket
 	go func() {
+		defer wg.Done()
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
-				errChan <- err
+				if streamCtx.Err() != nil {
+					return
+				}
+				select {
+				case errChan <- err:
+				default:
+				}
 				return
 			}
 			pktData := resp.GetData()
 			if len(pktData) > 0 {
+				if len(pktData) > maxFrameSize {
+					klog.Warningf("[%s] Dropped ingress packet: size %d exceeds max frame size %d", c.cfg.LocalInterface, len(pktData), maxFrameSize)
+					continue
+				}
 				if err := handler.WritePacket(pktData); err != nil {
-					errChan <- fmt.Errorf("write to %s error: %w", c.cfg.LocalInterface, err)
-					return
+					if isFatalWriteError(err) {
+						select {
+						case errChan <- fmt.Errorf("write to %s error: %w", c.cfg.LocalInterface, err):
+						default:
+						}
+						return
+					}
+					klog.Warningf("[%s] Dropped ingress packet: %v", c.cfg.LocalInterface, err)
 				}
 			}
 		}

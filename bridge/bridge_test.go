@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
+	"golang.org/x/sys/unix"
 	wpb "github.com/openconfig/kne/proto/wire"
 )
 
@@ -49,7 +50,7 @@ func newFakeReadWriter() *fakeReadWriter {
 func (f *fakeReadWriter) ReadPacket() ([]byte, error) {
 	pkt, ok := <-f.readChan
 	if !ok {
-		return nil, fmt.Errorf("fake socket closed")
+		return nil, net.ErrClosed
 	}
 	return pkt, nil
 }
@@ -57,6 +58,9 @@ func (f *fakeReadWriter) ReadPacket() ([]byte, error) {
 func (f *fakeReadWriter) WritePacket(pkt []byte) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.closed {
+		return net.ErrClosed
+	}
 	if f.writeErr != nil {
 		return f.writeErr
 	}
@@ -161,8 +165,14 @@ func TestDemuxerSlowSubscriberDoesNotDeadlock(t *testing.T) {
 	fakeIO := newFakeReadWriter()
 	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
 
-	sub1 := demux.subscribe()
-	sub2 := demux.subscribe()
+	sub1, err := demux.subscribe()
+	if err != nil {
+		t.Fatalf("sub1 subscribe failed: %v", err)
+	}
+	sub2, err := demux.subscribe()
+	if err != nil {
+		t.Fatalf("sub2 subscribe failed: %v", err)
+	}
 
 	// Fill sub1 channel to capacity
 	for i := 0; i < channelBufferCap; i++ {
@@ -320,7 +330,10 @@ func TestServerCloseToTeardown(t *testing.T) {
 		t.Fatalf("getOrCreateDemux failed: %v", err)
 	}
 
-	sub := demux.subscribe()
+	sub, err := demux.subscribe()
+	if err != nil {
+		t.Fatalf("subscribe failed: %v", err)
+	}
 
 	// Closing server should cancel parent context, closing subscriber channels and socket handler
 	_ = server.Close()
@@ -336,5 +349,224 @@ func TestServerCloseToTeardown(t *testing.T) {
 
 	if !fakeIO.isClosed() {
 		t.Fatalf("Expected fakeIO handler to be closed on server close")
+	}
+}
+
+func TestSubscribeOnClosedDemuxFails(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fakeIO := newFakeReadWriter()
+	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
+
+	// Close fakeIO which terminates readLoop and marks demux closed
+	_ = fakeIO.Close()
+	_ = demux.wait()
+
+	_, err := demux.subscribe()
+	if err == nil {
+		t.Fatalf("Expected subscribe() on dead demux to return an error, got nil")
+	}
+}
+
+func TestDemuxMaxSubscribers(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fakeIO := newFakeReadWriter()
+	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
+
+	var subs []chan []byte
+	for i := 0; i < maxSubscribersPerDemux; i++ {
+		sub, err := demux.subscribe()
+		if err != nil {
+			t.Fatalf("Failed subscribing at index %d: %v", i, err)
+		}
+		subs = append(subs, sub)
+	}
+
+	// 33rd subscriber must fail
+	_, err := demux.subscribe()
+	if err == nil {
+		t.Fatalf("Expected error when exceeding maxSubscribersPerDemux, got nil")
+	}
+
+	// Unsubscribe one and then subscribe should succeed
+	demux.unsubscribe(subs[0])
+	_, err = demux.subscribe()
+	if err != nil {
+		t.Fatalf("Expected subscribe to succeed after unsubscribing, got: %v", err)
+	}
+}
+
+func TestInterfaceDemuxWriteCheckContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	fakeIO := newFakeReadWriter()
+	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
+
+	cancel()
+	err := demux.write([]byte{0x01, 0x02})
+	if err != net.ErrClosed {
+		t.Fatalf("Expected net.ErrClosed after context cancel, got: %v", err)
+	}
+}
+
+func TestGetOrCreateDemuxPurgesDeadDemux(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	server := NewServer(ctx)
+	fakeIO1 := newFakeReadWriter()
+	fakeIO2 := newFakeReadWriter()
+
+	var openerCount int
+	var openerMu sync.Mutex
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		openerMu.Lock()
+		defer openerMu.Unlock()
+		openerCount++
+		if openerCount == 1 {
+			return fakeIO1, nil
+		}
+		return fakeIO2, nil
+	})
+
+	d1, err := server.getOrCreateDemux("eth1")
+	if err != nil {
+		t.Fatalf("First getOrCreateDemux failed: %v", err)
+	}
+
+	// Kill first demux
+	_ = fakeIO1.Close()
+	_ = d1.wait()
+
+	// getOrCreateDemux should detect dead d1 and return fresh d2
+	d2, err := server.getOrCreateDemux("eth1")
+	if err != nil {
+		t.Fatalf("Second getOrCreateDemux failed: %v", err)
+	}
+	if d1 == d2 {
+		t.Fatalf("Expected getOrCreateDemux to return a new demux instance, got the dead one")
+	}
+}
+
+func TestGetOrCreateDemuxAfterServerClose(t *testing.T) {
+	ctx := context.Background()
+	server := NewServer(ctx)
+	_ = server.Close()
+
+	_, err := server.getOrCreateDemux("eth1")
+	if err == nil {
+		t.Fatalf("Expected error when calling getOrCreateDemux after server.Close(), got nil")
+	}
+}
+
+func TestServerCloseWaitsForReadLoops(t *testing.T) {
+	ctx := context.Background()
+	server := NewServer(ctx)
+
+	fakeIO := newFakeReadWriter()
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		return fakeIO, nil
+	})
+
+	_, err := server.getOrCreateDemux("eth1")
+	if err != nil {
+		t.Fatalf("getOrCreateDemux failed: %v", err)
+	}
+
+	if err := server.Close(); err != nil {
+		t.Fatalf("server.Close() returned error: %v", err)
+	}
+
+	if !fakeIO.isClosed() {
+		t.Fatalf("Expected fakeIO to be closed after server.Close() returns")
+	}
+}
+
+func TestIngressNonFatalErrorContinues(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	server := NewServer(ctx)
+	defer func() { _ = server.Close() }()
+
+	fakeIO := newFakeReadWriter()
+	fakeIO.writeErr = fmt.Errorf("message too long: %w", unix.EMSGSIZE)
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		return fakeIO, nil
+	})
+
+	lis := bufconn.Listen(1024 * 1024)
+	grpcServer := grpc.NewServer()
+	wpb.RegisterWireServer(grpcServer, server)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	defer grpcServer.Stop()
+
+	conn, err := grpc.NewClient("passthrough://bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return lis.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	client := wpb.NewWireClient(conn)
+	streamCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth1"))
+	stream, err := client.Transmit(streamCtx)
+	if err != nil {
+		t.Fatalf("Transmit RPC failed: %v", err)
+	}
+	if _, err := stream.Header(); err != nil {
+		t.Fatalf("Failed to receive stream header: %v", err)
+	}
+
+	// Send non-fatal bad packet: should not tear down stream
+	if err := stream.Send(&wpb.Packet{Data: []byte{0x01, 0x02}}); err != nil {
+		t.Fatalf("Send packet failed: %v", err)
+	}
+
+	// Clear write error and send valid packet
+	time.Sleep(50 * time.Millisecond)
+	fakeIO.mu.Lock()
+	fakeIO.writeErr = nil
+	fakeIO.mu.Unlock()
+
+	validPkt := []byte{0xAA, 0xBB}
+	if err := stream.Send(&wpb.Packet{Data: validPkt}); err != nil {
+		t.Fatalf("Send second packet failed: %v", err)
+	}
+
+	select {
+	case received := <-fakeIO.writeChan:
+		if !bytes.Equal(received, validPkt) {
+			t.Fatalf("Packet mismatch: got %v, want %v", received, validPkt)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("Timed out waiting for valid packet on fakeIO")
+	}
+}
+
+func TestFatalWriteErrorDetection(t *testing.T) {
+	if !isFatalWriteError(net.ErrClosed) {
+		t.Errorf("expected net.ErrClosed to be fatal")
+	}
+	if !isFatalWriteError(unix.EBADF) {
+		t.Errorf("expected unix.EBADF to be fatal")
+	}
+	if !isFatalWriteError(unix.ENETDOWN) {
+		t.Errorf("expected unix.ENETDOWN to be fatal")
+	}
+	if isFatalWriteError(unix.EMSGSIZE) {
+		t.Errorf("expected unix.EMSGSIZE to be non-fatal")
+	}
+	if isFatalWriteError(unix.ENOBUFS) {
+		t.Errorf("expected unix.ENOBUFS to be non-fatal")
 	}
 }
