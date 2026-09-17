@@ -2,8 +2,10 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -12,11 +14,14 @@ import (
 	topopb "github.com/openconfig/kne/proto/topo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	ktesting "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
 )
 
@@ -40,9 +45,13 @@ func NewR(impl *Impl) (Node, error) {
 	return &resettable{&notResettable{Impl: impl}}, nil
 }
 
+var registerVendorsOnce sync.Once
+
 func TestReset(t *testing.T) {
-	Vendor(topopb.Vendor(1001), NewR)
-	Vendor(topopb.Vendor(1002), NewNR)
+	registerVendorsOnce.Do(func() {
+		Vendor(topopb.Vendor(1001), NewR)
+		Vendor(topopb.Vendor(1002), NewNR)
+	})
 	n, err := New("test", &topopb.Node{Vendor: topopb.Vendor(1001)}, nil, nil, "", "")
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
@@ -326,7 +335,7 @@ func TestService(t *testing.T) {
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "service-dev-nodeport",
+				Name:      "service-dev-nodeport-nodeport",
 				Namespace: "test",
 				Labels:    map[string]string{"pod": "dev-nodeport"},
 			},
@@ -363,7 +372,7 @@ func TestService(t *testing.T) {
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "service-dev-nodeport-static",
+				Name:      "service-dev-nodeport-static-nodeport",
 				Namespace: "test",
 				Labels:    map[string]string{"pod": "dev-nodeport-static"},
 			},
@@ -399,7 +408,7 @@ func TestService(t *testing.T) {
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "service-dev-clusterip",
+				Name:      "service-dev-clusterip-clusterip",
 				Namespace: "test",
 				Labels:    map[string]string{"pod": "dev-clusterip"},
 			},
@@ -412,6 +421,95 @@ func TestService(t *testing.T) {
 					NodePort:   0,
 				}},
 				Selector: map[string]string{"app": "dev-clusterip"},
+				Type:     "ClusterIP",
+			},
+		}},
+	}, {
+		desc: "mixed service types valid",
+		node: &topopb.Node{
+			Name:   "dev-mixed",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+				},
+				50058: {
+					Name:     "wire",
+					Inside:   50058,
+					Type:     topopb.Service_NODE_PORT,
+					NodePort: 30058,
+				},
+				8080: {
+					Name:   "http",
+					Inside: 8080,
+					Type:   topopb.Service_CLUSTER_IP,
+				},
+			},
+		},
+		kClient: kfake.NewSimpleClientset(),
+		want: []*corev1.Service{{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-mixed",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-mixed"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "ssh",
+					Protocol:   "TCP",
+					Port:       22,
+					TargetPort: intstr.FromInt(22),
+					NodePort:   0,
+				}},
+				Selector:                      map[string]string{"app": "dev-mixed"},
+				Type:                          "LoadBalancer",
+				AllocateLoadBalancerNodePorts: pointer.Bool(false),
+			},
+		}, {
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-mixed-nodeport",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-mixed"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "wire",
+					Protocol:   "TCP",
+					Port:       50058,
+					TargetPort: intstr.FromInt(50058),
+					NodePort:   30058,
+				}},
+				Selector: map[string]string{"app": "dev-mixed"},
+				Type:     "NodePort",
+			},
+		}, {
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-dev-mixed-clusterip",
+				Namespace: "test",
+				Labels:    map[string]string{"pod": "dev-mixed"},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "http",
+					Protocol:   "TCP",
+					Port:       8080,
+					TargetPort: intstr.FromInt(8080),
+					NodePort:   0,
+				}},
+				Selector: map[string]string{"app": "dev-mixed"},
 				Type:     "ClusterIP",
 			},
 		}},
@@ -459,12 +557,50 @@ func TestService(t *testing.T) {
 				return
 			}
 			if s := cmp.Diff(tt.want, got,
+				cmpopts.SortSlices(func(a, b *corev1.Service) bool {
+					return a.Name < b.Name
+				}),
 				cmpopts.SortSlices(func(a, b corev1.ServicePort) bool {
 					return a.Name < b.Name
 				})); s != "" {
 				t.Fatalf("Services() failed: %s", s)
 			}
 		})
+	}
+}
+
+func TestDeleteServiceErrorHandling(t *testing.T) {
+	ctx := context.Background()
+
+	// 1. DaemonSet delete forbidden should return error and not be swallowed
+	kClient := kfake.NewSimpleClientset()
+	kClient.PrependReactor("delete", "daemonsets", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, apierrors.NewForbidden(action.GetResource().GroupResource(), "v6proxy-dev1", fmt.Errorf("access denied"))
+	})
+	n := &Impl{
+		Namespace:  "test",
+		KubeClient: kClient,
+		Proto:      &topopb.Node{Name: "dev1"},
+	}
+	err := n.DeleteService(ctx)
+	if err == nil {
+		t.Fatalf("expected error from DeleteService when daemonset delete is forbidden, got nil")
+	}
+
+	// 2. NotFound on both daemonsets and services should return nil
+	kClient2 := kfake.NewSimpleClientset()
+	n2 := &Impl{
+		Namespace:  "test",
+		KubeClient: kClient2,
+		Proto:      &topopb.Node{Name: "dev1"},
+	}
+	if err := n2.DeleteService(ctx); err != nil {
+		t.Fatalf("expected DeleteService to return nil on NotFound, got: %v", err)
+	}
+
+	// 3. Impl.Delete should propagate the error
+	if err := n.Delete(ctx); err == nil {
+		t.Fatalf("expected Impl.Delete to return error when DeleteService fails, got nil")
 	}
 }
 

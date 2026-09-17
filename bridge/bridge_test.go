@@ -78,6 +78,16 @@ func (f *fakeReadWriter) Close() error {
 	return nil
 }
 
+func (f *fakeReadWriter) sendPacket(pkt []byte) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.closed {
+		return false
+	}
+	f.readChan <- pkt
+	return true
+}
+
 func (f *fakeReadWriter) isClosed() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -569,4 +579,226 @@ func TestFatalWriteErrorDetection(t *testing.T) {
 	if isFatalWriteError(unix.ENOBUFS) {
 		t.Errorf("expected unix.ENOBUFS to be non-fatal")
 	}
+}
+
+func TestTransmitMultiClientFanOut(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	server := NewServer(ctx)
+	defer func() { _ = server.Close() }()
+
+	fakeIO := newFakeReadWriter()
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		return fakeIO, nil
+	})
+
+	lis := bufconn.Listen(1024 * 1024)
+	grpcServer := grpc.NewServer()
+	wpb.RegisterWireServer(grpcServer, server)
+
+	go func() { _ = grpcServer.Serve(lis) }()
+	defer grpcServer.Stop()
+
+	dialer := func(context.Context, string) (net.Conn, error) { return lis.Dial() }
+	conn1, err := grpc.NewClient("passthrough://bufnet", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("Failed to dial conn1: %v", err)
+	}
+	defer func() { _ = conn1.Close() }()
+
+	conn2, err := grpc.NewClient("passthrough://bufnet", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("Failed to dial conn2: %v", err)
+	}
+	defer func() { _ = conn2.Close() }()
+
+	c1 := wpb.NewWireClient(conn1)
+	c2 := wpb.NewWireClient(conn2)
+
+	streamCtx1 := metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth1"))
+	s1, err := c1.Transmit(streamCtx1)
+	if err != nil {
+		t.Fatalf("s1 Transmit failed: %v", err)
+	}
+	if _, err := s1.Header(); err != nil {
+		t.Fatalf("s1 header failed: %v", err)
+	}
+
+	streamCtx2 := metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth1"))
+	s2, err := c2.Transmit(streamCtx2)
+	if err != nil {
+		t.Fatalf("s2 Transmit failed: %v", err)
+	}
+	if _, err := s2.Header(); err != nil {
+		t.Fatalf("s2 header failed: %v", err)
+	}
+
+	// Send broadcast frame from fake socket
+	broadcastPkt := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+	fakeIO.readChan <- broadcastPkt
+
+	// Both clients must receive the exact same frame
+	r1, err := s1.Recv()
+	if err != nil {
+		t.Fatalf("s1 Recv failed: %v", err)
+	}
+	if !bytes.Equal(r1.GetData(), broadcastPkt) {
+		t.Fatalf("s1 got %v, want %v", r1.GetData(), broadcastPkt)
+	}
+
+	r2, err := s2.Recv()
+	if err != nil {
+		t.Fatalf("s2 Recv failed: %v", err)
+	}
+	if !bytes.Equal(r2.GetData(), broadcastPkt) {
+		t.Fatalf("s2 got %v, want %v", r2.GetData(), broadcastPkt)
+	}
+}
+
+func TestSocketOpenerInvokedOncePerInterface(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	server := NewServer(ctx)
+	defer func() { _ = server.Close() }()
+
+	var mu sync.Mutex
+	openerCounts := map[string]int{}
+	fakes := map[string]*fakeReadWriter{}
+
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		openerCounts[ifaceName]++
+		f := newFakeReadWriter()
+		fakes[ifaceName] = f
+		return f, nil
+	})
+
+	lis := bufconn.Listen(1024 * 1024)
+	grpcServer := grpc.NewServer()
+	wpb.RegisterWireServer(grpcServer, server)
+
+	go func() { _ = grpcServer.Serve(lis) }()
+	defer grpcServer.Stop()
+
+	dialer := func(context.Context, string) (net.Conn, error) { return lis.Dial() }
+	conn, err := grpc.NewClient("passthrough://bufnet", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	client := wpb.NewWireClient(conn)
+
+	// Stream 1 on eth1
+	s1, err := client.Transmit(metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth1")))
+	if err != nil {
+		t.Fatalf("s1 failed: %v", err)
+	}
+	_, _ = s1.Header()
+
+	// Stream 2 on eth1
+	s2, err := client.Transmit(metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth1")))
+	if err != nil {
+		t.Fatalf("s2 failed: %v", err)
+	}
+	_, _ = s2.Header()
+
+	// Stream 3 on eth2
+	s3, err := client.Transmit(metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth2")))
+	if err != nil {
+		t.Fatalf("s3 failed: %v", err)
+	}
+	_, _ = s3.Header()
+
+	mu.Lock()
+	eth1Count := openerCounts["eth1"]
+	eth2Count := openerCounts["eth2"]
+	mu.Unlock()
+
+	if eth1Count != 1 {
+		t.Errorf("expected eth1 socket opener called 1 time, got %d", eth1Count)
+	}
+	if eth2Count != 1 {
+		t.Errorf("expected eth2 socket opener called 1 time, got %d", eth2Count)
+	}
+}
+
+func TestOnCloseCacheEvictionAndDeadDemuxSubscribe(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fake := newFakeReadWriter()
+	d := newInterfaceDemux(ctx, "eth1", fake, nil)
+
+	_ = fake.Close()
+	<-d.ctx.Done()
+	time.Sleep(50 * time.Millisecond)
+
+	if _, err := d.subscribe(); err == nil {
+		t.Error("subscribe on a dead demux must fail")
+	}
+}
+
+func TestDemuxConcurrentFanOutStress(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	fakeIO := newFakeReadWriter()
+	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
+
+	var wg sync.WaitGroup
+	const numSubscribers = 10
+	const numPackets = 200
+
+	// Producer pumping packets
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numPackets; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if !fakeIO.sendPacket([]byte{byte(i)}) {
+					return
+				}
+			}
+		}
+	}()
+
+	// Concurrent subscribers subscribing, reading, unsubscribing
+	for i := 0; i < numSubscribers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				ch, err := demux.subscribe()
+				if err != nil {
+					return
+				}
+				// Read a few packets
+				for k := 0; k < 3; k++ {
+					select {
+					case _, ok := <-ch:
+						if !ok {
+							return
+						}
+					case <-time.After(5 * time.Millisecond):
+					case <-ctx.Done():
+						demux.unsubscribe(ch)
+						return
+					}
+				}
+				demux.unsubscribe(ch)
+			}
+		}()
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	_ = fakeIO.Close()
+	wg.Wait()
+	_ = demux.wait()
 }

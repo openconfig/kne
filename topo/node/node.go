@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -23,6 +24,7 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -546,15 +548,46 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 	return nil
 }
 
+func k8sServiceType(t tpb.Service_Type) corev1.ServiceType {
+	switch t {
+	case tpb.Service_NODE_PORT:
+		return corev1.ServiceTypeNodePort
+	case tpb.Service_CLUSTER_IP:
+		return corev1.ServiceTypeClusterIP
+	case tpb.Service_LOAD_BALANCER, tpb.Service_UNKNOWN:
+		fallthrough
+	default:
+		return corev1.ServiceTypeLoadBalancer
+	}
+}
+
+func serviceNameForType(nodeName string, svcType corev1.ServiceType) string {
+	switch svcType {
+	case corev1.ServiceTypeNodePort:
+		return fmt.Sprintf("service-%s-nodeport", nodeName)
+	case corev1.ServiceTypeClusterIP:
+		return fmt.Sprintf("service-%s-clusterip", nodeName)
+	default:
+		return fmt.Sprintf("service-%s", nodeName)
+	}
+}
+
 // CreateService creates services for the node based on the underlying proto.
 func (n *Impl) CreateService(ctx context.Context) error {
-	var servicePorts []corev1.ServicePort
 	if len(n.Proto.Services) == 0 {
 		log.Info("no services found")
 		return nil
 	}
-	svcType := corev1.ServiceTypeLoadBalancer
-	for k, v := range n.Proto.Services {
+
+	keys := make([]uint32, 0, len(n.Proto.Services))
+	for k := range n.Proto.Services {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	groups := map[corev1.ServiceType][]corev1.ServicePort{}
+	for _, k := range keys {
+		v := n.Proto.Services[k]
 		if v.Outside != 0 {
 			log.Warningf("Outside should not be set by user. The key is used as the target external port")
 		}
@@ -572,78 +605,89 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			TargetPort: intstr.FromInt(int(v.Inside)),
 			Name:       v.Name,
 		}
-		servicePorts = append(servicePorts, sp)
-		switch v.Type {
-		case tpb.Service_NODE_PORT:
-			svcType = corev1.ServiceTypeNodePort
-		case tpb.Service_CLUSTER_IP:
-			if svcType != corev1.ServiceTypeNodePort {
-				svcType = corev1.ServiceTypeClusterIP
-			}
+		st := k8sServiceType(v.Type)
+		groups[st] = append(groups[st], sp)
+	}
+
+	var createdServices []*corev1.Service
+	typeOrder := []corev1.ServiceType{
+		corev1.ServiceTypeLoadBalancer,
+		corev1.ServiceTypeNodePort,
+		corev1.ServiceTypeClusterIP,
+	}
+
+	for _, st := range typeOrder {
+		ports, ok := groups[st]
+		if !ok || len(ports) == 0 {
+			continue
 		}
-	}
-	s := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("service-%s", n.Name()),
-			Labels: map[string]string{
-				"pod": n.Name(),
+		svcName := serviceNameForType(n.Name(), st)
+		s := &corev1.Service{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
 			},
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: servicePorts,
-			Selector: map[string]string{
-				"app": n.Name(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: svcName,
+				Labels: map[string]string{
+					"pod": n.Name(),
+				},
 			},
-			Type: svcType,
-		},
+			Spec: corev1.ServiceSpec{
+				Ports: ports,
+				Selector: map[string]string{
+					"app": n.Name(),
+				},
+				Type: st,
+			},
+		}
+		if st == corev1.ServiceTypeLoadBalancer {
+			// Do not allocate a NodePort for this LoadBalancer. MetalLB
+			// or the equivalent load balancer should handle exposing this service.
+			// Large topologies may try to allocate more NodePorts than are
+			// supported in default clusters.
+			// https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation
+			s.Spec.AllocateLoadBalancerNodePorts = pointer.Bool(false)
+		}
+		sS, err := n.KubeClient.CoreV1().Services(n.Namespace).Create(ctx, s, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+		log.Infof("Created Service:\n%v\n", sS)
+		createdServices = append(createdServices, sS)
 	}
-	if svcType == corev1.ServiceTypeLoadBalancer {
-		// Do not allocate a NodePort for this LoadBalancer. MetalLB
-		// or the equivalent load balancer should handle exposing this service.
-		// Large topologies may try to allocate more NodePorts than are
-		// supported in default clusters.
-		// https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation
-		s.Spec.AllocateLoadBalancerNodePorts = pointer.Bool(false)
-	}
-	sS, err := n.KubeClient.CoreV1().Services(n.Namespace).Create(ctx, s, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	log.Infof("Created Service:\n%v\n", sS)
 
 	var proxyContainers []corev1.Container
-	for _, sp := range sS.Spec.Ports {
-		var needsProxy bool
-		if svc, ok := n.Proto.Services[uint32(sp.Port)]; ok && svc.GetV6HostProxy() {
-			needsProxy = true
-		} else {
-			for _, svc := range n.Proto.Services {
-				if svc.GetName() == sp.Name && svc.GetV6HostProxy() {
-					needsProxy = true
-					break
+	for _, sS := range createdServices {
+		for _, sp := range sS.Spec.Ports {
+			var needsProxy bool
+			if svc, ok := n.Proto.Services[uint32(sp.Port)]; ok && svc.GetV6HostProxy() {
+				needsProxy = true
+			} else {
+				for _, svc := range n.Proto.Services {
+					if svc.GetName() == sp.Name && svc.GetV6HostProxy() {
+						needsProxy = true
+						break
+					}
 				}
 			}
-		}
-		if needsProxy && sp.NodePort > 0 {
-			proxyContainers = append(proxyContainers, corev1.Container{
-				Name:  fmt.Sprintf("socat-%d", sp.NodePort),
-				Image: "alpine/socat:latest",
-				Args: []string{
-					fmt.Sprintf("TCP6-LISTEN:%d,fork,reuseaddr", sp.NodePort),
-					fmt.Sprintf("TCP4:127.0.0.1:%d", sp.NodePort),
-				},
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Resources: corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("100m"),
-						corev1.ResourceMemory: resource.MustParse("64Mi"),
+			if needsProxy && sp.NodePort > 0 {
+				proxyContainers = append(proxyContainers, corev1.Container{
+					Name:  fmt.Sprintf("socat-%d", sp.NodePort),
+					Image: "alpine/socat:latest",
+					Args: []string{
+						fmt.Sprintf("TCP6-LISTEN:%d,fork,reuseaddr", sp.NodePort),
+						fmt.Sprintf("TCP4:127.0.0.1:%d", sp.NodePort),
 					},
-				},
-			})
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("64Mi"),
+						},
+					},
+				})
+			}
 		}
 	}
 	if len(proxyContainers) > 0 {
@@ -684,14 +728,15 @@ func (n *Impl) CreateService(ctx context.Context) error {
 
 // Delete remove the node from the cluster.
 func (n *Impl) Delete(ctx context.Context) error {
+	var errs []error
 	if err := n.DeleteService(ctx); err != nil {
-		log.Warningf("Error deleting service %q: %v", n.Name(), err)
+		errs = append(errs, fmt.Errorf("error deleting service %q: %w", n.Name(), err))
 	}
 	// Delete Resource for node
 	if err := n.DeleteResource(ctx); err != nil {
-		log.Warningf("Error deleting resource %q: %v", n.Name(), err)
+		errs = append(errs, fmt.Errorf("error deleting resource %q: %w", n.Name(), err))
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // DeleteConfig removes the node configmap from the cluster if it exists. If
@@ -699,6 +744,9 @@ func (n *Impl) Delete(ctx context.Context) error {
 func (n *Impl) DeleteConfig(ctx context.Context) error {
 	pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, n.Name(), metav1.GetOptions{})
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	for _, vol := range pod.Spec.Volumes {
@@ -708,13 +756,13 @@ func (n *Impl) DeleteConfig(ctx context.Context) error {
 		switch vs := vol.VolumeSource; {
 		case vs.HostPath != nil:
 			path := vs.HostPath.Path
-			if err := os.Remove(path); err != nil {
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 				return err
 			}
 			log.V(1).Infof("Deleted config file %s", path)
 		case vs.ConfigMap != nil:
 			name := vs.ConfigMap.LocalObjectReference.Name
-			if err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+			if err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 				return err
 			}
 			log.V(1).Infof("Deleted config map %s", name)
@@ -725,27 +773,53 @@ func (n *Impl) DeleteConfig(ctx context.Context) error {
 
 // DeleteService removes the service definition for the Node.
 func (n *Impl) DeleteService(ctx context.Context) error {
-	_ = n.KubeClient.AppsV1().DaemonSets(n.Namespace).Delete(ctx, fmt.Sprintf("v6proxy-%s", n.Name()), metav1.DeleteOptions{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-		},
+	var errs []error
+	dsName := fmt.Sprintf("v6proxy-%s", n.Name())
+	if err := n.KubeClient.AppsV1().DaemonSets(n.Namespace).Delete(ctx, dsName, metav1.DeleteOptions{
 		GracePeriodSeconds: pointer.Int64(0),
+	}); err != nil && !apierrors.IsNotFound(err) {
+		errs = append(errs, fmt.Errorf("failed to delete v6proxy daemonset %q: %w", dsName, err))
+	}
+
+	svcList, err := n.KubeClient.CoreV1().Services(n.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("pod=%s", n.Name()),
 	})
-	return n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.DeleteOptions{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-		},
-		GracePeriodSeconds: pointer.Int64(0),
-	})
+	if err != nil && !apierrors.IsNotFound(err) {
+		errs = append(errs, fmt.Errorf("failed to list services for node %q: %w", n.Name(), err))
+	} else if svcList != nil && len(svcList.Items) > 0 {
+		for _, s := range svcList.Items {
+			if err := n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, s.Name, metav1.DeleteOptions{
+				GracePeriodSeconds: pointer.Int64(0),
+			}); err != nil && !apierrors.IsNotFound(err) {
+				errs = append(errs, err)
+			}
+		}
+	} else {
+		for _, svcName := range []string{
+			fmt.Sprintf("service-%s", n.Name()),
+			fmt.Sprintf("service-%s-nodeport", n.Name()),
+			fmt.Sprintf("service-%s-clusterip", n.Name()),
+		} {
+			if err := n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, svcName, metav1.DeleteOptions{
+				GracePeriodSeconds: pointer.Int64(0),
+			}); err != nil && !apierrors.IsNotFound(err) {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // DeleteResource removes the resource definition for the Node.
 func (n *Impl) DeleteResource(ctx context.Context) error {
 	log.Infof("Deleting Resource for Pod:%s", n.Name())
-	if err := n.DeleteConfig(ctx); err != nil {
+	if err := n.DeleteConfig(ctx); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	return n.KubeClient.CoreV1().Pods(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
+	if err := n.KubeClient.CoreV1().Pods(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 // Exec will make a connection via spdy transport to the Pod and execute the provided command.
@@ -817,17 +891,32 @@ func (n *Impl) Pods(ctx context.Context) ([]*corev1.Pod, error) {
 	return []*corev1.Pod{p}, nil
 }
 
-// Service returns the service definition for the node.
+// Services returns the service definitions for the node.
 func (n *Impl) Services(ctx context.Context) ([]*corev1.Service, error) {
 	if len(n.Proto.Services) == 0 {
 		return nil, nil
 	}
-	s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
+	svcList, err := n.KubeClient.CoreV1().Services(n.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("pod=%s", n.Name()),
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	return []*corev1.Service{s}, nil
+	if len(svcList.Items) == 0 {
+		s, err := n.KubeClient.CoreV1().Services(n.Namespace).Get(ctx, fmt.Sprintf("service-%s", n.Name()), metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return []*corev1.Service{s}, nil
+	}
+	var svcs []*corev1.Service
+	for i := range svcList.Items {
+		svcs = append(svcs, &svcList.Items[i])
+	}
+	sort.Slice(svcs, func(i, j int) bool {
+		return svcs[i].Name < svcs[j].Name
+	})
+	return svcs, nil
 }
 
 func getImpl(impl *Impl) (Node, error) {
