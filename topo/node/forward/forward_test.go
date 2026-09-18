@@ -355,7 +355,7 @@ func TestCreatePeerService(t *testing.T) {
 	// Impl.DeleteService finds Services by this label, and it is not
 	// dynamically dispatched, so the label is the only thing that gets this
 	// Service torn down with the node.
-	if got.ObjectMeta.Labels["pod"] != "fwd1" {
-		t.Errorf("peer service pod label: got %q, want %q", got.ObjectMeta.Labels["pod"], "fwd1")
+	if got.Labels["pod"] != "fwd1" {
+		t.Errorf("peer service pod label: got %q, want %q", got.Labels["pod"], "fwd1")
 	}
 }
