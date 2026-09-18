@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2171,6 +2173,66 @@ func (m *mockCluster) GetName() string                      { return m.name }
 func (m *mockCluster) GetDockerNetworkResourceName() string { return "network" }
 func (m *mockCluster) Apply([]byte) error                   { return nil }
 
+// mockComponent records when it ran and can stall, so tests can tell
+// concurrent execution from sequential execution.
+type mockComponent struct {
+	deployErr  error
+	healthyErr error
+
+	// deployDelay and healthyDelay stall the respective call.  A stalled call
+	// returns early if its context is canceled, reporting the context error,
+	// which is how the timeout cases are exercised.
+	deployDelay  time.Duration
+	healthyDelay time.Duration
+
+	mu          sync.Mutex
+	deployStart time.Time
+	deployEnd   time.Time
+}
+
+func (m *mockComponent) Deploy(ctx context.Context) error {
+	m.mu.Lock()
+	m.deployStart = time.Now()
+	m.mu.Unlock()
+	if err := stall(ctx, m.deployDelay); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	m.deployEnd = time.Now()
+	m.mu.Unlock()
+	return m.deployErr
+}
+
+func (m *mockComponent) Healthy(ctx context.Context) error {
+	if err := stall(ctx, m.healthyDelay); err != nil {
+		return err
+	}
+	return m.healthyErr
+}
+
+func (m *mockComponent) SetKClient(kubernetes.Interface) {}
+
+func (m *mockComponent) window() (time.Time, time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.deployStart, m.deployEnd
+}
+
+// stall waits for d, or until ctx ends.
+func stall(ctx context.Context, d time.Duration) error {
+	if d == 0 {
+		return nil
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 type mockIngress struct {
 	deployErr  error
 	healthyErr error
@@ -2181,6 +2243,14 @@ func (m *mockIngress) SetKClient(kubernetes.Interface)     {}
 func (m *mockIngress) Healthy(context.Context) error       { return m.healthyErr }
 func (m *mockIngress) SetRCfg(*rest.Config)                {}
 func (m *mockIngress) SetDockerNetworkResourceName(string) {}
+
+// mockIngressComponent adapts mockComponent to the Ingress interface.
+type mockIngressComponent struct {
+	*mockComponent
+}
+
+func (m *mockIngressComponent) SetRCfg(*rest.Config)                {}
+func (m *mockIngressComponent) SetDockerNetworkResourceName(string) {}
 
 type mockCNI struct {
 	deployErr  error
@@ -2432,4 +2502,194 @@ func TestExtractVersionFromImage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestControllerName(t *testing.T) {
+	for _, tt := range []struct {
+		c    Controller
+		want string
+	}{
+		{c: &CEOSLabSpec{}, want: "CEOSLab controller"},
+		{c: &SRLinuxSpec{}, want: "SRLinux controller"},
+		{c: &IxiaTGSpec{}, want: "IxiaTG controller"},
+		{c: &LemmingSpec{}, want: "Lemming controller"},
+		{c: &CdnosSpec{}, want: "Cdnos controller"},
+		{c: &mockController{}, want: "mockController controller"},
+	} {
+		if got := controllerName(tt.c); got != tt.want {
+			t.Errorf("controllerName(%T) = %q, want %q", tt.c, got, tt.want)
+		}
+	}
+}
+
+// TestDeployComponentsConcurrent checks that the components really do overlap,
+// rather than each waiting for the previous one to report healthy.
+func TestDeployComponentsConcurrent(t *testing.T) {
+	const delay = 200 * time.Millisecond
+
+	ingress := &mockComponent{deployDelay: delay, healthyDelay: delay}
+	cni := &mockComponent{deployDelay: delay, healthyDelay: delay}
+	ctrl1 := &mockComponent{deployDelay: delay, healthyDelay: delay}
+	ctrl2 := &mockComponent{deployDelay: delay, healthyDelay: delay}
+
+	d := &Deployment{
+		Ingress:     &mockIngressComponent{ingress},
+		CNI:         cni,
+		Controllers: []Controller{ctrl1, ctrl2},
+	}
+
+	start := time.Now()
+	if err := d.deployComponents(context.Background()); err != nil {
+		t.Fatalf("deployComponents() error = %v, want nil", err)
+	}
+	elapsed := time.Since(start)
+
+	// Serialized this would be 4 components x 2 delays = 8*delay. Concurrent
+	// it is ~2*delay. Allow generous slack so the test is not timing flaky;
+	// it only needs to distinguish 2 from 8.
+	if max := 5 * delay; elapsed > max {
+		t.Errorf("deployComponents() took %v, want under %v: components do not appear to overlap", elapsed, max)
+	}
+
+	// Every component should have been deploying at the same moment.
+	var latestStart, earliestEnd time.Time
+	for _, m := range []*mockComponent{ingress, cni, ctrl1, ctrl2} {
+		s, e := m.window()
+		if s.IsZero() || e.IsZero() {
+			t.Fatalf("component never deployed: start %v end %v", s, e)
+		}
+		if s.After(latestStart) {
+			latestStart = s
+		}
+		if earliestEnd.IsZero() || e.Before(earliestEnd) {
+			earliestEnd = e
+		}
+	}
+	if !latestStart.Before(earliestEnd) {
+		t.Errorf("deploys did not overlap: last started at %v, first finished at %v", latestStart, earliestEnd)
+	}
+}
+
+func TestDeployComponents(t *testing.T) {
+	deployErr := errors.New("deploy failed")
+	healthyErr := errors.New("not healthy")
+
+	for _, tt := range []struct {
+		name string
+		d    *Deployment
+		// wantErr is a substring the error must contain, "" means no error.
+		wantErr string
+	}{
+		{
+			name: "all healthy",
+			d: &Deployment{
+				Ingress:     &mockIngressComponent{&mockComponent{}},
+				CNI:         &mockComponent{},
+				Controllers: []Controller{&mockComponent{}},
+			},
+		},
+		{
+			name: "no controllers",
+			d: &Deployment{
+				Ingress: &mockIngressComponent{&mockComponent{}},
+				CNI:     &mockComponent{},
+			},
+		},
+		{
+			name: "ingress deploy fails",
+			d: &Deployment{
+				Ingress: &mockIngressComponent{&mockComponent{deployErr: deployErr}},
+				CNI:     &mockComponent{},
+			},
+			wantErr: "failed to deploy ingress",
+		},
+		{
+			name: "cni unhealthy",
+			d: &Deployment{
+				Ingress: &mockIngressComponent{&mockComponent{}},
+				CNI:     &mockComponent{healthyErr: healthyErr},
+			},
+			wantErr: "failed to check if CNI is healthy",
+		},
+		{
+			// The failing component must name itself, even though the others
+			// are cancelled at the same time.
+			name: "controller failure is attributed",
+			d: &Deployment{
+				Ingress: &mockIngressComponent{&mockComponent{}},
+				CNI:     &mockComponent{},
+				Controllers: []Controller{
+					&mockComponent{healthyDelay: time.Hour},
+					&mockComponent{deployErr: deployErr},
+				},
+			},
+			wantErr: "failed to deploy mockComponent controller",
+		},
+		{
+			// A nil component is skipped rather than panicking.
+			name: "nil cni",
+			d: &Deployment{
+				Ingress: &mockIngressComponent{&mockComponent{}},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.d.deployComponents(context.Background())
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("deployComponents() error = %v, want nil", err)
+			case tt.wantErr != "" && err == nil:
+				t.Errorf("deployComponents() error = nil, want error containing %q", tt.wantErr)
+			case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+				t.Errorf("deployComponents() error = %v, want error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestDeployComponentsTimeouts covers the two ways a deployment can run out of
+// time, and checks the errors say which one happened.
+func TestDeployComponentsTimeouts(t *testing.T) {
+	origHealthTimeout := healthTimeout
+	defer func() { healthTimeout = origHealthTimeout }()
+
+	t.Run("component exceeds its own health budget", func(t *testing.T) {
+		healthTimeout = 100 * time.Millisecond
+		d := &Deployment{
+			Ingress: &mockIngressComponent{&mockComponent{}},
+			CNI:     &mockComponent{healthyDelay: time.Hour},
+			// Overall budget is far larger, so only the CNI's own budget
+			// can be what expired.
+			Timeout: time.Minute,
+		}
+		err := d.deployComponents(context.Background())
+		if err == nil {
+			t.Fatalf("deployComponents() error = nil, want a timeout")
+		}
+		if want := "CNI was not healthy within"; !strings.Contains(err.Error(), want) {
+			t.Errorf("deployComponents() error = %v, want it to contain %q", err, want)
+		}
+	})
+
+	t.Run("overall timeout expires", func(t *testing.T) {
+		// A Deploy that hangs is not covered by the per-component health
+		// budget, so only the overall timeout can stop it.
+		healthTimeout = time.Hour
+		d := &Deployment{
+			Ingress: &mockIngressComponent{&mockComponent{deployDelay: time.Hour}},
+			CNI:     &mockComponent{},
+			Timeout: 100 * time.Millisecond,
+		}
+		start := time.Now()
+		err := d.deployComponents(context.Background())
+		if err == nil {
+			t.Fatalf("deployComponents() error = nil, want a timeout")
+		}
+		if want := "overall deployment timeout"; !strings.Contains(err.Error(), want) {
+			t.Errorf("deployComponents() error = %v, want it to contain %q", err, want)
+		}
+		if elapsed := time.Since(start); elapsed > 10*time.Second {
+			t.Errorf("deployComponents() took %v, want it to give up promptly", elapsed)
+		}
+	})
 }

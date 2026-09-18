@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -28,6 +29,7 @@ import (
 	epb "github.com/openconfig/kne/proto/event"
 	"github.com/pborman/uuid"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
+	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,7 +53,14 @@ var (
 	setPIDMaxScript = filepath.Join(homedir.HomeDir(), "kne-internal", "set_pid_max.sh")
 	pullRetryDelay  = time.Second
 	poolRetryDelay  = 5 * time.Second
-	healthTimeout   = time.Minute
+	// healthTimeout is how long a single component is given to become
+	// healthy, measured from the moment that component finished deploying.
+	healthTimeout = time.Minute
+	// defaultDeployTimeout bounds the concurrent deployment of the ingress,
+	// CNI and controllers as a whole.  It is a backstop for the cases the
+	// per-component budgets cannot catch, such as a Deploy that hangs: those
+	// run kubectl, which has no timeout of its own.
+	defaultDeployTimeout = 10 * time.Minute
 
 	// Stubs for testing.
 	execLookPath       = exec.LookPath
@@ -88,6 +97,15 @@ type Controller interface {
 	Healthy(context.Context) error
 }
 
+// A component is the part of Ingress, CNI and Controller that a deployment
+// drives: bring yourself up, then report when you are ready.  Ingress, CNI and
+// Controller all satisfy it, which lets them be deployed uniformly and
+// concurrently.
+type component interface {
+	Deploy(context.Context) error
+	Healthy(context.Context) error
+}
+
 type Deployment struct {
 	Cluster     Cluster      `kne:"cluster"`
 	Ingress     Ingress      `kne:"ingress"`
@@ -97,6 +115,12 @@ type Deployment struct {
 	// If Progress is true then deployment status updates will be sent to
 	// standard output.
 	Progress bool
+
+	// Timeout bounds the concurrent deployment of the ingress, CNI and
+	// controllers.  It does not cover bringing up the cluster itself, which
+	// happens first and is largely not interruptible.  If zero,
+	// defaultDeployTimeout is used.
+	Timeout time.Duration
 
 	// If ReportUsage is true then anonymous usage metrics will be
 	// published using Cloud PubSub.
@@ -266,39 +290,107 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		c.SetKClient(kClient)
 	}
 
-	log.Infof("Deploying ingress...")
-	if err := d.Ingress.Deploy(ctx); err != nil {
-		return fmt.Errorf("failed to deploy ingress: %w", err)
+	if err := d.deployComponents(ctx); err != nil {
+		return err
 	}
-	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
-	defer cancel()
-	if err := d.Ingress.Healthy(tCtx); err != nil {
-		return fmt.Errorf("failed to check if ingress is healthy: %w", err)
-	}
-	log.Infof("Ingress healthy")
-	log.Infof("Deploying CNI...")
-	if err := d.CNI.Deploy(ctx); err != nil {
-		return fmt.Errorf("failed to deploy CNI: %w", err)
-	}
-	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
-	defer cancel()
-	if err := d.CNI.Healthy(tCtx); err != nil {
-		return fmt.Errorf("failed to check if CNI is healthy: %w", err)
-	}
-	log.Infof("CNI healthy")
-	for _, c := range d.Controllers {
-		log.Infof("Deploying controller...")
-		if err := c.Deploy(ctx); err != nil {
-			return fmt.Errorf("failed to deploy controller: %w", err)
-		}
-		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
-		defer cancel()
-		if err := c.Healthy(tCtx); err != nil {
-			return fmt.Errorf("failed to check if controller is healthy: %w", err)
-		}
-	}
-	log.Infof("Controllers deployed and healthy")
+	log.Infof("Ingress, CNI and controllers deployed and healthy")
 	return nil
+}
+
+// deployComponents brings up the ingress, CNI and controllers.
+//
+// They are independent of each other: each applies its own manifests and then
+// waits for its own workloads in its own namespace.  Deploying them
+// concurrently makes a deployment cost the slowest component rather than the
+// sum of all of them.
+func (d *Deployment) deployComponents(ctx context.Context) error {
+	dCtx, dCancel := context.WithTimeout(ctx, d.timeout())
+	defer dCancel()
+	g, gCtx := errgroup.WithContext(dCtx)
+
+	start := func(name string, c component) {
+		// A component that was never configured has nothing to deploy.  The
+		// sequential code often never reached a nil component because an
+		// earlier one failed first; running them together always reaches it,
+		// so say so rather than panicking.
+		if c == nil {
+			log.Warningf("No %s configured, skipping", name)
+			return
+		}
+		g.Go(func() error {
+			log.Infof("Deploying %s...", name)
+			if err := c.Deploy(gCtx); err != nil {
+				return componentErr(name, dCtx, gCtx, nil, fmt.Errorf("failed to deploy %s: %w", name, err))
+			}
+			log.Infof("%s deployed", name)
+
+			// Each component gets its own health budget, started when that
+			// component finished deploying.  A single shared deadline would
+			// charge a component for a slow sibling, and would expire for
+			// everything still pending at once, hiding which component was
+			// actually stuck.
+			hCtx, hCancel := context.WithTimeout(gCtx, healthTimeout)
+			defer hCancel()
+			if err := c.Healthy(hCtx); err != nil {
+				return componentErr(name, dCtx, gCtx, hCtx, fmt.Errorf("failed to check if %s is healthy: %w", name, err))
+			}
+			log.Infof("%s healthy", name)
+			return nil
+		})
+	}
+
+	start("ingress", d.Ingress)
+	start("CNI", d.CNI)
+	for _, c := range d.Controllers {
+		start(controllerName(c), c)
+	}
+	return g.Wait()
+}
+
+// timeout returns the budget for the deployment as a whole.
+func (d *Deployment) timeout() time.Duration {
+	if d.Timeout > 0 {
+		return d.Timeout
+	}
+	return defaultDeployTimeout
+}
+
+// controllerName returns a name for c suitable for logs and errors, derived
+// from its type: a *CEOSLabSpec becomes "CEOSLab controller".  Controllers are
+// otherwise anonymous, and with several of them coming up at once "controller"
+// alone does not say which one failed.
+func controllerName(c Controller) string {
+	n := fmt.Sprintf("%T", c)
+	n = n[strings.LastIndex(n, ".")+1:]
+	if n = strings.TrimSuffix(n, "Spec"); n == "" {
+		return "controller"
+	}
+	return n + " controller"
+}
+
+// componentErr explains why a component stopped early.  The components share a
+// context, so the first failure cancels the rest; without this every other
+// component would report an indistinguishable "context canceled" and bury the
+// one real error.
+//
+// overall is the deployment-wide context, group the errgroup context, and own
+// the component's own health context, which is nil while it is still
+// deploying.
+func componentErr(name string, overall, group, own context.Context, err error) error {
+	switch {
+	case errors.Is(overall.Err(), context.DeadlineExceeded):
+		// The whole deployment ran out of time, so this component's own
+		// budget is not the interesting fact.
+		return fmt.Errorf("%s did not finish before the overall deployment timeout expired: %w", name, err)
+	case own != nil && errors.Is(own.Err(), context.DeadlineExceeded):
+		return fmt.Errorf("%s was not healthy within %v: %w", name, healthTimeout, err)
+	case group.Err() != nil:
+		// Either a sibling failed or the deployment was canceled, e.g. by the
+		// pod watcher seeing a container fail to start.
+		return fmt.Errorf("%s abandoned before completing: %w", name, err)
+	default:
+		return err
+	}
 }
 
 func validateKubectlVersion() error {
@@ -423,27 +515,35 @@ func (d *Deployment) Healthy(ctx context.Context) error {
 		return fmt.Errorf("failed to check cluster is healthy: %w", err)
 	}
 	log.Infof("Cluster healthy")
-	tCtx, cancel := context.WithTimeout(ctx, healthTimeout)
-	defer cancel()
-	if err := d.Ingress.Healthy(tCtx); err != nil {
-		return fmt.Errorf("failed to check ingress is healthy: %w", err)
-	}
-	log.Infof("Ingress healthy")
-	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
-	defer cancel()
-	if err := d.CNI.Healthy(tCtx); err != nil {
-		return fmt.Errorf("failed to check CNI is healthy: %w", err)
-	}
-	log.Infof("CNI healthy")
-	for _, c := range d.Controllers {
-		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
-		defer cancel()
-		if err := c.Healthy(tCtx); err != nil {
-			return fmt.Errorf("failed to check controller is healthy: %w", err)
+
+	// As in Deploy, the components are independent, so check them
+	// concurrently and give each its own budget.
+	hCtx, hCancel := context.WithTimeout(ctx, d.timeout())
+	defer hCancel()
+	g, gCtx := errgroup.WithContext(hCtx)
+
+	check := func(name string, c component) {
+		if c == nil {
+			log.Warningf("No %s configured, skipping health check", name)
+			return
 		}
+		g.Go(func() error {
+			cCtx, cancel := context.WithTimeout(gCtx, healthTimeout)
+			defer cancel()
+			if err := c.Healthy(cCtx); err != nil {
+				return componentErr(name, hCtx, gCtx, cCtx, fmt.Errorf("failed to check %s is healthy: %w", name, err))
+			}
+			log.Infof("%s healthy", name)
+			return nil
+		})
 	}
-	log.Infof("Controllers healthy")
-	return nil
+
+	check("ingress", d.Ingress)
+	check("CNI", d.CNI)
+	for _, c := range d.Controllers {
+		check(controllerName(c), c)
+	}
+	return g.Wait()
 }
 
 func init() {
