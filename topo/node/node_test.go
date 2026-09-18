@@ -604,6 +604,116 @@ func TestDeleteServiceErrorHandling(t *testing.T) {
 	}
 }
 
+func TestCreateServiceV6HostProxy(t *testing.T) {
+	ctx := context.Background()
+	kClient := kfake.NewSimpleClientset()
+	n := &Impl{
+		Namespace:  "test",
+		KubeClient: kClient,
+		Proto: &topopb.Node{
+			Name:   "dev-v6",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				50058: {
+					Name:        "wire",
+					Inside:      50058,
+					Type:        topopb.Service_NODE_PORT,
+					NodePort:    30058,
+					V6HostProxy: true,
+				},
+				8080: {
+					Name:        "http",
+					Inside:      8080,
+					Type:        topopb.Service_CLUSTER_IP,
+					V6HostProxy: true, // Should not create a proxy container because NodePort is 0
+				},
+			},
+		},
+	}
+
+	if err := n.CreateService(ctx); err != nil {
+		t.Fatalf("CreateService() failed: %v", err)
+	}
+
+	// Verify DaemonSet was created
+	dsList, err := kClient.AppsV1().DaemonSets("test").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		t.Fatalf("failed to list daemonsets: %v", err)
+	}
+	if len(dsList.Items) != 1 {
+		t.Fatalf("expected 1 daemonset, got %d", len(dsList.Items))
+	}
+	ds := dsList.Items[0]
+	if ds.Name != "v6proxy-dev-v6" {
+		t.Errorf("daemonset name = %q, want %q", ds.Name, "v6proxy-dev-v6")
+	}
+	if len(ds.OwnerReferences) == 0 || ds.OwnerReferences[0].Kind != "Service" {
+		t.Errorf("expected OwnerReference to Service, got: %+v", ds.OwnerReferences)
+	}
+	if ds.Spec.Template.Spec.DNSPolicy != corev1.DNSClusterFirstWithHostNet {
+		t.Errorf("DNSPolicy = %v, want %v", ds.Spec.Template.Spec.DNSPolicy, corev1.DNSClusterFirstWithHostNet)
+	}
+	if len(ds.Spec.Template.Spec.Tolerations) == 0 {
+		t.Errorf("expected tolerations on DaemonSet pod spec")
+	}
+	if len(ds.Spec.Template.Spec.Containers) != 1 {
+		t.Fatalf("expected 1 proxy container (for NodePort 30058 only), got %d", len(ds.Spec.Template.Spec.Containers))
+	}
+	c := ds.Spec.Template.Spec.Containers[0]
+	if c.Image != DefaultV6ProxyImage {
+		t.Errorf("container image = %q, want %q", c.Image, DefaultV6ProxyImage)
+	}
+	if c.SecurityContext == nil || c.SecurityContext.RunAsNonRoot == nil || !*c.SecurityContext.RunAsNonRoot {
+		t.Errorf("expected SecurityContext with RunAsNonRoot=true")
+	}
+	if len(c.Resources.Requests) == 0 || len(c.Resources.Limits) == 0 {
+		t.Errorf("expected explicit Requests and Limits on proxy container")
+	}
+	wantArg := fmt.Sprintf("TCP6-LISTEN:30058,fork,reuseaddr,max-children=%d", defaultSocatMaxChildren)
+	if c.Args[0] != wantArg {
+		t.Errorf("container args[0] = %q, want %q", c.Args[0], wantArg)
+	}
+}
+
+func TestCreateServiceDaemonSetFailureRollback(t *testing.T) {
+	ctx := context.Background()
+	kClient := kfake.NewSimpleClientset()
+	kClient.PrependReactor("create", "daemonsets", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("injected daemonset creation failure")
+	})
+	n := &Impl{
+		Namespace:  "test",
+		KubeClient: kClient,
+		Proto: &topopb.Node{
+			Name:   "dev-fail",
+			Vendor: topopb.Vendor(1001),
+			Services: map[uint32]*topopb.Service{
+				50058: {
+					Name:        "wire",
+					Inside:      50058,
+					Type:        topopb.Service_NODE_PORT,
+					NodePort:    30058,
+					V6HostProxy: true,
+				},
+			},
+		},
+	}
+
+	err := n.CreateService(ctx)
+	if err == nil {
+		t.Fatalf("expected CreateService to fail when DaemonSet creation fails")
+	}
+
+	// Verify Services were cleaned up on error (rollback)
+	svcList, err := kClient.CoreV1().Services("test").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		t.Fatalf("failed to list services: %v", err)
+	}
+	if len(svcList.Items) != 0 {
+		t.Errorf("expected 0 services after rollback, found %d", len(svcList.Items))
+	}
+}
+
 func TestValidateConstraints(t *testing.T) {
 	tests := []struct {
 		desc             string
@@ -923,6 +1033,15 @@ func TestV6HostProxyDaemonSet(t *testing.T) {
 				"pod":  "dev-v6proxy",
 				"topo": "test",
 			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         "v1",
+					Kind:               "Service",
+					Name:               "service-dev-v6proxy-nodeport",
+					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         pointer.Bool(true),
+				},
+			},
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -942,15 +1061,32 @@ func TestV6HostProxyDaemonSet(t *testing.T) {
 				},
 				Spec: corev1.PodSpec{
 					HostNetwork: true,
+					DNSPolicy:   corev1.DNSClusterFirstWithHostNet,
+					Tolerations: []corev1.Toleration{
+						{
+							Operator: corev1.TolerationOpExists,
+						},
+					},
 					Containers: []corev1.Container{{
 						Name:  "socat-30058",
-						Image: "alpine/socat:latest",
+						Image: DefaultV6ProxyImage,
 						Args: []string{
-							"TCP6-LISTEN:30058,fork,reuseaddr",
+							fmt.Sprintf("TCP6-LISTEN:30058,fork,reuseaddr,max-children=%d", defaultSocatMaxChildren),
 							"TCP4:127.0.0.1:30058",
 						},
 						ImagePullPolicy: corev1.PullIfNotPresent,
+						SecurityContext: &corev1.SecurityContext{
+							AllowPrivilegeEscalation: pointer.Bool(false),
+							Capabilities: &corev1.Capabilities{
+								Drop: []corev1.Capability{"ALL"},
+							},
+							RunAsNonRoot: pointer.Bool(true),
+						},
 						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("50m"),
+								corev1.ResourceMemory: resource.MustParse("32Mi"),
+							},
 							Limits: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
 								corev1.ResourceMemory: resource.MustParse("64Mi"),

@@ -158,9 +158,16 @@ func (nc *notCertable) GetProto() *tpb.Node {
 	return nc.proto
 }
 
-func TestNew(t *testing.T) {
+func init() {
 	node.Vendor(tpb.Vendor(1001), NewConfigurable)
+	node.Vendor(tpb.Vendor(1002), NewConfigurable)
+	node.Vendor(tpb.Vendor(1003), NewConfigurable)
+	node.Vendor(tpb.Vendor(1004), NewConfigurable)
+	node.Vendor(tpb.Vendor(1005), NewConfigurable)
 	node.Vendor(tpb.Vendor(1006), NewLoopbackable)
+}
+
+func TestNew(t *testing.T) {
 	tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 	opts := []Option{
 		WithClusterConfig(&rest.Config{}),
@@ -466,7 +473,6 @@ func TestCreate(t *testing.T) {
 		return &fakeMetricsReporter{reportStartErr: errors.New("start err"), reportEndErr: errors.New("end err")}, nil
 	}
 
-	node.Vendor(tpb.Vendor(1002), NewConfigurable)
 	tests := []struct {
 		desc    string
 		topo    *tpb.Topology
@@ -711,7 +717,6 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 
 func TestDelete(t *testing.T) {
 	ctx := context.Background()
-	node.Vendor(tpb.Vendor(1003), NewConfigurable)
 
 	failWatchEvents := []watch.Event{
 		{
@@ -1036,7 +1041,6 @@ func TestDelete(t *testing.T) {
 
 func TestShow(t *testing.T) {
 	ctx := context.Background()
-	node.Vendor(tpb.Vendor(1004), NewConfigurable)
 	topo := &tpb.Topology{
 		Name: "test",
 		Nodes: []*tpb.Node{
@@ -1685,7 +1689,6 @@ func TestShow(t *testing.T) {
 
 func TestResources(t *testing.T) {
 	ctx := context.Background()
-	node.Vendor(tpb.Vendor(1005), NewConfigurable)
 	topo := &tpb.Topology{
 		Name: "test",
 		Nodes: []*tpb.Node{

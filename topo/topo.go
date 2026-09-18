@@ -1002,6 +1002,7 @@ var populateServiceMap = func(s *corev1.Service, m map[uint32]*tpb.Service) erro
 	if s == nil || m == nil {
 		return fmt.Errorf("service and map must not be nil")
 	}
+	// Note: s.Spec.Type may be empty in legacy mock fixtures; treat empty type as LoadBalancer for backward compatibility.
 	if (s.Spec.Type == corev1.ServiceTypeLoadBalancer || s.Spec.Type == "") && len(s.Status.LoadBalancer.Ingress) == 0 {
 		return fmt.Errorf("service %s has no external loadbalancer configured", s.Name)
 	}

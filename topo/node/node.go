@@ -572,8 +572,17 @@ func serviceNameForType(nodeName string, svcType corev1.ServiceType) string {
 	}
 }
 
+var (
+	// DefaultV6ProxyImage is the default container image used for the IPv6 NodePort socat proxy.
+	DefaultV6ProxyImage = "alpine/socat:1.8.0.0"
+)
+
+const (
+	defaultSocatMaxChildren = 64
+)
+
 // CreateService creates services for the node based on the underlying proto.
-func (n *Impl) CreateService(ctx context.Context) error {
+func (n *Impl) CreateService(ctx context.Context) (rErr error) {
 	if len(n.Proto.Services) == 0 {
 		log.Info("no services found")
 		return nil
@@ -610,6 +619,14 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	}
 
 	var createdServices []*corev1.Service
+	defer func() {
+		if rErr != nil {
+			for _, sS := range createdServices {
+				_ = n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, sS.Name, metav1.DeleteOptions{})
+			}
+		}
+	}()
+
 	typeOrder := []corev1.ServiceType{
 		corev1.ServiceTypeLoadBalancer,
 		corev1.ServiceTypeNodePort,
@@ -660,33 +677,37 @@ func (n *Impl) CreateService(ctx context.Context) error {
 	var proxyContainers []corev1.Container
 	for _, sS := range createdServices {
 		for _, sp := range sS.Spec.Ports {
-			var needsProxy bool
 			if svc, ok := n.Proto.Services[uint32(sp.Port)]; ok && svc.GetV6HostProxy() {
-				needsProxy = true
-			} else {
-				for _, svc := range n.Proto.Services {
-					if svc.GetName() == sp.Name && svc.GetV6HostProxy() {
-						needsProxy = true
-						break
-					}
-				}
-			}
-			if needsProxy && sp.NodePort > 0 {
-				proxyContainers = append(proxyContainers, corev1.Container{
-					Name:  fmt.Sprintf("socat-%d", sp.NodePort),
-					Image: "alpine/socat:latest",
-					Args: []string{
-						fmt.Sprintf("TCP6-LISTEN:%d,fork,reuseaddr", sp.NodePort),
-						fmt.Sprintf("TCP4:127.0.0.1:%d", sp.NodePort),
-					},
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Resources: corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("100m"),
-							corev1.ResourceMemory: resource.MustParse("64Mi"),
+				if sp.NodePort > 0 {
+					proxyContainers = append(proxyContainers, corev1.Container{
+						Name:  fmt.Sprintf("socat-%d", sp.NodePort),
+						Image: DefaultV6ProxyImage,
+						Args: []string{
+							fmt.Sprintf("TCP6-LISTEN:%d,fork,reuseaddr,max-children=%d", sp.NodePort, defaultSocatMaxChildren),
+							fmt.Sprintf("TCP4:127.0.0.1:%d", sp.NodePort),
 						},
-					},
-				})
+						ImagePullPolicy: corev1.PullIfNotPresent,
+						SecurityContext: &corev1.SecurityContext{
+							AllowPrivilegeEscalation: pointer.Bool(false),
+							Capabilities: &corev1.Capabilities{
+								Drop: []corev1.Capability{"ALL"},
+							},
+							RunAsNonRoot: pointer.Bool(true),
+						},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("50m"),
+								corev1.ResourceMemory: resource.MustParse("32Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("64Mi"),
+							},
+						},
+					})
+				} else {
+					log.Warningf("node %s: service port %d has v6_host_proxy enabled but NodePort is not allocated (service type is %s)", n.Name(), sp.Port, sS.Spec.Type)
+				}
 			}
 		}
 	}
@@ -696,10 +717,24 @@ func (n *Impl) CreateService(ctx context.Context) error {
 			"pod":  n.Name(),
 			"topo": n.Namespace,
 		}
+		var ownerRefs []metav1.OwnerReference
+		if len(createdServices) > 0 {
+			ownerRefs = []metav1.OwnerReference{
+				{
+					APIVersion:         "v1",
+					Kind:               "Service",
+					Name:               createdServices[0].Name,
+					UID:                createdServices[0].UID,
+					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         pointer.Bool(true),
+				},
+			}
+		}
 		proxyDS := &appsv1.DaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   fmt.Sprintf("v6proxy-%s", n.Name()),
-				Labels: dsLabels,
+				Name:            fmt.Sprintf("v6proxy-%s", n.Name()),
+				Labels:          dsLabels,
+				OwnerReferences: ownerRefs,
 			},
 			Spec: appsv1.DaemonSetSpec{
 				Selector: &metav1.LabelSelector{
@@ -710,8 +745,15 @@ func (n *Impl) CreateService(ctx context.Context) error {
 						Labels: dsLabels,
 					},
 					Spec: corev1.PodSpec{
-						HostNetwork:                   true,
-						Containers:                    proxyContainers,
+						HostNetwork: true,
+						DNSPolicy:   corev1.DNSClusterFirstWithHostNet,
+						Tolerations: []corev1.Toleration{
+							{
+								Operator: corev1.TolerationOpExists,
+							},
+						},
+						Containers: proxyContainers,
+						// TerminationGracePeriodSeconds is 0 to immediately terminate proxy processes when the topology is torn down.
 						TerminationGracePeriodSeconds: pointer.Int64(0),
 					},
 				},
