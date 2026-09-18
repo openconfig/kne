@@ -255,9 +255,16 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		}()
 	}
 
+	// Inject the clients into every component up front.  Ingress needs its
+	// client during Deploy, and the others only happen to get away without
+	// one because their Deploy is a plain kubectl apply today.
 	d.Ingress.SetKClient(kClient)
 	d.Ingress.SetRCfg(rCfg)
 	d.Ingress.SetDockerNetworkResourceName(d.Cluster.GetDockerNetworkResourceName())
+	d.CNI.SetKClient(kClient)
+	for _, c := range d.Controllers {
+		c.SetKClient(kClient)
+	}
 
 	log.Infof("Deploying ingress...")
 	if err := d.Ingress.Deploy(ctx); err != nil {
@@ -273,7 +280,6 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	if err := d.CNI.Deploy(ctx); err != nil {
 		return fmt.Errorf("failed to deploy CNI: %w", err)
 	}
-	d.CNI.SetKClient(kClient)
 	tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 	defer cancel()
 	if err := d.CNI.Healthy(tCtx); err != nil {
@@ -285,7 +291,6 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		if err := c.Deploy(ctx); err != nil {
 			return fmt.Errorf("failed to deploy controller: %w", err)
 		}
-		c.SetKClient(kClient)
 		tCtx, cancel = context.WithTimeout(ctx, healthTimeout)
 		defer cancel()
 		if err := c.Healthy(tCtx); err != nil {
