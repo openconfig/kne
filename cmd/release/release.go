@@ -40,10 +40,14 @@ func New() *cobra.Command {
 	return cmd
 }
 
+// bridge releases the packet bridge image. The image is the kne binary with
+// `kne bridge` as its entrypoint, so it has no version of its own: releasing it
+// tags KNE as a whole and labels the image with that version.
 func bridge() *cobra.Command {
 	return &cobra.Command{
-		Use:  "bridge <version>",
-		Args: cobra.ExactArgs(1),
+		Use:   "bridge <version>",
+		Short: "Release the bridge image, tagging KNE as a whole at <version>",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Validating working directory")
 			sha, err := validateWorkDir()
@@ -69,7 +73,10 @@ func bridge() *cobra.Command {
 				return err
 			}
 
-			tag := fmt.Sprintf("bridge/%s", args[0])
+			// Deliberately unprefixed, unlike meshnet: meshnet is a separate
+			// vendored component with its own source tree, whereas the bridge
+			// ships inside the kne binary and so shares KNE's version.
+			tag := args[0]
 			fmt.Println("Creating and Pushing Tag:", tag)
 			if err := createAndPushTag(tag); err != nil {
 				return err
