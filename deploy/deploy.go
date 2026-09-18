@@ -55,7 +55,16 @@ var (
 	poolRetryDelay  = 5 * time.Second
 	// healthTimeout is how long a single component is given to become
 	// healthy, measured from the moment that component finished deploying.
-	healthTimeout = time.Minute
+	//
+	// This is deliberately generous.  Operator readiness is mostly a fixed
+	// cost rather than noise, and reproduces closely between runs: MetalLB
+	// has been measured at 69.15s and 69.25s on two separate deployments,
+	// with Lemming at ~45s and IxiaTG at ~44s.  MetalLB therefore never fit
+	// in a one minute budget; it simply was never held to one, because the
+	// wait that matters happens inside its Deploy rather than in Healthy.
+	// defaultDeployTimeout, not this, is the backstop against a deployment
+	// that is truly stuck.
+	healthTimeout = 3 * time.Minute
 	// defaultDeployTimeout bounds the concurrent deployment of the ingress,
 	// CNI and controllers as a whole.  It is a backstop for the cases the
 	// per-component budgets cannot catch, such as a Deploy that hangs: those
