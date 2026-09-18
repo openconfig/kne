@@ -18,6 +18,7 @@ import (
 	"github.com/openconfig/kne/deploy/mocks"
 	kexec "github.com/openconfig/kne/exec"
 	fexec "github.com/openconfig/kne/exec/fake"
+	"github.com/openconfig/kne/exec/run"
 	epb "github.com/openconfig/kne/proto/event"
 	"github.com/pkg/errors"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
@@ -2185,12 +2186,19 @@ type mockComponent struct {
 	deployDelay  time.Duration
 	healthyDelay time.Duration
 
+	// onDeploy, if set, is called at the start of Deploy with the context the
+	// component was given.
+	onDeploy func(context.Context)
+
 	mu          sync.Mutex
 	deployStart time.Time
 	deployEnd   time.Time
 }
 
 func (m *mockComponent) Deploy(ctx context.Context) error {
+	if m.onDeploy != nil {
+		m.onDeploy(ctx)
+	}
 	m.mu.Lock()
 	m.deployStart = time.Now()
 	m.mu.Unlock()
@@ -2692,4 +2700,37 @@ func TestDeployComponentsTimeouts(t *testing.T) {
 			t.Errorf("deployComponents() took %v, want it to give up promptly", elapsed)
 		}
 	})
+}
+
+// TestDeployComponentsLabelsCommands checks that each component is given a
+// context labelled with its own name, so that the kubectl output of several
+// components deploying at once can be told apart.
+func TestDeployComponentsLabelsCommands(t *testing.T) {
+	var mu sync.Mutex
+	got := map[string]bool{}
+	record := func(ctx context.Context) {
+		mu.Lock()
+		defer mu.Unlock()
+		got[run.Label(ctx)] = true
+	}
+
+	d := &Deployment{
+		Ingress: &mockIngressComponent{&mockComponent{onDeploy: record}},
+		CNI:     &mockComponent{onDeploy: record},
+		Controllers: []Controller{
+			&mockComponent{onDeploy: record},
+		},
+	}
+	if err := d.deployComponents(context.Background()); err != nil {
+		t.Fatalf("deployComponents() error = %v, want nil", err)
+	}
+
+	want := map[string]bool{
+		"ingress":                  true,
+		"CNI":                      true,
+		"mockComponent controller": true,
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("command labels mismatch (-want +got):\n%s", diff)
+	}
 }

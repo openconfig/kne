@@ -327,8 +327,11 @@ func (d *Deployment) deployComponents(ctx context.Context) error {
 			return
 		}
 		g.Go(func() error {
+			// Tag any command this component runs, so its output can be
+			// picked out of the interleaved log.
+			cCtx := run.WithLabel(gCtx, name)
 			log.Infof("Deploying %s...", name)
-			if err := c.Deploy(gCtx); err != nil {
+			if err := c.Deploy(cCtx); err != nil {
 				return componentErr(name, dCtx, gCtx, nil, fmt.Errorf("failed to deploy %s: %w", name, err))
 			}
 			log.Infof("%s deployed", name)
@@ -1101,7 +1104,7 @@ func (m *MetalLBSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "metallb-native.yaml")
 	}
 	log.Infof("Deploying MetalLB from: %s", m.Manifest)
-	if err := run.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", m.Manifest); err != nil {
 		return fmt.Errorf("failed to deploy metallb: %w", err)
 	}
 	if _, err := m.kClient.CoreV1().Secrets("metallb-system").Get(ctx, "memberlist", metav1.GetOptions{}); err != nil {
@@ -1234,7 +1237,7 @@ func (m *MeshnetSpec) Deploy(ctx context.Context) error {
 		m.Manifest = filepath.Join(m.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Meshnet from: %s", m.Manifest)
-	if err := run.LogCommand("kubectl", "apply", "-f", m.Manifest); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", m.Manifest); err != nil {
 		return fmt.Errorf("failed to deploy meshnet: %w", err)
 	}
 	log.Infof("Meshnet Deployed")
@@ -1311,7 +1314,7 @@ func (c *CEOSLabSpec) Deploy(ctx context.Context) error {
 		c.Operator = filepath.Join(c.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying CEOSLab controller from: %s", c.Operator)
-	if err := run.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", c.Operator); err != nil {
 		return fmt.Errorf("failed to deploy ceoslab operator: %w", err)
 	}
 	log.Infof("CEOSLab controller deployed")
@@ -1360,7 +1363,7 @@ func (l *LemmingSpec) Deploy(ctx context.Context) error {
 		l.Operator = filepath.Join(l.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying Lemming controller from: %s", l.Operator)
-	if err := run.LogCommand("kubectl", "apply", "-f", l.Operator); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", l.Operator); err != nil {
 		return fmt.Errorf("failed to deploy lemming operator: %w", err)
 	}
 	log.Infof("Lemming controller deployed")
@@ -1409,7 +1412,7 @@ func (s *SRLinuxSpec) Deploy(ctx context.Context) error {
 		s.Operator = filepath.Join(s.ManifestDir, "manifest.yaml")
 	}
 	log.Infof("Deploying SRLinux controller from: %s", s.Operator)
-	if err := run.LogCommand("kubectl", "apply", "-f", s.Operator); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", s.Operator); err != nil {
 		return fmt.Errorf("failed to deploy srlinux operator: %w", err)
 	}
 	log.Infof("SRLinux controller deployed")
@@ -1460,7 +1463,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.Operator = filepath.Join(i.ManifestDir, "ixiatg-operator.yaml")
 	}
 	log.Infof("Deploying IxiaTG controller from: %s", i.Operator)
-	if err := run.LogCommand("kubectl", "apply", "-f", i.Operator); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", i.Operator); err != nil {
 		return fmt.Errorf("failed to deploy ixiatg operator: %w", err)
 	}
 
@@ -1494,7 +1497,7 @@ func (i *IxiaTGSpec) Deploy(ctx context.Context) error {
 		i.ConfigMap = f.Name()
 	}
 	log.Infof("Deploying IxiaTG config map from: %s", i.ConfigMap)
-	if err := run.LogCommand("kubectl", "apply", "-f", i.ConfigMap); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", i.ConfigMap); err != nil {
 		return fmt.Errorf("failed to deploy ixiatg config map: %w", err)
 	}
 	log.Infof("IxiaTG controller deployed")
@@ -1538,7 +1541,7 @@ func (c *CdnosSpec) Deploy(ctx context.Context) error {
 		c.Operator = f.Name()
 	}
 	log.Infof("Deploying Cdnos controller from: %s", c.Operator)
-	if err := run.LogCommand("kubectl", "apply", "-f", c.Operator); err != nil {
+	if err := run.LogCommandContext(ctx, "kubectl", "apply", "-f", c.Operator); err != nil {
 		return fmt.Errorf("failed to deploy cdnos operator: %w", err)
 	}
 	log.Infof("Cdnos controller deployed")
