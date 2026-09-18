@@ -11,7 +11,7 @@ This example demonstrates bridging Layer 2 Ethernet frames across independent to
            v
    [ bridge-server ]  (Listens on gRPC port 50058)
            :
-           :  <-- gRPC Wire Stream over cluster network (service-bridge-server:50058)
+           :  <-- gRPC Wire Stream over cluster network (service-bridge-server-nodeport:50058)
            :
    [ bridge-client ]  (Connected to bridge-server via gRPC)
            ^
@@ -75,7 +75,9 @@ You can also run `bridge client` directly on a development workstation to bridge
 
 2. **Run the KNE bridge client on the local interface:**
 
-   Find the worker node IP and NodePort (or external LoadBalancer IP) for `service-bridge-server` via `kne topology service examples/bridge/paired-bridge.pb.txt`, then run:
+   Find the worker node IP and NodePort for `service-bridge-server-nodeport` (a `NODE_PORT`
+   service is named `service-<node>-nodeport`) via
+   `kne topology service examples/bridge/paired-bridge.pb.txt`, then run:
 
    ```bash
    sudo kne bridge client --peer=<NODE_IP>:<NODE_PORT> --interface=veth-kne

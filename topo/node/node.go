@@ -579,6 +579,12 @@ var (
 
 const (
 	defaultSocatMaxChildren = 64
+	// v6ProxyRunAsUser is the UID/GID the socat proxy container runs as. An explicit
+	// non-root UID is required, not just RunAsNonRoot: the upstream socat image declares
+	// no USER, so its configured UID is 0 and the kubelet would reject the container with
+	// "container has runAsNonRoot and image will run as root". socat only needs to bind a
+	// NodePort (always >1024) and dial loopback, so it requires no privileges.
+	v6ProxyRunAsUser = 65532
 )
 
 // CreateService creates services for the node based on the underlying proto.
@@ -693,6 +699,8 @@ func (n *Impl) CreateService(ctx context.Context) (rErr error) {
 								Drop: []corev1.Capability{"ALL"},
 							},
 							RunAsNonRoot: pointer.Bool(true),
+							RunAsUser:    pointer.Int64(v6ProxyRunAsUser),
+							RunAsGroup:   pointer.Int64(v6ProxyRunAsUser),
 						},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{

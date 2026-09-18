@@ -28,8 +28,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
-	"golang.org/x/sys/unix"
 	wpb "github.com/openconfig/kne/proto/wire"
+	"golang.org/x/sys/unix"
 )
 
 type fakeReadWriter struct {

@@ -1081,6 +1081,8 @@ func TestV6HostProxyDaemonSet(t *testing.T) {
 								Drop: []corev1.Capability{"ALL"},
 							},
 							RunAsNonRoot: pointer.Bool(true),
+							RunAsUser:    pointer.Int64(v6ProxyRunAsUser),
+							RunAsGroup:   pointer.Int64(v6ProxyRunAsUser),
 						},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{

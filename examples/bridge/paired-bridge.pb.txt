@@ -29,6 +29,12 @@ nodes: {
     }
     # Expose the packet bridge service externally via a K8s NodePort (or LoadBalancer) Service.
     # Required when connecting a bridge client from outside the cluster (e.g. Borg/FakeFabric or workstation).
+    #
+    # Note: KNE creates one Service per requested type, named after the type:
+    #   (unset) / LOAD_BALANCER -> service-<node>
+    #   NODE_PORT               -> service-<node>-nodeport
+    #   CLUSTER_IP              -> service-<node>-clusterip
+    # A NodePort Service still gets a ClusterIP, so in-cluster peers dial it by that name.
     services: {
         key: 50058
         value: {
@@ -43,7 +49,7 @@ nodes: {
     vendor: FORWARD
     config: {
         image: "us-west1-docker.pkg.dev/kne-external/kne/bridge:latest"
-        args: ["client", "--peer=service-bridge-server:50058", "--interface=eth1"]
+        args: ["client", "--peer=service-bridge-server-nodeport:50058", "--interface=eth1"]
     }
 }
 nodes: {
