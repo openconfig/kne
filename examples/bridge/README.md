@@ -38,7 +38,6 @@ A peer inside the cluster is named with `local_node`, and KNE gives every
 peer outside the cluster is named with `remote_node` and an address; the wire
 port is assumed if the address has none.
 
-
 ## Running the Example
 
 1. **Deploy the Topology:**
