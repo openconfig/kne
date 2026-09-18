@@ -5,7 +5,11 @@ KNE_CLI_BIN := kne
 INSTALL_DIR := /usr/local/bin
 
 COMMIT := $(shell git describe --dirty --always 2>/dev/null || echo unknown)
-TAG := $(notdir $(shell git describe --tags --abbrev=0 2>/dev/null || echo latest))
+# Match KNE's own release tags and not a component's: a bare `git describe`
+# returns whichever was tagged most recently, which is usually
+# third_party/meshnet/vX.Y.Z. The bridge image is just the kne binary, so it
+# carries KNE's version rather than one of its own.
+TAG := $(shell git describe --tags --abbrev=0 --match='v*' 2>/dev/null || echo latest)
 
 
 include .mk/kind.mk
@@ -61,7 +65,7 @@ kind-load-bridge:
 ## Release bridge docker image
 bridge-release:
 	docker push $(BRIDGE_DOCKER_IMAGE):$(TAG)
-	docker push $(BRIDGE_DOCKER_IMAGE):latest
+	docker push $(BRIDGE_DOCKER_IMAGE):ga
 
 .PHONY: meshnet-docker
 ## Build meshnet docker image
