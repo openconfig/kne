@@ -19,6 +19,13 @@
 //		... test code ...
 //
 //	}
+//
+// A Command is safe for concurrent use.  Each call to Command returns an
+// independent exec.Cmd, and the responses are consumed under a lock, so code
+// under test may run commands from multiple goroutines.  Note that responses
+// are still matched in order by default: when the commands may be issued
+// concurrently, the order they arrive in is not deterministic, so the
+// corresponding responses must be marked OutOfOrder.
 package fake
 
 import (
@@ -26,6 +33,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/openconfig/kne/exec"
 )
@@ -70,18 +78,29 @@ func (r Response) String() string {
 	return buf.String()
 }
 
-// A Command is an implementation of exec.Cmd that is used to return
-// predefined results when exec.Cmd.Run is called.
+// A Command hands out exec.Cmd implementations that return predefined results
+// when exec.Cmd.Run is called.  The zero value is not useful; use Commands.
+//
+// A Command is safe for concurrent use by multiple goroutines.
 type Command struct {
-	Name       string // if set it is included in errors
-	cmd        string
-	args       []string
+	Name string // if set it is included in errors
+
+	mu         sync.Mutex
 	responses  []Response
 	unexpected []Response
-	stdout     io.Writer
-	stderr     io.Writer
-	stdin      io.Reader
 	cnt        int
+}
+
+// An invocation is a single command produced by Command.Command.  Each
+// invocation holds its own stdio so that concurrent commands do not interfere
+// with each other; the shared response bookkeeping lives on the parent.
+type invocation struct {
+	parent *Command
+	cmd    string
+	args   []string
+	stdout io.Writer
+	stderr io.Writer
+	stdin  io.Reader
 }
 
 // Commands returns a Command that is primed with the provided responses.
@@ -92,21 +111,23 @@ func Commands(resp []Response) *Command {
 	}
 }
 
-// Command resets the command associated with c.
+// Command returns a new exec.Cmd that draws its result from c when run.
 func (c *Command) Command(cmd string, args ...string) exec.Cmd {
-	c.cmd = cmd
-	c.args = args
-	return c
+	return &invocation{
+		parent: c,
+		cmd:    cmd,
+		args:   args,
+	}
 }
 
 // Stdout sets standard out to w.
-func (c *Command) SetStdout(w io.Writer) { c.stdout = w }
+func (i *invocation) SetStdout(w io.Writer) { i.stdout = w }
 
 // Stderr sets standard err to w.
-func (c *Command) SetStderr(w io.Writer) { c.stderr = w }
+func (i *invocation) SetStderr(w io.Writer) { i.stderr = w }
 
 // Stdin sets standard in to r.
-func (c *Command) SetStdin(r io.Reader) { c.stdin = r }
+func (i *invocation) SetStdin(r io.Reader) { i.stdin = r }
 
 // LogCommand is called with the string representation of the command that is
 // running.  The test program can optionally set this to their own function.
@@ -118,40 +139,51 @@ var LogCommand = func(string) {}
 // calls LogCommand with a string representation of a Response that matches this
 // command.
 //
-// Run returns nil if no matching response is found.  Use c.Done to detect
+// Run returns nil if no matching response is found.  Use Command.Done to detect
 // these errors.
-func (c *Command) Run() error {
+func (i *invocation) Run() error {
+	return i.parent.run(i)
+}
+
+// run consumes the response matching i.  The lock is held for the whole call,
+// which both keeps the response bookkeeping consistent and serializes the
+// LogCommand callback, so a test hook that records commands does not need its
+// own synchronization.
+func (c *Command) run(i *invocation) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.cnt++
 	call := Response{
-		Cmd:  c.cmd,
-		Args: c.args,
+		Cmd:  i.cmd,
+		Args: i.args,
 	}
 
 	defer func() {
 		LogCommand(call.String())
 	}()
 	if len(c.responses) == 0 {
-		c.unexpected = append(c.unexpected, Response{Cmd: c.cmd, Args: c.args})
+		c.unexpected = append(c.unexpected, Response{Cmd: i.cmd, Args: i.args})
 		return nil
 	}
 
 	// Always check to see if we match the next expected response.
 	// If we don't then look to see if there is an OutOfOrder response that we match.
 	r := c.responses[0]
-	if c.matches(r) {
+	if i.matches(r) {
 		c.responses = c.responses[1:]
 	} else {
 		matched := false
-		var i int
-		for i, r = range c.responses {
-			if r.OutOfOrder && c.matches(r) {
+		var n int
+		for n, r = range c.responses {
+			if r.OutOfOrder && i.matches(r) {
 				matched = true
-				c.responses = append(c.responses[:i], c.responses[i+1:]...)
+				c.responses = append(c.responses[:n], c.responses[n+1:]...)
 				break
 			}
 		}
 		if !matched {
-			c.unexpected = append(c.unexpected, Response{Cmd: c.cmd, Args: c.args})
+			c.unexpected = append(c.unexpected, Response{Cmd: i.cmd, Args: i.args})
 			return nil
 		}
 	}
@@ -164,11 +196,13 @@ func (c *Command) Run() error {
 	call.OutOfOrder = r.OutOfOrder
 	call.Optional = r.Optional
 
-	if c.stdout != nil && r.Stdout != "" {
-		fmt.Fprint(c.stdout, r.Stdout)
+	// The writers belong to the caller, and a fake has nothing useful to do
+	// about a failure to write to them, so the results are discarded.
+	if i.stdout != nil && r.Stdout != "" {
+		_, _ = fmt.Fprint(i.stdout, r.Stdout)
 	}
-	if c.stderr != nil && r.Stderr != "" {
-		fmt.Fprint(c.stderr, r.Stderr)
+	if i.stderr != nil && r.Stderr != "" {
+		_, _ = fmt.Fprint(i.stderr, r.Stderr)
 	}
 	switch e := r.Err.(type) {
 	case string:
@@ -213,8 +247,12 @@ func (e *DoneError) Error() string {
 // Done returns an error if there were any unexpected commands called on c or if
 // there are any non-optional responses left.
 //
-// Done should be called once the test has finished calling c.Command.
+// Done should be called once the test has finished calling c.Command and all
+// commands it handed out have finished running.
 func (c *Command) Done() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	left := c.left()
 	if len(left) == 0 && len(c.unexpected) == 0 {
 		return nil
@@ -230,7 +268,7 @@ func (c *Command) Done() error {
 	}
 }
 
-// left returns any non-optional unused responses
+// left returns any non-optional unused responses.  c.mu must be held.
 func (c *Command) left() []Response {
 	var resp []Response
 	for _, r := range c.responses {
@@ -241,15 +279,15 @@ func (c *Command) left() []Response {
 	return resp
 }
 
-// matches returns true if the current command in c matches r.
-func (c *Command) matches(r Response) bool {
-	if c.cmd != r.Cmd && r.Cmd != "" {
+// matches returns true if the command in i matches r.
+func (i *invocation) matches(r Response) bool {
+	if i.cmd != r.Cmd && r.Cmd != "" {
 		return false
 	}
-	return compareArgs(c.args, r.Args)
+	return compareArgs(i.args, r.Args)
 }
 
-// compareArgs compares the two list of arguments to determin if they are the
+// compareArgs compares the two list of arguments to determine if they are the
 // same or not.  The values in wantArgs can have a ".*" as the suffix or prefix
 // to indicate a prefix or suffix match should be used instead of equality.
 func compareArgs(gotArgs, wantArgs []string) bool {
