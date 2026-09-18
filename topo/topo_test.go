@@ -25,12 +25,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
-	dfake "k8s.io/client-go/dynamic/fake"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -39,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
+	dfake "k8s.io/client-go/dynamic/fake"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
@@ -2406,3 +2406,158 @@ func TestWaitClusterReady(t *testing.T) {
 	}
 }
 
+func TestPopulateServiceMap(t *testing.T) {
+	tests := []struct {
+		desc    string
+		service *corev1.Service
+		inMap   map[uint32]*tpb.Service
+		wantMap map[uint32]*tpb.Service
+		wantErr string
+	}{
+		{
+			desc:    "nil service",
+			service: nil,
+			inMap:   map[uint32]*tpb.Service{},
+			wantErr: "service and map must not be nil",
+		},
+		{
+			desc: "loadbalancer service missing ingress errors",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "lb-svc"},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{{
+						Port:       80,
+						TargetPort: intstr.FromInt(8080),
+					}},
+				},
+			},
+			inMap:   map[uint32]*tpb.Service{},
+			wantErr: "service lb-svc has no external loadbalancer configured",
+		},
+		{
+			desc: "loadbalancer service with ingress",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "lb-svc"},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeLoadBalancer,
+					ClusterIP: "10.0.0.1",
+					Ports: []corev1.ServicePort{{
+						Name:       "http",
+						Port:       80,
+						TargetPort: intstr.FromInt(8080),
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.1.100",
+						}},
+					},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				80: {
+					Name:      "http",
+					Outside:   80,
+					Inside:    8080,
+					InsideIp:  "10.0.0.1",
+					OutsideIp: "192.168.1.100",
+					Type:      tpb.Service_LOAD_BALANCER,
+				},
+			},
+		},
+		{
+			desc: "nodeport service does not require ingress",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "np-svc"},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeNodePort,
+					ClusterIP: "10.0.0.2",
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   30022,
+					}},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				22: {
+					Name:     "ssh",
+					Outside:  22,
+					Inside:   22,
+					NodePort: 30022,
+					InsideIp: "10.0.0.2",
+					Type:     tpb.Service_NODE_PORT,
+				},
+			},
+		},
+		{
+			desc: "clusterip service does not require ingress",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "cip-svc"},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeClusterIP,
+					ClusterIP: "10.0.0.3",
+					Ports: []corev1.ServicePort{{
+						Name:       "dns",
+						Port:       53,
+						TargetPort: intstr.FromInt(53),
+					}},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				53: {
+					Name:     "dns",
+					Outside:  53,
+					Inside:   53,
+					InsideIp: "10.0.0.3",
+					Type:     tpb.Service_CLUSTER_IP,
+				},
+			},
+		},
+		{
+			desc: "empty spec.type defaults to ClusterIP semantics",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "untyped-svc"},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.0.0.4",
+					Ports: []corev1.ServicePort{{
+						Name:       "app",
+						Port:       8080,
+						TargetPort: intstr.FromInt(8080),
+					}},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				8080: {
+					Name:     "app",
+					Outside:  8080,
+					Inside:   8080,
+					InsideIp: "10.0.0.4",
+					Type:     tpb.Service_CLUSTER_IP,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			err := populateServiceMap(tt.service, tt.inMap)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Fatalf("populateServiceMap() error diff: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if diff := cmp.Diff(tt.wantMap, tt.inMap, protocmp.Transform()); diff != "" {
+				t.Errorf("populateServiceMap() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
