@@ -11,7 +11,7 @@ This example demonstrates bridging Layer 2 Ethernet frames across independent to
            v
    [ bridge-server ]  (Listens on gRPC port 50058)
            :
-           :  <-- gRPC Wire Stream over cluster network (service-bridge-server-nodeport:50058)
+           :  <-- gRPC Wire Stream over cluster network (bridge-server:50058)
            :
    [ bridge-client ]  (Connected to bridge-server via gRPC)
            ^
@@ -21,6 +21,23 @@ This example demonstrates bridging Layer 2 Ethernet frames across independent to
 ```
 
 There is no direct Meshnet link between `host1` and `host2`. All packets (ARP requests, ICMP echo/reply, TCP, UDP) are dynamically forwarded over the gRPC `Wire` stream between `bridge-server` and `bridge-client`.
+
+## Declaring a Bridge
+
+A `FORWARD` node describes the wires it terminates, not the daemon flags it needs;
+KNE derives the flags. Each wire has two endpoints, `a` and `z`, and the endpoint
+written as an `interface` is always the declaring node:
+
+- `a: { interface: ... }` — this node dials the peer named by `z`.
+- `z: { interface: ... }` — this node listens, and the peer dials in. If `a` is
+  omitted the client is outside the topology entirely, which is how an external
+  process such as a Borg job attaches.
+
+A peer inside the cluster is named with `local_node`, and KNE gives every
+`FORWARD` node a headless Service under its own name so that name resolves. A
+peer outside the cluster is named with `remote_node` and an address; the wire
+port is assumed if the address has none.
+
 
 ## Running the Example
 
@@ -75,8 +92,7 @@ You can also run `bridge client` directly on a development workstation to bridge
 
 2. **Run the KNE bridge client on the local interface:**
 
-   Find the worker node IP and NodePort for `service-bridge-server-nodeport` (a `NODE_PORT`
-   service is named `service-<node>-nodeport`) via
+   Find the worker node IP and NodePort exposing `bridge-server`'s wire port via
    `kne topology service examples/bridge/paired-bridge.pb.txt`, then run:
 
    ```bash

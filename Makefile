@@ -49,13 +49,13 @@ install: build
 bridge-docker:
 	docker build \
 		-t $(BRIDGE_DOCKER_IMAGE):$(TAG) \
-		-t $(BRIDGE_DOCKER_IMAGE):latest \
+		-t $(BRIDGE_DOCKER_IMAGE):ga \
 		-f deploy/bridge/Dockerfile .
 
 .PHONY: kind-load-bridge
 ## Load bridge docker image into kind cluster
 kind-load-bridge:
-	kind load docker-image --name $(KIND_CLUSTER_NAME) $(BRIDGE_DOCKER_IMAGE):latest
+	kind load docker-image --name $(KIND_CLUSTER_NAME) $(BRIDGE_DOCKER_IMAGE):ga
 
 .PHONY: bridge-release
 ## Release bridge docker image

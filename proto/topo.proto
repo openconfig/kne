@@ -228,7 +228,11 @@ message Service {
 
   // Assigned by KNE.
   uint32 outside = 3;     // Outside port used by service. (same a service key)
-  string outside_ip = 5;  // External IP assigned by cluster load balancer.
+  // External IP assigned by the cluster load balancer. Only populated for
+  // LOAD_BALANCER services; for NODE_PORT and CLUSTER_IP services it is empty,
+  // as those are reached via a cluster node address and node_port, or from
+  // inside the cluster via inside_ip, respectively.
+  string outside_ip = 5;
 
   // Used internally by KNE.
   string inside_ip = 4;   // Cluster IP for the service.
@@ -244,7 +248,10 @@ message Service {
   // Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP).
   Type type = 8;
 
-  // If true, creates a companion hostNetwork daemon/pod to forward IPv6
-  // traffic on the node_port to 127.0.0.1.
-  bool v6_host_proxy = 9;
+  // If true, KNE ensures this service is reachable over IPv6 from outside the
+  // cluster. This states intent, not mechanism: on a single-stack IPv4 cluster
+  // KNE satisfies it by running a host-network proxy on each node, but on a
+  // dual-stack cluster it may be satisfied natively and become a no-op.
+  // Only meaningful for NODE_PORT services.
+  bool external_ipv6 = 9;
 }

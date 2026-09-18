@@ -604,7 +604,7 @@ func TestDeleteServiceErrorHandling(t *testing.T) {
 	}
 }
 
-func TestCreateServiceV6HostProxy(t *testing.T) {
+func TestCreateServiceExternalIPv6(t *testing.T) {
 	ctx := context.Background()
 	kClient := kfake.NewSimpleClientset()
 	n := &Impl{
@@ -615,17 +615,17 @@ func TestCreateServiceV6HostProxy(t *testing.T) {
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				50058: {
-					Name:        "wire",
-					Inside:      50058,
-					Type:        topopb.Service_NODE_PORT,
-					NodePort:    30058,
-					V6HostProxy: true,
+					Name:         "wire",
+					Inside:       50058,
+					Type:         topopb.Service_NODE_PORT,
+					NodePort:     30058,
+					ExternalIpv6: true,
 				},
 				8080: {
-					Name:        "http",
-					Inside:      8080,
-					Type:        topopb.Service_CLUSTER_IP,
-					V6HostProxy: true, // Should not create a proxy container because NodePort is 0
+					Name:         "http",
+					Inside:       8080,
+					Type:         topopb.Service_CLUSTER_IP,
+					ExternalIpv6: true, // Should not create a proxy container because NodePort is 0
 				},
 			},
 		},
@@ -689,11 +689,11 @@ func TestCreateServiceDaemonSetFailureRollback(t *testing.T) {
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
 				50058: {
-					Name:        "wire",
-					Inside:      50058,
-					Type:        topopb.Service_NODE_PORT,
-					NodePort:    30058,
-					V6HostProxy: true,
+					Name:         "wire",
+					Inside:       50058,
+					Type:         topopb.Service_NODE_PORT,
+					NodePort:     30058,
+					ExternalIpv6: true,
 				},
 			},
 		},
@@ -985,7 +985,7 @@ func TestServiceReadinessProbe(t *testing.T) {
 	}
 }
 
-func TestV6HostProxyDaemonSet(t *testing.T) {
+func TestExternalIPv6DaemonSet(t *testing.T) {
 	ctx := context.Background()
 	kClient := kfake.NewSimpleClientset()
 	node := &topopb.Node{
@@ -993,18 +993,18 @@ func TestV6HostProxyDaemonSet(t *testing.T) {
 		Vendor: topopb.Vendor(1001),
 		Services: map[uint32]*topopb.Service{
 			50058: {
-				Name:        "wire",
-				Inside:      50058,
-				Type:        topopb.Service_NODE_PORT,
-				NodePort:    30058,
-				V6HostProxy: true,
+				Name:         "wire",
+				Inside:       50058,
+				Type:         topopb.Service_NODE_PORT,
+				NodePort:     30058,
+				ExternalIpv6: true,
 			},
 			50059: {
-				Name:        "noproxy",
-				Inside:      50059,
-				Type:        topopb.Service_NODE_PORT,
-				NodePort:    30059,
-				V6HostProxy: false,
+				Name:         "noproxy",
+				Inside:       50059,
+				Type:         topopb.Service_NODE_PORT,
+				NodePort:     30059,
+				ExternalIpv6: false,
 			},
 		},
 	}

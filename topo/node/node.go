@@ -683,7 +683,7 @@ func (n *Impl) CreateService(ctx context.Context) (rErr error) {
 	var proxyContainers []corev1.Container
 	for _, sS := range createdServices {
 		for _, sp := range sS.Spec.Ports {
-			if svc, ok := n.Proto.Services[uint32(sp.Port)]; ok && svc.GetV6HostProxy() {
+			if svc, ok := n.Proto.Services[uint32(sp.Port)]; ok && svc.GetExternalIpv6() {
 				if sp.NodePort > 0 {
 					proxyContainers = append(proxyContainers, corev1.Container{
 						Name:  fmt.Sprintf("socat-%d", sp.NodePort),
@@ -714,7 +714,7 @@ func (n *Impl) CreateService(ctx context.Context) (rErr error) {
 						},
 					})
 				} else {
-					log.Warningf("node %s: service port %d has v6_host_proxy enabled but NodePort is not allocated (service type is %s)", n.Name(), sp.Port, sS.Spec.Type)
+					log.Warningf("node %s: service port %d requests external_ipv6 but no NodePort is allocated (service type is %s)", n.Name(), sp.Port, sS.Spec.Type)
 				}
 			}
 		}
