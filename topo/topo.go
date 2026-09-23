@@ -282,6 +282,9 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 			log.Warningf("Failed to refresh GAR access, cluster may need to be re-created using `kne teardown` and `kne deploy`")
 		}
 	}
+	if err := m.waitClusterReady(ctx); err != nil {
+		return fmt.Errorf("failed waiting for cluster to be ready: %w", err)
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	// Watch the container status of the pods so we can fail if a container fails to start running.
 	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
@@ -310,6 +313,63 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 	}
 	log.Infof("Topology %q created", m.topo.GetName())
 	return nil
+}
+
+// waitClusterReady waits until all existing nodes in the cluster are in the Ready condition
+// and have no untolerated not-ready/network-unavailable taints.
+func (m *Manager) waitClusterReady(ctx context.Context) error {
+	if m.kClient == nil {
+		return nil
+	}
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		nodes, err := m.kClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to list cluster nodes: %w", err)
+		}
+		if len(nodes.Items) == 0 {
+			return nil
+		}
+		var unreadyNodes []string
+		for _, n := range nodes.Items {
+			if !isNodeReady(&n) {
+				unreadyNodes = append(unreadyNodes, n.Name)
+			}
+		}
+		if len(unreadyNodes) == 0 {
+			log.Infof("All cluster nodes (%d) are ready", len(nodes.Items))
+			return nil
+		}
+		log.Infof("Waiting for cluster nodes to be ready: %v not ready yet", unreadyNodes)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context canceled waiting for cluster nodes to be ready (%v not ready): %w", unreadyNodes, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func isNodeReady(node *corev1.Node) bool {
+	var ready bool
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+			ready = true
+			break
+		}
+	}
+	if !ready {
+		return false
+	}
+	for _, taint := range node.Spec.Taints {
+		switch taint.Key {
+		case corev1.TaintNodeNotReady,
+			corev1.TaintNodeNetworkUnavailable,
+			corev1.TaintNodeUnreachable:
+			return false
+		}
+	}
+	return true
 }
 
 // Delete deletes the topology from the cluster.
