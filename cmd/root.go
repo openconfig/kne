@@ -45,6 +45,7 @@ environment.`,
 	root.PersistentFlags().String("report_usage_project_id", "", "Project to report anonymous usage metrics to")
 	root.PersistentFlags().String("report_usage_topic_id", "", "Topic to report anonymous usage metrics to")
 	root.PersistentFlags().Bool("progress", false, "Display progress of container bringup")
+	root.PersistentFlags().Duration("deploy_timeout", 0, "Overall timeout for deploying the ingress, CNI and controllers, 0 for the default")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if *cfgFile == "" {
 			return nil

@@ -110,6 +110,7 @@ func deployFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	d.Progress = viper.GetBool("progress")
+	d.Timeout = viper.GetDuration("deploy_timeout")
 	d.ReportUsage = viper.GetBool("report_usage")
 	d.ReportUsageProjectID = viper.GetString("report_usage_project_id")
 	d.ReportUsageTopicID = viper.GetString("report_usage_topic_id")
