@@ -133,8 +133,13 @@ func (s *SocketHandler) ReadPacket() ([]byte, error) {
 		var from unix.Sockaddr
 		var serr error
 		if rerr := s.rc.Read(func(fd uintptr) bool {
-			n, from, serr = unix.Recvfrom(int(fd), s.rbuf, 0)
-			return serr != unix.EAGAIN
+			for {
+				n, from, serr = unix.Recvfrom(int(fd), s.rbuf, 0)
+				if serr == unix.EINTR {
+					continue
+				}
+				return serr != unix.EAGAIN
+			}
 		}); rerr != nil {
 			return nil, rerr
 		}
@@ -163,8 +168,13 @@ func (s *SocketHandler) WritePacket(pkt []byte) error {
 	}
 	var serr error
 	if werr := s.rc.Write(func(fd uintptr) bool {
-		_, serr = unix.Write(int(fd), pkt)
-		return serr != unix.EAGAIN
+		for {
+			_, serr = unix.Write(int(fd), pkt)
+			if serr == unix.EINTR {
+				continue
+			}
+			return serr != unix.EAGAIN
+		}
 	}); werr != nil {
 		return werr
 	}
@@ -429,8 +439,10 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "failed to subscribe to interface %s: %v", ifaceName, err)
 	}
+	var egressWG sync.WaitGroup
 	defer func() {
 		demux.unsubscribe(pktChan)
+		egressWG.Wait()
 		klog.Infof("Wire.Transmit client disconnected from interface %q", ifaceName)
 	}()
 
@@ -443,7 +455,9 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 	errChan := make(chan error, 2)
 
 	// Egress loop: read captured packets from InterfaceDemux and send to gRPC client.
+	egressWG.Add(1)
 	go func() {
+		defer egressWG.Done()
 		for {
 			select {
 			case <-stream.Context().Done():

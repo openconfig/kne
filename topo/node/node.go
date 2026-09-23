@@ -727,12 +727,19 @@ func (n *Impl) CreateService(ctx context.Context) (rErr error) {
 		}
 		var ownerRefs []metav1.OwnerReference
 		if len(createdServices) > 0 {
+			ownerSvc := createdServices[0]
+			for _, sS := range createdServices {
+				if sS.Spec.Type == corev1.ServiceTypeNodePort {
+					ownerSvc = sS
+					break
+				}
+			}
 			ownerRefs = []metav1.OwnerReference{
 				{
 					APIVersion:         "v1",
 					Kind:               "Service",
-					Name:               createdServices[0].Name,
-					UID:                createdServices[0].UID,
+					Name:               ownerSvc.Name,
+					UID:                ownerSvc.UID,
 					BlockOwnerDeletion: pointer.Bool(true),
 					Controller:         pointer.Bool(true),
 				},

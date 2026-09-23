@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	fpb "github.com/openconfig/kne/proto/forward"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -91,7 +92,11 @@ func (n *Node) CreateService(ctx context.Context) error {
 	if err := n.createPeerService(ctx); err != nil {
 		return err
 	}
-	return n.Impl.CreateService(ctx)
+	if err := n.Impl.CreateService(ctx); err != nil {
+		_ = n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
+		return err
+	}
+	return nil
 }
 
 // createPeerService creates the headless Service giving this node a stable
@@ -153,6 +158,7 @@ type bridgeProcess struct {
 func wirePlan(cfg *fpb.ForwardConfig) ([]bridgeProcess, error) {
 	var serves []string
 	var procs []bridgeProcess
+	seen := make(map[string]struct{})
 	for _, w := range cfg.GetWires() {
 		aIntf := w.GetA().GetInterface().GetName()
 		zIntf := w.GetZ().GetInterface().GetName()
@@ -160,6 +166,10 @@ func wirePlan(cfg *fpb.ForwardConfig) ([]bridgeProcess, error) {
 		case aIntf != "" && zIntf != "":
 			return nil, fmt.Errorf("endpoints a and z cannot both be interfaces")
 		case aIntf != "":
+			if _, dup := seen[aIntf]; dup {
+				return nil, fmt.Errorf("duplicate wire for local interface %q", aIntf)
+			}
+			seen[aIntf] = struct{}{}
 			addr, remote, err := peerEndpoint(w.GetZ())
 			if err != nil {
 				return nil, fmt.Errorf("wire for local interface %q: %w", aIntf, err)
@@ -168,7 +178,7 @@ func wirePlan(cfg *fpb.ForwardConfig) ([]bridgeProcess, error) {
 				remote = aIntf
 			}
 			procs = append(procs, bridgeProcess{
-				nameSuffix: aIntf,
+				nameSuffix: "client-" + aIntf,
 				args: []string{
 					"client",
 					fmt.Sprintf("--peer=%s", addr),
@@ -177,6 +187,10 @@ func wirePlan(cfg *fpb.ForwardConfig) ([]bridgeProcess, error) {
 				},
 			})
 		case zIntf != "":
+			if _, dup := seen[zIntf]; dup {
+				return nil, fmt.Errorf("duplicate wire for local interface %q", zIntf)
+			}
+			seen[zIntf] = struct{}{}
 			serves = append(serves, zIntf)
 		default:
 			return nil, fmt.Errorf("one of endpoints a and z must be an interface")
@@ -211,7 +225,7 @@ func peerEndpoint(e *fpb.Endpoint) (string, string, error) {
 		}
 		if _, _, err := net.SplitHostPort(addr); err != nil {
 			// No port given, so assume the peer serves on the default port.
-			addr = net.JoinHostPort(addr, strconv.Itoa(wirePort))
+			addr = net.JoinHostPort(strings.Trim(addr, "[]"), strconv.Itoa(wirePort))
 		}
 		return addr, rn.GetInterface(), nil
 	default:
@@ -242,6 +256,9 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			return fmt.Errorf("node %s: %w", pb.Name, err)
 		}
 		if len(planned) > 0 {
+			for i := range planned {
+				planned[i].args = append(planned[i].args, pb.Config.Args...)
+			}
 			procs = planned
 		}
 	}
@@ -250,12 +267,12 @@ func (n *Node) CreatePod(ctx context.Context) error {
 	// every one of them rather than divided between them, because each process
 	// carries its own traffic and so needs the stated budget in full.
 	containers := make([]corev1.Container, 0, len(procs))
-	for _, p := range procs {
-		// A node with a single process keeps the plain node name, so the
-		// overwhelmingly common case still gives `kubectl exec <node>` with no
-		// container selector.
+	for i, p := range procs {
+		// The first process keeps the plain node name so `kubectl exec <node>`
+		// and Impl.Exec work without a container selector; subsequent containers
+		// append their disambiguating suffix.
 		name := pb.Name
-		if len(procs) > 1 {
+		if i > 0 {
 			name = fmt.Sprintf("%s-%s", pb.Name, p.nameSuffix)
 		}
 		log.Infof("Container %q args: %v", name, p.args)

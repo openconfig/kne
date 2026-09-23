@@ -614,6 +614,11 @@ func TestCreateServiceExternalIPv6(t *testing.T) {
 			Name:   "dev-v6",
 			Vendor: topopb.Vendor(1001),
 			Services: map[uint32]*topopb.Service{
+				22: {
+					Name:   "ssh",
+					Inside: 22,
+					Type:   topopb.Service_LOAD_BALANCER,
+				},
 				50058: {
 					Name:         "wire",
 					Inside:       50058,
@@ -647,8 +652,8 @@ func TestCreateServiceExternalIPv6(t *testing.T) {
 	if ds.Name != "v6proxy-dev-v6" {
 		t.Errorf("daemonset name = %q, want %q", ds.Name, "v6proxy-dev-v6")
 	}
-	if len(ds.OwnerReferences) == 0 || ds.OwnerReferences[0].Kind != "Service" {
-		t.Errorf("expected OwnerReference to Service, got: %+v", ds.OwnerReferences)
+	if len(ds.OwnerReferences) == 0 || ds.OwnerReferences[0].Kind != "Service" || ds.OwnerReferences[0].Name != "service-dev-v6-nodeport" {
+		t.Errorf("expected OwnerReference to Service %q, got: %+v", "service-dev-v6-nodeport", ds.OwnerReferences)
 	}
 	if ds.Spec.Template.Spec.DNSPolicy != corev1.DNSClusterFirstWithHostNet {
 		t.Errorf("DNSPolicy = %v, want %v", ds.Spec.Template.Spec.DNSPolicy, corev1.DNSClusterFirstWithHostNet)

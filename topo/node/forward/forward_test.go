@@ -12,9 +12,12 @@ import (
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	kfake "k8s.io/client-go/kubernetes/fake"
+	ktesting "k8s.io/client-go/testing"
 )
 
 func TestNew(t *testing.T) {
@@ -166,7 +169,7 @@ func TestWirePlan(t *testing.T) {
 			}},
 		},
 		want: []bridgeProcess{{
-			nameSuffix: "eth1",
+			nameSuffix: "client-eth1",
 			args:       []string{"client", "--peer=peer:50058", "--interface=eth1", "--remote_interface=eth3"},
 		}},
 	}, {
@@ -182,7 +185,7 @@ func TestWirePlan(t *testing.T) {
 			}},
 		},
 		want: []bridgeProcess{{
-			nameSuffix: "eth1",
+			nameSuffix: "client-eth1",
 			args:       []string{"client", "--peer=peer:50058", "--interface=eth1", "--remote_interface=eth1"},
 		}},
 	}, {
@@ -198,8 +201,24 @@ func TestWirePlan(t *testing.T) {
 			}},
 		},
 		want: []bridgeProcess{{
-			nameSuffix: "eth1",
+			nameSuffix: "client-eth1",
 			args:       []string{"client", "--peer=far.away.example.com:50058", "--interface=eth1", "--remote_interface=eth9"},
+		}},
+	}, {
+		desc: "client dialing outside the cluster with bracketed IPv6 literal, port assumed",
+		cfg: &fpb.ForwardConfig{
+			Wires: []*fpb.Wire{{
+				A: &fpb.Endpoint{Endpoint: &fpb.Endpoint_Interface{
+					Interface: &fpb.Interface{Name: "eth1"},
+				}},
+				Z: &fpb.Endpoint{Endpoint: &fpb.Endpoint_RemoteNode{
+					RemoteNode: &fpb.RemoteNode{Addr: "[2001:db8::1]", Interface: "eth9"},
+				}},
+			}},
+		},
+		want: []bridgeProcess{{
+			nameSuffix: "client-eth1",
+			args:       []string{"client", "--peer=[2001:db8::1]:50058", "--interface=eth1", "--remote_interface=eth9"},
 		}},
 	}, {
 		desc: "client dialing outside the cluster, port given",
@@ -214,7 +233,7 @@ func TestWirePlan(t *testing.T) {
 			}},
 		},
 		want: []bridgeProcess{{
-			nameSuffix: "eth1",
+			nameSuffix: "client-eth1",
 			args:       []string{"client", "--peer=far.away.example.com:12345", "--interface=eth1", "--remote_interface=eth9"},
 		}},
 	}, {
@@ -237,9 +256,46 @@ func TestWirePlan(t *testing.T) {
 			nameSuffix: "server",
 			args:       []string{"server"},
 		}, {
-			nameSuffix: "eth1",
+			nameSuffix: "client-eth1",
 			args:       []string{"client", "--peer=peer:50058", "--interface=eth1", "--remote_interface=eth1"},
 		}},
+	}, {
+		desc: "duplicate client local interface rejected",
+		cfg: &fpb.ForwardConfig{
+			Wires: []*fpb.Wire{{
+				A: &fpb.Endpoint{Endpoint: &fpb.Endpoint_Interface{
+					Interface: &fpb.Interface{Name: "eth1"},
+				}},
+				Z: &fpb.Endpoint{Endpoint: &fpb.Endpoint_LocalNode{
+					LocalNode: &fpb.LocalNode{Name: "peer1"},
+				}},
+			}, {
+				A: &fpb.Endpoint{Endpoint: &fpb.Endpoint_Interface{
+					Interface: &fpb.Interface{Name: "eth1"},
+				}},
+				Z: &fpb.Endpoint{Endpoint: &fpb.Endpoint_LocalNode{
+					LocalNode: &fpb.LocalNode{Name: "peer2"},
+				}},
+			}},
+		},
+		wantErr: "duplicate wire for local interface",
+	}, {
+		desc: "collision between client and server local interface rejected",
+		cfg: &fpb.ForwardConfig{
+			Wires: []*fpb.Wire{{
+				A: &fpb.Endpoint{Endpoint: &fpb.Endpoint_Interface{
+					Interface: &fpb.Interface{Name: "eth1"},
+				}},
+				Z: &fpb.Endpoint{Endpoint: &fpb.Endpoint_LocalNode{
+					LocalNode: &fpb.LocalNode{Name: "peer"},
+				}},
+			}, {
+				Z: &fpb.Endpoint{Endpoint: &fpb.Endpoint_Interface{
+					Interface: &fpb.Interface{Name: "eth1"},
+				}},
+			}},
+		},
+		wantErr: "duplicate wire for local interface",
 	}, {
 		desc: "both endpoints local",
 		cfg: &fpb.ForwardConfig{
@@ -319,6 +375,66 @@ func TestWirePlan(t *testing.T) {
 	}
 }
 
+func TestCreatePodMultiProcessArgsAndNaming(t *testing.T) {
+	ki := kfake.NewSimpleClientset()
+	vd, err := anypb.New(&fpb.ForwardConfig{
+		Wires: []*fpb.Wire{{
+			A: &fpb.Endpoint{Endpoint: &fpb.Endpoint_Interface{
+				Interface: &fpb.Interface{Name: "eth1"},
+			}},
+			Z: &fpb.Endpoint{Endpoint: &fpb.Endpoint_LocalNode{
+				LocalNode: &fpb.LocalNode{Name: "peer", Interface: "eth1"},
+			}},
+		}, {
+			Z: &fpb.Endpoint{Endpoint: &fpb.Endpoint_Interface{
+				Interface: &fpb.Interface{Name: "eth2"},
+			}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("anypb.New() failed: %v", err)
+	}
+	n, err := New(&node.Impl{
+		Namespace:  "test",
+		KubeClient: ki,
+		Proto: &topopb.Node{
+			Name: "fwd1",
+			Config: &topopb.Config{
+				Args:       []string{"--alts"},
+				VendorData: vd,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	fn := n.(*Node)
+	if err := fn.CreatePod(context.Background()); err != nil {
+		t.Fatalf("CreatePod() failed: %v", err)
+	}
+	pod, err := ki.CoreV1().Pods("test").Get(context.Background(), "fwd1", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get pod: %v", err)
+	}
+	if len(pod.Spec.Containers) != 2 {
+		t.Fatalf("expected 2 containers, got %d", len(pod.Spec.Containers))
+	}
+	// First container must retain the plain node name so Impl.Exec and kubectl exec work.
+	if pod.Spec.Containers[0].Name != "fwd1" {
+		t.Errorf("container[0].Name = %q, want %q", pod.Spec.Containers[0].Name, "fwd1")
+	}
+	if diff := cmp.Diff([]string{"server", "--alts"}, pod.Spec.Containers[0].Args); diff != "" {
+		t.Errorf("container[0].Args diff (-want +got):\n%s", diff)
+	}
+	if pod.Spec.Containers[1].Name != "fwd1-client-eth1" {
+		t.Errorf("container[1].Name = %q, want %q", pod.Spec.Containers[1].Name, "fwd1-client-eth1")
+	}
+	wantClientArgs := []string{"client", "--peer=peer:50058", "--interface=eth1", "--remote_interface=eth1", "--alts"}
+	if diff := cmp.Diff(wantClientArgs, pod.Spec.Containers[1].Args); diff != "" {
+		t.Errorf("container[1].Args diff (-want +got):\n%s", diff)
+	}
+}
+
 func TestCreatePeerService(t *testing.T) {
 	ki := kfake.NewSimpleClientset()
 	n, err := New(&node.Impl{
@@ -357,5 +473,44 @@ func TestCreatePeerService(t *testing.T) {
 	// Service torn down with the node.
 	if got.Labels["pod"] != "fwd1" {
 		t.Errorf("peer service pod label: got %q, want %q", got.Labels["pod"], "fwd1")
+	}
+}
+
+func TestCreateServiceRollbackPeerService(t *testing.T) {
+	ki := kfake.NewSimpleClientset()
+	ki.PrependReactor("create", "services", func(action ktesting.Action) (bool, runtime.Object, error) {
+		createAction := action.(ktesting.CreateAction)
+		svc := createAction.GetObject().(*corev1.Service)
+		if svc.Name != "fwd1" {
+			return true, nil, fmt.Errorf("injected service creation failure")
+		}
+		return false, nil, nil
+	})
+	n, err := New(&node.Impl{
+		Namespace:  "test",
+		KubeClient: ki,
+		Proto: &topopb.Node{
+			Name: "fwd1",
+			Services: map[uint32]*topopb.Service{
+				wirePort: {
+					Name:   "wire",
+					Inside: wirePort,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	fn := n.(*Node)
+	if err := fn.CreateService(context.Background()); err == nil {
+		t.Fatalf("expected CreateService() to fail when Impl.CreateService fails")
+	}
+	svcList, err := ki.CoreV1().Services("test").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		t.Fatalf("failed to list services: %v", err)
+	}
+	if len(svcList.Items) != 0 {
+		t.Errorf("expected peer service to be rolled back on error, found %d services", len(svcList.Items))
 	}
 }
