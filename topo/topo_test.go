@@ -2134,3 +2134,171 @@ func TestWatch(t *testing.T) {
 		t.Errorf("Watch() unexpected error: %v", err)
 	}
 }
+
+func TestIsNodeReady(t *testing.T) {
+	tests := []struct {
+		desc string
+		node *corev1.Node
+		want bool
+	}{
+		{
+			desc: "ready node with no taints",
+			node: &corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			desc: "unready node condition false",
+			node: &corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			desc: "no ready condition",
+			node: &corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionFalse},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			desc: "ready node with not-ready taint",
+			node: &corev1.Node{
+				Spec: corev1.NodeSpec{
+					Taints: []corev1.Taint{
+						{Key: corev1.TaintNodeNotReady, Effect: corev1.TaintEffectNoSchedule},
+					},
+				},
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			desc: "ready node with network-unavailable taint",
+			node: &corev1.Node{
+				Spec: corev1.NodeSpec{
+					Taints: []corev1.Taint{
+						{Key: corev1.TaintNodeNetworkUnavailable, Effect: corev1.TaintEffectNoSchedule},
+					},
+				},
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			desc: "ready node with control-plane taint",
+			node: &corev1.Node{
+				Spec: corev1.NodeSpec{
+					Taints: []corev1.Taint{
+						{Key: "node-role.kubernetes.io/control-plane", Effect: corev1.TaintEffectNoSchedule},
+					},
+				},
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if got := isNodeReady(tt.node); got != tt.want {
+				t.Errorf("isNodeReady() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWaitClusterReady(t *testing.T) {
+	tests := []struct {
+		desc    string
+		nodes   []runtime.Object
+		timeout time.Duration
+		wantErr bool
+	}{
+		{
+			desc:    "empty nodes list",
+			nodes:   nil,
+			timeout: 100 * time.Millisecond,
+			wantErr: false,
+		},
+		{
+			desc: "all nodes ready",
+			nodes: []runtime.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+					Status: corev1.NodeStatus{
+						Conditions: []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{Name: "node-2"},
+					Status: corev1.NodeStatus{
+						Conditions: []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+						},
+					},
+				},
+			},
+			timeout: 100 * time.Millisecond,
+			wantErr: false,
+		},
+		{
+			desc: "unready node times out",
+			nodes: []runtime.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+					Status: corev1.NodeStatus{
+						Conditions: []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						},
+					},
+				},
+			},
+			timeout: 50 * time.Millisecond,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			kf := kfake.NewSimpleClientset(tt.nodes...)
+			m := &Manager{
+				kClient: kf,
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), tt.timeout)
+			defer cancel()
+			err := m.waitClusterReady(ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("waitClusterReady() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
