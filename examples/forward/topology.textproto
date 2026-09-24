@@ -1,3 +1,13 @@
+# A four-interface example: r1 and r2 are joined by two wires, each carried by a
+# pair of FORWARD nodes.
+#
+# Each node declares its own end of every wire it takes part in, so a wire
+# between two nodes in this topology appears twice: once as the client's "a"
+# and once as the server's "z". The endpoint written as an `interface` is
+# always the declaring node.
+#
+# fwd1 both dials (for the eth1 wire) and listens (for the eth2 wire), so its
+# pod runs one bridge container per role. fwd2 is the mirror image.
 name: "forward-basic"
 nodes: {
   name: "r1"
@@ -13,7 +23,6 @@ nodes: {
   name: "fwd1"
   vendor: FORWARD
   config: {
-    image: "forward:latest"
     vendor_data {
       [type.googleapis.com/forward.ForwardConfig] {
         wires: {
@@ -32,7 +41,7 @@ nodes: {
         wires: {
           a: {
             local_node: {
-              name: "fw2"
+              name: "fwd2"
               interface: "eth2"
             }
           }
@@ -50,7 +59,6 @@ nodes: {
   name: "fwd2"
   vendor: FORWARD
   config: {
-    image: "forward:latest"
     vendor_data {
       [type.googleapis.com/forward.ForwardConfig] {
         wires: {
@@ -69,7 +77,7 @@ nodes: {
         wires: {
           a: {
             local_node: {
-              name: "fw1"
+              name: "fwd1"
               interface: "eth1"
             }
           }

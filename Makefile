@@ -1,10 +1,15 @@
 MESHNET_DOCKER_IMAGE ?= us-west1-docker.pkg.dev/kne-external/kne/meshnet
+BRIDGE_DOCKER_IMAGE ?= us-west1-docker.pkg.dev/kne-external/kne/bridge
 GOPATH ?= ${HOME}/go
 KNE_CLI_BIN := kne
 INSTALL_DIR := /usr/local/bin
 
 COMMIT := $(shell git describe --dirty --always 2>/dev/null || echo unknown)
-TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo latest)
+# Match KNE's own release tags and not a component's: a bare `git describe`
+# returns whichever was tagged most recently, which is usually
+# third_party/meshnet/vX.Y.Z. The bridge image is just the kne binary, so it
+# carries KNE's version rather than one of its own.
+TAG := $(shell git describe --tags --abbrev=0 --match='v*' 2>/dev/null || echo latest)
 
 
 include .mk/kind.mk
@@ -13,6 +18,10 @@ include .mk/ocipush.mk
 
 .PHONY: all
 all: docker
+
+.PHONY: docker
+## Build all docker images
+docker: meshnet-docker bridge-docker
 
 ## Run unit tests
 ## Ignore all tests under the cloudbuild/ tree as these targets are end-to-end
@@ -39,6 +48,25 @@ build:
 install: build
 	sudo mv $(KNE_CLI_BIN) $(INSTALL_DIR)
 
+.PHONY: bridge-docker
+## Build bridge docker image
+bridge-docker:
+	docker build \
+		-t $(BRIDGE_DOCKER_IMAGE):$(TAG) \
+		-t $(BRIDGE_DOCKER_IMAGE):ga \
+		-f deploy/bridge/Dockerfile .
+
+.PHONY: kind-load-bridge
+## Load bridge docker image into kind cluster
+kind-load-bridge:
+	kind load docker-image --name $(KIND_CLUSTER_NAME) $(BRIDGE_DOCKER_IMAGE):ga
+
+.PHONY: bridge-release
+## Release bridge docker image
+bridge-release:
+	docker push $(BRIDGE_DOCKER_IMAGE):$(TAG)
+	docker push $(BRIDGE_DOCKER_IMAGE):ga
+
 .PHONY: meshnet-docker
 ## Build meshnet docker image
 meshnet-docker:
@@ -48,4 +76,3 @@ meshnet-docker:
 ## Release meshnet docker image
 meshnet-release:
 	$(MAKE) -C third_party/meshnet release DOCKER_IMAGE=$(MESHNET_DOCKER_IMAGE)
-

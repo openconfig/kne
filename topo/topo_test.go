@@ -25,12 +25,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
-	dfake "k8s.io/client-go/dynamic/fake"
 	"github.com/openconfig/gnmi/errdiff"
 	cpb "github.com/openconfig/kne/proto/controller"
 	epb "github.com/openconfig/kne/proto/event"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	"github.com/openconfig/kne/topo/node"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -39,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
+	dfake "k8s.io/client-go/dynamic/fake"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	ktest "k8s.io/client-go/testing"
@@ -158,9 +158,16 @@ func (nc *notCertable) GetProto() *tpb.Node {
 	return nc.proto
 }
 
-func TestNew(t *testing.T) {
+func init() {
 	node.Vendor(tpb.Vendor(1001), NewConfigurable)
+	node.Vendor(tpb.Vendor(1002), NewConfigurable)
+	node.Vendor(tpb.Vendor(1003), NewConfigurable)
+	node.Vendor(tpb.Vendor(1004), NewConfigurable)
+	node.Vendor(tpb.Vendor(1005), NewConfigurable)
 	node.Vendor(tpb.Vendor(1006), NewLoopbackable)
+}
+
+func TestNew(t *testing.T) {
 	tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 	opts := []Option{
 		WithClusterConfig(&rest.Config{}),
@@ -466,7 +473,6 @@ func TestCreate(t *testing.T) {
 		return &fakeMetricsReporter{reportStartErr: errors.New("start err"), reportEndErr: errors.New("end err")}, nil
 	}
 
-	node.Vendor(tpb.Vendor(1002), NewConfigurable)
 	tests := []struct {
 		desc    string
 		topo    *tpb.Topology
@@ -711,7 +717,6 @@ func (f *fakeWatch) ResultChan() <-chan watch.Event {
 
 func TestDelete(t *testing.T) {
 	ctx := context.Background()
-	node.Vendor(tpb.Vendor(1003), NewConfigurable)
 
 	failWatchEvents := []watch.Event{
 		{
@@ -1036,7 +1041,6 @@ func TestDelete(t *testing.T) {
 
 func TestShow(t *testing.T) {
 	ctx := context.Background()
-	node.Vendor(tpb.Vendor(1004), NewConfigurable)
 	topo := &tpb.Topology{
 		Name: "test",
 		Nodes: []*tpb.Node{
@@ -1075,22 +1079,30 @@ func TestShow(t *testing.T) {
 	wantTopo.Nodes[0].Services[22].Outside = 22
 	wantTopo.Nodes[0].Services[22].OutsideIp = "192.168.16.50"
 	wantTopo.Nodes[0].Services[22].NodePort = 20001
+	wantTopo.Nodes[0].Services[22].Type = tpb.Service_LOAD_BALANCER
 	wantTopo.Nodes[1].PodIp = "10.0.1.2"
 	wantTopo.Nodes[1].Services[9337].Inside = 9337
 	wantTopo.Nodes[1].Services[9337].InsideIp = "10.1.1.2"
 	wantTopo.Nodes[1].Services[9337].Outside = 9337
 	wantTopo.Nodes[1].Services[9337].OutsideIp = "192.168.16.51"
 	wantTopo.Nodes[1].Services[9337].NodePort = 20002
+	wantTopo.Nodes[1].Services[9337].Type = tpb.Service_LOAD_BALANCER
 	wantTopo.Nodes[1].Services[9339].Inside = 9339
 	wantTopo.Nodes[1].Services[9339].InsideIp = "10.1.1.2"
 	wantTopo.Nodes[1].Services[9339].Outside = 9339
 	wantTopo.Nodes[1].Services[9339].OutsideIp = "192.168.16.51"
 	wantTopo.Nodes[1].Services[9339].NodePort = 20003
+	wantTopo.Nodes[1].Services[9339].Type = tpb.Service_LOAD_BALANCER
 	wantTopo.Nodes[2].PodIp = "10.0.1.3"
 
 	topoRemapPorts := proto.Clone(wantTopo).(*tpb.Topology)
 	topoRemapPorts.Nodes[1].Services[9337].Inside = 9339
 	wantTopoRemapPorts := proto.Clone(topoRemapPorts).(*tpb.Topology)
+
+	topoNodePort := proto.Clone(wantTopo).(*tpb.Topology)
+	topoNodePort.Nodes[0].Services[22].Type = tpb.Service_NODE_PORT
+	topoNodePort.Nodes[0].Services[22].OutsideIp = ""
+	wantTopoNodePort := proto.Clone(topoNodePort).(*tpb.Topology)
 
 	wantTopoPodUnhealthy := proto.Clone(wantTopo).(*tpb.Topology)
 	wantTopoPodUnhealthy.Nodes[0].PodIp = ""
@@ -1199,6 +1211,99 @@ func TestShow(t *testing.T) {
 		want: &cpb.ShowTopologyResponse{
 			State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
 			Topology: wantTopo,
+		},
+	}, {
+		desc: "success with nodeport service",
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r1",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					PodIP:      "10.0.1.1",
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r2",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					PodIP:      "10.0.1.2",
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "r3",
+					Namespace: "test",
+				},
+				Status: corev1.PodStatus{
+					PodIP:      "10.0.1.3",
+					Phase:      corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r1",
+					Namespace: "test",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.1",
+					Type:      corev1.ServiceTypeNodePort,
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Protocol:   "TCP",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   20001,
+					}},
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service-r2",
+					Namespace: "test",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.1.1.2",
+					Type:      "LoadBalancer",
+					Ports: []corev1.ServicePort{{
+						Name:       "grpc",
+						Protocol:   "TCP",
+						Port:       9337,
+						TargetPort: intstr.FromInt(9337),
+						NodePort:   20002,
+					}, {
+						Name:       "gnmi",
+						Protocol:   "TCP",
+						Port:       9339,
+						TargetPort: intstr.FromInt(9339),
+						NodePort:   20003,
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.16.51",
+						}},
+					},
+				},
+			},
+		},
+		want: &cpb.ShowTopologyResponse{
+			State:    cpb.TopologyState_TOPOLOGY_STATE_RUNNING,
+			Topology: wantTopoNodePort,
 		},
 	}, {
 		desc: "success with remapped ports",
@@ -1584,7 +1689,6 @@ func TestShow(t *testing.T) {
 
 func TestResources(t *testing.T) {
 	ctx := context.Background()
-	node.Vendor(tpb.Vendor(1005), NewConfigurable)
 	topo := &tpb.Topology{
 		Name: "test",
 		Nodes: []*tpb.Node{
@@ -2302,3 +2406,158 @@ func TestWaitClusterReady(t *testing.T) {
 	}
 }
 
+func TestPopulateServiceMap(t *testing.T) {
+	tests := []struct {
+		desc    string
+		service *corev1.Service
+		inMap   map[uint32]*tpb.Service
+		wantMap map[uint32]*tpb.Service
+		wantErr string
+	}{
+		{
+			desc:    "nil service",
+			service: nil,
+			inMap:   map[uint32]*tpb.Service{},
+			wantErr: "service and map must not be nil",
+		},
+		{
+			desc: "loadbalancer service missing ingress errors",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "lb-svc"},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{{
+						Port:       80,
+						TargetPort: intstr.FromInt(8080),
+					}},
+				},
+			},
+			inMap:   map[uint32]*tpb.Service{},
+			wantErr: "service lb-svc has no external loadbalancer configured",
+		},
+		{
+			desc: "loadbalancer service with ingress",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "lb-svc"},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeLoadBalancer,
+					ClusterIP: "10.0.0.1",
+					Ports: []corev1.ServicePort{{
+						Name:       "http",
+						Port:       80,
+						TargetPort: intstr.FromInt(8080),
+					}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP: "192.168.1.100",
+						}},
+					},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				80: {
+					Name:      "http",
+					Outside:   80,
+					Inside:    8080,
+					InsideIp:  "10.0.0.1",
+					OutsideIp: "192.168.1.100",
+					Type:      tpb.Service_LOAD_BALANCER,
+				},
+			},
+		},
+		{
+			desc: "nodeport service does not require ingress",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "np-svc"},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeNodePort,
+					ClusterIP: "10.0.0.2",
+					Ports: []corev1.ServicePort{{
+						Name:       "ssh",
+						Port:       22,
+						TargetPort: intstr.FromInt(22),
+						NodePort:   30022,
+					}},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				22: {
+					Name:     "ssh",
+					Outside:  22,
+					Inside:   22,
+					NodePort: 30022,
+					InsideIp: "10.0.0.2",
+					Type:     tpb.Service_NODE_PORT,
+				},
+			},
+		},
+		{
+			desc: "clusterip service does not require ingress",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "cip-svc"},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeClusterIP,
+					ClusterIP: "10.0.0.3",
+					Ports: []corev1.ServicePort{{
+						Name:       "dns",
+						Port:       53,
+						TargetPort: intstr.FromInt(53),
+					}},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				53: {
+					Name:     "dns",
+					Outside:  53,
+					Inside:   53,
+					InsideIp: "10.0.0.3",
+					Type:     tpb.Service_CLUSTER_IP,
+				},
+			},
+		},
+		{
+			desc: "empty spec.type defaults to ClusterIP semantics",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "untyped-svc"},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.0.0.4",
+					Ports: []corev1.ServicePort{{
+						Name:       "app",
+						Port:       8080,
+						TargetPort: intstr.FromInt(8080),
+					}},
+				},
+			},
+			inMap: map[uint32]*tpb.Service{},
+			wantMap: map[uint32]*tpb.Service{
+				8080: {
+					Name:     "app",
+					Outside:  8080,
+					Inside:   8080,
+					InsideIp: "10.0.0.4",
+					Type:     tpb.Service_CLUSTER_IP,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			err := populateServiceMap(tt.service, tt.inMap)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Fatalf("populateServiceMap() error diff: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if diff := cmp.Diff(tt.wantMap, tt.inMap, protocmp.Transform()); diff != "" {
+				t.Errorf("populateServiceMap() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

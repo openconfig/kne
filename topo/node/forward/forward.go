@@ -17,6 +17,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 
 	fpb "github.com/openconfig/kne/proto/forward"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -30,14 +32,20 @@ import (
 )
 
 const (
-	fwdPort = "50058"
+	// wirePort is the port the bridge daemon serves the Wire service on, and
+	// therefore the port peers dial when a wire names this node via local_node.
+	wirePort = 50058
 )
 
 var (
+	// DefaultImage is the container image used for FORWARD nodes that do not
+	// specify one. It must provide the `kne bridge` daemon as its entrypoint.
+	DefaultImage = "us-west1-docker.pkg.dev/kne-external/kne/bridge:ga"
+
 	defaultNode = tpb.Node{
 		Name: "default_forward_node",
 		Config: &tpb.Config{
-			Image:        "forward:latest",
+			Image:        DefaultImage,
 			ConfigPath:   "/etc",
 			ConfigFile:   "config",
 			EntryCommand: fmt.Sprintf("kubectl exec -it %s -- sh", "default_forward_node"),
@@ -77,41 +85,151 @@ func (n *Node) Create(ctx context.Context) error {
 	return nil
 }
 
-func interfaceFlag(intf string) string {
-	return fmt.Sprintf("--interfaces=%s", intf)
+// CreateService creates the services declared in the topology, plus a headless
+// Service named after the node so that peers naming it with local_node can
+// reach it as "<node>:<wirePort>".
+func (n *Node) CreateService(ctx context.Context) error {
+	if err := n.createPeerService(ctx); err != nil {
+		return err
+	}
+	if err := n.Impl.CreateService(ctx); err != nil {
+		_ = n.KubeClient.CoreV1().Services(n.Namespace).Delete(ctx, n.Name(), metav1.DeleteOptions{})
+		return err
+	}
+	return nil
 }
 
-func endpointFlag(lintf, addr, rintf string) string {
-	return fmt.Sprintf("--endpoints=%s/%s/%s", lintf, addr, rintf)
+// createPeerService creates the headless Service giving this node a stable
+// in-cluster DNS name, so that a wire referring to it does not have to know how
+// KNE happens to name the node's other Services.
+//
+// It deliberately declares no ports. A headless Service needs only a selector
+// to get A records for its pods, and leaving ports unset keeps this Service out
+// of the port map that `kne show` reports. It carries the same "pod" label as
+// the node's other Services so that DeleteService tears it down with them.
+func (n *Node) createPeerService(ctx context.Context) error {
+	s := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: n.Name(),
+			Labels: map[string]string{
+				"pod": n.Name(),
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: corev1.ClusterIPNone,
+			Selector: map[string]string{
+				"app": n.Name(),
+			},
+		},
+	}
+	sS, err := n.KubeClient.CoreV1().Services(n.Namespace).Create(ctx, s, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create peer service for node %s: %w", n.Name(), err)
+	}
+	log.Infof("Created peer Service:\n%v\n", sS)
+	return nil
 }
 
-func wireToArg(wire *fpb.Wire) (string, error) {
-	switch at := wire.A.Endpoint.(type) {
-	case *fpb.Endpoint_Interface:
-		// If A is an interface, then this node should serve as the fwd client for this wire.
-		// Additionally Z should not be an interface.
-		switch zt := wire.Z.Endpoint.(type) {
-		case *fpb.Endpoint_Interface:
-			return "", fmt.Errorf("endpoints A and Z cannot both be interfaces")
-		case *fpb.Endpoint_LocalNode:
-			ln := wire.GetZ().GetLocalNode()
-			return endpointFlag(wire.GetA().GetInterface().GetName(), net.JoinHostPort(ln.GetName(), fwdPort), ln.GetInterface()), nil
+// bridgeProcess is a single bridge daemon invocation. The daemon runs in
+// exactly one mode per process, so a node that both serves and dials needs more
+// than one, and each becomes its own container in the node's pod.
+type bridgeProcess struct {
+	// nameSuffix disambiguates the container when a node needs several.
+	nameSuffix string
+	args       []string
+}
+
+// wirePlan translates the wires declared for a node into the bridge daemon
+// invocations that implement them.
+//
+// Within a Wire, the Interface endpoint is always this node: if it is the "a"
+// (client) endpoint then this node dials out, and if it is the "z" (server)
+// endpoint then this node listens and the peer dials in. A wire with no "a" at
+// all is a server wire whose client lives outside the topology entirely, which
+// is how an external peer such as a Borg job attaches.
+//
+// One bridge server handles every interface asked of it over a single port, so
+// all server wires collapse into one process, whereas each client wire dials a
+// distinct peer and needs its own.
+func wirePlan(cfg *fpb.ForwardConfig) ([]bridgeProcess, error) {
+	var serves []string
+	var procs []bridgeProcess
+	seen := make(map[string]struct{})
+	for _, w := range cfg.GetWires() {
+		aIntf := w.GetA().GetInterface().GetName()
+		zIntf := w.GetZ().GetInterface().GetName()
+		switch {
+		case aIntf != "" && zIntf != "":
+			return nil, fmt.Errorf("endpoints a and z cannot both be interfaces")
+		case aIntf != "":
+			if _, dup := seen[aIntf]; dup {
+				return nil, fmt.Errorf("duplicate wire for local interface %q", aIntf)
+			}
+			seen[aIntf] = struct{}{}
+			addr, remote, err := peerEndpoint(w.GetZ())
+			if err != nil {
+				return nil, fmt.Errorf("wire for local interface %q: %w", aIntf, err)
+			}
+			if remote == "" {
+				remote = aIntf
+			}
+			procs = append(procs, bridgeProcess{
+				nameSuffix: "client-" + aIntf,
+				args: []string{
+					"client",
+					fmt.Sprintf("--peer=%s", addr),
+					fmt.Sprintf("--interface=%s", aIntf),
+					fmt.Sprintf("--remote_interface=%s", remote),
+				},
+			})
+		case zIntf != "":
+			if _, dup := seen[zIntf]; dup {
+				return nil, fmt.Errorf("duplicate wire for local interface %q", zIntf)
+			}
+			seen[zIntf] = struct{}{}
+			serves = append(serves, zIntf)
 		default:
-			return "", fmt.Errorf("endpoint Z type not supported: %T", zt)
+			return nil, fmt.Errorf("one of endpoints a and z must be an interface")
 		}
-	case *fpb.Endpoint_LocalNode:
-		// If A is not an interface, then this node should serve as the fwd server for this wire.
-		// Additionally Z should be an interface.
-		switch zt := wire.Z.Endpoint.(type) {
-		case *fpb.Endpoint_Interface:
-			return interfaceFlag(wire.GetZ().GetInterface().GetName()), nil
-		case *fpb.Endpoint_LocalNode:
-			return "", fmt.Errorf("one of endpoints A and Z must be an interface")
-		default:
-			return "", fmt.Errorf("endpoint Z type not supported: %T", zt)
+	}
+	if len(serves) > 0 {
+		// The server opens interfaces on demand, keyed by the name the client
+		// requests, so serving N interfaces needs no per-interface flags.
+		log.Infof("Serving wire endpoints for interfaces %v", serves)
+		procs = append([]bridgeProcess{{nameSuffix: "server", args: []string{"server"}}}, procs...)
+	}
+	return procs, nil
+}
+
+// peerEndpoint resolves the far end of a client wire to a dialable address and
+// to the interface name to request on that peer.
+func peerEndpoint(e *fpb.Endpoint) (string, string, error) {
+	switch {
+	case e.GetLocalNode() != nil:
+		ln := e.GetLocalNode()
+		if ln.GetName() == "" {
+			return "", "", fmt.Errorf("local_node endpoint must set name")
 		}
+		// Resolvable because every forward node gets a headless Service named
+		// after it; see createPeerService.
+		return net.JoinHostPort(ln.GetName(), strconv.Itoa(wirePort)), ln.GetInterface(), nil
+	case e.GetRemoteNode() != nil:
+		rn := e.GetRemoteNode()
+		addr := rn.GetAddr()
+		if addr == "" {
+			return "", "", fmt.Errorf("remote_node endpoint must set addr")
+		}
+		if _, _, err := net.SplitHostPort(addr); err != nil {
+			// No port given, so assume the peer serves on the default port.
+			addr = net.JoinHostPort(strings.Trim(addr, "[]"), strconv.Itoa(wirePort))
+		}
+		return addr, rn.GetInterface(), nil
 	default:
-		return "", fmt.Errorf("endpoint A type not supported: %T", at)
+		return "", "", fmt.Errorf("endpoint must be a local_node or a remote_node")
 	}
 }
 
@@ -124,22 +242,53 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		initContainerImage = node.DefaultInitContainerImage
 	}
 
-	fwdArgs := pb.Config.Args
+	// A node with no declared wires falls back to whatever args the topology
+	// supplies, which keeps hand-rolled configurations working.
+	procs := []bridgeProcess{{args: pb.Config.Args}}
 	if vendorData := pb.Config.GetVendorData(); vendorData != nil {
 		fwdCfg := &fpb.ForwardConfig{}
 		if err := vendorData.UnmarshalTo(fwdCfg); err != nil {
 			return err
 		}
 		log.Infof("Got fwdCfg: %v", prototext.Format(fwdCfg))
-		for _, wire := range fwdCfg.GetWires() {
-			arg, err := wireToArg(wire)
-			if err != nil {
-				return err
+		planned, err := wirePlan(fwdCfg)
+		if err != nil {
+			return fmt.Errorf("node %s: %w", pb.Name, err)
+		}
+		if len(planned) > 0 {
+			for i := range planned {
+				planned[i].args = append(planned[i].args, pb.Config.Args...)
 			}
-			fwdArgs = append(fwdArgs, arg)
+			procs = planned
 		}
 	}
-	log.Infof("Using container args: %v", fwdArgs)
+
+	// Each bridge process gets its own container. Constraints are applied to
+	// every one of them rather than divided between them, because each process
+	// carries its own traffic and so needs the stated budget in full.
+	containers := make([]corev1.Container, 0, len(procs))
+	for i, p := range procs {
+		// The first process keeps the plain node name so `kubectl exec <node>`
+		// and Impl.Exec work without a container selector; subsequent containers
+		// append their disambiguating suffix.
+		name := pb.Name
+		if i > 0 {
+			name = fmt.Sprintf("%s-%s", pb.Name, p.nameSuffix)
+		}
+		log.Infof("Container %q args: %v", name, p.args)
+		containers = append(containers, corev1.Container{
+			Name:            name,
+			Image:           pb.Config.Image,
+			Command:         pb.Config.Command,
+			Args:            p.args,
+			Env:             node.ToEnvVar(pb.Config.Env),
+			Resources:       node.ToResourceRequirements(pb.Constraints),
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		})
+	}
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -159,18 +308,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				},
 				ImagePullPolicy: "IfNotPresent",
 			}},
-			Containers: []corev1.Container{{
-				Name:            pb.Name,
-				Image:           pb.Config.Image,
-				Command:         pb.Config.Command,
-				Args:            fwdArgs,
-				Env:             node.ToEnvVar(pb.Config.Env),
-				Resources:       node.ToResourceRequirements(pb.Constraints),
-				ImagePullPolicy: "IfNotPresent",
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: pointer.Bool(true),
-				},
-			}},
+			Containers:                    containers,
 			TerminationGracePeriodSeconds: pointer.Int64(0),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
