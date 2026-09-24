@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/kr/pretty"
+	"github.com/openconfig/kne/cmd/bridge"
 	"github.com/openconfig/kne/cmd/deploy"
 	"github.com/openconfig/kne/cmd/internal"
 	"github.com/openconfig/kne/cmd/topology"
@@ -45,6 +46,7 @@ environment.`,
 	root.PersistentFlags().String("report_usage_project_id", "", "Project to report anonymous usage metrics to")
 	root.PersistentFlags().String("report_usage_topic_id", "", "Topic to report anonymous usage metrics to")
 	root.PersistentFlags().Bool("progress", false, "Display progress of container bringup")
+	root.PersistentFlags().Duration("deploy_timeout", 0, "Overall timeout for deploying the ingress, CNI and controllers, 0 for the default")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if *cfgFile == "" {
 			return nil
@@ -66,6 +68,7 @@ environment.`,
 	root.AddCommand(deploy.NewDeploy())
 	root.AddCommand(deploy.NewTeardown())
 	root.AddCommand(internal.New())
+	root.AddCommand(bridge.New())
 	return root
 }
 

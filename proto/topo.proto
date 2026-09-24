@@ -217,12 +217,22 @@ message SelfSignedCertCfg {
 // The user should specify inside port for this is the port the container will
 // listen on.
 message Service {
+  enum Type {
+    UNKNOWN = 0;
+    LOAD_BALANCER = 1;
+    NODE_PORT = 2;
+    CLUSTER_IP = 3;
+  }
   string name = 1;        // Name of the service (optional)
   uint32 inside = 2;      // Inside port to map Node (container listening port)
 
   // Assigned by KNE.
   uint32 outside = 3;     // Outside port used by service. (same a service key)
-  string outside_ip = 5;  // External IP assigned by cluster load balancer.
+  // External IP assigned by the cluster load balancer. Only populated for
+  // LOAD_BALANCER services; for NODE_PORT and CLUSTER_IP services it is empty,
+  // as those are reached via a cluster node address and node_port, or from
+  // inside the cluster via inside_ip, respectively.
+  string outside_ip = 5;
 
   // Used internally by KNE.
   string inside_ip = 4;   // Cluster IP for the service.
@@ -234,4 +244,14 @@ message Service {
   // If both are provided, names in both fields are considered excluding any
   // duplicate values.
   repeated string names = 7;
+
+  // Type of k8s service (e.g. LoadBalancer, NodePort, ClusterIP).
+  Type type = 8;
+
+  // If true, KNE ensures this service is reachable over IPv6 from outside the
+  // cluster. This states intent, not mechanism: on a single-stack IPv4 cluster
+  // KNE satisfies it by running a host-network proxy on each node, but on a
+  // dual-stack cluster it may be satisfied natively and become a no-op.
+  // Only meaningful for NODE_PORT services.
+  bool external_ipv6 = 9;
 }

@@ -2,6 +2,7 @@ package run
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"testing"
 
@@ -14,6 +15,7 @@ func TestRunCommand(t *testing.T) {
 	tests := []struct {
 		desc         string
 		writeLogs    bool
+		label        string
 		in           string
 		cmd          string
 		args         []string
@@ -70,6 +72,29 @@ func TestRunCommand(t *testing.T) {
 		},
 		want: "hello",
 	}, {
+		desc:      "log with label",
+		writeLogs: true,
+		label:     "SRLinux controller",
+		cmd:       "kubectl",
+		args:      []string{"apply"},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply"}, Stdout: "applied"},
+		},
+		want:      "applied",
+		wantInfos: "(kubectl/SRLinux controller): applied",
+	}, {
+		desc:      "log with label and stderr",
+		writeLogs: true,
+		label:     "ingress",
+		cmd:       "kubectl",
+		args:      []string{"apply"},
+		resp: []fexec.Response{
+			{Cmd: "kubectl", Args: []string{"apply"}, Stdout: "out", Stderr: "err"},
+		},
+		want:         "outerr",
+		wantInfos:    "(kubectl/ingress): out",
+		wantWarnings: "(kubectl/ingress): err",
+	}, {
 		desc: "failed command",
 		cmd:  "false",
 		resp: []fexec.Response{
@@ -104,7 +129,11 @@ func TestRunCommand(t *testing.T) {
 				fmt.Fprint(&warnings, args...)
 			}
 
-			got, err := runCommand(tt.writeLogs, []byte(tt.in), tt.cmd, tt.args...)
+			ctx := context.Background()
+			if tt.label != "" {
+				ctx = WithLabel(ctx, tt.label)
+			}
+			got, err := runCommand(ctx, tt.writeLogs, []byte(tt.in), tt.cmd, tt.args...)
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Fatalf("unexpected error: %s", s)
 			}

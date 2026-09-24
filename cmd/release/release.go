@@ -36,7 +36,57 @@ func New() *cobra.Command {
 		Use: "release",
 	}
 	cmd.AddCommand(meshnet())
+	cmd.AddCommand(bridge())
 	return cmd
+}
+
+// bridge releases the packet bridge image. The image is the kne binary with
+// `kne bridge` as its entrypoint, so it has no version of its own: releasing it
+// tags KNE as a whole and labels the image with that version.
+func bridge() *cobra.Command {
+	return &cobra.Command{
+		Use:   "bridge <version>",
+		Short: "Release the bridge image, tagging KNE as a whole at <version>",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("Validating working directory")
+			sha, err := validateWorkDir()
+			if err != nil {
+				var uncleanErr *UncleanWorkDirError
+				if errors.As(err, &uncleanErr) {
+					for _, r := range uncleanErr.Reasons {
+						fmt.Println(r)
+					}
+					ok, pErr := promptBool("Are you sure you want to continue")
+					if pErr != nil {
+						return pErr
+					}
+					if !ok {
+						return fmt.Errorf("repository in invalid state")
+					}
+				} else {
+					return err
+				}
+			}
+			fmt.Println("Running prerelease tests")
+			if err := triggerBuild(cmd.Context(), "kne-test", sha, false, nil); err != nil {
+				return err
+			}
+
+			// Deliberately unprefixed, unlike meshnet: meshnet is a separate
+			// vendored component with its own source tree, whereas the bridge
+			// ships inside the kne binary and so shares KNE's version.
+			tag := args[0]
+			fmt.Println("Creating and Pushing Tag:", tag)
+			if err := createAndPushTag(tag); err != nil {
+				return err
+			}
+			fmt.Println("Building and Pushing container")
+			return triggerBuild(cmd.Context(), "bridge-release", tag, true, map[string]string{
+				"_IMAGE_TAG": args[0],
+			})
+		},
+	}
 }
 
 func meshnet() *cobra.Command {

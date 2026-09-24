@@ -1,0 +1,85 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: "paired-bridge"
+nodes: {
+    name: "host1"
+    vendor: HOST
+    config: {
+        image: "alpine:latest"
+        command: ["/bin/sh", "-c", "ip addr add 192.168.1.1/24 dev eth1 && ip link set eth1 up && sleep infinity"]
+    }
+}
+nodes: {
+    name: "bridge-server"
+    vendor: FORWARD
+    # This node serves its eth1 to whoever dials in. Declaring only "z" says the
+    # client is somewhere else; here it is bridge-client, but it could equally be
+    # a process outside the cluster.
+    config: {
+        vendor_data: {
+            [type.googleapis.com/forward.ForwardConfig] {
+                wires: {
+                    z: { interface: { name: "eth1" } }
+                }
+            }
+        }
+    }
+    # Only needed to let a client outside the cluster reach the wire port.
+    # In-cluster peers resolve this node by name and do not need a Service.
+    services: {
+        key: 50058
+        value: {
+            name: "wire"
+            inside: 50058
+            type: NODE_PORT
+        }
+    }
+}
+nodes: {
+    name: "bridge-client"
+    vendor: FORWARD
+    # This node dials out, joining its own eth1 to bridge-server's eth1.
+    config: {
+        vendor_data: {
+            [type.googleapis.com/forward.ForwardConfig] {
+                wires: {
+                    a: { interface: { name: "eth1" } }
+                    z: { local_node: { name: "bridge-server" interface: "eth1" } }
+                }
+            }
+        }
+    }
+}
+nodes: {
+    name: "host2"
+    vendor: HOST
+    config: {
+        image: "alpine:latest"
+        command: ["/bin/sh", "-c", "ip addr add 192.168.1.2/24 dev eth1 && ip link set eth1 up && sleep infinity"]
+    }
+}
+
+links: {
+    a_node: "host1"
+    a_int: "eth1"
+    z_node: "bridge-server"
+    z_int: "eth1"
+}
+links: {
+    a_node: "bridge-client"
+    a_int: "eth1"
+    z_node: "host2"
+    z_int: "eth1"
+}

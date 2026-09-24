@@ -2,7 +2,9 @@ package fake
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/openconfig/gnmi/errdiff"
@@ -284,11 +286,11 @@ func TestFailed(t *testing.T) {
 				}
 			}
 			for _, u := range cmds.unexpected {
-				var ue Response
+				var wantResp Response
 				if len(tt.unexpected) > 0 {
-					ue = tt.unexpected[0]
+					wantResp = tt.unexpected[0]
 				}
-				t.Logf("Compare %v and %v", u, ue)
+				t.Logf("Compare %v and %v", u, wantResp)
 				if len(tt.unexpected) > 0 && tt.unexpected[0].String() == u.String() {
 					tt.unexpected = tt.unexpected[1:]
 					continue
@@ -413,5 +415,64 @@ func TestComparArg(t *testing.T) {
 		if out != tt.out {
 			t.Errorf("compareArgs(%s, %s) got %v, want %v", tt.got, tt.want, out, tt.out)
 		}
+	}
+}
+
+// TestConcurrent verifies that a single Command can serve commands run from
+// multiple goroutines.  Each goroutine runs a distinct command whose response
+// is marked OutOfOrder, since the order the commands arrive in is not
+// deterministic.  Run with -race to check for data races.
+func TestConcurrent(t *testing.T) {
+	const n = 16
+
+	resp := make([]Response, n)
+	for i := range resp {
+		resp[i] = Response{
+			Cmd:        fmt.Sprintf("cmd%d", i),
+			Args:       []string{fmt.Sprintf("arg%d", i)},
+			Stdout:     fmt.Sprintf("out%d", i),
+			OutOfOrder: true,
+		}
+	}
+	cmds := Commands(resp)
+
+	// LogCommand is called while the lock is held, so an unsynchronized
+	// callback like this one must not race.
+	var logged []string
+	oLog := LogCommand
+	defer func() { LogCommand = oLog }()
+	LogCommand = func(s string) { logged = append(logged, s) }
+
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+	outs := make([]strings.Builder, n)
+	start := make(chan struct{})
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c := cmds.Command(fmt.Sprintf("cmd%d", i), fmt.Sprintf("arg%d", i))
+			c.SetStdout(&outs[i])
+			<-start // maximize the overlap between goroutines
+			errs[i] = c.Run()
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	for i := 0; i < n; i++ {
+		if errs[i] != nil {
+			t.Errorf("#%d: unexpected error: %v", i, errs[i])
+		}
+		// Each goroutine must see only its own response's output.
+		if got, want := outs[i].String(), fmt.Sprintf("out%d", i); got != want {
+			t.Errorf("#%d: got stdout %q, want %q", i, got, want)
+		}
+	}
+	if len(logged) != n {
+		t.Errorf("got %d logged commands, want %d", len(logged), n)
+	}
+	if err := cmds.Done(); err != nil {
+		t.Errorf("%v", err)
 	}
 }
