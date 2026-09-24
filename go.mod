@@ -3,7 +3,7 @@ module github.com/openconfig/kne
 go 1.26.3
 
 require (
-	cloud.google.com/go/cloudbuild v1.33.0
+	cloud.google.com/go/cloudbuild v1.34.0
 	cloud.google.com/go/pubsub/v2 v2.7.0
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
