@@ -22,6 +22,7 @@ require (
 	github.com/openconfig/ondatra v0.14.7
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
+	github.com/safchain/ethtool v0.7.0
 	github.com/scrapli/scrapligo v1.4.1
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/spf13/cobra v1.10.2

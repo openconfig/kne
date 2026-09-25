@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
+	"github.com/safchain/ethtool"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -42,6 +43,60 @@ const (
 	maxSubscribersPerDemux = 32
 	socketBufferSizeBytes  = 4 * 1024 * 1024 // 4 MB
 )
+
+var offloadDisabledMap = map[string]bool{
+	"tx-checksum-ipv4":             false,
+	"tx-checksum-ipv6":             false,
+	"tx-checksum-ip-generic":       false,
+	"tx-tcp-segmentation":          false,
+	"tx-tcp6-segmentation":         false,
+	"tx-checksum-fcoe-crc":         false,
+	"tx-checksum-sctp":             false,
+	"tx-tcp-ecn-segmentation":      false,
+	"tx-tcp-mangleid-segmentation": false,
+	"tx-generic-segmentation":      false,
+	"tx-udp-segmentation":          false,
+	"rx-gro":                       false,
+	"rx-lro":                       false,
+	"rx-checksum":                  false,
+}
+
+type ethtoolClient interface {
+	FeaturesWithState(intf string) (map[string]ethtool.FeatureState, error)
+	Change(intf string, config map[string]bool) error
+	Close()
+}
+
+var newEthtool = func() (ethtoolClient, error) {
+	return ethtool.NewEthtool()
+}
+
+// disableHardwareOffloads disables TX/RX checksum, segmentation (TSO/GSO/USO), and receive
+// coalescing (GRO/LRO) offloads on the specified interface using ethtool so captured frames
+// are not coalesced or left with partial checksums.
+func disableHardwareOffloads(ifaceName string) error {
+	etlHndl, err := newEthtool()
+	if err != nil {
+		return fmt.Errorf("could not open ethtool handle: %w", err)
+	}
+	defer etlHndl.Close()
+
+	states, err := etlHndl.FeaturesWithState(ifaceName)
+	if err != nil {
+		return fmt.Errorf("could not query ethtool features for %s: %w", ifaceName, err)
+	}
+
+	cfg := make(map[string]bool, len(offloadDisabledMap))
+	for k, v := range offloadDisabledMap {
+		if st, ok := states[k]; ok && st.Available && !st.NeverChanged && st.Active {
+			cfg[k] = v
+		}
+	}
+	if len(cfg) == 0 {
+		return nil
+	}
+	return etlHndl.Change(ifaceName, cfg)
+}
 
 // htons converts host byte order to network byte order in an endian-safe manner.
 func htons(v uint16) int {
@@ -74,6 +129,10 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
 		return nil, fmt.Errorf("interface %s not found: %w", ifaceName, err)
+	}
+
+	if err := disableHardwareOffloads(ifaceName); err != nil {
+		klog.Warningf("Failed to disable hardware offloads on %s: %v", ifaceName, err)
 	}
 
 	proto := htons(unix.ETH_P_ALL)

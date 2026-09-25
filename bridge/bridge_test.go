@@ -23,13 +23,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/safchain/ethtool"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
 	wpb "github.com/openconfig/kne/proto/wire"
-	"golang.org/x/sys/unix"
 )
 
 type fakeReadWriter struct {
@@ -801,4 +802,118 @@ func TestDemuxConcurrentFanOutStress(t *testing.T) {
 	_ = fakeIO.Close()
 	wg.Wait()
 	_ = demux.wait()
+}
+
+func TestOffloadDisabledMapIncludesRequiredFeatures(t *testing.T) {
+	required := []string{
+		"tx-checksum-ipv4",
+		"tx-checksum-ipv6",
+		"tx-checksum-ip-generic",
+		"tx-tcp-segmentation",
+		"tx-tcp6-segmentation",
+		"tx-checksum-fcoe-crc",
+		"tx-checksum-sctp",
+		"tx-tcp-ecn-segmentation",
+		"tx-tcp-mangleid-segmentation",
+		"tx-generic-segmentation",
+		"tx-udp-segmentation",
+		"rx-gro",
+		"rx-lro",
+		"rx-checksum",
+	}
+	for _, feat := range required {
+		val, ok := offloadDisabledMap[feat]
+		if !ok {
+			t.Errorf("offloadDisabledMap missing required feature %q", feat)
+		} else if val {
+			t.Errorf("offloadDisabledMap[%q] = true, want false", feat)
+		}
+	}
+}
+
+type fakeEthtool struct {
+	states    map[string]ethtool.FeatureState
+	statesErr error
+	changeErr error
+	changed   map[string]bool
+	closed    bool
+}
+
+func (f *fakeEthtool) FeaturesWithState(_ string) (map[string]ethtool.FeatureState, error) {
+	if f.statesErr != nil {
+		return nil, f.statesErr
+	}
+	return f.states, nil
+}
+
+func (f *fakeEthtool) Change(_ string, config map[string]bool) error {
+	f.changed = make(map[string]bool, len(config))
+	for k, v := range config {
+		f.changed[k] = v
+	}
+	return f.changeErr
+}
+
+func (f *fakeEthtool) Close() {
+	f.closed = true
+}
+
+func TestDisableHardwareOffloads(t *testing.T) {
+	origNewEthtool := newEthtool
+	t.Cleanup(func() {
+		newEthtool = origNewEthtool
+	})
+
+	t.Run("disables only active changeable features", func(t *testing.T) {
+		fe := &fakeEthtool{
+			states: map[string]ethtool.FeatureState{
+				"tx-checksum-ip-generic": {Available: true, Active: true, NeverChanged: false},
+				"tx-checksum-ipv4":       {Available: false, Active: false, NeverChanged: true},
+				"rx-gro":                 {Available: true, Active: false, NeverChanged: false},
+				"rx-checksum":            {Available: true, Active: true, NeverChanged: true},
+			},
+		}
+		newEthtool = func() (ethtoolClient, error) { return fe, nil }
+
+		if err := disableHardwareOffloads("eth1"); err != nil {
+			t.Fatalf("disableHardwareOffloads returned unexpected error: %v", err)
+		}
+		if !fe.closed {
+			t.Errorf("expected ethtool handle to be closed")
+		}
+		if val, ok := fe.changed["tx-checksum-ip-generic"]; len(fe.changed) != 1 || !ok || val {
+			t.Errorf("unexpected changed map: got %v, want map[tx-checksum-ip-generic:false]", fe.changed)
+		}
+	})
+
+	t.Run("no-op when no target features are active", func(t *testing.T) {
+		fe := &fakeEthtool{
+			states: map[string]ethtool.FeatureState{
+				"tx-checksum-ip-generic": {Available: true, Active: false, NeverChanged: false},
+			},
+		}
+		newEthtool = func() (ethtoolClient, error) { return fe, nil }
+
+		if err := disableHardwareOffloads("eth1"); err != nil {
+			t.Fatalf("disableHardwareOffloads returned unexpected error: %v", err)
+		}
+		if fe.changed != nil {
+			t.Errorf("expected Change not to be called, got %v", fe.changed)
+		}
+	})
+
+	t.Run("propagates errors", func(t *testing.T) {
+		newEthtool = func() (ethtoolClient, error) {
+			return nil, fmt.Errorf("ethtool open failed")
+		}
+		if err := disableHardwareOffloads("eth1"); err == nil {
+			t.Errorf("expected error when newEthtool fails, got nil")
+		}
+
+		fe := &fakeEthtool{statesErr: fmt.Errorf("ioctl failed")}
+		newEthtool = func() (ethtoolClient, error) { return fe, nil }
+		if err := disableHardwareOffloads("eth1"); err == nil {
+			t.Errorf("expected error when FeaturesWithState fails, got nil")
+		}
+	})
 }
