@@ -2,6 +2,7 @@
 package cni
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/containernetworking/cni/libcni"
 	"github.com/containernetworking/cni/pkg/types"
@@ -108,12 +110,28 @@ func removeInterNodeLinkConf() error {
 	return nil
 }
 
-// Init installs meshnet CNI configuration
-func Init() error {
+// Init installs meshnet CNI configuration, waiting if necessary for the primary CNI configuration to appear.
+func Init(ctx context.Context) error {
+	var (
+		conf map[string]interface{}
+		err  error
+	)
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 
-	conf, err := loadConfList()
-	if err != nil {
-		return err
+	for attempts := 0; ; attempts++ {
+		conf, err = loadConfList()
+		if err == nil {
+			break
+		}
+		if attempts%10 == 0 {
+			log.Infof("Waiting for base CNI configuration in %s: %v", defaultNetDir, err)
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context canceled while waiting for base CNI configuration: %w", ctx.Err())
+		case <-ticker.C:
+		}
 	}
 
 	// We can safely access and type-cast since all of the checks have already been done in the `loadConfList()`

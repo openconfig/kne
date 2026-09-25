@@ -19,7 +19,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	mpb "github.com/openconfig/kne/third_party/meshnet/daemon/proto/meshnet/v1beta1"
 	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
@@ -178,12 +180,39 @@ func cmdAdd(args *skel.CmdArgs) error {
 	meshnetClient := mpb.NewLocalClient(conn)
 
 	log.Infof("Add[%s]: Retrieving local pod information from meshnet daemon", string(cniArgs.K8S_POD_NAME))
-	localPod, err := meshnetClient.Get(ctx, &mpb.PodQuery{
-		Name:   string(cniArgs.K8S_POD_NAME),
-		KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
-	})
-	if err != nil || localPod == nil {
-		log.Errorf("Add: Pod %s:%s was not a topology pod returning", string(cniArgs.K8S_POD_NAMESPACE), string(cniArgs.K8S_POD_NAME))
+	var localPod *mpb.Pod
+	pollInterval := 100 * time.Millisecond
+	maxInterval := 1 * time.Second
+	deadline := time.Now().Add(30 * time.Second)
+
+	for {
+		localPod, err = meshnetClient.Get(ctx, &mpb.PodQuery{
+			Name:   string(cniArgs.K8S_POD_NAME),
+			KubeNs: string(cniArgs.K8S_POD_NAMESPACE),
+		})
+		if err == nil {
+			break
+		}
+		st, ok := status.FromError(err)
+		if ok && (st.Code() == codes.Unavailable || st.Code() == codes.DeadlineExceeded) {
+			if time.Now().After(deadline) {
+				log.Errorf("Add[%s]: Meshnet daemon %s unavailable after timeout: %v", string(cniArgs.K8S_POD_NAME), localDaemon, err)
+				return fmt.Errorf("meshnet daemon unavailable on %s: %w", localDaemon, err)
+			}
+			time.Sleep(pollInterval)
+			pollInterval = time.Duration(float64(pollInterval) * 1.5)
+			if pollInterval > maxInterval {
+				pollInterval = maxInterval
+			}
+			continue
+		}
+
+		log.Infof("Add: Pod %s:%s was not a topology pod returning", string(cniArgs.K8S_POD_NAMESPACE), string(cniArgs.K8S_POD_NAME))
+		return types.PrintResult(result, n.CNIVersion)
+	}
+
+	if localPod == nil {
+		log.Infof("Add: Pod %s:%s was not a topology pod returning", string(cniArgs.K8S_POD_NAMESPACE), string(cniArgs.K8S_POD_NAME))
 		return types.PrintResult(result, n.CNIVersion)
 	}
 
