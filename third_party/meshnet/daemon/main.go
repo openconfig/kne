@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/openconfig/kne/third_party/meshnet/daemon/cni"
 	"github.com/openconfig/kne/third_party/meshnet/daemon/grpcwire"
@@ -15,8 +17,10 @@ import (
 )
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
 
-	if err := cni.Init(); err != nil {
+	if err := cni.Init(ctx); err != nil {
 		log.Errorf("Failed to initialise CNI plugin: %v", err)
 		os.Exit(1)
 	}
@@ -56,7 +60,7 @@ func main() {
 		// generate error and continue
 	}
 
-	go m.RunControllerLoop(context.Background())
+	go m.RunControllerLoop(ctx)
 
 	if err := m.Serve(); err != nil {
 		log.Errorf("daemon exited badly: %v", err)
