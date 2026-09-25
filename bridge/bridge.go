@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
+	"github.com/safchain/ethtool"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -38,10 +39,70 @@ import (
 
 const (
 	maxFrameSize           = 65535
+	oobBufferSize          = 128
 	channelBufferCap       = 1000
 	maxSubscribersPerDemux = 32
 	socketBufferSizeBytes  = 4 * 1024 * 1024 // 4 MB
 )
+
+var offloadDisabledMap = map[string]bool{
+	"tx-checksum-ipv4":             false,
+	"tx-checksum-ipv6":             false,
+	"tx-checksum-ip-generic":       false,
+	"tx-tcp-segmentation":          false,
+	"tx-tcp6-segmentation":         false,
+	"tx-checksum-fcoe-crc":         false,
+	"tx-checksum-sctp":             false,
+	"tx-tcp-ecn-segmentation":      false,
+	"tx-tcp-mangleid-segmentation": false,
+	"tx-generic-segmentation":      false,
+	"tx-udp-segmentation":          false,
+	"rx-gro":                       false,
+	"rx-lro":                       false,
+	"rx-checksum":                  false,
+}
+
+const (
+	ethP8021QQinQ = 0x9100
+	ipv4FragMask  = 0x3fff // More Fragments (0x2000) | Fragment Offset (0x1fff)
+)
+
+type ethtoolClient interface {
+	FeaturesWithState(intf string) (map[string]ethtool.FeatureState, error)
+	Change(intf string, config map[string]bool) error
+	Close()
+}
+
+var newEthtool = func() (ethtoolClient, error) {
+	return ethtool.NewEthtool()
+}
+
+// disableHardwareOffloads disables TX/RX checksum, segmentation (TSO/GSO/USO), and receive
+// coalescing (GRO/LRO) offloads on the specified interface using ethtool so captured frames
+// are not coalesced or left with partial checksums.
+func disableHardwareOffloads(ifaceName string) error {
+	etlHndl, err := newEthtool()
+	if err != nil {
+		return fmt.Errorf("could not open ethtool handle: %w", err)
+	}
+	defer etlHndl.Close()
+
+	states, err := etlHndl.FeaturesWithState(ifaceName)
+	if err != nil {
+		return fmt.Errorf("could not query ethtool features for %s: %w", ifaceName, err)
+	}
+
+	cfg := make(map[string]bool, len(offloadDisabledMap))
+	for k, v := range offloadDisabledMap {
+		if st, ok := states[k]; ok && st.Available && !st.NeverChanged && st.Active {
+			cfg[k] = v
+		}
+	}
+	if len(cfg) == 0 {
+		return nil
+	}
+	return etlHndl.Change(ifaceName, cfg)
+}
 
 // htons converts host byte order to network byte order in an endian-safe manner.
 func htons(v uint16) int {
@@ -66,6 +127,7 @@ type SocketHandler struct {
 	f         *os.File
 	rc        syscall.RawConn
 	rbuf      []byte
+	oobBuf    []byte
 	closeOnce sync.Once
 }
 
@@ -74,6 +136,10 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
 		return nil, fmt.Errorf("interface %s not found: %w", ifaceName, err)
+	}
+
+	if err := disableHardwareOffloads(ifaceName); err != nil {
+		klog.Warningf("Failed to disable hardware offloads on %s: %v", ifaceName, err)
 	}
 
 	proto := htons(unix.ETH_P_ALL)
@@ -92,6 +158,9 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 	}
 	if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_SNDBUF, socketBufferSizeBytes); err != nil {
 		klog.Warningf("Failed to set SO_SNDBUF on %s: %v", ifaceName, err)
+	}
+	if err := unix.SetsockoptInt(fd, unix.SOL_PACKET, unix.PACKET_AUXDATA, 1); err != nil {
+		klog.Warningf("Failed to enable PACKET_AUXDATA on %s: %v", ifaceName, err)
 	}
 
 	sll := unix.SockaddrLinklayer{
@@ -123,18 +192,19 @@ func NewSocketHandler(ifaceName string) (*SocketHandler, error) {
 		f:         f,
 		rc:        rc,
 		rbuf:      make([]byte, maxFrameSize),
+		oobBuf:    make([]byte, oobBufferSize),
 	}, nil
 }
 
 // ReadPacket reads a single raw Ethernet frame from the socket, ignoring outgoing echo frames.
 func (s *SocketHandler) ReadPacket() ([]byte, error) {
 	for {
-		var n int
+		var n, oobn int
 		var from unix.Sockaddr
 		var serr error
 		if rerr := s.rc.Read(func(fd uintptr) bool {
 			for {
-				n, from, serr = unix.Recvfrom(int(fd), s.rbuf, 0)
+				n, oobn, _, from, serr = unix.Recvmsg(int(fd), s.rbuf, s.oobBuf, 0)
 				if serr == unix.EINTR {
 					continue
 				}
@@ -154,8 +224,157 @@ func (s *SocketHandler) ReadPacket() ([]byte, error) {
 		}
 		pkt := make([]byte, n)
 		copy(pkt, s.rbuf[:n])
+		if packetNeedsChecksum(s.oobBuf[:oobn]) {
+			finalizePartialChecksum(pkt)
+		}
 		return pkt, nil
 	}
+}
+
+// packetNeedsChecksum parses AF_PACKET PACKET_AUXDATA control messages and returns true
+// if TP_STATUS_CSUMNOTREADY (skb->ip_summed == CHECKSUM_PARTIAL) is set.
+func packetNeedsChecksum(oob []byte) bool {
+	if len(oob) == 0 {
+		return false
+	}
+	cmsgs, err := unix.ParseSocketControlMessage(oob)
+	if err != nil {
+		return false
+	}
+	for _, cmsg := range cmsgs {
+		if cmsg.Header.Level == unix.SOL_PACKET && cmsg.Header.Type == unix.PACKET_AUXDATA && len(cmsg.Data) >= 4 {
+			status := binary.NativeEndian.Uint32(cmsg.Data[:4])
+			if status&unix.TP_STATUS_CSUMNOTREADY != 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// finalizePartialChecksum computes and writes the L4 (TCP/UDP/ICMPv6) checksum in software
+// for an Ethernet frame captured with CHECKSUM_PARTIAL (TP_STATUS_CSUMNOTREADY).
+func finalizePartialChecksum(pkt []byte) {
+	if len(pkt) < 14 {
+		return
+	}
+	etherType := binary.BigEndian.Uint16(pkt[12:14])
+	l3Offset := 14
+	for i := 0; i < 2 && (etherType == unix.ETH_P_8021Q || etherType == unix.ETH_P_8021AD || etherType == ethP8021QQinQ); i++ {
+		if len(pkt) < l3Offset+4 {
+			return
+		}
+		etherType = binary.BigEndian.Uint16(pkt[l3Offset+2 : l3Offset+4])
+		l3Offset += 4
+	}
+
+	switch etherType {
+	case unix.ETH_P_IP:
+		if len(pkt) < l3Offset+20 || pkt[l3Offset]>>4 != 4 {
+			return
+		}
+		ihl := int(pkt[l3Offset]&0x0f) * 4
+		if ihl < 20 || len(pkt) < l3Offset+ihl {
+			return
+		}
+		if binary.BigEndian.Uint16(pkt[l3Offset+6:l3Offset+8])&ipv4FragMask != 0 {
+			return
+		}
+		totalLen := int(binary.BigEndian.Uint16(pkt[l3Offset+2 : l3Offset+4]))
+		l3End := l3Offset + totalLen
+		if totalLen < ihl || l3End > len(pkt) {
+			l3End = len(pkt)
+		}
+		proto := pkt[l3Offset+9]
+		srcIP := pkt[l3Offset+12 : l3Offset+16]
+		dstIP := pkt[l3Offset+16 : l3Offset+20]
+		l4 := pkt[l3Offset+ihl : l3End]
+
+		var sum uint32
+		sum += uint32(binary.BigEndian.Uint16(srcIP[0:2])) + uint32(binary.BigEndian.Uint16(srcIP[2:4]))
+		sum += uint32(binary.BigEndian.Uint16(dstIP[0:2])) + uint32(binary.BigEndian.Uint16(dstIP[2:4]))
+		sum += uint32(proto) + uint32(len(l4))
+
+		writeL4Checksum(proto, sum, l4, false)
+
+	case unix.ETH_P_IPV6:
+		if len(pkt) < l3Offset+40 || pkt[l3Offset]>>4 != 6 {
+			return
+		}
+		payloadLen := int(binary.BigEndian.Uint16(pkt[l3Offset+4 : l3Offset+6]))
+		l3End := l3Offset + 40 + payloadLen
+		if payloadLen == 0 || l3End > len(pkt) {
+			l3End = len(pkt)
+		}
+		nextHdr := pkt[l3Offset+6]
+		srcIP := pkt[l3Offset+8 : l3Offset+24]
+		dstIP := pkt[l3Offset+24 : l3Offset+40]
+		l4Offset := l3Offset + 40
+
+		for nextHdr == unix.IPPROTO_HOPOPTS || nextHdr == unix.IPPROTO_ROUTING || nextHdr == unix.IPPROTO_DSTOPTS {
+			if l4Offset+2 > l3End {
+				return
+			}
+			extLen := (int(pkt[l4Offset+1]) + 1) * 8
+			nextHdr = pkt[l4Offset]
+			l4Offset += extLen
+		}
+		if l4Offset > l3End {
+			return
+		}
+		l4 := pkt[l4Offset:l3End]
+
+		var sum uint32
+		for i := 0; i < 16; i += 2 {
+			sum += uint32(binary.BigEndian.Uint16(srcIP[i : i+2]))
+			sum += uint32(binary.BigEndian.Uint16(dstIP[i : i+2]))
+		}
+		l4Len := uint32(len(l4))
+		sum += (l4Len >> 16) + (l4Len & 0xffff) + uint32(nextHdr)
+
+		writeL4Checksum(nextHdr, sum, l4, true)
+	}
+}
+
+func writeL4Checksum(proto uint8, pseudoSum uint32, l4 []byte, allowICMPv6 bool) {
+	switch proto {
+	case unix.IPPROTO_TCP:
+		if len(l4) < 20 {
+			return
+		}
+		l4[16], l4[17] = 0, 0
+		binary.BigEndian.PutUint16(l4[16:18], checksumData(pseudoSum, l4))
+	case unix.IPPROTO_UDP:
+		if len(l4) < 8 {
+			return
+		}
+		l4[6], l4[7] = 0, 0
+		csum := checksumData(pseudoSum, l4)
+		if csum == 0 {
+			csum = 0xffff
+		}
+		binary.BigEndian.PutUint16(l4[6:8], csum)
+	case unix.IPPROTO_ICMPV6:
+		if !allowICMPv6 || len(l4) < 4 {
+			return
+		}
+		l4[2], l4[3] = 0, 0
+		binary.BigEndian.PutUint16(l4[2:4], checksumData(pseudoSum, l4))
+	}
+}
+
+func checksumData(sum uint32, data []byte) uint16 {
+	i := 0
+	for ; i+1 < len(data); i += 2 {
+		sum += uint32(binary.BigEndian.Uint16(data[i : i+2]))
+	}
+	if i < len(data) {
+		sum += uint32(data[i]) << 8
+	}
+	for sum > 0xffff {
+		sum = (sum >> 16) + (sum & 0xffff)
+	}
+	return ^uint16(sum)
 }
 
 // WritePacket writes a raw Ethernet frame directly to the network interface.
