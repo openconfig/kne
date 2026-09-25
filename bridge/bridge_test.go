@@ -17,19 +17,21 @@ package bridge
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/safchain/ethtool"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
 	wpb "github.com/openconfig/kne/proto/wire"
-	"golang.org/x/sys/unix"
 )
 
 type fakeReadWriter struct {
@@ -801,4 +803,333 @@ func TestDemuxConcurrentFanOutStress(t *testing.T) {
 	_ = fakeIO.Close()
 	wg.Wait()
 	_ = demux.wait()
+}
+
+func TestOffloadDisabledMapIncludesRequiredFeatures(t *testing.T) {
+	required := []string{
+		"tx-checksum-ipv4",
+		"tx-checksum-ipv6",
+		"tx-checksum-ip-generic",
+		"tx-tcp-segmentation",
+		"tx-tcp6-segmentation",
+		"tx-checksum-fcoe-crc",
+		"tx-checksum-sctp",
+		"tx-tcp-ecn-segmentation",
+		"tx-tcp-mangleid-segmentation",
+		"tx-generic-segmentation",
+		"tx-udp-segmentation",
+		"rx-gro",
+		"rx-lro",
+		"rx-checksum",
+	}
+	for _, feat := range required {
+		val, ok := offloadDisabledMap[feat]
+		if !ok {
+			t.Errorf("offloadDisabledMap missing required feature %q", feat)
+		} else if val {
+			t.Errorf("offloadDisabledMap[%q] = true, want false", feat)
+		}
+	}
+}
+
+type fakeEthtool struct {
+	states    map[string]ethtool.FeatureState
+	statesErr error
+	changeErr error
+	changed   map[string]bool
+	closed    bool
+}
+
+func (f *fakeEthtool) FeaturesWithState(_ string) (map[string]ethtool.FeatureState, error) {
+	if f.statesErr != nil {
+		return nil, f.statesErr
+	}
+	return f.states, nil
+}
+
+func (f *fakeEthtool) Change(_ string, config map[string]bool) error {
+	f.changed = make(map[string]bool, len(config))
+	for k, v := range config {
+		f.changed[k] = v
+	}
+	return f.changeErr
+}
+
+func (f *fakeEthtool) Close() {
+	f.closed = true
+}
+
+func TestDisableHardwareOffloads(t *testing.T) {
+	origNewEthtool := newEthtool
+	t.Cleanup(func() {
+		newEthtool = origNewEthtool
+	})
+
+	t.Run("disables only active changeable features", func(t *testing.T) {
+		fe := &fakeEthtool{
+			states: map[string]ethtool.FeatureState{
+				"tx-checksum-ip-generic": {Available: true, Active: true, NeverChanged: false},
+				"tx-checksum-ipv4":       {Available: false, Active: false, NeverChanged: true},
+				"rx-gro":                 {Available: true, Active: false, NeverChanged: false},
+				"rx-checksum":            {Available: true, Active: true, NeverChanged: true},
+			},
+		}
+		newEthtool = func() (ethtoolClient, error) { return fe, nil }
+
+		if err := disableHardwareOffloads("eth1"); err != nil {
+			t.Fatalf("disableHardwareOffloads returned unexpected error: %v", err)
+		}
+		if !fe.closed {
+			t.Errorf("expected ethtool handle to be closed")
+		}
+		if val, ok := fe.changed["tx-checksum-ip-generic"]; len(fe.changed) != 1 || !ok || val {
+			t.Errorf("unexpected changed map: got %v, want map[tx-checksum-ip-generic:false]", fe.changed)
+		}
+	})
+
+	t.Run("no-op when no target features are active", func(t *testing.T) {
+		fe := &fakeEthtool{
+			states: map[string]ethtool.FeatureState{
+				"tx-checksum-ip-generic": {Available: true, Active: false, NeverChanged: false},
+			},
+		}
+		newEthtool = func() (ethtoolClient, error) { return fe, nil }
+
+		if err := disableHardwareOffloads("eth1"); err != nil {
+			t.Fatalf("disableHardwareOffloads returned unexpected error: %v", err)
+		}
+		if fe.changed != nil {
+			t.Errorf("expected Change not to be called, got %v", fe.changed)
+		}
+	})
+
+	t.Run("propagates errors", func(t *testing.T) {
+		newEthtool = func() (ethtoolClient, error) {
+			return nil, fmt.Errorf("ethtool open failed")
+		}
+		if err := disableHardwareOffloads("eth1"); err == nil {
+			t.Errorf("expected error when newEthtool fails, got nil")
+		}
+
+		fe := &fakeEthtool{statesErr: fmt.Errorf("ioctl failed")}
+		newEthtool = func() (ethtoolClient, error) { return fe, nil }
+		if err := disableHardwareOffloads("eth1"); err == nil {
+			t.Errorf("expected error when FeaturesWithState fails, got nil")
+		}
+	})
+}
+
+func buildAuxDataOOB(status uint32) []byte {
+	var data [20]byte
+	binary.NativeEndian.PutUint32(data[:4], status)
+	cmsgLen := unix.CmsgLen(len(data))
+	buf := make([]byte, unix.CmsgSpace(len(data)))
+	var hdr unix.Cmsghdr
+	hdr.SetLen(cmsgLen)
+	hdr.Level = unix.SOL_PACKET
+	hdr.Type = unix.PACKET_AUXDATA
+	binary.NativeEndian.PutUint64(buf[0:8], uint64(hdr.Len))
+	binary.NativeEndian.PutUint32(buf[8:12], uint32(hdr.Level))
+	binary.NativeEndian.PutUint32(buf[12:16], uint32(hdr.Type))
+	copy(buf[unix.CmsgLen(0):], data[:])
+	return buf
+}
+
+func TestPacketNeedsChecksum(t *testing.T) {
+	if packetNeedsChecksum(nil) {
+		t.Errorf("packetNeedsChecksum(nil) = true, want false")
+	}
+	if packetNeedsChecksum([]byte{0xff, 0x00, 0x01}) {
+		t.Errorf("packetNeedsChecksum(malformed) = true, want false")
+	}
+	if packetNeedsChecksum(buildAuxDataOOB(unix.TP_STATUS_USER)) {
+		t.Errorf("packetNeedsChecksum(TP_STATUS_USER) = true, want false")
+	}
+	if !packetNeedsChecksum(buildAuxDataOOB(unix.TP_STATUS_USER | unix.TP_STATUS_CSUMNOTREADY)) {
+		t.Errorf("packetNeedsChecksum(TP_STATUS_CSUMNOTREADY) = false, want true")
+	}
+}
+
+func TestFinalizePartialChecksumIPv4TCPAndUDP(t *testing.T) {
+	// Construct an Ethernet + IPv4 + TCP frame with a bogus partial checksum (0x1234)
+	payload := []byte("hello kne packet bridge")
+	tcpLen := 20 + len(payload)
+	ipTotalLen := 20 + tcpLen
+	pkt := make([]byte, 14+ipTotalLen)
+
+	// Ethernet header (EtherType IPv4 0x0800)
+	binary.BigEndian.PutUint16(pkt[12:14], unix.ETH_P_IP)
+
+	// IPv4 header
+	ip := pkt[14 : 14+20]
+	ip[0] = 0x45 // Version 4, IHL 5
+	binary.BigEndian.PutUint16(ip[2:4], uint16(ipTotalLen))
+	ip[8] = 64 // TTL
+	ip[9] = unix.IPPROTO_TCP
+	copy(ip[12:16], []byte{192, 0, 2, 1})
+	copy(ip[16:20], []byte{192, 0, 2, 2})
+
+	// TCP header + payload
+	tcp := pkt[34:]
+	binary.BigEndian.PutUint16(tcp[0:2], 12345)
+	binary.BigEndian.PutUint16(tcp[2:4], 80)
+	tcp[12] = 5 << 4              // Data offset 5
+	tcp[16], tcp[17] = 0x12, 0x34 // Partial checksum placeholder
+	copy(tcp[20:], payload)
+
+	finalizePartialChecksum(pkt)
+
+	if tcp[16] == 0x12 && tcp[17] == 0x34 {
+		t.Fatalf("finalizePartialChecksum did not update TCP checksum")
+	}
+
+	// Verify RFC 1071 ones'-complement sum over pseudo-header + TCP segment is 0
+	var sum uint32
+	sum += uint32(binary.BigEndian.Uint16(ip[12:14])) + uint32(binary.BigEndian.Uint16(ip[14:16]))
+	sum += uint32(binary.BigEndian.Uint16(ip[16:18])) + uint32(binary.BigEndian.Uint16(ip[18:20]))
+	sum += uint32(unix.IPPROTO_TCP) + uint32(len(tcp))
+	if rem := checksumData(sum, tcp); rem != 0 {
+		t.Errorf("IPv4 TCP checksum verification failed: got remainder 0x%04x, want 0", rem)
+	}
+
+	// Also test IPv4 UDP with Ethernet trailer padding (60-byte minimum frame)
+	udpPayload := []byte("hi")
+	udpLen := 8 + len(udpPayload)
+	ipTotalLenUDP := 20 + udpLen
+	udpPkt := make([]byte, 60)
+	binary.BigEndian.PutUint16(udpPkt[12:14], unix.ETH_P_IP)
+	uip := udpPkt[14 : 14+20]
+	uip[0] = 0x45
+	binary.BigEndian.PutUint16(uip[2:4], uint16(ipTotalLenUDP))
+	uip[8] = 64
+	uip[9] = unix.IPPROTO_UDP
+	copy(uip[12:16], []byte{192, 0, 2, 1})
+	copy(uip[16:20], []byte{192, 0, 2, 2})
+
+	udp := udpPkt[34 : 34+udpLen]
+	binary.BigEndian.PutUint16(udp[0:2], 5000)
+	binary.BigEndian.PutUint16(udp[2:4], 5001)
+	binary.BigEndian.PutUint16(udp[4:6], uint16(udpLen))
+	udp[6], udp[7] = 0xab, 0xcd
+	copy(udp[8:], udpPayload)
+	// Fill Ethernet trailer padding with non-zero bytes to ensure padding is excluded
+	for i := 14 + ipTotalLenUDP; i < len(udpPkt); i++ {
+		udpPkt[i] = 0xff
+	}
+
+	finalizePartialChecksum(udpPkt)
+
+	var usum uint32
+	usum += uint32(binary.BigEndian.Uint16(uip[12:14])) + uint32(binary.BigEndian.Uint16(uip[14:16]))
+	usum += uint32(binary.BigEndian.Uint16(uip[16:18])) + uint32(binary.BigEndian.Uint16(uip[18:20]))
+	usum += uint32(unix.IPPROTO_UDP) + uint32(len(udp))
+	if rem := checksumData(usum, udp); rem != 0 {
+		t.Errorf("IPv4 UDP checksum verification failed: got remainder 0x%04x, want 0", rem)
+	}
+}
+
+func TestFinalizePartialChecksumIPv6AndVLAN(t *testing.T) {
+	payload := []byte("ipv6 payload")
+
+	t.Run("QinQ VLAN tagged IPv6 TCP with Hop-by-Hop extension header", func(t *testing.T) {
+		extHdrLen := 8
+		tcpLen := 20 + len(payload)
+		ipv6PayloadLen := extHdrLen + tcpLen
+		// 14 (Eth) + 8 (802.1ad + 802.1Q) + 40 (IPv6) + 8 (Hop-by-Hop) + tcpLen
+		pkt := make([]byte, 14+8+40+ipv6PayloadLen)
+
+		// Outer VLAN 0x88a8, Inner VLAN 0x8100, EtherType IPv6 0x86dd
+		binary.BigEndian.PutUint16(pkt[12:14], unix.ETH_P_8021AD)
+		binary.BigEndian.PutUint16(pkt[16:18], unix.ETH_P_8021Q)
+		binary.BigEndian.PutUint16(pkt[20:22], unix.ETH_P_IPV6)
+
+		ip6 := pkt[22 : 22+40]
+		ip6[0] = 0x60
+		binary.BigEndian.PutUint16(ip6[4:6], uint16(ipv6PayloadLen))
+		ip6[6] = unix.IPPROTO_HOPOPTS
+		ip6[7] = 64
+		copy(ip6[8:24], net.ParseIP("2001:db8::1").To16())
+		copy(ip6[24:40], net.ParseIP("2001:db8::2").To16())
+
+		// Hop-by-Hop extension header (NextHdr = TCP, HdrExtLen = 0 -> 8 bytes)
+		ext := pkt[62 : 62+8]
+		ext[0] = unix.IPPROTO_TCP
+		ext[1] = 0
+
+		tcp := pkt[70:]
+		binary.BigEndian.PutUint16(tcp[0:2], 443)
+		binary.BigEndian.PutUint16(tcp[2:4], 54321)
+		tcp[12] = 5 << 4
+		tcp[16], tcp[17] = 0xde, 0xad
+		copy(tcp[20:], payload)
+
+		finalizePartialChecksum(pkt)
+
+		var sum uint32
+		for i := 0; i < 16; i += 2 {
+			sum += uint32(binary.BigEndian.Uint16(ip6[8+i : 10+i]))
+			sum += uint32(binary.BigEndian.Uint16(ip6[24+i : 26+i]))
+		}
+		sum += uint32(len(tcp)) + uint32(unix.IPPROTO_TCP)
+		if rem := checksumData(sum, tcp); rem != 0 {
+			t.Errorf("IPv6 TCP checksum verification failed: got remainder 0x%04x, want 0", rem)
+		}
+	})
+
+	t.Run("IPv6 ICMPv6 with GSO zero payload length", func(t *testing.T) {
+		icmpLen := 8 + len(payload)
+		pkt := make([]byte, 14+40+icmpLen)
+		binary.BigEndian.PutUint16(pkt[12:14], unix.ETH_P_IPV6)
+
+		ip6 := pkt[14 : 14+40]
+		ip6[0] = 0x60
+		binary.BigEndian.PutUint16(ip6[4:6], 0) // GSO zero payload length
+		ip6[6] = unix.IPPROTO_ICMPV6
+		ip6[7] = 255
+		copy(ip6[8:24], net.ParseIP("fe80::1").To16())
+		copy(ip6[24:40], net.ParseIP("fe80::2").To16())
+
+		icmp6 := pkt[54:]
+		icmp6[0] = 128 // Echo Request
+		icmp6[1] = 0
+		icmp6[2], icmp6[3] = 0xbe, 0xef
+		copy(icmp6[8:], payload)
+
+		finalizePartialChecksum(pkt)
+
+		var sum uint32
+		for i := 0; i < 16; i += 2 {
+			sum += uint32(binary.BigEndian.Uint16(ip6[8+i : 10+i]))
+			sum += uint32(binary.BigEndian.Uint16(ip6[24+i : 26+i]))
+		}
+		sum += uint32(len(icmp6)) + uint32(unix.IPPROTO_ICMPV6)
+		if rem := checksumData(sum, icmp6); rem != 0 {
+			t.Errorf("IPv6 ICMPv6 checksum verification failed: got remainder 0x%04x, want 0", rem)
+		}
+	})
+}
+
+func TestFinalizePartialChecksumSkipsFragmentsAndMalformedFrames(t *testing.T) {
+	// Fragmented IPv4 UDP packet should not have its checksum modified.
+	pkt := make([]byte, 14+20+16)
+	binary.BigEndian.PutUint16(pkt[12:14], unix.ETH_P_IP)
+	ip := pkt[14:34]
+	ip[0] = 0x45
+	binary.BigEndian.PutUint16(ip[2:4], 36)
+	binary.BigEndian.PutUint16(ip[6:8], 0x2000) // More Fragments (MF) set
+	ip[9] = unix.IPPROTO_UDP
+	udp := pkt[34:]
+	udp[6], udp[7] = 0x11, 0x22
+
+	finalizePartialChecksum(pkt)
+	if udp[6] != 0x11 || udp[7] != 0x22 {
+		t.Errorf("expected fragmented IPv4 packet checksum to remain untouched, got %02x%02x", udp[6], udp[7])
+	}
+
+	// Short / truncated frames must not panic.
+	finalizePartialChecksum(nil)
+	finalizePartialChecksum(make([]byte, 10))
+	vlanTrunc := make([]byte, 16)
+	binary.BigEndian.PutUint16(vlanTrunc[12:14], unix.ETH_P_8021Q)
+	finalizePartialChecksum(vlanTrunc)
 }
