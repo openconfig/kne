@@ -88,20 +88,6 @@ build {
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
       "echo \"br_netfilter\" | sudo tee -a /etc/modules-load.d/br_netfilter.conf",   # ensure br_netfilter module is loaded instead of relying on docker-ce (https://github.com/moby/moby/issues/48948)
       "sudo sysctl -p",
-      "echo Pulling containers...",
-      "gcloud auth configure-docker us-west1-docker.pkg.dev -q",      # configure sudoless docker
-      "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure docker with sudo
-      "pids=\"\"",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga & pids=\"$pids $!\"",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga & pids=\"$pids $!\"",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga & pids=\"$pids $!\"",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga & pids=\"$pids $!\"",
-      "sudo docker pull us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga & pids=\"$pids $!\"",
-      "sudo docker pull us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga & pids=\"$pids $!\"",
-      "sudo docker pull us-west1-docker.pkg.dev/kne-external/kne/bridge:ga & pids=\"$pids $!\"",
-      "echo 'Waiting for all docker pulls to complete...'",
-      "for pid in $pids; do wait \"$pid\" || exit 1; done",
-      "echo 'All docker images pulled successfully.'",
     ]
   }
 
@@ -152,6 +138,47 @@ build {
       "sudo mkdir -p /etc/kubernetes/bin/",
       # Directory is derived from same commands as in the cloud-provider-gcp Makefile
       "sudo cp release/`git describe --tags --always --dirty | sed 's|.*/||'`/auth-provider-gcp/linux/amd64/auth-provider-gcp /etc/kubernetes/bin/",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Pulling container images into containerd (k8s.io)...",
+      "TOKEN=$(gcloud auth print-access-token)",
+      "images=(",
+      "  us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga",
+      "  us-west1-docker.pkg.dev/kne-external/kne/bridge:ga",
+      "  us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
+      "  us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga",
+      "  us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga",
+      "  us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga",
+      "  us-west1-docker.pkg.dev/gep-kne/juniper/ncptx:ga",
+      "  us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga",
+      "  us-west1-docker.pkg.dev/openconfig-lemming/release/lemming:ga",
+      "  docker.io/flannel/flannel:v0.24.3",
+      "  docker.io/flannel/flannel-cni-plugin:v1.4.0-flannel1",
+      "  ghcr.io/aojea/kindnetd:v1.7.0",
+      "  quay.io/metallb/controller:v0.14.9",
+      "  quay.io/metallb/speaker:v0.14.9",
+      "  ghcr.io/srl-labs/srl-controller:v0.7.1",
+      "  ghcr.io/aristanetworks/arista-ceoslab-operator:v2.1.2",
+      "  us-west1-docker.pkg.dev/openconfig-lemming/release/operator:v0.2.9",
+      "  registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.12.0",
+      "  ghcr.io/open-traffic-generator/keng-operator:0.4.2",
+      "  ghcr.io/open-traffic-generator/keng-controller:1.61.0-1",
+      "  ghcr.io/open-traffic-generator/otg-gnmi-server:1.61.0",
+      "  ghcr.io/open-traffic-generator/ixia-c-traffic-engine:1.8.0.544",
+      "  ghcr.io/open-traffic-generator/ixia-c-protocol-engine:1.00.0.534",
+      ")",
+      "for img in \"${images[@]}\"; do",
+      "  echo \"Pulling $img...\"",
+      "  if [[ \"$img\" == us-west1-docker.pkg.dev* ]]; then",
+      "    sudo ctr -n k8s.io images pull -u \"oauth2accesstoken:$TOKEN\" \"$img\" || exit 1",
+      "  else",
+      "    sudo ctr -n k8s.io images pull \"$img\" || exit 1",
+      "  fi",
+      "done",
+      "echo 'All containerd images pulled successfully.'",
     ]
   }
 
