@@ -41,9 +41,20 @@ if [ -n "$target_kind_pkg" ]; then
 	fi
 fi
 
+# Build the meshnet container image from the workspace
+DOCKER_BUILDKIT=1 docker build -t us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga \
+	-f "$HOME/kne/third_party/meshnet/docker/Dockerfile" \
+	"$HOME/kne/third_party/meshnet"
+
 # Deploy a cluster + topo
 pushd "$HOME"
 $cli deploy kne/cloudbuild/vendors/deployment.yaml --report_usage=false
+
+# Load local meshnet image into Kind and restart daemonset before creating topology
+kind load docker-image --name kne us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga
+kubectl rollout restart -n meshnet daemonset/meshnet
+kubectl rollout status -n meshnet daemonset/meshnet --timeout=2m
+
 $cli create kne/cloudbuild/vendors/topology.textproto --report_usage=false
 popd
 
