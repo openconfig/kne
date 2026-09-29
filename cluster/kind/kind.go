@@ -57,7 +57,7 @@ func clusterKindName() (string, error) {
 	return matches[1], nil
 }
 
-func clusterKindNodes() ([]string, error) {
+func ClusterKindNodes() ([]string, error) {
 	name, err := clusterKindName()
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func SetupGARAccess(ctx context.Context, registries []string) error {
 	}
 	// Copy the new docker config to each node and restart kubelet so it
 	// picks up the new config that contains the embedded credentials.
-	nodes, err := clusterKindNodes()
+	nodes, err := ClusterKindNodes()
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func SetupGARAccess(ctx context.Context, registries []string) error {
 }
 
 func RefreshGARAccess(ctx context.Context) error {
-	nodes, err := clusterKindNodes()
+	nodes, err := ClusterKindNodes()
 	if err != nil {
 		return err
 	}

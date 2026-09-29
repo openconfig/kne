@@ -71,10 +71,10 @@ var (
 	// run kubectl, which has no timeout of its own.
 	defaultDeployTimeout = 10 * time.Minute
 
-	// Stubs for testing.
-	execLookPath       = exec.LookPath
-	kindSetupGARAccess = kind.SetupGARAccess
-	homeDir            = homedir.HomeDir
+	execLookPath           = exec.LookPath
+	kindSetupGARAccess     = kind.SetupGARAccess
+	homeDir                = homedir.HomeDir
+	kindLoadContainerImage = loadContainerImageWithFallback
 )
 
 type Cluster interface {
@@ -971,40 +971,82 @@ func (k *KindSpec) loadContainerImages() error {
 		} else {
 			log.Infof("Loading %q as %q", s, d)
 		}
-		retries := 3
-		var out []byte
-		var err error
-		for ; ; retries-- {
-			out, err = run.OutCommand("docker", "pull", s)
-			// Command succeeded or out of retries then break.
-			if err == nil || retries == 0 {
-				break
-			}
-			// If container is not found or does not exist, the error is considered not retriable.
-			if err != nil && (strings.Contains(string(out), "not found") || strings.Contains(string(out), "does not exist")) {
-				err = fmt.Errorf("container not found: %w", err)
-				break
-			}
-			log.Warningf("Failed to pull %q: %v (will retry %d times)", s, err, retries)
-			time.Sleep(pullRetryDelay)
-		}
-		if err != nil {
+		if err := kindLoadContainerImage(s, d, k.Name); err != nil {
 			return err
-		}
-		if d != s {
-			if err := run.LogCommand("docker", "tag", s, d); err != nil {
-				return fmt.Errorf("failed to tag %q with %q: %w", s, d, err)
-			}
-		}
-		args := []string{"load", "docker-image", d}
-		if k.Name != "" {
-			args = append(args, "--name", k.Name)
-		}
-		if err := run.LogCommand("kind", args...); err != nil {
-			return fmt.Errorf("failed to load %q: %w", d, err)
 		}
 	}
 	log.Infof("Loaded all container images")
+	return nil
+}
+
+func loadContainerImageWithFallback(src, dst, clusterName string) error {
+	// First attempt: try exporting from containerd (k8s.io namespace) if ctr is available and image exists.
+	if _, err := execLookPath("ctr"); err == nil {
+		if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "check", fmt.Sprintf("name==%s", src)); err == nil {
+			tmpFile, err := os.CreateTemp("", "kind-load-*.tar")
+			if err == nil {
+				tmpPath := tmpFile.Name()
+				tmpFile.Close()
+				defer os.Remove(tmpPath)
+
+				exportArgs := []string{"sudo", "ctr", "-n", "k8s.io", "images", "export"}
+				exportArgs = append(exportArgs, tmpPath, src)
+				if err := run.LogCommand(exportArgs[0], exportArgs[1:]...); err == nil {
+					args := []string{"load", "image-archive", tmpPath}
+					if clusterName != "" {
+						args = append(args, "--name", clusterName)
+					}
+					if err := run.LogCommand("kind", args...); err == nil {
+						// If dst differs from src, tag it inside the kind node(s).
+						if dst != src {
+							nodes, err := kind.ClusterKindNodes()
+							if err == nil {
+								for _, node := range nodes {
+									_ = run.LogCommand("docker", "exec", node, "ctr", "-n", "k8s.io", "images", "tag", src, dst)
+								}
+							}
+						}
+						log.Infof("Successfully loaded %q from containerd into kind cluster %q", src, clusterName)
+						return nil
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback: use docker pull, tag, and kind load docker-image.
+	retries := 3
+	var out []byte
+	var err error
+	for ; ; retries-- {
+		out, err = run.OutCommand("docker", "pull", src)
+		// Command succeeded or out of retries then break.
+		if err == nil || retries == 0 {
+			break
+		}
+		// If container is not found or does not exist, the error is considered not retriable.
+		if err != nil && (strings.Contains(string(out), "not found") || strings.Contains(string(out), "does not exist")) {
+			err = fmt.Errorf("container not found: %w", err)
+			break
+		}
+		log.Warningf("Failed to pull %q: %v (will retry %d times)", src, err, retries)
+		time.Sleep(pullRetryDelay)
+	}
+	if err != nil {
+		return err
+	}
+	if dst != src {
+		if err := run.LogCommand("docker", "tag", src, dst); err != nil {
+			return fmt.Errorf("failed to tag %q with %q: %w", src, dst, err)
+		}
+	}
+	args := []string{"load", "docker-image", dst}
+	if clusterName != "" {
+		args = append(args, "--name", clusterName)
+	}
+	if err := run.LogCommand("kind", args...); err != nil {
+		return fmt.Errorf("failed to load %q: %w", dst, err)
+	}
 	return nil
 }
 
