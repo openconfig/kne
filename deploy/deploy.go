@@ -986,8 +986,14 @@ func loadContainerImageWithFallback(src, dst, clusterName string) error {
 			tmpFile, err := os.CreateTemp("", "kind-load-*.tar")
 			if err == nil {
 				tmpPath := tmpFile.Name()
-				tmpFile.Close()
-				defer os.Remove(tmpPath)
+				if err := tmpFile.Close(); err != nil {
+					log.Warningf("Failed to close temp file %q: %v", tmpPath, err)
+				}
+				defer func() {
+					if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
+						log.Warningf("Failed to remove temp file %q: %v", tmpPath, err)
+					}
+				}()
 
 				exportArgs := []string{"sudo", "ctr", "-n", "k8s.io", "images", "export"}
 				exportArgs = append(exportArgs, tmpPath, src)
