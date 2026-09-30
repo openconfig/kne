@@ -143,7 +143,7 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo Pulling container images into containerd (k8s.io)...",
+      "echo 'Pulling container images into containerd (k8s.io)...'",
       "TOKEN=$(gcloud auth print-access-token)",
       "for img in \\",
       "  us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga \\",
