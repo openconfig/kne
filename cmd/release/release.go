@@ -221,14 +221,19 @@ func ensureTag(tag, expectedSHA string) (bool, error) {
 const (
 	// cloudBuildEndpoint is the regional endpoint for the cloud build API.
 	cloudBuildEndpoint = "us-central1-cloudbuild.googleapis.com:443"
+	quotaProjectID     = "kne-external"
 	triggerNamePrefix  = "projects/kne-external/locations/us-central1/triggers"
 	parentName         = "projects/kne-external/locations/us-central1"
 )
 
+func newCloudBuildClient(ctx context.Context) (*cloudbuild.Client, error) {
+	return cloudbuild.NewClient(ctx, option.WithEndpoint(cloudBuildEndpoint), option.WithQuotaProject(quotaProjectID))
+}
+
 // checkOrRunPrerelease checks if prerelease tests have already passed for sha, or runs them.
 func checkOrRunPrerelease(ctx context.Context, sha string) (rErr error) {
 	fmt.Println("Checking prerelease tests")
-	c, err := cloudbuild.NewClient(ctx, option.WithEndpoint(cloudBuildEndpoint))
+	c, err := newCloudBuildClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -274,7 +279,7 @@ func checkOrRunPrerelease(ctx context.Context, sha string) (rErr error) {
 // ensureReleaseBuild checks if the release build for tag is already complete,
 // waits for an in-progress or newly triggered automatic build, or triggers a build if needed.
 func ensureReleaseBuild(ctx context.Context, trigger, tag, version string, tagPushed bool, pushedAt time.Time) (rErr error) {
-	c, err := cloudbuild.NewClient(ctx, option.WithEndpoint(cloudBuildEndpoint))
+	c, err := newCloudBuildClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -393,7 +398,7 @@ func waitForBuildCompletion(ctx context.Context, c *cloudbuild.Client, buildName
 
 // triggerBuild runs a cloud build trigger at the given tag if set, or the main branch if unset.
 func triggerBuild(ctx context.Context, trigger, tagOrSHA string, tag bool, substitutions map[string]string) (rErr error) {
-	c, err := cloudbuild.NewClient(ctx, option.WithEndpoint(cloudBuildEndpoint))
+	c, err := newCloudBuildClient(ctx)
 	if err != nil {
 		return err
 	}
