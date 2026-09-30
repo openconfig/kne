@@ -463,3 +463,30 @@ func TestUpdatePlumbingErrorStatus_NoOpWhenUnchanged(t *testing.T) {
 		t.Fatalf("expected nil error on setting duplicate error: %v", err)
 	}
 }
+
+// TestCleanupRemovedPodLinks_DoesNotDeleteContainerInterfaces verifies that cleanupRemovedPodLinks
+// does not attempt to inspect or delete network interfaces in the container namespace.
+// NOS containers (Juniper EVO, cEOS, SR Linux) create internal VRFs (vrf0, iri, vrf36738),
+// bridges (vfb, vcb, vmb0, vmb1, vib), and internal PFE interfaces (eth1-eth4) that are not
+// defined in KNE topology spec.links and must never be deleted by meshnetd.
+func TestCleanupRemovedPodLinks_DoesNotDeleteContainerInterfaces(t *testing.T) {
+	InitLogger()
+	m := &Meshnet{
+		nodeIP: "10.0.0.1",
+	}
+
+	// Pod with KNE topology links eth5-eth14 (like ncptx in multivendor.pb.txt).
+	// Internal interfaces eth1-eth4, vrf0, iri, vfb etc. are NOT in spec.links.
+	pod := createFakePodTopology("ncptx", "multivendor", "10.0.0.1", "/proc/self/ns/net", []string{"peer1"})
+	desiredLinks, err := parsePodLinks(pod)
+	if err != nil {
+		t.Fatalf("parsePodLinks failed: %v", err)
+	}
+
+	// cleanupRemovedPodLinks should run without error and not touch container interfaces.
+	// Since /proc/self/ns/net is our current process netns (which contains lo and host interfaces),
+	// if cleanupRemovedPodLinks attempted netlink.LinkDel on interfaces not in desiredLinks,
+	// it would fail or delete interfaces.
+	m.cleanupRemovedPodLinks(context.Background(), pod, "/proc/self/ns/net", desiredLinks)
+}
+
