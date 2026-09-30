@@ -171,9 +171,10 @@ func parseLsRemoteTagSHA(output, tag string) string {
 	for scanner.Scan() {
 		parts := strings.Fields(scanner.Text())
 		if len(parts) >= 2 {
-			if parts[1] == peeledRef {
+			switch parts[1] {
+			case peeledRef:
 				peeledSHA = parts[0]
-			} else if parts[1] == targetRef {
+			case targetRef:
 				tagSHA = parts[0]
 			}
 		}
