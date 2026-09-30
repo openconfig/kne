@@ -81,12 +81,12 @@ build {
       "sudo apt-get install docker-ce docker-ce-cli containerd.io build-essential -y",
       "sudo usermod -aG docker $USER",
       "sudo docker version",
-      "sudo apt-get install openvswitch-switch-dpdk -y",   # install openvswitch for cisco containers
-      "echo \"fs.inotify.max_user_instances=128000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
-      "echo \"fs.inotify.max_user_watches=25600000\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
+      "sudo apt-get install openvswitch-switch-dpdk -y",                               # install openvswitch for cisco containers
+      "echo \"fs.inotify.max_user_instances=128000\" | sudo tee -a /etc/sysctl.conf",  # configure inotify for cisco xrd containers
+      "echo \"fs.inotify.max_user_watches=25600000\" | sudo tee -a /etc/sysctl.conf",  # configure inotify for cisco xrd containers
       "echo \"fs.inotify.max_queued_events=13107200\" | sudo tee -a /etc/sysctl.conf", # configure inotify for cisco xrd containers
-      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",              # configure pid_max for cisco 8000e containers
-      "echo \"br_netfilter\" | sudo tee -a /etc/modules-load.d/br_netfilter.conf",   # ensure br_netfilter module is loaded instead of relying on docker-ce (https://github.com/moby/moby/issues/48948)
+      "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",                # configure pid_max for cisco 8000e containers
+      "echo \"br_netfilter\" | sudo tee -a /etc/modules-load.d/br_netfilter.conf",     # ensure br_netfilter module is loaded instead of relying on docker-ce (https://github.com/moby/moby/issues/48948)
       "sudo sysctl -p",
     ]
   }
@@ -170,7 +170,7 @@ build {
       "  ghcr.io/open-traffic-generator/ixia-c-traffic-engine:1.8.0.544",
       "  ghcr.io/open-traffic-generator/ixia-c-protocol-engine:1.00.0.534",
       ")",
-      "for img in \"${images[@]}\"; do",
+      "for img in \"$${images[@]}\"; do",
       "  echo \"Pulling $img...\"",
       "  if [[ \"$img\" == us-west1-docker.pkg.dev* ]]; then",
       "    sudo ctr -n k8s.io images pull -u \"oauth2accesstoken:$TOKEN\" \"$img\" || exit 1",
