@@ -158,12 +158,12 @@ func TestClusterKindNodes(t *testing.T) {
 			kexec.Command = cmds.Command
 			defer checkCmds(t, cmds)
 
-			got, err := ClusterKindNodes()
+			got, err := clusterKindNodes()
 			if s := errdiff.Substring(err, tt.wantErr); s != "" {
 				t.Errorf("unexpected error: %s", s)
 			}
 			if s := cmp.Diff(tt.want, got, cmpopts.SortSlices(func(a, b string) bool { return a < b })); s != "" {
-				t.Errorf("ClusterKindNodes() unexpected diff (-want +got):\n%s", s)
+				t.Errorf("clusterKindNodes() unexpected diff (-want +got):\n%s", s)
 			}
 		})
 	}
