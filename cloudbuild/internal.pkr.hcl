@@ -88,6 +88,8 @@ build {
       "echo \"kernel.pid_max=1048575\" | sudo tee -a /etc/sysctl.conf",                # configure pid_max for cisco 8000e containers
       "echo \"br_netfilter\" | sudo tee -a /etc/modules-load.d/br_netfilter.conf",     # ensure br_netfilter module is loaded instead of relying on docker-ce (https://github.com/moby/moby/issues/48948)
       "sudo sysctl -p",
+      "gcloud auth configure-docker us-west1-docker.pkg.dev -q",      # configure sudoless docker
+      "sudo gcloud auth configure-docker us-west1-docker.pkg.dev -q", # configure docker with sudo
     ]
   }
 
@@ -145,6 +147,7 @@ build {
     inline = [
       "echo 'Pulling container images into containerd (k8s.io)...'",
       "TOKEN=$(gcloud auth print-access-token)",
+      "pids=\"\"",
       "for img in \\",
       "  us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga \\",
       "  us-west1-docker.pkg.dev/kne-external/kne/bridge:ga \\",
@@ -172,13 +175,16 @@ build {
       "  echo \"Pulling $img...\"",
       "  case \"$img\" in",
       "    us-west1-docker.pkg.dev*)",
-      "      sudo ctr -n k8s.io images pull -u \"oauth2accesstoken:$TOKEN\" \"$img\" || exit 1",
+      "      sudo ctr -n k8s.io images pull -u \"oauth2accesstoken:$TOKEN\" \"$img\" &",
       "      ;;",
       "    *)",
-      "      sudo ctr -n k8s.io images pull \"$img\" || exit 1",
+      "      sudo ctr -n k8s.io images pull \"$img\" &",
       "      ;;",
       "  esac",
+      "  pids=\"$pids $!\"",
       "done",
+      "echo 'Waiting for all containerd image pulls to complete...'",
+      "for pid in $pids; do wait \"$pid\" || exit 1; done",
       "echo 'All containerd images pulled successfully.'",
     ]
   }
