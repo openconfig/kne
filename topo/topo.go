@@ -42,6 +42,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -308,8 +309,21 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 	if err := m.push(ctx); err != nil {
 		return fmt.Errorf("failed to create topology %q: %w", m.topo.GetName(), err)
 	}
+	start := time.Now()
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
 		return fmt.Errorf("failed to check status of nodes in topology %q: %w", m.topo.GetName(), err)
+	}
+	serviceTimeout := timeout
+	if timeout > 0 {
+		elapsed := time.Since(start)
+		if elapsed >= timeout {
+			serviceTimeout = time.Millisecond
+		} else {
+			serviceTimeout = timeout - elapsed
+		}
+	}
+	if err := m.checkServiceStatus(ctx, serviceTimeout); err != nil {
+		return fmt.Errorf("failed to check status of services in topology %q: %w", m.topo.GetName(), err)
 	}
 	log.Infof("Topology %q created", m.topo.GetName())
 	return nil
@@ -865,6 +879,106 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 		log.Warningf("Failed to determine status of some node resources in %d sec", timeout)
 	}
 	return nil
+}
+
+// checkServiceStatus reports service status, waiting until services configured on nodes are ready
+// (e.g. LoadBalancer services have an ingress IP/hostname assigned).
+func (m *Manager) checkServiceStatus(ctx context.Context, timeout time.Duration) error {
+	foundAll := false
+	processed := make(map[string]bool)
+
+	type statusResult struct {
+		name  string
+		nod   node.Node
+		ready bool
+		err   error
+	}
+
+	// Check until end state or timeout sec expired
+	start := time.Now()
+	for (timeout == 0 || time.Since(start) < timeout) && !foundAll {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		foundAll = true
+		var wg sync.WaitGroup
+		resCh := make(chan statusResult, len(m.nodes))
+		for name, n := range m.nodes {
+			if processed[name] {
+				continue
+			}
+			if len(n.GetProto().GetServices()) == 0 {
+				processed[name] = true
+				continue
+			}
+
+			wg.Add(1)
+			go func(name string, nod node.Node) {
+				defer wg.Done()
+				ready, err := nodeServicesReady(ctx, nod)
+				resCh <- statusResult{name: name, nod: nod, ready: ready, err: err}
+			}(name, n)
+		}
+		wg.Wait()
+		close(resCh)
+
+		for res := range resCh {
+			if res.err != nil {
+				return fmt.Errorf("node %s: service check failed: %w", res.nod, res.err)
+			}
+			if res.ready {
+				log.Infof("Node %s: Services ready", res.nod)
+				processed[res.name] = true
+			} else {
+				foundAll = false
+			}
+		}
+		if !foundAll {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context canceled waiting for services: %w", ctx.Err())
+			case <-time.After(500 * time.Millisecond):
+			}
+		}
+	}
+	if !foundAll {
+		log.Warningf("Failed to determine status of some service resources in %v", timeout)
+	}
+	return nil
+}
+
+func isServiceReady(s *corev1.Service) bool {
+	svcType := s.Spec.Type
+	if svcType == "" {
+		svcType = corev1.ServiceTypeClusterIP
+	}
+	if svcType == corev1.ServiceTypeLoadBalancer {
+		if len(s.Status.LoadBalancer.Ingress) == 0 {
+			return false
+		}
+		ing := s.Status.LoadBalancer.Ingress[0]
+		return ing.IP != "" || ing.Hostname != ""
+	}
+	return true
+}
+
+func nodeServicesReady(ctx context.Context, nod node.Node) (bool, error) {
+	svcs, err := nod.Services(ctx)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if len(svcs) == 0 {
+		return false, nil
+	}
+	for _, s := range svcs {
+		if !isServiceReady(s) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 type Resources struct {
