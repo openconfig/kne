@@ -18044,7 +18044,7 @@ items:
                 topologyKey: kubernetes.io/hostname
       initContainers:
         - name: init-wait
-          image: us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga
+          image: us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga
           imagePullPolicy: IfNotPresent
           args:
             - "1500"
@@ -18073,7 +18073,7 @@ items:
               topologyKey: kubernetes.io/hostname
       initContainers:
         - name: init-wait
-          image: us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga
+          image: us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga
           imagePullPolicy: IfNotPresent
           args:
             - "1500"

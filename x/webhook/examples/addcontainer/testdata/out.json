@@ -100,7 +100,7 @@
     "initContainers": [
       {
         "name": "init-r0",
-        "image": "us-west1-docker.pkg.dev/gep-kne/kne/networkop/init-wait:ga",
+        "image": "us-west1-docker.pkg.dev/gep-kne/kne/init-wait:ga",
         "args": ["4", "0"],
         "resources": {},
         "volumeMounts": [
