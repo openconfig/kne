@@ -232,6 +232,7 @@ func TestKindSpec(t *testing.T) {
 		resp        []fexec.Response
 		execPathErr bool
 		setupGARErr bool
+		hasCtr      bool
 		wantErr     string
 	}{{
 		desc: "create cluster with cli",
@@ -474,6 +475,52 @@ func TestKindSpec(t *testing.T) {
 			{Cmd: "kind", Args: []string{"load", "docker-image", "docker", "--name", "test"}},
 		},
 	}, {
+		desc: "create cluster load containers from containerd archive",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"cached-image": "cached-image",
+			},
+		},
+		hasCtr: true,
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==cached-image"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*.tar", "cached-image"}},
+			{Cmd: "kind", Args: []string{"load", "image-archive", ".*.tar", "--name", "test"}},
+		},
+	}, {
+		desc: "create cluster load containers from containerd archive with retag",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"cached-image": "custom-tag",
+			},
+		},
+		hasCtr: true,
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==cached-image"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "tag", "--force", "cached-image", "custom-tag"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*.tar", "custom-tag"}},
+			{Cmd: "kind", Args: []string{"load", "image-archive", ".*.tar", "--name", "test"}},
+		},
+	}, {
+		desc: "create cluster containerd image check fails falls back to docker",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"uncached-image": "uncached-image",
+			},
+		},
+		hasCtr: true,
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==uncached-image"}, Err: errors.New("image not found")},
+			{Cmd: "docker", Args: []string{"pull", "uncached-image"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "uncached-image", "--name", "test"}},
+		},
+	}, {
 		desc: "failed kind version - no prefix",
 		k: &KindSpec{
 			Name:    "test",
@@ -600,9 +647,12 @@ func TestKindSpec(t *testing.T) {
 			kexec.Command = cmds.Command
 			defer checkCmds(t, cmds)
 
-			execLookPath = func(_ string) (string, error) {
+			execLookPath = func(bin string) (string, error) {
 				if tt.execPathErr {
 					return "", errors.New("unable to find on path")
+				}
+				if bin == "ctr" && !tt.hasCtr {
+					return "", errors.New("ctr not found")
 				}
 				return "fakePath", nil
 			}

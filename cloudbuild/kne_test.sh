@@ -78,7 +78,7 @@ cluster:
     googleArtifactRegistries:
       - us-west1-docker.pkg.dev
     containerImages:
-      'us-west1-docker.pkg.dev/kne-external/kne/networkop/init-wait:ga': 'networkop/init-wait:latest'
+      'us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga': 'kne/init-wait:latest'
     config: ${HOME}/kne/manifests/kind/config.yaml
     additionalManifests:
       - ${HOME}/kne/manifests/kind/bridge.yaml
@@ -98,7 +98,7 @@ $cli deploy /tmp/dep-cfg.yaml --report_usage=false
 kubectl get pods -A
 
 # Check for existence of preloaded image
-if ! docker exec kne-control-plane crictl images | grep "docker.io/networkop/init-wait"; then
+if ! docker exec kne-control-plane crictl images | grep "docker.io/kne/init-wait"; then
 	echo "Unable to find preloaded image in cluster"
 	exit 1
 fi
