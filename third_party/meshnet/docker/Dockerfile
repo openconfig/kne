@@ -50,13 +50,9 @@ RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o meshnet plugin/meshnet.go 
 #----------------------------------------------------- Final Container ---------------------------------
 # checkov:skip=CKV_DOCKER_2: CNI daemon image does not require healthcheck
 # checkov:skip=CKV_DOCKER_3: CNI daemon must run as root to configure host network namespaces
-FROM debian:13-slim
-# hadolint ignore=DL3008
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        jq && \
-    rm -rf /var/lib/apt/lists/*
+FROM busybox:1.38.0
 
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /go/src/github.com/openconfig/kne/third_party/meshnet/meshnet /
 COPY --from=build /go/src/github.com/openconfig/kne/third_party/meshnet/meshnetd /
 COPY docker/new-entrypoint.sh /entrypoint.sh
@@ -64,3 +60,4 @@ COPY LICENSE /
 RUN chmod +x ./entrypoint.sh /meshnetd
 
 ENTRYPOINT ["./entrypoint.sh"]
+
