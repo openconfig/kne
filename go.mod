@@ -22,7 +22,8 @@ require (
 	github.com/openconfig/ondatra v0.14.8
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.4.2
+	github.com/scrapli/scrapligo v1.3.3
+	github.com/scrapli/scrapligo/v2 v2.0.0
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -60,7 +61,7 @@ require (
 	cloud.google.com/go/longrunning v1.2.0 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 // indirect
-	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
+	github.com/carlmontanari/difflibgo v0.0.0-20240227210139-93685b1c22ae // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -125,9 +126,9 @@ require (
 	github.com/p4lang/p4runtime v1.5.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
-	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
-	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
+	github.com/sirikothe/gotextfsm v1.2.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
