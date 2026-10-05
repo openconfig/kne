@@ -37,128 +37,97 @@ func New() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "release",
 	}
-	cmd.AddCommand(meshnet())
-	cmd.AddCommand(bridge())
+	cmd.AddCommand(newMeshnetCmd())
+	cmd.AddCommand(newBridgeCmd())
 	return cmd
 }
 
-// bridge releases the packet bridge image. The image is the kne binary with
+// newBridgeCmd releases the packet bridge image. The image is the kne binary with
 // `kne bridge` as its entrypoint, so it has no version of its own: releasing it
 // tags KNE as a whole and labels the image with that version.
-func bridge() *cobra.Command {
+func newBridgeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "bridge <version>",
 		Short: "Release the bridge image, tagging KNE as a whole at <version>",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Validating working directory")
-			sha, err := validateWorkDir()
-			if err != nil {
-				var uncleanErr *UncleanWorkDirError
-				if errors.As(err, &uncleanErr) {
-					for _, r := range uncleanErr.Reasons {
-						fmt.Println(r)
-					}
-					ok, pErr := promptBool("Are you sure you want to continue")
-					if pErr != nil {
-						return pErr
-					}
-					if !ok {
-						return fmt.Errorf("repository in invalid state")
-					}
-				} else {
-					return err
-				}
-			}
-			fmt.Println("Running prerelease tests")
-			if err := triggerBuild(cmd.Context(), "kne-test", sha, false, nil); err != nil {
-				return err
-			}
-
 			// Deliberately unprefixed, unlike meshnet: meshnet is a separate
 			// vendored component with its own source tree, whereas the bridge
 			// ships inside the kne binary and so shares KNE's version.
-			tag := args[0]
-			if err := checkTag(tag, sha); err != nil {
-				return err
-			}
-
-			if err := checkOrRunPrerelease(cmd.Context(), sha); err != nil {
-				return err
-			}
-
-			pushedAt := time.Now()
-			pushed, err := ensureTag(tag, sha)
-			if err != nil {
-				return err
-			}
-			return ensureReleaseBuild(cmd.Context(), "bridge-release", tag, args[0], pushed, pushedAt)
+			return runRelease(cmd.Context(), "bridge-release", args[0], args[0])
 		},
 	}
 }
 
-func meshnet() *cobra.Command {
+func newMeshnetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:  "meshnet <version>",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Validating working directory")
-			sha, err := validateWorkDir()
-			if err != nil {
-				var uncleanErr *UncleanWorkDirError
-				if errors.As(err, &uncleanErr) {
-					for _, r := range uncleanErr.Reasons {
-						fmt.Println(r)
-					}
-					ok, pErr := promptBool("Are you sure you want to continue")
-					if pErr != nil {
-						return pErr
-					}
-					if !ok {
-						return fmt.Errorf("repository in invalid state")
-					}
-				} else {
-					return err
-				}
-			}
-
 			tag := fmt.Sprintf("third_party/meshnet/%s", args[0])
-			if err := checkTag(tag, sha); err != nil {
-				return err
-			}
-
-			if err := checkOrRunPrerelease(cmd.Context(), sha); err != nil {
-				return err
-			}
-
-			pushedAt := time.Now()
-			pushed, err := ensureTag(tag, sha)
-			if err != nil {
-				return err
-			}
-			return ensureReleaseBuild(cmd.Context(), "meshnet-release", tag, args[0], pushed, pushedAt)
+			return runRelease(cmd.Context(), "meshnet-release", tag, args[0])
 		},
 	}
 }
 
-// checkTag verifies whether tag already exists on origin or locally, and returns an error
-// if it exists pointing to a commit other than expectedSHA.
-func checkTag(tag, expectedSHA string) error {
+func runRelease(ctx context.Context, trigger, tag, version string) error {
+	fmt.Println("Validating working directory")
+	sha, err := validateWorkDir()
+	if err != nil {
+		var uncleanErr *UncleanWorkDirError
+		if errors.As(err, &uncleanErr) {
+			for _, r := range uncleanErr.Reasons {
+				fmt.Println(r)
+			}
+			ok, pErr := promptBool("Are you sure you want to continue")
+			if pErr != nil {
+				return pErr
+			}
+			if !ok {
+				return fmt.Errorf("repository in invalid state")
+			}
+		} else {
+			return err
+		}
+	}
+
+	if _, _, err := validateTag(tag, sha); err != nil {
+		return err
+	}
+
+	if err := runPrereleaseTests(ctx, sha); err != nil {
+		return err
+	}
+
+	pushedAt := time.Now()
+	pushed, err := createAndPushTag(tag, sha)
+	if err != nil {
+		return err
+	}
+	return runReleaseBuild(ctx, trigger, tag, version, pushed, pushedAt)
+}
+
+// validateTag verifies whether tag already exists on origin or locally, and returns an error
+// if it exists pointing to a commit other than expectedSHA. It returns the resolved remote and local SHAs.
+func validateTag(tag, expectedSHA string) (string, string, error) {
 	remoteOut, err := exec.Command("git", "ls-remote", "origin", fmt.Sprintf("refs/tags/%s*", tag)).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to check remote tag on origin: out %s, error %v", string(remoteOut), err)
+		return "", "", fmt.Errorf("failed to check remote tag on origin: out %s, error %v", string(remoteOut), err)
 	}
 	remoteSHA := parseLsRemoteTagSHA(string(remoteOut), tag)
 	if remoteSHA != "" && remoteSHA != expectedSHA {
-		return fmt.Errorf("tag %q already exists on origin pointing to %s, but expected commit %s", tag, remoteSHA, expectedSHA)
+		return "", "", fmt.Errorf("tag %q already exists on origin pointing to %s, but expected commit %s", tag, remoteSHA, expectedSHA)
 	}
 
 	localOut, err := exec.Command("git", "rev-parse", "-q", "--verify", fmt.Sprintf("refs/tags/%s^{commit}", tag)).CombinedOutput()
 	localSHA := strings.TrimSpace(string(localOut))
-	if err == nil && localSHA != "" && localSHA != expectedSHA {
-		return fmt.Errorf("tag %q already exists locally pointing to %s, but expected commit %s", tag, localSHA, expectedSHA)
+	if err != nil {
+		localSHA = ""
 	}
-	return nil
+	if localSHA != "" && localSHA != expectedSHA {
+		return "", "", fmt.Errorf("tag %q already exists locally pointing to %s, but expected commit %s", tag, localSHA, expectedSHA)
+	}
+	return remoteSHA, localSHA, nil
 }
 
 // parseLsRemoteTagSHA extracts the commit SHA for target tag from git ls-remote output,
@@ -185,22 +154,15 @@ func parseLsRemoteTagSHA(output, tag string) string {
 	return tagSHA
 }
 
-// ensureTag creates the tag locally (if needed) and pushes it to origin (if needed).
+// createAndPushTag creates the tag locally (if needed) and pushes it to origin (if needed).
 // It returns true if the tag was pushed to origin in this call, or false if it was already on origin.
-func ensureTag(tag, expectedSHA string) (bool, error) {
-	if err := checkTag(tag, expectedSHA); err != nil {
+func createAndPushTag(tag, expectedSHA string) (bool, error) {
+	remoteSHA, localSHA, err := validateTag(tag, expectedSHA)
+	if err != nil {
 		return false, err
 	}
 
-	remoteOut, err := exec.Command("git", "ls-remote", "origin", fmt.Sprintf("refs/tags/%s*", tag)).CombinedOutput()
-	if err != nil {
-		return false, fmt.Errorf("failed to check remote tag on origin: out %s, error %v", string(remoteOut), err)
-	}
-	remoteSHA := parseLsRemoteTagSHA(string(remoteOut), tag)
-
-	localOut, err := exec.Command("git", "rev-parse", "-q", "--verify", fmt.Sprintf("refs/tags/%s^{commit}", tag)).CombinedOutput()
-	localSHA := strings.TrimSpace(string(localOut))
-	if err != nil || localSHA == "" {
+	if localSHA == "" {
 		// Tag doesn't exist locally; create it
 		if out, err := exec.Command("git", "tag", tag, expectedSHA).CombinedOutput(); err != nil {
 			return false, fmt.Errorf("failed to create tag %q at %s: out %s, error %v", tag, expectedSHA, string(out), err)
@@ -231,8 +193,8 @@ func newCloudBuildClient(ctx context.Context) (*cloudbuild.Client, error) {
 	return cloudbuild.NewClient(ctx, option.WithEndpoint(cloudBuildEndpoint), option.WithQuotaProject(quotaProjectID))
 }
 
-// checkOrRunPrerelease checks if prerelease tests have already passed for sha, or runs them.
-func checkOrRunPrerelease(ctx context.Context, sha string) (rErr error) {
+// runPrereleaseTests checks if prerelease tests have already passed for sha, or runs them.
+func runPrereleaseTests(ctx context.Context, sha string) (rErr error) {
 	fmt.Println("Checking prerelease tests")
 	c, err := newCloudBuildClient(ctx)
 	if err != nil {
@@ -257,7 +219,7 @@ func checkOrRunPrerelease(ctx context.Context, sha string) (rErr error) {
 			break
 		}
 		if err != nil {
-			break
+			return fmt.Errorf("failed to list builds: %w", err)
 		}
 		if b.GetStatus() == cloudbuildpb.Build_SUCCESS {
 			fmt.Printf("Prerelease tests already passed for commit %s (Build ID: %s)\n", sha, b.GetId())
@@ -270,16 +232,16 @@ func checkOrRunPrerelease(ctx context.Context, sha string) (rErr error) {
 
 	if runningBuild != nil {
 		fmt.Printf("Prerelease tests already running (Build ID: %s)\nLogs: %s\n", runningBuild.GetId(), runningBuild.GetLogUrl())
-		return waitForBuildCompletion(ctx, c, runningBuild.GetName())
+		return waitForBuild(ctx, c, runningBuild.GetName())
 	}
 
 	fmt.Println("Running prerelease tests")
 	return triggerBuild(ctx, "kne-test", sha, false, nil)
 }
 
-// ensureReleaseBuild checks if the release build for tag is already complete,
+// runReleaseBuild checks if the release build for tag is already complete,
 // waits for an in-progress or newly triggered automatic build, or triggers a build if needed.
-func ensureReleaseBuild(ctx context.Context, trigger, tag, version string, tagPushed bool, pushedAt time.Time) (rErr error) {
+func runReleaseBuild(ctx context.Context, trigger, tag, version string, tagPushed bool, pushedAt time.Time) (rErr error) {
 	c, err := newCloudBuildClient(ctx)
 	if err != nil {
 		return err
@@ -290,7 +252,7 @@ func ensureReleaseBuild(ctx context.Context, trigger, tag, version string, tagPu
 		}
 	}()
 
-	filter := fmt.Sprintf(`substitutions.TAG_NAME = %q`, tag)
+	filter := fmt.Sprintf(`substitutions.TAG_NAME = %q AND substitutions.TRIGGER_NAME = %q`, tag, trigger)
 
 	// If tag was not pushed in this invocation, check if a successful or in-progress build already exists.
 	if !tagPushed {
@@ -306,7 +268,7 @@ func ensureReleaseBuild(ctx context.Context, trigger, tag, version string, tagPu
 				break
 			}
 			if err != nil {
-				break
+				return fmt.Errorf("failed to list builds: %w", err)
 			}
 			if b.GetStatus() == cloudbuildpb.Build_SUCCESS {
 				fmt.Printf("Release build already complete for tag %s (Build ID: %s, Status: %s)\n", tag, b.GetId(), b.GetStatus())
@@ -318,7 +280,7 @@ func ensureReleaseBuild(ctx context.Context, trigger, tag, version string, tagPu
 		}
 		if runningBuild != nil {
 			fmt.Printf("Found in-progress release build (Build ID: %s)\nLogs: %s\n", runningBuild.GetId(), runningBuild.GetLogUrl())
-			return waitForBuildCompletion(ctx, c, runningBuild.GetName())
+			return waitForBuild(ctx, c, runningBuild.GetName())
 		}
 		// No successful or running build exists for this tag; trigger one manually.
 		fmt.Printf("No successful or running build found for tag %s; triggering build\n", tag)
@@ -369,10 +331,10 @@ func ensureReleaseBuild(ctx context.Context, trigger, tag, version string, tagPu
 	}
 
 	fmt.Printf("Build ID: %s\nLogs: %s\n", build.GetId(), build.GetLogUrl())
-	return waitForBuildCompletion(ctx, c, build.GetName())
+	return waitForBuild(ctx, c, build.GetName())
 }
 
-func waitForBuildCompletion(ctx context.Context, c *cloudbuild.Client, buildName string) error {
+func waitForBuild(ctx context.Context, c *cloudbuild.Client, buildName string) error {
 	fmt.Println("Waiting for build to finish")
 	for {
 		b, err := c.GetBuild(ctx, &cloudbuildpb.GetBuildRequest{
