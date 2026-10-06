@@ -981,43 +981,8 @@ func (k *KindSpec) loadContainerImages() error {
 
 func loadContainerImageWithFallback(src, dst, clusterName string) error {
 	// First attempt: try exporting from containerd (k8s.io namespace) if ctr is available and image exists.
-	if _, err := execLookPath("ctr"); err == nil {
-		if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "check", fmt.Sprintf("name==%s", src)); err == nil {
-			exportTag := src
-			tagOK := true
-			if dst != src {
-				exportTag = dst
-				if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "tag", "--force", src, dst); err != nil {
-					log.Warningf("Failed to tag %q as %q in containerd: %v", src, dst, err)
-					tagOK = false
-				}
-			}
-			if tagOK {
-				tmpFile, err := os.CreateTemp("", "kind-load-*.tar")
-				if err == nil {
-					tmpPath := tmpFile.Name()
-					if err := tmpFile.Close(); err != nil {
-						log.Warningf("Failed to close temp file %q: %v", tmpPath, err)
-					}
-					defer func() {
-						if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
-							log.Warningf("Failed to remove temp file %q: %v", tmpPath, err)
-						}
-					}()
-
-					if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "export", tmpPath, exportTag); err == nil {
-						args := []string{"load", "image-archive", tmpPath}
-						if clusterName != "" {
-							args = append(args, "--name", clusterName)
-						}
-						if err := run.LogCommand("kind", args...); err == nil {
-							log.Infof("Successfully loaded %q from containerd into kind cluster %q", exportTag, clusterName)
-							return nil
-						}
-					}
-				}
-			}
-		}
+	if tryLoadFromContainerd(src, dst, clusterName) {
+		return nil
 	}
 
 	// Fallback: use docker pull, tag, and kind load docker-image.
@@ -1054,6 +1019,57 @@ func loadContainerImageWithFallback(src, dst, clusterName string) error {
 		return fmt.Errorf("failed to load %q: %w", dst, err)
 	}
 	return nil
+}
+
+func tryLoadFromContainerd(src, dst, clusterName string) bool {
+	if _, err := execLookPath("ctr"); err != nil {
+		return false
+	}
+	if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "check", fmt.Sprintf("name==%s", src)); err != nil {
+		return false
+	}
+	exportTag := src
+	if dst != src {
+		exportTag = dst
+		if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "tag", "--force", src, dst); err != nil {
+			log.Warningf("Failed to tag %q as %q in containerd: %v", src, dst, err)
+			return false
+		}
+		defer func() {
+			if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "rm", dst); err != nil {
+				log.Warningf("Failed to remove temporary tag %q from containerd: %v", dst, err)
+			}
+		}()
+	}
+	tmpFile, err := os.CreateTemp("", "kind-load-*.tar")
+	if err != nil {
+		log.Warningf("Failed to create temp file for image archive: %v", err)
+		return false
+	}
+	tmpPath := tmpFile.Name()
+	if err := tmpFile.Close(); err != nil {
+		log.Warningf("Failed to close temp file %q: %v", tmpPath, err)
+	}
+	defer func() {
+		if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
+			log.Warningf("Failed to remove temp file %q: %v", tmpPath, err)
+		}
+	}()
+
+	if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "export", tmpPath, exportTag); err != nil {
+		log.Warningf("Failed to export %q from containerd: %v", exportTag, err)
+		return false
+	}
+	args := []string{"load", "image-archive", tmpPath}
+	if clusterName != "" {
+		args = append(args, "--name", clusterName)
+	}
+	if err := run.LogCommand("kind", args...); err != nil {
+		log.Warningf("Failed to load image archive %q into kind cluster %q: %v", tmpPath, clusterName, err)
+		return false
+	}
+	log.Infof("Successfully loaded %q from containerd into kind cluster %q", exportTag, clusterName)
+	return true
 }
 
 func init() {

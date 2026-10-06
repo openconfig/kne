@@ -129,7 +129,7 @@ $cli deploy kne/deploy/kne/external-multinode.yaml --report_usage=false
 kubectl get pods -A
 
 # Create a simple lemming topology
-$cli create kne/examples/openconfig/lemming.pb.txt --report_usage=false
+$cli create kne/examples/openconfig/lemming.pb.txt --report_usage=false --timeout=15m
 
 kubectl get pods -A
 
