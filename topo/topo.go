@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -86,6 +87,9 @@ var (
 		Version:  topologyv1.GroupVersion,
 		Resource: "topologies",
 	}
+
+	defaultServiceTimeout = 2 * time.Minute
+	minServiceTimeout     = 30 * time.Second
 )
 
 // Manager is a topology manager for a cluster instance.
@@ -313,15 +317,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 	if err := m.checkNodeStatus(ctx, timeout); err != nil {
 		return fmt.Errorf("failed to check status of nodes in topology %q: %w", m.topo.GetName(), err)
 	}
-	serviceTimeout := timeout
-	if timeout > 0 {
-		elapsed := time.Since(start)
-		if elapsed >= timeout {
-			serviceTimeout = time.Millisecond
-		} else {
-			serviceTimeout = timeout - elapsed
-		}
-	}
+	serviceTimeout := calculateServiceTimeout(timeout, time.Since(start))
 	if err := m.checkServiceStatus(ctx, serviceTimeout); err != nil {
 		return fmt.Errorf("failed to check status of services in topology %q: %w", m.topo.GetName(), err)
 	}
@@ -881,6 +877,21 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 	return nil
 }
 
+func calculateServiceTimeout(timeout, elapsed time.Duration) time.Duration {
+	if timeout == 0 {
+		return defaultServiceTimeout
+	}
+	floor := minServiceTimeout
+	if timeout < floor {
+		floor = timeout
+	}
+	rem := timeout - elapsed
+	if rem < floor {
+		return floor
+	}
+	return rem
+}
+
 // checkServiceStatus reports service status, waiting until services configured on nodes are ready
 // (e.g. LoadBalancer services have an ingress IP/hostname assigned).
 func (m *Manager) checkServiceStatus(ctx context.Context, timeout time.Duration) error {
@@ -942,12 +953,22 @@ func (m *Manager) checkServiceStatus(ctx context.Context, timeout time.Duration)
 		}
 	}
 	if !foundAll {
-		log.Warningf("Failed to determine status of some service resources in %v", timeout)
+		var pending []string
+		for name := range m.nodes {
+			if !processed[name] {
+				pending = append(pending, name)
+			}
+		}
+		sort.Strings(pending)
+		log.Warningf("Failed to determine status of service resources in %v for nodes: %v", timeout, pending)
 	}
 	return nil
 }
 
 func isServiceReady(s *corev1.Service) bool {
+	if s == nil {
+		return false
+	}
 	svcType := s.Spec.Type
 	if svcType == "" {
 		svcType = corev1.ServiceTypeClusterIP
