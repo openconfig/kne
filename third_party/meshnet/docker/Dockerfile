@@ -3,9 +3,10 @@ FROM golang:1.27.1 AS proto_base
 
 WORKDIR /src
 
+COPY --from=bufbuild/buf:1.13.1 /usr/local/bin/buf /usr/local/bin/buf
+
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11 && \
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1 && \
-    go install github.com/bufbuild/buf/cmd/buf@v1.13.1
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
 COPY daemon/proto .
 COPY buf.gen.yaml .

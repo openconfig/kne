@@ -504,6 +504,7 @@ func TestKindSpec(t *testing.T) {
 			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "tag", "--force", "cached-image", "custom-tag"}},
 			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*.tar", "custom-tag"}},
 			{Cmd: "kind", Args: []string{"load", "image-archive", ".*.tar", "--name", "test"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "rm", "custom-tag"}},
 		},
 	}, {
 		desc: "create cluster containerd image check fails falls back to docker",
