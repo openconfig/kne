@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 echo "Distributing files"
 if [ -d "/opt/cni/bin/" ] && [ -f "./meshnet" ]; then
@@ -10,4 +10,4 @@ if [ -d "/etc/cni/net.d/" ] && [ -f "./meshnet.conf" ]; then
 fi
 
 echo "Starting meshnetd daemon"
-/meshnetd
+exec /meshnetd

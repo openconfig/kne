@@ -20,12 +20,11 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/kne ./kne_cli
 
-FROM alpine:3.24.2
+FROM busybox:1.38.0
 
-# hadolint ignore=DL3018
-RUN apk add --no-cache iproute2 ca-certificates
-
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /bin/kne /usr/local/bin/kne
 
 ENTRYPOINT ["/usr/local/bin/kne", "bridge"]
 CMD []
+
