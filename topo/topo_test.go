@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -585,6 +586,24 @@ func TestCreate(t *testing.T) {
 		},
 		timeout: time.Second,
 	}, {
+		desc: "success with hanging service + timeout",
+		topo: &tpb.Topology{
+			Name: "test",
+			Nodes: []*tpb.Node{
+				{
+					Name:   "hanging-service",
+					Vendor: tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{
+						2000: {
+							Name: "grpc",
+						},
+					},
+					Config: &tpb.Config{},
+				},
+			},
+		},
+		timeout: time.Second,
+	}, {
 		desc: "pod failed to start",
 		topo: &tpb.Topology{
 			Name: "test",
@@ -682,6 +701,20 @@ func TestCreate(t *testing.T) {
 					p.Status.Phase = corev1.PodPending
 				}
 				return true, p, nil
+			})
+			kf.PrependReactor("create", "services", func(action ktest.Action) (bool, runtime.Object, error) {
+				cAction, ok := action.(ktest.CreateAction)
+				if !ok {
+					return false, nil, nil
+				}
+				s, ok := cAction.GetObject().(*corev1.Service)
+				if !ok {
+					return false, nil, nil
+				}
+				if s.Spec.Type == corev1.ServiceTypeLoadBalancer && !strings.Contains(s.Name, "hanging-service") {
+					s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "1.2.3.4"}}
+				}
+				return false, nil, nil
 			})
 
 			opts := []Option{
