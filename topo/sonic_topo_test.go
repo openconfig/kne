@@ -38,6 +38,20 @@ func TestCreateSonicNode(t *testing.T) {
 		}
 		return true, p, nil
 	})
+	kf.PrependReactor("create", "services", func(action ktest.Action) (bool, runtime.Object, error) {
+		cAction, ok := action.(ktest.CreateAction)
+		if !ok {
+			return false, nil, nil
+		}
+		s, ok := cAction.GetObject().(*corev1.Service)
+		if !ok {
+			return false, nil, nil
+		}
+		if s.Spec.Type == corev1.ServiceTypeLoadBalancer {
+			s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "1.2.3.4"}}
+		}
+		return false, nil, nil
+	})
 
 	spec := &tpb.Topology{
 		Name: "test-sonic",
