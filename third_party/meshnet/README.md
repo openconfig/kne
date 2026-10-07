@@ -5,7 +5,7 @@
 >
 > Future development, bug fixes, and CI/CD testing are managed as part of the parent [KNE project](https://github.com/openconfig/kne). Please file any issues or pull requests in the main KNE repository.
 
-**meshnet** is a (K8s) CNI plugin to create arbitrary network topologies out of point-to-point links with the help of [koko](https://github.com/redhat-nfvpe/koko). Heavily inspired by [Ratchet-CNI](https://github.com/dougbtv/ratchet-cni), [kokonet](https://github.com/s1061123/kokonet) and [Multus](https://github.com/intel/multus-cni).
+**meshnet** is a (K8s) CNI plugin to create arbitrary network topologies out of point-to-point links. Heavily inspired by [Ratchet-CNI](https://github.com/dougbtv/ratchet-cni), [kokonet](https://github.com/s1061123/kokonet) and [Multus](https://github.com/intel/multus-cni).
 
 ## New in version 0.2.0
 
@@ -83,9 +83,9 @@ Below is the order of operation of the plugin from the perspective of kube-node-
 
 4. meshnet binary updates the topology data with pod's runtime metadata (namespace filepath and primary IP address).
 5. meshnet binary (via a local meshnet daemon) retrieves the list of `links` and looks up peer pod's metadata to identify what kind of link to setup - veth, vxlan or macvlan.
-6. If the peer is on the same node, it calls koko to setup a `veth` link between the two pods.
+6. If the peer is on the same node, it sets up a `veth` link between the two pods.
 7. If the peer is on the remote node, it does two things:
-   - 7.1 It calls koko to setup a local `vxlan` link.
+   - 7.1 It sets up a local `vxlan` link.
    - 7.2 It makes a gRPC `Update` call to the remote node's meshnet daemon, specifying this link's metadata (e.g. VTEP IP and VNI).
 8. Upon receipt of this information, remote node's `meshnetd` idepmotently updates the local vxlan link, i.e. it creates a new link, updates the existing link if there's a change or does nothing if the link attributes are the same.
 

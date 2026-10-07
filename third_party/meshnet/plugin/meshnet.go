@@ -15,7 +15,6 @@ import (
 	types100 "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
 	"github.com/containernetworking/plugins/pkg/ns"
-	koko "github.com/redhat-nfvpe/koko/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
@@ -129,23 +128,20 @@ func getVxlanSource(nodeIP string, nodeIntf string) (string, string, error) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// makeVeth creates koko.Veth from NetNS and LinkName
-func makeVeth(netNS, linkName string, ip string) (*koko.VEth, error) {
-	log.Infof("Creating Veth struct with NetNS:%s and intfName: %s, IP:%s", netNS, linkName, ip)
-	veth := koko.VEth{}
-	veth.NsName = netNS
-	veth.LinkName = linkName
-	if ip != "" {
-		ipAddr, ipSubnet, err := net.ParseCIDR(ip)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse CIDR %s: %s", ip, err)
-		}
-		veth.IPAddr = []net.IPNet{{
-			IP:   ipAddr,
-			Mask: ipSubnet.Mask,
-		}}
+// removeLink deletes an interface by name inside the specified network namespace.
+func removeLink(netNS, linkName string) error {
+	podNs, err := ns.GetNS(netNS)
+	if err != nil {
+		return err
 	}
-	return &veth, nil
+	defer podNs.Close()
+	return podNs.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(linkName)
+		if err != nil {
+			return err
+		}
+		return netlink.LinkDel(link)
+	})
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -410,18 +406,10 @@ func cmdDel(args *skel.CmdArgs) error {
 				linkType = "vxlan"
 			}
 		}
-		// Creating koko's Veth struct for local intf
-		myVeth, err := makeVeth(args.Netns, link.LocalIntf, link.LocalIp)
-		if err != nil {
-			log.Infof("Del: Failed to construct koko Veth struct")
-			return err
-		}
-
 		log.Infof("Del: Removing link %s", link.LocalIntf)
-		// API call to koko to remove local Veth link
-		if err = myVeth.RemoveVethLink(); err != nil {
+		if err := removeLink(args.Netns, link.LocalIntf); err != nil {
 			// instead of failing, just log the error and move on
-			log.Errorf("Del: Error removing Veth link %s (%s) on pod %s: %v", link.LocalIntf, linkType, localPod.Name, err)
+			log.Errorf("Del: Error removing link %s (%s) on pod %s: %v", link.LocalIntf, linkType, localPod.Name, err)
 		}
 	}
 	return nil
