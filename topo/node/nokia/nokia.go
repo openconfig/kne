@@ -7,8 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
+	npb "github.com/openconfig/kne/proto/nokia"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scraplinetwork "github.com/scrapli/scrapligo/driver/network"
@@ -253,6 +257,11 @@ func escapeConfig(cfgBytes []byte) string {
 func (n *Node) Create(ctx context.Context) error {
 	log.Infof("Creating Srlinux node resource %s", n.Name())
 
+	components, err := lineCards(n.GetProto())
+	if err != nil {
+		return fmt.Errorf("node %s: %w", n.Name(), err)
+	}
+
 	if _, err := n.CreateConfig(ctx); err != nil {
 		return fmt.Errorf("node %s failed to create config-map %w", n.Name(), err)
 	}
@@ -300,6 +309,13 @@ func (n *Node) Create(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// spec.components is set on the unstructured object so that KNE does not depend on an
+	// srl-controller API version that defines it.
+	if len(components) > 0 {
+		if err := unstructured.SetNestedSlice(srlMap, components, "spec", "components"); err != nil {
+			return fmt.Errorf("node %s failed to set line cards: %w", n.Name(), err)
+		}
+	}
 	srlUnstructured := &unstructured.Unstructured{Object: srlMap}
 
 	c, err := dynamic.NewForConfig(n.RestConfig)
@@ -307,8 +323,15 @@ func (n *Node) Create(ctx context.Context) error {
 		return err
 	}
 
-	if _, err := c.Resource(srlGVR).Namespace(n.Namespace).Create(ctx, srlUnstructured, metav1.CreateOptions{}); err != nil {
+	created, err := c.Resource(srlGVR).Namespace(n.Namespace).Create(ctx, srlUnstructured, metav1.CreateOptions{})
+	if err != nil {
 		return err
+	}
+	if len(components) > 0 {
+		// Srlinux CRDs without spec.components prune the field instead of rejecting it.
+		if _, found, _ := unstructured.NestedSlice(created.Object, "spec", "components"); !found {
+			log.Warningf("Node %s: the installed srl-controller does not support spec.components, line cards %v are ignored", n.Name(), components)
+		}
 	}
 
 	// wait till srlinux pods are created in the cluster
@@ -507,6 +530,81 @@ func (n *Node) isConfigDataPresent() bool {
 	}
 
 	return false
+}
+
+// ifaceSlotRE matches SR Linux interface names eX-Y and breakouts eX-Y-Z, capturing the slot X.
+var ifaceSlotRE = regexp.MustCompile(`^e(\d+)-\d+(?:-\d+)?$`)
+
+// modularModels maps the SR Linux models whose chassis accept more than one line card to their
+// number of line card slots. SR Linux fails to start with a line card in a slot outside the chassis.
+var modularModels = map[string]int64{
+	"ixr6":   4,
+	"ixr6e":  4,
+	"ixr10":  8,
+	"ixr10e": 8,
+}
+
+// lineCards returns the line cards to install in the node's chassis as Srlinux spec.components
+// list entries. Components set in SRLinuxConfig vendor data are returned as-is. Otherwise, for
+// modular models, one line card of the model's default type is installed per slot referenced by
+// the node's interface names, ignoring slots outside the chassis. Nil is returned when no line cards are set or derived, or when
+// only slot 1 is referenced, so the model's topology template is used unchanged.
+func lineCards(pb *tpb.Node) ([]any, error) {
+	if vendorData := pb.GetConfig().GetVendorData(); vendorData != nil {
+		cfg := &npb.SRLinuxConfig{}
+		if err := vendorData.UnmarshalTo(cfg); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal vendor data: %w", err)
+		}
+		if len(cfg.GetComponents()) > 0 {
+			components := make([]any, 0, len(cfg.GetComponents()))
+			for _, c := range cfg.GetComponents() {
+				components = append(components, component(int64(c.GetSlot()), c.GetType()))
+			}
+			return components, nil
+		}
+	}
+
+	maxSlot, ok := modularModels[pb.GetModel()]
+	if !ok {
+		return nil, nil
+	}
+	var slots []int64
+	for name := range pb.GetInterfaces() {
+		m := ifaceSlotRE.FindStringSubmatch(name)
+		if m == nil {
+			continue
+		}
+		slot, err := strconv.ParseInt(m[1], 10, 32)
+		if err != nil || slot < 1 {
+			continue
+		}
+		if slot > maxSlot {
+			log.Warningf("Node %s: ignoring line card slot %d of interface %s, model %s has %d slots", pb.GetName(), slot, name, pb.GetModel(), maxSlot)
+			continue
+		}
+		if !slices.Contains(slots, slot) {
+			slots = append(slots, slot)
+		}
+	}
+	if len(slots) == 0 || (len(slots) == 1 && slots[0] == 1) {
+		return nil, nil
+	}
+	slices.Sort(slots)
+	components := make([]any, 0, len(slots))
+	for _, slot := range slots {
+		components = append(components, component(slot, ""))
+	}
+	return components, nil
+}
+
+// component returns a Srlinux spec.components list entry. An empty imm type is omitted so the
+// controller uses the model's default line card.
+func component(slot int64, imm string) map[string]any {
+	c := map[string]any{"slot": slot}
+	if imm != "" {
+		c["type"] = imm
+	}
+	return c
 }
 
 func init() {

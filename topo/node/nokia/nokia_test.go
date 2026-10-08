@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnmi/errdiff"
+	npb "github.com/openconfig/kne/proto/nokia"
 	topopb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/kne/topo/node"
 	scrapliopts "github.com/scrapli/scrapligo/driver/options"
@@ -29,8 +30,10 @@ import (
 	scrapliutil "github.com/scrapli/scrapligo/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/anypb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	ktest "k8s.io/client-go/testing"
@@ -520,6 +523,153 @@ func TestEscapeConfig(t *testing.T) {
 			got := escapeConfig([]byte(tt.input))
 			if got != tt.want {
 				t.Errorf("escapeConfig(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLineCards(t *testing.T) {
+	ifaces := func(names ...string) map[string]*topopb.Interface {
+		m := map[string]*topopb.Interface{}
+		for _, n := range names {
+			m[n] = &topopb.Interface{}
+		}
+		return m
+	}
+	vendorData := func(t *testing.T, cs ...*npb.Component) *anypb.Any {
+		t.Helper()
+		a, err := anypb.New(&npb.SRLinuxConfig{Components: cs})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
+	modular := func(names ...string) func(*testing.T) *topopb.Node {
+		return func(*testing.T) *topopb.Node {
+			return &topopb.Node{Model: "ixr10e", Interfaces: ifaces(names...)}
+		}
+	}
+	slot := func(s int64) map[string]any { return map[string]any{"slot": s} }
+
+	tests := []struct {
+		desc    string
+		pb      func(t *testing.T) *topopb.Node
+		want    []any
+		wantErr string
+	}{{
+		desc: "no interfaces",
+		pb:   modular(),
+	}, {
+		desc: "only slot 1",
+		pb:   modular("e1-1", "e1-2", "e1-3-1"),
+	}, {
+		desc: "non eX-Y names ignored",
+		pb:   modular("eth1", "ethernet-2/1", "e2", "mgmt0"),
+	}, {
+		desc: "slots 1 and 2",
+		pb:   modular("e2-1", "e1-1", "e2-5"),
+		want: []any{slot(1), slot(2)},
+	}, {
+		desc: "slot 1 unpopulated",
+		pb:   modular("e2-1"),
+		want: []any{slot(2)},
+	}, {
+		desc: "breakout",
+		pb:   modular("e3-1-2", "e7-4"),
+		want: []any{slot(3), slot(7)},
+	}, {
+		desc: "slot 0 ignored",
+		pb:   modular("e0-1", "e2-1"),
+		want: []any{slot(2)},
+	}, {
+		desc: "slots outside the chassis ignored",
+		pb:   modular("e8-1", "e9-1", "e2-1"),
+		want: []any{slot(2), slot(8)},
+	}, {
+		desc: "slots outside a 4 slot chassis ignored",
+		pb: func(*testing.T) *topopb.Node {
+			return &topopb.Node{Model: "ixr6e", Interfaces: ifaces("e4-1", "e5-1")}
+		},
+		want: []any{slot(4)},
+	}, {
+		desc: "slot number overflow ignored",
+		pb:   modular("e99999999999999999999-1", "e2-1"),
+		want: []any{slot(2)},
+	}, {
+		desc: "all modular models derive",
+		pb: func(*testing.T) *topopb.Node {
+			return &topopb.Node{Model: "ixr6", Interfaces: ifaces("e1-1", "e3-1")}
+		},
+		want: []any{slot(1), slot(3)},
+	}, {
+		desc: "fixed model does not derive",
+		pb: func(*testing.T) *topopb.Node {
+			return &topopb.Node{Model: "ixrd3", Interfaces: ifaces("e1-1", "e2-1")}
+		},
+	}, {
+		desc: "no model does not derive",
+		pb: func(*testing.T) *topopb.Node {
+			return &topopb.Node{Interfaces: ifaces("e1-1", "e2-1")}
+		},
+	}, {
+		desc: "explicit components override derivation",
+		pb: func(t *testing.T) *topopb.Node {
+			return &topopb.Node{
+				Model:      "ixr10e",
+				Interfaces: ifaces("e1-1", "e2-1", "e3-1"),
+				Config: &topopb.Config{VendorData: vendorData(t,
+					&npb.Component{Slot: 2, Type: "imm60-100g-qsfp28"},
+					&npb.Component{Slot: 1},
+				)},
+			}
+		},
+		want: []any{map[string]any{"slot": int64(2), "type": "imm60-100g-qsfp28"}, slot(1)},
+	}, {
+		desc: "explicit components are passed through on any model",
+		pb: func(t *testing.T) *topopb.Node {
+			return &topopb.Node{
+				Model:  "ixrd3",
+				Config: &topopb.Config{VendorData: vendorData(t, &npb.Component{Slot: 2})},
+			}
+		},
+		want: []any{slot(2)},
+	}, {
+		desc: "empty vendor data falls back to derivation",
+		pb: func(t *testing.T) *topopb.Node {
+			return &topopb.Node{
+				Model:      "ixr10e",
+				Interfaces: ifaces("e1-1", "e2-1"),
+				Config:     &topopb.Config{VendorData: vendorData(t)},
+			}
+		},
+		want: []any{slot(1), slot(2)},
+	}, {
+		desc: "wrong vendor data type",
+		pb: func(t *testing.T) *topopb.Node {
+			a, err := anypb.New(&topopb.Interface{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return &topopb.Node{Config: &topopb.Config{VendorData: a}}
+		},
+		wantErr: "failed to unmarshal vendor data",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got, err := lineCards(tt.pb(t))
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("lineCards() unexpected error: %s", s)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("lineCards() mismatch (-want +got):\n%s", diff)
+			}
+			// The result is set on an unstructured object, so it must be deep copyable.
+			if got != nil {
+				obj := map[string]any{}
+				if err := unstructured.SetNestedSlice(obj, got, "spec", "components"); err != nil {
+					t.Errorf("SetNestedSlice() failed: %v", err)
+				}
 			}
 		})
 	}
