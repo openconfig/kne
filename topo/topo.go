@@ -598,7 +598,10 @@ func (m *Manager) load() error {
 		// causes other vendors to have issues. Run this script as a temporary
 		// workaround.
 		if _, err := os.Stat(setPIDMaxScript); err == nil {
-			if err := run.LogCommand(setPIDMaxScript); err != nil {
+			if out, err := run.OutLogCommand(setPIDMaxScript); err != nil {
+				if len(out) != 0 {
+					return fmt.Errorf("failed to exec set_pid_max script: %w: %s", err, strings.TrimSpace(string(out)))
+				}
 				return fmt.Errorf("failed to exec set_pid_max script: %w", err)
 			}
 		}
