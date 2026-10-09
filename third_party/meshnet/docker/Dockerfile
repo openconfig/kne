@@ -1,9 +1,9 @@
 # GRPC generation
-FROM golang:1.27.1 AS proto_base
+FROM golang:1.27.2 AS proto_base
 
 WORKDIR /src
 
-COPY --from=bufbuild/buf:1.13.1 /usr/local/bin/buf /usr/local/bin/buf
+COPY --from=bufbuild/buf:1.73.0 /usr/local/bin/buf /usr/local/bin/buf
 
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
@@ -16,7 +16,7 @@ RUN buf lint && buf generate -v
 
 #---------------------------------------------- Stage 2: Build Base : Build meshnet binaries (Plugin & daemon) - ---------------------------------
 # Building the binaries
-FROM golang:1.27.1 AS build_base
+FROM golang:1.27.2 AS build_base
 
 
 WORKDIR /go/src/github.com/openconfig/kne/third_party/meshnet
