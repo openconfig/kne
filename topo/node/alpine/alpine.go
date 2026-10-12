@@ -178,11 +178,10 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			}
 		}
 
-		switch numContainers := len(alpineConfig.Containers); numContainers {
-		case 0:
+		if len(alpineConfig.Containers) == 0 {
 			log.Infof("Alpine custom containers not found.")
-		case 1:
-			dpContainer := alpineConfig.Containers[0]
+		}
+		for _, dpContainer := range alpineConfig.Containers {
 			containerSpec := corev1.Container{
 				Name:    dpContainer.Name,
 				Image:   dpContainer.Image,
@@ -198,9 +197,6 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				VolumeMounts: extraMounts,
 			}
 			alpineContainers = append(alpineContainers, containerSpec)
-		default:
-			// Only Dataplane container is supported as the custom container
-			return fmt.Errorf("Alpine supports only 1 custom container, %d provided.", numContainers)
 		}
 	}
 
