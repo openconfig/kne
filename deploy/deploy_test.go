@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -2783,5 +2785,33 @@ func TestDeployComponentsLabelsCommands(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("command labels mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestKindSpecSetPIDMaxScriptFail(t *testing.T) {
+	tmpDir := t.TempDir()
+	fakeScript := filepath.Join(tmpDir, "set_pid_max.sh")
+	if err := os.WriteFile(fakeScript, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	origScript := setPIDMaxScript
+	defer func() { setPIDMaxScript = origScript }()
+	setPIDMaxScript = fakeScript
+
+	k := &KindSpec{
+		Name: "test",
+	}
+	resp := []fexec.Response{
+		{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+		{Cmd: fakeScript, Err: "script failed", Stderr: "sudo: password required"},
+	}
+	cmds := fexec.Commands(resp)
+	kexec.Command = cmds.Command
+	defer checkCmds(t, cmds)
+
+	err := k.Deploy(context.Background())
+	wantErr := "failed to exec set_pid_max script: script failed: sudo: password required"
+	if s := errdiff.Substring(err, wantErr); s != "" {
+		t.Fatalf("unexpected error: %s", s)
 	}
 }
