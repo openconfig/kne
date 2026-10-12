@@ -181,12 +181,13 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		if len(alpineConfig.Containers) == 0 {
 			log.Infof("Alpine custom containers not found.")
 		}
-		for _, dpContainer := range alpineConfig.Containers {
+		// Custom containers include containers like dataplane container, MCU-RMD containers, etc.
+		for _, customContainer := range alpineConfig.Containers {
 			containerSpec := corev1.Container{
-				Name:    dpContainer.Name,
-				Image:   dpContainer.Image,
-				Command: dpContainer.Command,
-				Args:    dpContainer.Args,
+				Name:    customContainer.Name,
+				Image:   customContainer.Image,
+				Command: customContainer.Command,
+				Args:    customContainer.Args,
 				Env:     node.ToEnvVar(pb.Config.Env),
 				// TODO: Update resources to the containers as per the constraints
 				Resources:       node.ToResourceRequirements(pb.Constraints),
