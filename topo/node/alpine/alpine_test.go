@@ -401,6 +401,17 @@ func TestCreatePod(t *testing.T) {
 					t.Fatalf("Custom Container[%d] mismatch: %s,\n got:\n%v \n want:\n%v\n", i, s, customCtr, tt.wantCustomContainers[i])
 				}
 			}
+			volNames := map[string]bool{}
+			for _, v := range pod.Spec.Volumes {
+				volNames[v.Name] = true
+			}
+			for _, ctr := range containers {
+				for _, vm := range ctr.VolumeMounts {
+					if !volNames[vm.Name] {
+						t.Fatalf("Container %q mounts volume %q which is missing from pod.Spec.Volumes: %v", ctr.Name, vm.Name, pod.Spec.Volumes)
+					}
+				}
+			}
 		})
 	}
 }

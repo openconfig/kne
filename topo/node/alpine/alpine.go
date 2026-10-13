@@ -179,7 +179,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		}
 
 		if len(alpineConfig.Containers) == 0 {
-			log.Infof("Alpine custom containers not found.")
+			log.Infof("Node %q: no custom containers specified in AlpineConfig.containers; creating pod with only the primary container (any AlpineConfig.files mounts will not be attached).", pb.Name)
 		}
 		// Custom containers include containers like dataplane container, MCU-RMD containers, etc.
 		for _, customContainer := range alpineConfig.Containers {
@@ -252,7 +252,6 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			return err
 		}
 		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
-		pod.Spec.Volumes = append(pod.Spec.Volumes, extraVolumes...)
 		vm := corev1.VolumeMount{
 			Name:      node.ConfigVolumeName,
 			MountPath: pb.Config.ConfigPath + "/" + pb.Config.ConfigFile,
@@ -266,6 +265,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			pod.Spec.Containers[i].Args = append(pod.Spec.Containers[i].Args, fmt.Sprintf("--config_file=%s/%s", pb.Config.ConfigPath, pb.Config.ConfigFile))
 		}
 	}
+	pod.Spec.Volumes = append(pod.Spec.Volumes, extraVolumes...)
 	sPod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return err
