@@ -19,6 +19,26 @@ nodes: {
           name: "GigabitEthernet0/0/0/1"
         }
     }
+    services: {
+        key: 9339
+        value: {
+            names: "gnmi"
+            names: "gnoi"
+            names: "gnsi"
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            names: "gribi"
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            names: "p4rt"
+        }
+    }
 }
 nodes: {
     name: "r2"
@@ -44,6 +64,26 @@ nodes: {
         key: "eth3"
         value: {
           name: "GigabitEthernet0/0/0/2"
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            names: "gnmi"
+            names: "gnoi"
+            names: "gnsi"
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            names: "gribi"
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            names: "p4rt"
         }
     }
 }

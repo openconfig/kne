@@ -13,6 +13,26 @@ nodes: {
           name: "FourHundredGigE0/0/0/0"
         }
     }
+    services: {
+        key: 9339
+        value: {
+            names: "gnmi"
+            names: "gnoi"
+            names: "gnsi"
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            names: "gribi"
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            names: "p4rt"
+        }
+    }
 }
 nodes: {
     name: "8000e2"
@@ -26,6 +46,26 @@ nodes: {
         key: "eth1"
         value: {
           name: "FourHundredGigE0/0/0/0"
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            names: "gnmi"
+            names: "gnoi"
+            names: "gnsi"
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            names: "gribi"
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            names: "p4rt"
         }
     }
 }
