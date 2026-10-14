@@ -32,23 +32,33 @@ nodes: {
         }
     }
     services: {
+        key: 22
+        value: {
+            names: "ssh"
+            inside: 22
+        }
+    }
+    services: {
         key: 9339
         value: {
             names: "gnmi"
             names: "gnoi"
             names: "gnsi"
+            inside: 9339
         }
     }
     services: {
         key: 9340
         value: {
             names: "gribi"
+            inside: 9340
         }
     }
     services: {
         key: 9559
         value: {
             names: "p4rt"
+            inside: 9559
         }
     }
 }
