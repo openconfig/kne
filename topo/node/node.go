@@ -499,6 +499,7 @@ func (n *Impl) CreatePod(ctx context.Context) error {
 				ReadinessProbe: ServiceReadinessProbe(pb),
 			}},
 			TerminationGracePeriodSeconds: pointer.Int64(0),
+			EnableServiceLinks:            pointer.Bool(false),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
 				PodAntiAffinity: &corev1.PodAntiAffinity{
