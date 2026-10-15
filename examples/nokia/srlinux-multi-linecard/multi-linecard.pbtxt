@@ -1,0 +1,57 @@
+# Multi-linecard SR Linux topology.
+#
+# Modular SR Linux chassis (ixr6, ixr10, ixr6e, ixr10e) can be emulated with
+# more than one line card. Line cards are chosen per node in one of two ways:
+#
+#  1. Derived (default): one line card is installed per slot referenced by the
+#     node's interface names. Interface eX-Y uses slot X, so "e2-1" installs a
+#     line card in slot 2. The line card type is the model's default. When only
+#     slot 1 is referenced, the model's default single line card is used.
+#     Derivation only applies to modular models.
+#
+#  2. Explicit: list components in SRLinuxConfig vendor data. This overrides
+#     derivation. Supported line card types are listed in the srl-controller
+#     Srlinux CRD (spec.components[].type); unknown types are rejected on create.
+#
+# Requires an srl-controller version that supports Srlinux spec.components.
+# Older versions ignore the line cards and boot a single line card.
+#
+# Ixr6e/ixr10e chassis variants require an SR Linux license, see
+# https://github.com/srl-labs/srl-controller/blob/main/docs/using-licenses.md.
+name: "srl-multi-linecard"
+nodes: {
+  # Line cards derived from interfaces: slots 1 and 2.
+  name: "r1"
+  vendor: NOKIA
+  model: "ixr10e"
+  config: {
+    image: "ghcr.io/nokia/srlinux:latest"
+  }
+}
+nodes: {
+  # Explicit line cards: slot 1 400G, slot 2 100G.
+  name: "r2"
+  vendor: NOKIA
+  model: "ixr10e"
+  config: {
+    image: "ghcr.io/nokia/srlinux:latest"
+    vendor_data {
+      [type.googleapis.com/nokia.SRLinuxConfig] {
+        components { slot: 1 type: "imm36-400g-qsfpdd" }
+        components { slot: 2 type: "imm60-100g-qsfp28" }
+      }
+    }
+  }
+}
+links: {
+  a_node: "r1"
+  a_int: "e1-1"
+  z_node: "r2"
+  z_int: "e1-1"
+}
+links: {
+  a_node: "r1"
+  a_int: "e2-1"
+  z_node: "r2"
+  z_int: "e2-1"
+}
