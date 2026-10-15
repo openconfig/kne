@@ -173,11 +173,11 @@ func TestCreatePod(t *testing.T) {
 		t.Fatalf("cannot marshal AlpineConfig into \"any\" protobuf: %v", err)
 	}
 	tests := []struct {
-		desc          string
-		nImpl         *node.Impl
-		wantAlpineCtr corev1.Container
-		wantDpCtr     corev1.Container
-		wantErr       string
+		desc                 string
+		nImpl                *node.Impl
+		wantAlpineCtr        corev1.Container
+		wantCustomContainers []corev1.Container
+		wantErr              string
 	}{{
 		desc: "get all containers",
 		nImpl: &node.Impl{
@@ -203,7 +203,7 @@ func TestCreatePod(t *testing.T) {
 				Privileged: pointer.Bool(true),
 			},
 		},
-		wantDpCtr: corev1.Container{
+		wantCustomContainers: []corev1.Container{{
 			Name:    "dp",
 			Image:   "dpImage",
 			Command: []string{"dpCommand"},
@@ -215,7 +215,7 @@ func TestCreatePod(t *testing.T) {
 				Privileged: pointer.Bool(true),
 			},
 			VolumeMounts: []corev1.VolumeMount{{Name: "files", MountPath: "/files"}},
-		},
+		}},
 	}, {
 		desc: "get all containers with ports",
 		nImpl: &node.Impl{
@@ -255,7 +255,7 @@ func TestCreatePod(t *testing.T) {
 				SubPath:   "config_db.json",
 			}},
 		},
-		wantDpCtr: corev1.Container{
+		wantCustomContainers: []corev1.Container{{
 			Name:    "dp",
 			Image:   "dpImage",
 			Command: []string{"dpCommand"},
@@ -275,7 +275,7 @@ func TestCreatePod(t *testing.T) {
 				MountPath: "/etc/sonic/config_db.json",
 				SubPath:   "config_db.json",
 			}},
-		},
+		}},
 	}, {
 		desc: "get only alpine containers",
 		nImpl: &node.Impl{
@@ -300,6 +300,72 @@ func TestCreatePod(t *testing.T) {
 				Privileged: pointer.Bool(true),
 			},
 		},
+	}, {
+		desc: "get multiple custom containers",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "alpine",
+				Config: &tpb.Config{
+					Image:   "alpineImage",
+					Command: []string{"alpineCommand"},
+					Args:    []string{"alpineArgs"},
+					VendorData: func() *anypb.Any {
+						vd, err := anypb.New(&apb.AlpineConfig{
+							Containers: []*apb.Container{{
+								Name:    "dp",
+								Image:   "dpImage",
+								Command: []string{"dpCommand"},
+								Args:    []string{"dpArgs"},
+							}, {
+								Name:    "mcu-rmd",
+								Image:   "mcuImage",
+								Command: []string{"mcuCommand"},
+								Args:    []string{"mcuArgs"},
+							}},
+						})
+						if err != nil {
+							t.Fatalf("cannot marshal AlpineConfig: %v", err)
+						}
+						return vd
+					}(),
+				},
+			},
+		},
+		wantAlpineCtr: corev1.Container{
+			Name:    "alpine",
+			Image:   "alpineImage",
+			Command: []string{"alpineCommand"},
+			Args:    []string{"alpineArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		},
+		wantCustomContainers: []corev1.Container{{
+			Name:    "dp",
+			Image:   "dpImage",
+			Command: []string{"dpCommand"},
+			Args:    []string{"dpArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		}, {
+			Name:    "mcu-rmd",
+			Image:   "mcuImage",
+			Command: []string{"mcuCommand"},
+			Args:    []string{"mcuArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+		}},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -319,17 +385,31 @@ func TestCreatePod(t *testing.T) {
 				t.Fatalf("Could not get the pod: %v", err)
 			}
 			containers := pod.Spec.Containers
-			if len(containers) < 1 || len(containers) > 2 {
-				t.Fatalf("Num containers mismatch: want: 1 or 2 got:%v", len(containers))
+			if len(containers) < 1 {
+				t.Fatalf("Num containers mismatch: want >= 1 got:%v", len(containers))
 			}
 			alpineCtr := containers[0]
 			if s := cmp.Diff(tt.wantAlpineCtr, alpineCtr); s != "" {
 				t.Fatalf("Alpine Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, alpineCtr, tt.wantAlpineCtr)
 			}
-			if len(containers) == 2 {
-				dpCtr := containers[1]
-				if s := cmp.Diff(tt.wantDpCtr, dpCtr); s != "" {
-					t.Fatalf("DP Container mismatch: %s,\n got:\n%v \n want:\n%v\n", s, dpCtr, tt.wantDpCtr)
+			customContainers := containers[1:]
+			if len(customContainers) != len(tt.wantCustomContainers) {
+				t.Fatalf("Custom containers count mismatch: got %d, want %d", len(customContainers), len(tt.wantCustomContainers))
+			}
+			for i, customCtr := range customContainers {
+				if s := cmp.Diff(tt.wantCustomContainers[i], customCtr); s != "" {
+					t.Fatalf("Custom Container[%d] mismatch: %s,\n got:\n%v \n want:\n%v\n", i, s, customCtr, tt.wantCustomContainers[i])
+				}
+			}
+			volNames := map[string]bool{}
+			for _, v := range pod.Spec.Volumes {
+				volNames[v.Name] = true
+			}
+			for _, ctr := range containers {
+				for _, vm := range ctr.VolumeMounts {
+					if !volNames[vm.Name] {
+						t.Fatalf("Container %q mounts volume %q which is missing from pod.Spec.Volumes: %v", ctr.Name, vm.Name, pod.Spec.Volumes)
+					}
 				}
 			}
 		})
