@@ -84,11 +84,31 @@ To check if the grpc is configured, you may use `show running-config grpc` after
 RP/0/RP0/CPU0:ios#show running-config grpc
 Thu Feb 23 06:04:04.562 UTC
 grpc
- dscp cs4
- port 57400
+ server gnmi
+  port 9339
+  services GNMI
+  services GNOI
+  services GNSI
+  ssl-profile-id system_default_profile
+  address-family dual
+  dscp cs4
+ !
+ server gribi
+  port 9340
+  services GRIBI
+  ssl-profile-id system_default_profile
+  address-family dual
+  dscp cs4
+ !
+ server p4rt
+  port 9559
+  services P4RT
+  ssl-profile-id system_default_profile
+  address-family dual
+  dscp cs4
+ !
  max-streams 128
  max-streams-per-user 128
- address-family dual
  max-request-total 256
  max-request-per-user 32
 !
