@@ -221,6 +221,31 @@ func TestCreateConfig(t *testing.T) {
 		})
 	}
 }
+func TestCreatePod(t *testing.T) {
+	ctx := context.Background()
+	n := &Impl{
+		Namespace:  "test",
+		KubeClient: kfake.NewSimpleClientset(),
+		RestConfig: &rest.Config{},
+		Proto: &topopb.Node{
+			Name: "dev1",
+			Config: &topopb.Config{
+				Image: "test:latest",
+			},
+		},
+	}
+	if err := n.CreatePod(ctx); err != nil {
+		t.Fatalf("CreatePod() failed: %v", err)
+	}
+	pod, err := n.KubeClient.CoreV1().Pods(n.Namespace).Get(ctx, "dev1", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Could not get the pod: %v", err)
+	}
+	if got := pod.Spec.EnableServiceLinks; got == nil || *got {
+		t.Errorf("pod.Spec.EnableServiceLinks = %v, want false", got)
+	}
+}
+
 func TestService(t *testing.T) {
 	tests := []struct {
 		desc           string

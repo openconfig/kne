@@ -617,6 +617,7 @@ func (n *Node) Create(ctx context.Context) error {
 				},
 			},
 			TerminationGracePeriodSeconds: pointer.Int64(0),
+			EnableServiceLinks:            pointer.Bool(false),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
 				PodAntiAffinity: &corev1.PodAntiAffinity{
