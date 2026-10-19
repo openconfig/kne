@@ -1,10 +1,8 @@
 # Kubernetes Network Emulation
 
-[![Actions Status](https://github.com/openconfig/kne/workflows/Go/badge.svg)](https://github.com/openconfig/kne/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/openconfig/kne)](https://goreportcard.com/report/github.com/openconfig/kne)
-[![GoDoc](https://godoc.org/istio.io/istio?status.svg)](https://pkg.go.dev/github.com/openconfig/kne)
-[![License: BSD](https://img.shields.io/badge/license-Apache%202-blue)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub Super-Linter](https://github.com/openconfig/kne/workflows/Lint%20Code%20Base/badge.svg)](https://github.com/marketplace/actions/super-linter)
+[![Go](https://github.com/openconfig/kne/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/openconfig/kne/actions/workflows/go.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/openconfig/kne.svg)](https://pkg.go.dev/github.com/openconfig/kne)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202-blue)](https://opensource.org/licenses/Apache-2.0)
 [![Coverage Status](https://coveralls.io/repos/github/openconfig/kne/badge.svg?branch=main)](https://coveralls.io/github/openconfig/kne?branch=main)
 
 This is not an officially supported Google product.
