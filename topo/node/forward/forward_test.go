@@ -416,6 +416,9 @@ func TestCreatePodMultiProcessArgsAndNaming(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get pod: %v", err)
 	}
+	if got := pod.Spec.EnableServiceLinks; got == nil || *got {
+		t.Errorf("pod.Spec.EnableServiceLinks = %v, want false", got)
+	}
 	if len(pod.Spec.Containers) != 2 {
 		t.Fatalf("expected 2 containers, got %d", len(pod.Spec.Containers))
 	}

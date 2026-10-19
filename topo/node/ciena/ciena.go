@@ -243,6 +243,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 			}},
 			Volumes:                       extraVolumes,
 			TerminationGracePeriodSeconds: ptr.To[int64](0),
+			EnableServiceLinks:            ptr.To(false),
 			NodeSelector:                  map[string]string{},
 			Affinity: &corev1.Affinity{
 				PodAntiAffinity: &corev1.PodAntiAffinity{

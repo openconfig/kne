@@ -1388,6 +1388,9 @@ func TestCreate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to get created pod: %v", err)
 			}
+			if got := pod.Spec.EnableServiceLinks; got == nil || *got {
+				t.Errorf("pod.Spec.EnableServiceLinks = %v, want false", got)
+			}
 			if len(pod.Spec.InitContainers) != 1 {
 				t.Fatalf("expected 1 init container, got %d", len(pod.Spec.InitContainers))
 			}

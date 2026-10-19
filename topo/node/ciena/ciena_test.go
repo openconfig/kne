@@ -333,6 +333,9 @@ func TestNode_CreatePod_EquipmentFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not get the pod: %v", err)
 	}
+	if got := pod.Spec.EnableServiceLinks; got == nil || *got {
+		t.Errorf("pod.Spec.EnableServiceLinks = %v, want false", got)
+	}
 
 	// Check container
 	if len(pod.Spec.Containers) != 1 {

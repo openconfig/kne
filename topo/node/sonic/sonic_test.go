@@ -352,6 +352,9 @@ func TestCreatePod(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Could not get the pod: %v", err)
 			}
+			if got := pod.Spec.EnableServiceLinks; got == nil || *got {
+				t.Errorf("pod.Spec.EnableServiceLinks = %v, want false", got)
+			}
 			initContainers := pod.Spec.InitContainers
 			if len(initContainers) != 1 {
 				t.Fatalf("Num init containers mismatch: want: 1 got: %v", len(initContainers))
