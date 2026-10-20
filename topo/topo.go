@@ -875,7 +875,14 @@ func (m *Manager) checkNodeStatus(ctx context.Context, timeout time.Duration) er
 		}
 	}
 	if !foundAll {
-		log.Warningf("Failed to determine status of some node resources in %d sec", timeout)
+		var pending []string
+		for name := range m.nodes {
+			if !processed[name] {
+				pending = append(pending, name)
+			}
+		}
+		sort.Strings(pending)
+		log.Warningf("Failed to determine status of some node resources in %v for nodes: %v", timeout, pending)
 	}
 	return nil
 }

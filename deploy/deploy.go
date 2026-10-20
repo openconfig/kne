@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
+	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/network"
 	dclient "github.com/moby/moby/client"
 	"github.com/openconfig/gnmi/errlist"
@@ -1024,55 +1025,113 @@ func loadContainerImageWithFallback(src, dst, clusterName string) error {
 	return nil
 }
 
+// normalizeImageRef returns the fully-qualified form of ref (e.g.
+// "kne/init-wait" becomes "docker.io/kne/init-wait:latest"), which is the form
+// the containerd CRI plugin uses for image names.
+func normalizeImageRef(ref string) (string, error) {
+	named, err := reference.ParseNormalizedNamed(ref)
+	if err != nil {
+		return "", err
+	}
+	return reference.TagNameOnly(named).String(), nil
+}
+
+// tryLoadFromContainerd attempts to load src from the host containerd (k8s.io
+// namespace) into the kind cluster as dst. It returns false if the caller
+// should fall back to loading the image through docker.
+//
+// The host containerd is treated as read-only: it may also back a kubeadm
+// cluster, and adding or removing image names in it leaves the CRI image
+// cache with references to names that do not exist, which causes kubelet to
+// fail to create containers from that image. Any renaming is done inside the
+// kind nodes instead.
 func tryLoadFromContainerd(src, dst, clusterName string) bool {
 	if _, err := execLookPath("ctr"); err != nil {
+		return false
+	}
+	// Images in the CRI namespace are stored under fully-qualified names, so a
+	// src that is not fully-qualified cannot be found there. Importing a
+	// non-normalized name into a kind node would also confuse the CRI plugin
+	// in that node.
+	if n, err := normalizeImageRef(src); err != nil || n != src {
+		return false
+	}
+	dstRef, err := normalizeImageRef(dst)
+	if err != nil {
+		log.Warningf("Failed to parse image reference %q: %v", dst, err)
 		return false
 	}
 	if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "check", fmt.Sprintf("name==%s", src)); err != nil {
 		return false
 	}
-	exportTag := src
-	if dst != src {
-		exportTag = dst
-		if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "tag", "--force", src, dst); err != nil {
-			log.Warningf("Failed to tag %q as %q in containerd: %v", src, dst, err)
-			return false
-		}
-		defer func() {
-			if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "rm", dst); err != nil {
-				log.Warningf("Failed to remove temporary tag %q from containerd: %v", dst, err)
-			}
-		}()
-	}
-	tmpFile, err := os.CreateTemp("", "kind-load-*.tar")
+	// Use a private directory and let ctr (running as root) create the archive
+	// itself. A file pre-created by this user in a sticky world-writable
+	// directory such as /tmp cannot be opened for writing by root when
+	// fs.protected_regular is enabled.
+	tmpDir, err := os.MkdirTemp("", "kind-load-")
 	if err != nil {
-		log.Warningf("Failed to create temp file for image archive: %v", err)
+		log.Warningf("Failed to create temp dir for image archive: %v", err)
 		return false
-	}
-	tmpPath := tmpFile.Name()
-	if err := tmpFile.Close(); err != nil {
-		log.Warningf("Failed to close temp file %q: %v", tmpPath, err)
 	}
 	defer func() {
-		if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
-			log.Warningf("Failed to remove temp file %q: %v", tmpPath, err)
+		if err := os.RemoveAll(tmpDir); err != nil {
+			log.Warningf("Failed to remove temp dir %q: %v", tmpDir, err)
 		}
 	}()
+	archive := filepath.Join(tmpDir, "image.tar")
 
-	if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "export", tmpPath, exportTag); err != nil {
-		log.Warningf("Failed to export %q from containerd: %v", exportTag, err)
+	if err := run.LogCommand("sudo", "ctr", "-n", "k8s.io", "images", "export", archive, src); err != nil {
+		log.Warningf("Failed to export %q from containerd: %v", src, err)
 		return false
 	}
-	args := []string{"load", "image-archive", tmpPath}
+	args := []string{"load", "image-archive", archive}
 	if clusterName != "" {
 		args = append(args, "--name", clusterName)
 	}
 	if err := run.LogCommand("kind", args...); err != nil {
-		log.Warningf("Failed to load image archive %q into kind cluster %q: %v", tmpPath, clusterName, err)
+		log.Warningf("Failed to load image archive %q into kind cluster %q: %v", archive, clusterName, err)
 		return false
 	}
-	log.Infof("Successfully loaded %q from containerd into kind cluster %q", exportTag, clusterName)
+	if dstRef != src {
+		if err := retagInKindNodes(src, dstRef, clusterName); err != nil {
+			log.Warningf("Failed to tag %q as %q in kind cluster %q: %v", src, dstRef, clusterName, err)
+			return false
+		}
+	}
+	log.Infof("Successfully loaded %q as %q from containerd into kind cluster %q", src, dstRef, clusterName)
 	return true
+}
+
+// retagInKindNodes adds the name dst to the image src in the containerd of
+// every node in the kind cluster. dst must be fully-qualified so the CRI
+// plugin in each node resolves it to an existing image.
+func retagInKindNodes(src, dst, clusterName string) error {
+	args := []string{"get", "nodes"}
+	if clusterName != "" {
+		args = append(args, "--name", clusterName)
+	}
+	out, err := run.OutCommand("kind", args...)
+	if err != nil {
+		return fmt.Errorf("failed to list kind nodes: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	var nodes []string
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		// Node names never contain spaces; skip any informational output.
+		if line == "" || strings.ContainsAny(line, " \t") {
+			continue
+		}
+		nodes = append(nodes, line)
+	}
+	if len(nodes) == 0 {
+		return fmt.Errorf("no nodes found for kind cluster %q", clusterName)
+	}
+	for _, n := range nodes {
+		if err := run.LogCommand("docker", "exec", n, "ctr", "-n", "k8s.io", "images", "tag", "--force", src, dst); err != nil {
+			return fmt.Errorf("failed to tag image on node %q: %w", n, err)
+		}
+	}
+	return nil
 }
 
 func init() {

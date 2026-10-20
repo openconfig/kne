@@ -481,47 +481,113 @@ func TestKindSpec(t *testing.T) {
 		k: &KindSpec{
 			Name: "test",
 			ContainerImages: map[string]string{
-				"cached-image": "cached-image",
+				"example.com/cached-image:ga": "example.com/cached-image:ga",
 			},
 		},
 		hasCtr: true,
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
-			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==cached-image"}},
-			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*.tar", "cached-image"}},
-			{Cmd: "kind", Args: []string{"load", "image-archive", ".*.tar", "--name", "test"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==example.com/cached-image:ga"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*/image.tar", "example.com/cached-image:ga"}},
+			{Cmd: "kind", Args: []string{"load", "image-archive", ".*/image.tar", "--name", "test"}},
 		},
 	}, {
-		desc: "create cluster load containers from containerd archive with retag",
+		desc: "create cluster load containers from containerd archive with retag in kind nodes",
 		k: &KindSpec{
 			Name: "test",
 			ContainerImages: map[string]string{
-				"cached-image": "custom-tag",
+				"example.com/cached-image:ga": "custom/tag",
 			},
 		},
 		hasCtr: true,
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
-			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==cached-image"}},
-			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "tag", "--force", "cached-image", "custom-tag"}},
-			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*.tar", "custom-tag"}},
-			{Cmd: "kind", Args: []string{"load", "image-archive", ".*.tar", "--name", "test"}},
-			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "rm", "custom-tag"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==example.com/cached-image:ga"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*/image.tar", "example.com/cached-image:ga"}},
+			{Cmd: "kind", Args: []string{"load", "image-archive", ".*/image.tar", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}, Stdout: "test-control-plane\ntest-worker\n"},
+			{Cmd: "docker", Args: []string{"exec", "test-control-plane", "ctr", "-n", "k8s.io", "images", "tag", "--force", "example.com/cached-image:ga", "docker.io/custom/tag:latest"}},
+			{Cmd: "docker", Args: []string{"exec", "test-worker", "ctr", "-n", "k8s.io", "images", "tag", "--force", "example.com/cached-image:ga", "docker.io/custom/tag:latest"}},
+		},
+	}, {
+		desc: "create cluster load containers from containerd archive dst normalizes to src",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"docker.io/library/cached-image:latest": "cached-image",
+			},
+		},
+		hasCtr: true,
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==docker.io/library/cached-image:latest"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*/image.tar", "docker.io/library/cached-image:latest"}},
+			{Cmd: "kind", Args: []string{"load", "image-archive", ".*/image.tar", "--name", "test"}},
+		},
+	}, {
+		desc: "create cluster containerd retag in kind node fails falls back to docker",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"example.com/cached-image:ga": "custom/tag",
+			},
+		},
+		hasCtr: true,
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==example.com/cached-image:ga"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*/image.tar", "example.com/cached-image:ga"}},
+			{Cmd: "kind", Args: []string{"load", "image-archive", ".*/image.tar", "--name", "test"}},
+			{Cmd: "kind", Args: []string{"get", "nodes", "--name", "test"}, Stdout: "test-control-plane\n"},
+			{Cmd: "docker", Args: []string{"exec", "test-control-plane", "ctr", "-n", "k8s.io", "images", "tag", "--force", "example.com/cached-image:ga", "docker.io/custom/tag:latest"}, Err: "tag failed"},
+			{Cmd: "docker", Args: []string{"pull", "example.com/cached-image:ga"}},
+			{Cmd: "docker", Args: []string{"tag", "example.com/cached-image:ga", "custom/tag"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "custom/tag", "--name", "test"}},
+		},
+	}, {
+		desc: "create cluster containerd export fails falls back to docker",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"example.com/cached-image:ga": "example.com/cached-image:ga",
+			},
+		},
+		hasCtr: true,
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==example.com/cached-image:ga"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "export", ".*/image.tar", "example.com/cached-image:ga"}, Err: "permission denied"},
+			{Cmd: "docker", Args: []string{"pull", "example.com/cached-image:ga"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "example.com/cached-image:ga", "--name", "test"}},
+		},
+	}, {
+		desc: "create cluster containerd skipped for non-normalized source",
+		k: &KindSpec{
+			Name: "test",
+			ContainerImages: map[string]string{
+				"short-image": "short-image",
+			},
+		},
+		hasCtr: true,
+		resp: []fexec.Response{
+			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
+			{Cmd: "docker", Args: []string{"pull", "short-image"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "short-image", "--name", "test"}},
 		},
 	}, {
 		desc: "create cluster containerd image check fails falls back to docker",
 		k: &KindSpec{
 			Name: "test",
 			ContainerImages: map[string]string{
-				"uncached-image": "uncached-image",
+				"example.com/uncached-image:ga": "example.com/uncached-image:ga",
 			},
 		},
 		hasCtr: true,
 		resp: []fexec.Response{
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
-			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==uncached-image"}, Err: errors.New("image not found")},
-			{Cmd: "docker", Args: []string{"pull", "uncached-image"}},
-			{Cmd: "kind", Args: []string{"load", "docker-image", "uncached-image", "--name", "test"}},
+			{Cmd: "sudo", Args: []string{"ctr", "-n", "k8s.io", "images", "check", "name==example.com/uncached-image:ga"}, Err: errors.New("image not found")},
+			{Cmd: "docker", Args: []string{"pull", "example.com/uncached-image:ga"}},
+			{Cmd: "kind", Args: []string{"load", "docker-image", "example.com/uncached-image:ga", "--name", "test"}},
 		},
 	}, {
 		desc: "failed kind version - no prefix",
