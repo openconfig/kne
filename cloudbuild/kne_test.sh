@@ -23,6 +23,9 @@ export PATH=${PATH}:$gopath/bin
 rm -rf "$HOME/kne"
 cp -rf /tmp/workspace "$HOME/kne"
 
+# shellcheck source=cloudbuild/check_topology.sh
+source "$HOME/kne/cloudbuild/check_topology.sh"
+
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"
 go build -o kne
@@ -103,6 +106,13 @@ if ! docker exec kne-control-plane crictl images | grep "docker.io/kne/init-wait
 	exit 1
 fi
 
+# Loading images into kind must not add image names to the host containerd,
+# which backs the kubeadm cluster created below.
+if sudo ctr -n k8s.io images ls -q | grep "kne/init-wait:latest"; then
+	echo "Loading images into kind modified the host containerd"
+	exit 1
+fi
+
 # Cleanup the cluster
 $cli teardown kne/deploy/kne/kind-bridge.yaml
 
@@ -129,7 +139,10 @@ $cli deploy kne/deploy/kne/external-multinode.yaml --report_usage=false
 kubectl get pods -A
 
 # Create a simple lemming topology
-$cli create kne/examples/openconfig/lemming.pb.txt --report_usage=false --timeout=15m
+$cli create kne/examples/openconfig/lemming.pb.txt --report_usage=false --timeout=5m
+
+# Fail if the lemming pods did not start
+wait_topology_ready lemming-twodut 2m
 
 kubectl get pods -A
 
