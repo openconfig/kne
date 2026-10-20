@@ -8,3 +8,4 @@ package proto
 //go:generate protoc --go_out=./forward --go-grpc_out=./forward --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative ./forward.proto
 //go:generate protoc --go_out=./event --go-grpc_out=./event --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative ./event.proto
 //go:generate protoc --go_out=./ciena --go_opt=paths=source_relative ./ciena.proto
+//go:generate protoc --go_out=./nokia --go_opt=paths=source_relative ./nokia.proto
