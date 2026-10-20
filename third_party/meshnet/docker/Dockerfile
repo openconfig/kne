@@ -1,5 +1,5 @@
 # GRPC generation
-FROM golang:1.27.2 AS proto_base
+FROM golang:1.27.3 AS proto_base
 
 WORKDIR /src
 
@@ -16,7 +16,7 @@ RUN buf lint && buf generate -v
 
 #---------------------------------------------- Stage 2: Build Base : Build meshnet binaries (Plugin & daemon) - ---------------------------------
 # Building the binaries
-FROM golang:1.27.2 AS build_base
+FROM golang:1.27.3 AS build_base
 
 
 WORKDIR /go/src/github.com/openconfig/kne/third_party/meshnet
