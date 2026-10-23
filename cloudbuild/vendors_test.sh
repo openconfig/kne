@@ -23,6 +23,9 @@ export PATH=${PATH}:$gopath/bin
 rm -rf "$HOME/kne"
 cp -rf /tmp/workspace "$HOME/kne"
 
+# shellcheck source=cloudbuild/check_topology.sh
+source "$HOME/kne/cloudbuild/check_topology.sh"
+
 # Rebuild the kne cli
 pushd "$HOME/kne/kne_cli"
 go build -o kne
@@ -55,7 +58,10 @@ kind load docker-image --name kne us-west1-docker.pkg.dev/kne-external/kne/meshn
 kubectl rollout restart -n meshnet daemonset/meshnet
 kubectl rollout status -n meshnet daemonset/meshnet --timeout=2m
 
-$cli create kne/cloudbuild/vendors/topology.textproto --report_usage=false
+$cli create kne/cloudbuild/vendors/topology.textproto --report_usage=false --timeout=20m
+
+# Fail if any vendor pod did not start
+wait_topology_ready vendors 5m
 popd
 
 # Run an ondatra test
