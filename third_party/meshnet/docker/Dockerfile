@@ -3,7 +3,7 @@ FROM golang:1.27.3 AS proto_base
 
 WORKDIR /src
 
-COPY --from=bufbuild/buf:1.74.0 /usr/local/bin/buf /usr/local/bin/buf
+COPY --from=bufbuild/buf:1.75.0 /usr/local/bin/buf /usr/local/bin/buf
 
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
