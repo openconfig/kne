@@ -3,8 +3,8 @@ module github.com/openconfig/kne
 go 1.26.3
 
 require (
-	cloud.google.com/go/cloudbuild v1.35.0
-	cloud.google.com/go/pubsub/v2 v2.7.0
+	cloud.google.com/go/cloudbuild v1.36.0
+	cloud.google.com/go/pubsub/v2 v2.8.0
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/distribution/reference v0.6.0
@@ -23,7 +23,7 @@ require (
 	github.com/openconfig/ondatra v0.14.9
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
-	github.com/scrapli/scrapligo v1.4.2
+	github.com/scrapli/scrapligo v1.4.3
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -34,15 +34,15 @@ require (
 	go.universe.tf/metallb v0.16.1
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.24.0
-	google.golang.org/api v0.305.0
-	google.golang.org/grpc v1.84.0
+	google.golang.org/api v0.309.0
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	k8s.io/utils v0.0.0-20261023123148-ca04ba58ecab
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -160,7 +160,7 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
