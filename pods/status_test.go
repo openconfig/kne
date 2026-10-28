@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/openconfig/gnmi/errdiff"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	kfake "k8s.io/client-go/kubernetes/fake"
 )
@@ -167,6 +169,16 @@ func TestUpdatePod(t *testing.T) {
 `[1:],
 			errch:    "NS:ns1 POD:pod1 CONTAINER:cont1 IMAGE:the_image not found",
 			canceled: true,
+		},
+		{
+			name: "terminating3",
+			pod: &PodStatus{Name: "pod3", UID: uid3, Namespace: "ns2", Phase: PodFailed,
+				Pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &metav1.Time{}}},
+			},
+			want: `
+01:23:45 NS: ns2
+01:23:45     POD: pod3 is now terminating
+`[1:],
 		},
 	} {
 		w.updatePod(tt.pod)
@@ -392,13 +404,13 @@ func TestWatcher(t *testing.T) {
 }
 
 func TestNewWatcher(t *testing.T) {
-	if _, err := NewWatcher(context.TODO(), nil, func() {}); err == nil {
+	if _, err := NewWatcher(context.TODO(), nil, "", func() {}); err == nil {
 		t.Errorf("NewWatcher did not return an error on bad input")
 	}
 	client := kfake.NewSimpleClientset()
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
-	w, err := NewWatcher(ctx, client, func() {})
+	w, err := NewWatcher(ctx, client, "", func() {})
 	if err != nil {
 		t.Errorf("NewWatcher failed: %v", err)
 	}

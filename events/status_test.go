@@ -192,13 +192,13 @@ func TestWatcher(t *testing.T) {
 }
 
 func TestNewWatcher(t *testing.T) {
-	if _, err := NewWatcher(context.TODO(), nil, func() {}); err == nil {
+	if _, err := NewWatcher(context.TODO(), nil, "", func() {}); err == nil {
 		t.Errorf("NewWatcher did not return an error on bad input")
 	}
 	client := kfake.NewSimpleClientset()
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
-	w, err := NewWatcher(ctx, client, func() {})
+	w, err := NewWatcher(ctx, client, "", func() {})
 	if err != nil {
 		t.Errorf("NewWatcher failed: %v", err)
 	}

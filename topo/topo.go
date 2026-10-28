@@ -292,7 +292,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	// Watch the container status of the pods so we can fail if a container fails to start running.
-	if w, err := pods.NewWatcher(ctx, m.kClient, cancel); err != nil {
+	if w, err := pods.NewWatcher(ctx, m.kClient, m.topo.GetName(), cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
 		w.SetProgress(m.progress)
@@ -301,7 +301,7 @@ func (m *Manager) Create(ctx context.Context, timeout time.Duration) (rerr error
 			rerr = w.Cleanup(rerr)
 		}()
 	}
-	if w, err := events.NewWatcher(ctx, m.kClient, cancel); err != nil {
+	if w, err := events.NewWatcher(ctx, m.kClient, m.topo.GetName(), cancel); err != nil {
 		log.Warningf("Failed to start event watcher: %v", err)
 	} else {
 		w.SetProgress(m.progress)
