@@ -133,6 +133,9 @@ func TestNew(t *testing.T) {
 					ConfigFile:   "startup-config",
 					Image:        "ceos:latest",
 					InitImage:    "us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga",
+					Env: map[string]string{
+						"PYTHONPATH": "/mnt/flash",
+					},
 					Cert: &topopb.CertificateCfg{
 						Config: &topopb.CertificateCfg_SelfSigned{
 							SelfSigned: &topopb.SelfSignedCertCfg{
@@ -217,8 +220,9 @@ func TestNew(t *testing.T) {
 					ConfigPath:   "/mnt/flash",
 					ConfigFile:   "startup-config",
 					Env: map[string]string{
-						"CEOS":      "123",
-						"container": "test",
+						"CEOS":       "123",
+						"PYTHONPATH": "/mnt/flash",
+						"container":  "test",
 					},
 					Args: []string{"biz", "baz"},
 					Cert: &topopb.CertificateCfg{
@@ -657,5 +661,69 @@ func TestDefaultNodeConstraints(t *testing.T) {
 
 	if constraints.Memory != defaultConstraints.Memory {
 		t.Errorf("DefaultNodeConstraints() returned unexpected Memory: got %s, want %s", constraints.Memory, defaultConstraints.Memory)
+	}
+}
+
+func TestCreateConfig(t *testing.T) {
+	tests := []struct {
+		desc     string
+		proto    *topopb.Node
+		wantData map[string]string
+		wantErr  string
+	}{{
+		desc: "without startup config data",
+		proto: &topopb.Node{
+			Name:   "dut",
+			Config: &topopb.Config{},
+		},
+		wantData: map[string]string{
+			userCustomizeFile: ceosRebootMonkeyPatch,
+		},
+	}, {
+		desc: "with startup config data",
+		proto: &topopb.Node{
+			Name: "dut",
+			Config: &topopb.Config{
+				ConfigFile: "startup-config",
+				ConfigData: &topopb.Config_Data{
+					Data: []byte("hostname dut\n"),
+				},
+			},
+		},
+		wantData: map[string]string{
+			"startup-config":  "hostname dut\n",
+			userCustomizeFile: ceosRebootMonkeyPatch,
+		},
+	}}
+
+	ctx := context.Background()
+	ns := "default"
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ki := fake.NewSimpleClientset()
+			nImpl, err := New(&node.Impl{
+				KubeClient: ki,
+				Namespace:  ns,
+				Proto:      tt.proto,
+			})
+			if err != nil {
+				t.Fatalf("New() failed: %v", err)
+			}
+			n := nImpl.(*Node)
+			_, err = n.CreateConfig(ctx)
+			if s := errdiff.Substring(err, tt.wantErr); s != "" {
+				t.Fatalf("CreateConfig() unexpected err: %s", s)
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			cm, err := ki.CoreV1().ConfigMaps(ns).Get(ctx, "dut-config", metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("Get ConfigMap failed: %v", err)
+			}
+			if diff := cmp.Diff(tt.wantData, cm.Data); diff != "" {
+				t.Errorf("CreateConfig() ConfigMap data diff (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
