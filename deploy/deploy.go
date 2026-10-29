@@ -269,7 +269,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	// Watch the container status of the pods so we can fail if a container fails to start running.
-	if w, err := pods.NewWatcher(ctx, kClient, cancel); err != nil {
+	if w, err := pods.NewWatcher(ctx, kClient, "", cancel); err != nil {
 		log.Warningf("Failed to start pod watcher: %v", err)
 	} else {
 		w.SetProgress(d.Progress)
@@ -279,7 +279,7 @@ func (d *Deployment) Deploy(ctx context.Context, kubecfg string) (rerr error) {
 		}()
 	}
 	// Watch for incoming events to fail early in case of events signaling unrecoverable errors.
-	if w, err := events.NewWatcher(ctx, kClient, cancel); err != nil {
+	if w, err := events.NewWatcher(ctx, kClient, "", cancel); err != nil {
 		log.Warningf("Failed to start event watcher: %v", err)
 	} else {
 		w.SetProgress(d.Progress)

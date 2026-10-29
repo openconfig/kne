@@ -40,9 +40,10 @@ type Watcher struct {
 // NewWatcher returns a Watcher on the provided client or an error.  The cancel
 // function is called when the Watcher determines a container has permanently
 // failed.  The Watcher will exit if the context provided is canceled, an error
-// is encountered, or Cleanup is called.
-func NewWatcher(ctx context.Context, client kubernetes.Interface, cancel func()) (*Watcher, error) {
-	ch, stop, err := WatchPodStatus(ctx, client, "")
+// is encountered, or Cleanup is called.  An empty namespace watches all
+// namespaces.
+func NewWatcher(ctx context.Context, client kubernetes.Interface, namespace string, cancel func()) (*Watcher, error) {
+	ch, stop, err := WatchPodStatus(ctx, client, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func newWatcher(ctx context.Context, cancel func(), ch chan *PodStatus, stop fun
 	return w
 }
 
-// SetProgress determins if progress output should be displayed while watching.
+// SetProgress determines if progress output should be displayed while watching.
 func (w *Watcher) SetProgress(value bool) {
 	w.mu.Lock()
 	w.progress = value
@@ -122,7 +123,10 @@ func (w *Watcher) watch() {
 var timeNow = func() string { return time.Now().Format("15:04:05 ") }
 
 func (w *Watcher) display(format string, v ...any) {
-	if w.progress {
+	w.mu.Lock()
+	progress := w.progress
+	w.mu.Unlock()
+	if progress {
 		fmt.Fprintf(w.stdout, timeNow()+format+"\n", v...)
 	}
 }
@@ -131,9 +135,12 @@ func (w *Watcher) updatePod(s *PodStatus) bool {
 	newNamespace := s.Namespace != w.currentNamespace
 	var newState string
 
-	if s.Ready {
+	switch {
+	case s.Pod.DeletionTimestamp != nil:
+		newState = "terminating"
+	case s.Ready:
 		newState = "READY"
-	} else {
+	default:
 		switch s.Phase {
 		case PodPending:
 			newState = "pending"
@@ -175,10 +182,13 @@ func (w *Watcher) updatePod(s *PodStatus) bool {
 		showPodState(s, oldState, newState)
 		w.podStates[s.UID] = newState
 	}
-	if newState == "failed" {
+	switch newState {
+	case "failed":
 		w.errCh <- fmt.Errorf("Pod %s failed to deploy", s.Name)
 		w.cancel()
 		return false
+	case "terminating":
+		return true
 	}
 
 	for _, c := range append(s.Containers, s.InitContainers...) {

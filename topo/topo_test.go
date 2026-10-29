@@ -735,6 +735,141 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+// TestCreateWatcherNamespaceScope verifies that Create only fails on pod and
+// event failures in the topology namespace.
+func TestCreateWatcherNamespaceScope(t *testing.T) {
+	ctx := context.Background()
+
+	origKindClusterIsKind := kindClusterIsKind
+	defer func() {
+		kindClusterIsKind = origKindClusterIsKind
+	}()
+	kindClusterIsKind = func() (bool, error) {
+		return false, nil
+	}
+
+	const topoName = "test"
+
+	failedPod := func(ns, name string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: ns,
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodFailed,
+				ContainerStatuses: []corev1.ContainerStatus{{
+					Name: name,
+					State: corev1.ContainerState{
+						Terminated: &corev1.ContainerStateTerminated{ExitCode: 143, Reason: "Error"},
+					},
+				}},
+			},
+		}
+	}
+	insufficientMemoryEvent := func(ns string) *corev1.Event {
+		return &corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "lemming.scheduling",
+				Namespace:         ns,
+				CreationTimestamp: metav1.NewTime(time.Now().Add(time.Hour)),
+			},
+			Reason:  "FailedScheduling",
+			Message: "0/1 nodes are available: 1 Insufficient memory.",
+		}
+	}
+
+	tests := []struct {
+		desc string
+		// Only delivered to watches in the object's namespace or all namespaces.
+		watchPods   []*corev1.Pod
+		watchEvents []*corev1.Event
+		wantErr     string
+	}{{
+		desc:      "failed pod in another topology namespace is ignored",
+		watchPods: []*corev1.Pod{failedPod("other-topology", "lemming")},
+	}, {
+		desc:        "insufficient memory event in another namespace is ignored",
+		watchEvents: []*corev1.Event{insufficientMemoryEvent("other-topology")},
+	}, {
+		desc:      "failed pod in own namespace still fails create",
+		watchPods: []*corev1.Pod{failedPod(topoName, "r9")},
+		wantErr:   "Pod r9 failed to deploy",
+	}, {
+		desc:        "insufficient memory event in own namespace still fails create",
+		watchEvents: []*corev1.Event{insufficientMemoryEvent(topoName)},
+		wantErr:     "Insufficient memory",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
+			kf := kfake.NewSimpleClientset()
+			kf.PrependWatchReactor("pods", func(action ktest.Action) (bool, watch.Interface, error) {
+				fw := watch.NewFakeWithChanSize(len(tt.watchPods), false)
+				for _, p := range tt.watchPods {
+					if ns := action.GetNamespace(); ns == "" || ns == p.Namespace {
+						fw.Add(p.DeepCopy())
+					}
+				}
+				return true, fw, nil
+			})
+			kf.PrependWatchReactor("events", func(action ktest.Action) (bool, watch.Interface, error) {
+				fw := watch.NewFakeWithChanSize(len(tt.watchEvents), false)
+				for _, e := range tt.watchEvents {
+					if ns := action.GetNamespace(); ns == "" || ns == e.Namespace {
+						fw.Add(e.DeepCopy())
+					}
+				}
+				return true, fw, nil
+			})
+			// Keep the pod Pending briefly so the watchers process their events.
+			start := time.Now()
+			kf.PrependReactor("get", "pods", func(action ktest.Action) (bool, runtime.Object, error) {
+				gAction, ok := action.(ktest.GetAction)
+				if !ok {
+					return false, nil, nil
+				}
+				p := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: gAction.GetName(), Namespace: gAction.GetNamespace()}}
+				if time.Since(start) < 300*time.Millisecond {
+					p.Status.Phase = corev1.PodPending
+				} else {
+					p.Status.Phase = corev1.PodRunning
+					p.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+				}
+				return true, p, nil
+			})
+			kf.PrependReactor("create", "services", func(action ktest.Action) (bool, runtime.Object, error) {
+				cAction, ok := action.(ktest.CreateAction)
+				if !ok {
+					return false, nil, nil
+				}
+				if s, ok := cAction.GetObject().(*corev1.Service); ok && s.Spec.Type == corev1.ServiceTypeLoadBalancer {
+					s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "1.2.3.4"}}
+				}
+				return false, nil, nil
+			})
+
+			topo := &tpb.Topology{
+				Name: topoName,
+				Nodes: []*tpb.Node{{
+					Name:     "r1",
+					Vendor:   tpb.Vendor(1002),
+					Services: map[uint32]*tpb.Service{1000: {Name: "ssh"}},
+					Config:   &tpb.Config{},
+				}},
+			}
+			m, err := New(topo, WithClusterConfig(&rest.Config{}), WithKubeClient(kf), WithDynamicClient(tf))
+			if err != nil {
+				t.Fatalf("New() failed to create new topology manager: %v", err)
+			}
+			err = m.Create(ctx, 10*time.Second)
+			if s := errdiff.Check(err, tt.wantErr); s != "" {
+				t.Errorf("Create() unexpected err: %s", s)
+			}
+		})
+	}
+}
+
 type fakeWatch struct {
 	ch   chan watch.Event
 	done chan struct{}
