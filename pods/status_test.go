@@ -180,6 +180,17 @@ func TestUpdatePod(t *testing.T) {
 01:23:45     POD: pod3 is now terminating
 `[1:],
 		},
+		{
+			name: "terminating1",
+			pod: &PodStatus{Name: "pod1", UID: uid1, Namespace: "ns1", Phase: PodPending,
+				Containers: []ContainerStatus{{Name: "cont1", Reason: "ErrImagePull", Message: "something code = NotFound here", Image: "the_image"}},
+				Pod:        corev1.Pod{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &metav1.Time{}}},
+			},
+			want: `
+01:23:45 NS: ns1
+01:23:45     POD: pod1 is now terminating
+`[1:],
+		},
 	} {
 		w.updatePod(tt.pod)
 		t.Run(tt.name, func(t *testing.T) {

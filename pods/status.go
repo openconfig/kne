@@ -135,9 +135,12 @@ func (w *Watcher) updatePod(s *PodStatus) bool {
 	newNamespace := s.Namespace != w.currentNamespace
 	var newState string
 
-	if s.Ready {
+	switch {
+	case s.Pod.DeletionTimestamp != nil:
+		newState = "terminating"
+	case s.Ready:
 		newState = "READY"
-	} else {
+	default:
 		switch s.Phase {
 		case PodPending:
 			newState = "pending"
@@ -146,11 +149,7 @@ func (w *Watcher) updatePod(s *PodStatus) bool {
 		case PodSucceeded:
 			newState = "success"
 		case PodFailed:
-			if s.Pod.DeletionTimestamp != nil {
-				newState = "terminating"
-			} else {
-				newState = "failed"
-			}
+			newState = "failed"
 		}
 	}
 
@@ -183,10 +182,13 @@ func (w *Watcher) updatePod(s *PodStatus) bool {
 		showPodState(s, oldState, newState)
 		w.podStates[s.UID] = newState
 	}
-	if newState == "failed" {
+	switch newState {
+	case "failed":
 		w.errCh <- fmt.Errorf("Pod %s failed to deploy", s.Name)
 		w.cancel()
 		return false
+	case "terminating":
+		return true
 	}
 
 	for _, c := range append(s.Containers, s.InitContainers...) {
