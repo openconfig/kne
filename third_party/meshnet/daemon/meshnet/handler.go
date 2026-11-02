@@ -526,6 +526,17 @@ func (m *Meshnet) GRPCWireDownRemote(ctx context.Context, wireDef *mpb.WireDef) 
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// SetWireCarrier sets the carrier of the local end of a grpc-wire to the admin state of the peer's end.
+func (m *Meshnet) SetWireCarrier(ctx context.Context, req *mpb.WireCarrier) (*mpb.BoolResponse, error) {
+	applied, err := grpcwire.SetWireCarrier(req)
+	if err != nil {
+		mnetdLogger.Errorf("SetWireCarrier for wire id %d (link %d) failed: %v", req.GetWireIfId(), req.GetLinkUid(), err)
+		return &mpb.BoolResponse{Response: false}, err
+	}
+	return &mpb.BoolResponse{Response: applied}, nil
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // GRPCWireExists will return the wire if it exists.
 func (m *Meshnet) GRPCWireExists(ctx context.Context, wireDef *mpb.WireDef) (*mpb.WireCreateResponse, error) {
 	wire, ok := grpcwire.GetWireByUID(wireDef.LocalPodNetNs, int(wireDef.LinkUid))
