@@ -41,16 +41,21 @@ type ClientConfig struct {
 	DialOpts []grpc.DialOption
 	// SocketOpener allows overriding the raw socket constructor for testing.
 	SocketOpener func(ifaceName string) (ReadWriter, error)
+	// LinkOpener allows overriding the link-state constructor for testing.
+	// Defaults to NewNetlinkLink. If it fails, the client bridges frames
+	// without link state.
+	LinkOpener func(ifaceName string) (Link, error)
 	// RetryInterval is the delay before reconnecting if disconnected. Default 2s.
 	RetryInterval time.Duration
 	// UseALTS specifies whether to use ALTS transport credentials for DirectPath on GCE.
 	UseALTS bool
 }
 
-// Client connects to a remote bridge server and bridges packets to a local interface.
+// Client connects to a remote bridge server and bridges packets and link state to a local interface.
 type Client struct {
 	cfg          ClientConfig
 	socketOpener func(ifaceName string) (ReadWriter, error)
+	linkOpener   func(ifaceName string) (Link, error)
 }
 
 // NewClient constructs a new bridge Client.
@@ -75,9 +80,15 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		}
 	}
 
+	linkOpener := cfg.LinkOpener
+	if linkOpener == nil {
+		linkOpener = NewNetlinkLink
+	}
+
 	return &Client{
 		cfg:          cfg,
 		socketOpener: opener,
+		linkOpener:   linkOpener,
 	}, nil
 }
 
@@ -142,10 +153,19 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 	client := wpb.NewWireClient(conn)
 	streamCtx, streamCancel := context.WithCancel(ctx)
 
+	link, err := c.linkOpener(c.cfg.LocalInterface)
+	if err != nil {
+		klog.Warningf("Link state of %s will not be propagated: %v", c.cfg.LocalInterface, err)
+		link = nil
+	}
+
 	var wg sync.WaitGroup
 	defer func() {
 		streamCancel()
 		_ = handler.Close()
+		if link != nil {
+			_ = link.Close()
+		}
 		wg.Wait()
 	}()
 
@@ -158,7 +178,49 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 	klog.Infof("Bridge client connected: local interface %s <-> remote %s (peer %s)",
 		c.cfg.LocalInterface, c.cfg.RemoteInterface, c.cfg.PeerAddress)
 
-	errChan := make(chan error, 2)
+	// sendMu serializes sends on the stream, which gRPC does not allow concurrently.
+	var sendMu sync.Mutex
+	send := func(p *wpb.Packet) error {
+		sendMu.Lock()
+		defer sendMu.Unlock()
+		return stream.Send(p)
+	}
+
+	errChan := make(chan error, 3)
+
+	// Link-state loop: report the carrier of the local interface to the server, starting with its current state.
+	if link != nil {
+		var reporter linkReporter
+		if obs, err := link.Current(); err != nil {
+			klog.Warningf("Failed to read link state of %s: %v", c.cfg.LocalInterface, err)
+		} else if s := reporter.observe(obs); s != wpb.LinkState_LINK_STATE_UNKNOWN {
+			if err := send(&wpb.Packet{LinkState: s}); err != nil {
+				return fmt.Errorf("stream send error: %w", err)
+			}
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for obs := range link.Events() {
+				s := reporter.observe(obs)
+				if s == wpb.LinkState_LINK_STATE_UNKNOWN {
+					continue
+				}
+				klog.Infof("[%s] Link state %v (admin up=%t, carrier=%t)", c.cfg.LocalInterface, s, obs.AdminUp, obs.Carrier)
+				if err := send(&wpb.Packet{LinkState: s}); err != nil {
+					if streamCtx.Err() != nil {
+						return
+					}
+					select {
+					case errChan <- fmt.Errorf("stream send error: %w", err):
+					default:
+					}
+					return
+				}
+			}
+		}()
+	}
+
 	wg.Add(2)
 
 	// Egress loop: read from local raw socket, send to remote bridge server over gRPC
@@ -179,7 +241,7 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 			if streamCtx.Err() != nil {
 				return
 			}
-			if err := stream.Send(&wpb.Packet{Data: pkt}); err != nil {
+			if err := send(&wpb.Packet{Data: pkt}); err != nil {
 				if streamCtx.Err() != nil {
 					return
 				}
@@ -192,7 +254,8 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 		}
 	}()
 
-	// Ingress loop: receive from remote bridge server over gRPC, inject into local raw socket
+	// Ingress loop: receive from remote bridge server over gRPC, inject into local raw socket, and apply received
+	// link state to the local interface.
 	go func() {
 		defer wg.Done()
 		for {
@@ -206,6 +269,9 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 				default:
 				}
 				return
+			}
+			if ls := resp.GetLinkState(); ls != wpb.LinkState_LINK_STATE_UNKNOWN {
+				c.applyLinkState(link, ls)
 			}
 			pktData := resp.GetData()
 			if len(pktData) > 0 {
@@ -235,5 +301,19 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 		return err
 	case <-ctx.Done():
 		return ctx.Err()
+	}
+}
+
+// applyLinkState applies link state received from the server by setting the local interface administratively up
+// or down.
+func (c *Client) applyLinkState(link Link, s wpb.LinkState) {
+	if link == nil {
+		klog.V(1).Infof("[%s] Ignoring link state %v: link state is not available", c.cfg.LocalInterface, s)
+		return
+	}
+	up := s == wpb.LinkState_LINK_STATE_UP
+	klog.Infof("[%s] Setting admin up=%t for received link state %v", c.cfg.LocalInterface, up, s)
+	if err := link.SetAdminUp(up); err != nil {
+		klog.Errorf("[%s] Failed to apply link state %v: %v", c.cfg.LocalInterface, s, err)
 	}
 }

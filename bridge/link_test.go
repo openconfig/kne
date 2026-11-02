@@ -17,6 +17,7 @@ package bridge
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"testing"
@@ -123,6 +124,11 @@ func (f *fakeLink) isClosed() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.closed
+}
+
+// noLink is a link opener for tests that do not exercise link state.
+func noLink(string) (Link, error) {
+	return nil, errors.New("link state disabled in test")
 }
 
 func TestLinkReporter(t *testing.T) {
