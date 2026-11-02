@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"unsafe"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -101,4 +102,31 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 	}
 
 	return tapFile, nil
+}
+
+// SetTAPCarrier sets the carrier (IFF_LOWER_UP) of the TAP device behind f.
+// Attaching a queue turns carrier on, so SetTAPCarrier must be called again
+// after the device is re-attached. It requires Linux 5.0 or later.
+func SetTAPCarrier(f *os.File, up bool) error {
+	if f == nil {
+		return fmt.Errorf("nil TAP handle")
+	}
+	rc, err := f.SyscallConn()
+	if err != nil {
+		return fmt.Errorf("failed to get raw conn for %s: %w", f.Name(), err)
+	}
+	var carrier int32
+	if up {
+		carrier = 1
+	}
+	var errno syscall.Errno
+	if err := rc.Control(func(fd uintptr) {
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, fd, uintptr(unix.TUNSETCARRIER), uintptr(unsafe.Pointer(&carrier)))
+	}); err != nil {
+		return fmt.Errorf("failed to access %s: %w", f.Name(), err)
+	}
+	if errno != 0 {
+		return fmt.Errorf("TUNSETCARRIER(%t) failed for %s: %w", up, f.Name(), errno)
+	}
+	return nil
 }
