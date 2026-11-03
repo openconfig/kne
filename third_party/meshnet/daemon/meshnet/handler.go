@@ -464,6 +464,9 @@ func (m *Meshnet) AddGRPCWireRemote(ctx context.Context, wireDef *mpb.WireDef) (
 	stopC := make(chan struct{})
 	wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
 	if err == nil {
+		err = m.setRemoteWireMTU(ctx, wireDef)
+	}
+	if err == nil {
 		if created {
 			log.WithFields(log.Fields{
 				"daemon":  "meshnetd",
@@ -492,6 +495,9 @@ func (m *Meshnet) AddGRPCWiresRemoteBatch(ctx context.Context, req *mpb.WireDefB
 	for i, wireDef := range req.Items {
 		stopC := make(chan struct{})
 		wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
+		if err == nil {
+			err = m.setRemoteWireMTU(ctx, wireDef)
+		}
 		if err != nil {
 			log.WithFields(log.Fields{
 				"daemon":  "meshnetd",

@@ -116,6 +116,7 @@ func parsePodLinks(topo *unstructured.Unstructured) ([]wireutil.PodLinkConfig, e
 		peerIntf, _, _ := unstructured.NestedString(rl, "peer_intf")
 		peerIP, _, _ := unstructured.NestedString(rl, "peer_ip")
 		uid, _, _ := unstructured.NestedInt64(rl, "uid")
+		mtu, _, _ := unstructured.NestedInt64(rl, "mtu")
 
 		links = append(links, wireutil.PodLinkConfig{
 			PodName:     podName,
@@ -126,7 +127,7 @@ func parsePodLinks(topo *unstructured.Unstructured) ([]wireutil.PodLinkConfig, e
 			LocalIP:     localIP,
 			PeerIntf:    peerIntf,
 			PeerIP:      peerIP,
-			MTU:         1500,
+			MTU:         int(mtu),
 		})
 	}
 	return links, nil
@@ -265,6 +266,8 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 		if !peerActive {
 			continue
 		}
+		// Both ends of a link get the same MTU, whichever end requests it.
+		link.MTU = wireutil.LinkMTU(link.MTU, peerLinkMTU(peerTopo, link.LinkUID))
 		if peerSrcIP == srcIP || (m.nodeIP == "" && srcIP == "") {
 			if peerNetNS != "" {
 				// Transition check: If moving from gRPC to same-node veth, clean up any existing gRPC wire
@@ -328,6 +331,10 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 					mnetdLogger.Errorf("ReconcilePodLinks: failed to register local GRPC wire: %v", err)
 					return err
 				}
+				if err := wireutil.SetLinkMTU(netNS, link.LocalIntf, link.MTU); err != nil {
+					mnetdLogger.Errorf("ReconcilePodLinks: failed to set MTU of GRPC wire for link UID %d: %v", link.LinkUID, err)
+					return err
+				}
 
 				locWire, ok := grpcwire.GetWireByUID(netNS, int(link.LinkUID))
 				if !ok || locWire == nil {
@@ -365,6 +372,12 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 				if err := vxlan.CreateOrUpdate(remotePod); err != nil {
 					mnetdLogger.Errorf("ReconcilePodLinks: failed to create VXLAN for pod %s: %v", topo.GetName(), err)
 					return err
+				}
+				// The kernel caps the MTU of a vxlan device at the MTU of the
+				// node's interface less the encapsulation overhead, so a large
+				// MTU may not fit; keep the link up at its default MTU then.
+				if err := wireutil.SetLinkMTU(netNS, link.LocalIntf, link.MTU); err != nil {
+					mnetdLogger.Warnf("ReconcilePodLinks: failed to set MTU of VXLAN link for pod %s interface %s: %v", topo.GetName(), link.LocalIntf, err)
 				}
 			}
 		}
