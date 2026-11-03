@@ -218,6 +218,7 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 			PeerPod:   nodeIfc.PeerName,
 			LocalIP:   "",
 			PeerIP:    "",
+			MTU:       int(nodeIfc.Mtu),
 		})
 	}
 
