@@ -198,4 +198,20 @@ build {
       "bash -c \"$(curl -sL https://get-gnoic.kmrd.dev)\"",
     ]
   }
+
+  provisioner "shell" {
+    inline = [
+      "echo Removing unused libheif1 package and verifying KNE host dependencies...",
+      "if dpkg -l libheif1 2>/dev/null | grep -q '^ii'; then sudo apt-get -o DPkg::Lock::Timeout=120 purge -y libheif1; fi",
+      "if dpkg -l libheif1 2>/dev/null | grep -q '^ii'; then echo 'ERROR: libheif1 is still installed' >&2; exit 1; fi",
+      "export PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "go version && gcc --version && make --version && pcap-config --version",
+      "sudo docker version && containerd --version",
+      "sudo ovs-vsctl --version && sudo ovs-vswitchd --version && sudo conntrack --version",
+      "kubelet --version && kubeadm version -o short && kubectl version --client",
+      "test -x /etc/kubernetes/bin/auth-provider-gcp",
+      "/usr/local/bin/kind version && /usr/local/bin/kne --help > /dev/null",
+      "git --version && tree --version && gnmic version && gribic version && gnoic version",
+    ]
+  }
 }
