@@ -47,9 +47,3 @@ func (m *Meshnet) remoteWireMTU(ctx context.Context, wireDef *mpb.WireDef) int {
 	}
 	return wireutil.LinkMTU(local.MTU, peerMTU)
 }
-
-// setRemoteWireMTU sets the MTU of the local end of a grpc-wire that a peer
-// node asked this node to create.
-func (m *Meshnet) setRemoteWireMTU(ctx context.Context, wireDef *mpb.WireDef) error {
-	return wireutil.SetLinkMTU(wireDef.GetLocalPodNetNs(), wireDef.GetIntfNameInPod(), m.remoteWireMTU(ctx, wireDef))
-}

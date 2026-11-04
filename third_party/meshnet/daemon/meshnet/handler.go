@@ -371,7 +371,7 @@ func (m *Meshnet) IsSkipped(ctx context.Context, skip *mpb.SkipQuery) (*mpb.Bool
 }
 
 func (m *Meshnet) Update(ctx context.Context, pod *mpb.RemotePod) (*mpb.BoolResponse, error) {
-	if err := vxlan.CreateOrUpdate(pod); err != nil {
+	if _, err := vxlan.CreateOrUpdate(pod); err != nil {
 		mnetdLogger.Errorf("Failed to Update Vxlan")
 		return &mpb.BoolResponse{Response: false}, nil
 	}
@@ -462,10 +462,7 @@ func (m *Meshnet) SendToStream(stream mpb.WireProtocol_SendToStreamServer) error
 // ---------------------------------------------------------------------------------------------------------------
 func (m *Meshnet) AddGRPCWireRemote(ctx context.Context, wireDef *mpb.WireDef) (*mpb.WireCreateResponse, error) {
 	stopC := make(chan struct{})
-	wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
-	if err == nil {
-		err = m.setRemoteWireMTU(ctx, wireDef)
-	}
+	wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggeredWithMTU(wireDef, stopC, m.remoteWireMTU(ctx, wireDef))
 	if err == nil {
 		if created {
 			log.WithFields(log.Fields{
@@ -494,10 +491,7 @@ func (m *Meshnet) AddGRPCWiresRemoteBatch(ctx context.Context, req *mpb.WireDefB
 	}
 	for i, wireDef := range req.Items {
 		stopC := make(chan struct{})
-		wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggered(wireDef, stopC)
-		if err == nil {
-			err = m.setRemoteWireMTU(ctx, wireDef)
-		}
+		wire, created, err := grpcwire.CreateUpdateGRPCWireRemoteTriggeredWithMTU(wireDef, stopC, m.remoteWireMTU(ctx, wireDef))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"daemon":  "meshnetd",

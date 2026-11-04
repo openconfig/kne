@@ -327,12 +327,8 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 					LocalPodIp:    link.LocalIP,
 					PeerNodeIp:    peerSrcIP,
 				}
-				if _, err := grpcwire.CreateGRPCWireLocal(ctx, wireDefLocal); err != nil {
+				if _, err := grpcwire.CreateGRPCWireLocalWithMTU(ctx, wireDefLocal, link.MTU); err != nil {
 					mnetdLogger.Errorf("ReconcilePodLinks: failed to register local GRPC wire: %v", err)
-					return err
-				}
-				if err := wireutil.SetLinkMTU(netNS, link.LocalIntf, link.MTU); err != nil {
-					mnetdLogger.Errorf("ReconcilePodLinks: failed to set MTU of GRPC wire for link UID %d: %v", link.LinkUID, err)
 					return err
 				}
 
@@ -369,15 +365,18 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 				}
 				mnetdLogger.Infof("ReconcilePodLinks: configuring remote VXLAN link for pod %s interface %s (peer %s on VTEP %s, VNI %d)",
 					topo.GetName(), link.LocalIntf, link.PeerPodName, peerSrcIP, remotePod.Vni)
-				if err := vxlan.CreateOrUpdate(remotePod); err != nil {
+				created, err := vxlan.CreateOrUpdate(remotePod)
+				if err != nil {
 					mnetdLogger.Errorf("ReconcilePodLinks: failed to create VXLAN for pod %s: %v", topo.GetName(), err)
 					return err
 				}
-				// The kernel caps the MTU of a vxlan device at the MTU of the
-				// node's interface less the encapsulation overhead, so a large
-				// MTU may not fit; keep the link up at its default MTU then.
-				if err := wireutil.SetLinkMTU(netNS, link.LocalIntf, link.MTU); err != nil {
-					mnetdLogger.Warnf("ReconcilePodLinks: failed to set MTU of VXLAN link for pod %s interface %s: %v", topo.GetName(), link.LocalIntf, err)
+				if created {
+					// The kernel caps the MTU of a vxlan device at the MTU of the
+					// node's interface less the encapsulation overhead, so a large
+					// MTU may not fit; keep the link up at its default MTU then.
+					if err := wireutil.SetLinkMTU(netNS, link.LocalIntf, link.MTU); err != nil {
+						mnetdLogger.Warnf("ReconcilePodLinks: failed to set MTU of VXLAN link for pod %s interface %s: %v", topo.GetName(), link.LocalIntf, err)
+					}
 				}
 			}
 		}
