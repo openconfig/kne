@@ -570,8 +570,11 @@ func TestFatalWriteErrorDetection(t *testing.T) {
 	if !isFatalWriteError(unix.EBADF) {
 		t.Errorf("expected unix.EBADF to be fatal")
 	}
-	if !isFatalWriteError(unix.ENETDOWN) {
-		t.Errorf("expected unix.ENETDOWN to be fatal")
+	if isFatalWriteError(unix.ENETDOWN) {
+		t.Errorf("expected unix.ENETDOWN to be non-fatal")
+	}
+	if !isFatalWriteError(unix.ENODEV) {
+		t.Errorf("expected unix.ENODEV to be fatal")
 	}
 	if isFatalWriteError(unix.EMSGSIZE) {
 		t.Errorf("expected unix.EMSGSIZE to be non-fatal")

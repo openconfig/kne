@@ -193,6 +193,8 @@ func (s *SocketHandler) Close() error {
 
 // InterfaceDemux coordinates a single raw socket reader per interface with multiple gRPC clients.
 // This design prevents socket buffer race conditions and distributes captured frames to all active subscribers.
+// It also distributes the link state of the interface to all subscribers and applies link state received from
+// any of them.
 type InterfaceDemux struct {
 	ifaceName          string
 	handler            ReadWriter
@@ -207,18 +209,26 @@ type InterfaceDemux struct {
 	closeOnce          sync.Once
 	closeErr           error
 	wg                 sync.WaitGroup
+
+	// linkMu guards the link-state fields below.
+	linkMu        sync.Mutex
+	link          Link // nil if link state is not available
+	linkClosed    bool
+	reporter      linkReporter
+	linkListeners map[chan wpb.LinkState]struct{}
 }
 
 // newInterfaceDemux constructs and starts a new InterfaceDemux for the specified interface.
 func newInterfaceDemux(parentCtx context.Context, ifaceName string, handler ReadWriter, onClose func(ifaceName string)) *InterfaceDemux {
 	ctx, cancel := context.WithCancel(parentCtx)
 	d := &InterfaceDemux{
-		ifaceName: ifaceName,
-		handler:   handler,
-		onClose:   onClose,
-		listeners: make(map[chan []byte]struct{}),
-		ctx:       ctx,
-		cancel:    cancel,
+		ifaceName:     ifaceName,
+		handler:       handler,
+		onClose:       onClose,
+		listeners:     make(map[chan []byte]struct{}),
+		linkListeners: make(map[chan wpb.LinkState]struct{}),
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 	// Unblock pending ReadPacket calls when demux context is cancelled.
 	go func() {
@@ -269,6 +279,7 @@ func (d *InterfaceDemux) readLoop() {
 		}
 		d.listeners = make(map[chan []byte]struct{})
 		d.mu.Unlock()
+		d.closeLink()
 		if d.onClose != nil {
 			d.onClose(d.ifaceName)
 		}
@@ -279,6 +290,12 @@ func (d *InterfaceDemux) readLoop() {
 		if err != nil {
 			if d.ctx.Err() != nil {
 				return
+			}
+			if errors.Is(err, unix.ENETDOWN) {
+				// An AF_PACKET socket reports ENETDOWN once when its interface goes down, which
+				// happens when link state DOWN is propagated, and resumes when it comes back up.
+				klog.V(1).Infof("Interface %s went down; waiting for it to come back up", d.ifaceName)
+				continue
 			}
 			klog.Errorf("Error reading packet from %s: %v", d.ifaceName, err)
 			return
@@ -340,6 +357,93 @@ func (d *InterfaceDemux) close() {
 	_ = d.closeHandler()
 }
 
+// attachLink makes the demux distribute the link state of l to its subscribers and apply link state received
+// from them to l. The demux closes l when it terminates.
+func (d *InterfaceDemux) attachLink(l Link) {
+	d.linkMu.Lock()
+	if d.linkClosed {
+		d.linkMu.Unlock()
+		_ = l.Close()
+		return
+	}
+	d.link = l
+	if obs, err := l.Current(); err == nil {
+		d.reporter.observe(obs)
+	} else {
+		klog.Warningf("Failed to read link state of %s: %v", d.ifaceName, err)
+	}
+	d.linkMu.Unlock()
+
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+		for obs := range l.Events() {
+			d.observeLink(obs)
+		}
+	}()
+}
+
+// closeLink stops observing the link state of the interface.
+func (d *InterfaceDemux) closeLink() {
+	d.linkMu.Lock()
+	l := d.link
+	d.linkClosed = true
+	d.linkMu.Unlock()
+	if l != nil {
+		_ = l.Close()
+	}
+}
+
+// observeLink distributes the link state to report for obs to all link-state subscribers.
+func (d *InterfaceDemux) observeLink(obs LinkObservation) {
+	d.linkMu.Lock()
+	defer d.linkMu.Unlock()
+	s := d.reporter.observe(obs)
+	if s == wpb.LinkState_LINK_STATE_UNKNOWN {
+		return
+	}
+	klog.Infof("[%s] Link state %v (admin up=%t, carrier=%t)", d.ifaceName, s, obs.AdminUp, obs.Carrier)
+	for ch := range d.linkListeners {
+		publishLatest(ch, s)
+	}
+}
+
+// subscribeLinkState registers a new channel to receive the link state to report to a peer. The channel holds
+// only the latest state, and initially holds the current state if there is one to report.
+func (d *InterfaceDemux) subscribeLinkState() chan wpb.LinkState {
+	ch := make(chan wpb.LinkState, 1)
+	d.linkMu.Lock()
+	defer d.linkMu.Unlock()
+	d.linkListeners[ch] = struct{}{}
+	if s := d.reporter.current(); s != wpb.LinkState_LINK_STATE_UNKNOWN {
+		ch <- s
+	}
+	return ch
+}
+
+// unsubscribeLinkState removes a channel registered by subscribeLinkState.
+func (d *InterfaceDemux) unsubscribeLinkState(ch chan wpb.LinkState) {
+	d.linkMu.Lock()
+	defer d.linkMu.Unlock()
+	delete(d.linkListeners, ch)
+}
+
+// setLinkState applies link state received from a peer by setting the interface administratively up or down.
+func (d *InterfaceDemux) setLinkState(s wpb.LinkState) {
+	d.linkMu.Lock()
+	l := d.link
+	d.linkMu.Unlock()
+	if l == nil {
+		klog.V(1).Infof("[%s] Ignoring link state %v: link state is not available", d.ifaceName, s)
+		return
+	}
+	up := s == wpb.LinkState_LINK_STATE_UP
+	klog.Infof("[%s] Setting admin up=%t for received link state %v", d.ifaceName, up, s)
+	if err := l.SetAdminUp(up); err != nil {
+		klog.Errorf("[%s] Failed to apply link state %v: %v", d.ifaceName, s, err)
+	}
+}
+
 // wait blocks until the read loop has finished and returns the socket close error.
 func (d *InterfaceDemux) wait() error {
 	d.wg.Wait()
@@ -355,6 +459,7 @@ type Server struct {
 	mu           sync.Mutex
 	demuxers     map[string]*InterfaceDemux
 	socketOpener func(ifaceName string) (ReadWriter, error)
+	linkOpener   func(ifaceName string) (Link, error)
 }
 
 // NewServer creates a new Wire server instance.
@@ -367,6 +472,7 @@ func NewServer(ctx context.Context) *Server {
 		socketOpener: func(ifaceName string) (ReadWriter, error) {
 			return NewSocketHandler(ifaceName)
 		},
+		linkOpener: NewNetlinkLink,
 	}
 }
 
@@ -375,6 +481,14 @@ func (s *Server) SetSocketOpener(opener func(ifaceName string) (ReadWriter, erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.socketOpener = opener
+}
+
+// SetLinkOpener overrides the default link-state factory for hermetic testing. A nil opener disables link
+// state.
+func (s *Server) SetLinkOpener(opener func(ifaceName string) (Link, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.linkOpener = opener
 }
 
 // getOrCreateDemux retrieves an existing demuxer for the interface or opens a new one.
@@ -409,6 +523,13 @@ func (s *Server) getOrCreateDemux(ifaceName string) (*InterfaceDemux, error) {
 		klog.Infof("InterfaceDemux for %s cleaned up and removed from server cache", name)
 	})
 	s.demuxers[ifaceName] = d
+	if s.linkOpener != nil {
+		if l, err := s.linkOpener(ifaceName); err != nil {
+			klog.Warningf("Link state of %s will not be propagated: %v", ifaceName, err)
+		} else {
+			d.attachLink(l)
+		}
+	}
 	return d, nil
 }
 
@@ -439,8 +560,10 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "failed to subscribe to interface %s: %v", ifaceName, err)
 	}
+	linkChan := demux.subscribeLinkState()
 	var egressWG sync.WaitGroup
 	defer func() {
+		demux.unsubscribeLinkState(linkChan)
 		demux.unsubscribe(pktChan)
 		egressWG.Wait()
 		klog.Infof("Wire.Transmit client disconnected from interface %q", ifaceName)
@@ -454,11 +577,14 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 
 	errChan := make(chan error, 2)
 
-	// Egress loop: read captured packets from InterfaceDemux and send to gRPC client.
+	// Egress loop: read captured packets and link-state changes from InterfaceDemux and send them to the gRPC
+	// client. This is the only goroutine that sends on the stream. The current link state, if any, is already
+	// queued in linkChan, so it is sent right after the header.
 	egressWG.Add(1)
 	go func() {
 		defer egressWG.Done()
 		for {
+			var msg *wpb.Packet
 			select {
 			case <-stream.Context().Done():
 				select {
@@ -466,6 +592,8 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 				default:
 				}
 				return
+			case ls := <-linkChan:
+				msg = &wpb.Packet{LinkState: ls}
 			case pkt, ok := <-pktChan:
 				if !ok {
 					select {
@@ -474,18 +602,20 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 					}
 					return
 				}
-				if err := stream.Send(&wpb.Packet{Data: pkt}); err != nil {
-					select {
-					case errChan <- err:
-					default:
-					}
-					return
+				msg = &wpb.Packet{Data: pkt}
+			}
+			if err := stream.Send(msg); err != nil {
+				select {
+				case errChan <- err:
+				default:
 				}
+				return
 			}
 		}
 	}()
 
-	// Ingress loop: receive packets from gRPC client and inject directly into raw network interface.
+	// Ingress loop: receive packets from gRPC client and inject directly into raw network interface, and apply
+	// received link state to the interface.
 	go func() {
 		for {
 			req, err := stream.Recv()
@@ -495,6 +625,9 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 				default:
 				}
 				return
+			}
+			if ls := req.GetLinkState(); ls != wpb.LinkState_LINK_STATE_UNKNOWN {
+				demux.setLinkState(ls)
 			}
 			if pktData := req.GetData(); len(pktData) > 0 {
 				if err := demux.write(pktData); err != nil {
@@ -543,19 +676,21 @@ func (s *Server) Close() error {
 }
 
 // isFatalWriteError determines if a write error is permanent and indicates socket/stream failure,
-// as opposed to a transient or per-packet error (e.g. EMSGSIZE, ENOBUFS).
+// as opposed to a transient or per-packet error (e.g. EMSGSIZE, ENOBUFS). ENETDOWN is not fatal:
+// the interface is down, typically because link state DOWN was propagated, and frames written
+// while it is down are dropped until it comes back up.
 func isFatalWriteError(err error) bool {
 	if err == nil {
 		return false
 	}
 	if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) ||
-		errors.Is(err, unix.EBADF) || errors.Is(err, unix.ENETDOWN) || errors.Is(err, unix.ENODEV) || errors.Is(err, unix.ESHUTDOWN) {
+		errors.Is(err, unix.EBADF) || errors.Is(err, unix.ENODEV) || errors.Is(err, unix.ESHUTDOWN) {
 		return true
 	}
 	var errno unix.Errno
 	if errors.As(err, &errno) {
 		switch errno {
-		case unix.EBADF, unix.ENETDOWN, unix.ENODEV, unix.ESHUTDOWN, unix.EINVAL:
+		case unix.EBADF, unix.ENODEV, unix.ESHUTDOWN, unix.EINVAL:
 			return true
 		default:
 			return false

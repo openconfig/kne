@@ -68,11 +68,64 @@ port is assumed if the address has none.
    kubectl exec -it host2 -- tcpdump -i eth1 -n
    ```
 
-4. **Teardown:**
+4. **Propagate Link State (Optional):**
+
+   The bridge carries link state as well as frames. Taking `host1`'s `eth1`
+   down removes carrier from `host2`'s `eth1`, and the reverse:
+
+   ```bash
+   kubectl exec -it host1 -- ip link set eth1 down
+   kubectl exec -it host2 -- ip link show eth1   # NO-CARRIER, no LOWER_UP
+   kubectl exec -it host1 -- ip link set eth1 up
+   kubectl exec -it host2 -- ip link show eth1   # LOWER_UP again
+   ```
+
+   See [Link State](#link-state) for how this works.
+
+5. **Teardown:**
 
    ```bash
    kne delete examples/bridge/paired-bridge.pb.txt
    ```
+
+---
+
+## Link State
+
+A bridge propagates link state using the carrier semantics of a veth pair: an
+interface has carrier (`LOWER_UP`) only while the device at the other end of its
+link is administratively up.
+
+- When the carrier of a bridge's interface changes while the interface is
+  administratively up, the bridge sends `LINK_STATE_UP` or `LINK_STATE_DOWN`
+  in `wire.Packet.link_state`. It also sends the current state when a stream
+  is established.
+- When a bridge receives `LINK_STATE_UP` or `LINK_STATE_DOWN`, it sets its
+  interface administratively up or down, and the device at the other end of
+  the link sees that as a carrier change.
+- A bridge reports nothing while its interface is administratively down. That
+  carrier loss was caused by the bridge itself, and reporting it would latch
+  both ends down. When the interface comes back up, the bridge reports its
+  carrier right away.
+
+A `wire.Packet` may carry a frame (`data`), a link-state update, or both.
+External clients of the Wire service, such as a packet bridge outside the
+cluster, follow the same rules. Clients that ignore `link_state` keep working
+and simply don't propagate link state.
+
+Within a node, meshnet links are veth pairs, so this works on any cluster. A
+link between pods on different nodes has these semantics only with meshnet's
+gRPC link type (`INTER_NODE_LINK_TYPE=GRPC`, the default in the KNE deployment
+configs). It does not work with the VXLAN link type.
+
+> [!WARNING]
+> Link-state propagation assumes that at least one side of the Wire is not
+> another bridge. In a paired bridge like this example, where both ends are
+> bridges in front of veth-like links, the link can latch down. That happens if
+> the devices on both sides go administratively down within one propagation
+> delay of each other: each bridge takes its own interface down, and a downed
+> interface cannot see its far end come back up. Bring the bridge interfaces
+> back up by hand (`ip link set <interface> up`) to recover.
 
 ---
 

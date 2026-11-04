@@ -89,6 +89,22 @@ Below is the order of operation of the plugin from the perspective of kube-node-
    - 7.2 It makes a gRPC `Update` call to the remote node's meshnet daemon, specifying this link's metadata (e.g. VTEP IP and VNI).
 8. Upon receipt of this information, remote node's `meshnetd` idepmotently updates the local vxlan link, i.e. it creates a new link, updates the existing link if there's a change or does nothing if the link attributes are the same.
 
+### Link state
+
+meshnet links have the carrier semantics of a veth pair: an interface has
+carrier (`LOWER_UP`) only while the interface at the other end of the link is
+administratively up. Running `ip link set eth1 down` in one pod therefore shows
+`NO-CARRIER` on the peer's interface, and setting it up again restores carrier.
+
+- **veth** (same node): the kernel provides this.
+- **gRPC** (different nodes): each end is a TAP device. `meshnetd` watches the
+  admin state of the TAP in the pod's network namespace and sends it to the
+  peer node's `meshnetd` (`Remote.SetWireCarrier`), which sets the carrier of
+  its TAP with `TUNSETCARRIER` (Linux 5.0 or later). A TAP keeps carrier until
+  the peer first reports its state.
+- **vxlan** (different nodes): not supported. The carrier of a vxlan link does
+  not follow its peer. Use the gRPC link type when link state matters.
+
 ## Local Demo
 
 Clone this project and build a local 3-node Kubernetes cluster
