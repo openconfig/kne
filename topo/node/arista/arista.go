@@ -44,6 +44,99 @@ import (
 
 const (
 	scrapliPlatformName = "arista_eos"
+	userCustomizeFile   = "usercustomize.py"
+
+	// ceosRebootMonkeyPatch is mounted at /mnt/flash/usercustomize.py and loaded
+	// via PYTHONPATH=/mnt/flash so that EOS CLI processes (ConfigAgent and Cli)
+	// monkey-patch CliPlugin.ReloadCli at import time on cEOSLab images where
+	// the `reload` CLI is guarded by notCeosGuard. This enables Octa's
+	// gnoi.system.Reboot handler (which invokes `show reload` and
+	// `reload in 0 force`) to trigger an in-place container restart via systemd
+	// (PID 1) SIGRTMIN+3. Once an EOS release natively supports `reload` on
+	// cEOSLab, notCeosGuard returns None and this hook becomes a no-op.
+	ceosRebootMonkeyPatch = `"""KNE runtime monkey-patch to enable gNOI System.Reboot (reload) on Arista cEOSLab."""
+
+import importlib.abc
+import importlib.machinery
+import sys
+
+
+def _ceos_do_reload(mode, *, target=None, reloadArgs=None, commit=None,
+                    schedule=None, reloadReason=None):
+    import Tac
+    delay_sec = 0
+    if isinstance(schedule, tuple) and len(schedule) == 2 and schedule[0] == "in":
+        tup = schedule[1]
+        if isinstance(tup, tuple):
+            delay_sec = (tup[0] * 3600 + tup[1] * 60) if len(tup) > 1 else (tup[0] * 60)
+    wait_sec = max(1, int(delay_sec))
+    Tac.run(
+        [
+            "daemonize",
+            "-l",
+            "-",
+            "sh",
+            "-c",
+            f"sleep {wait_sec}; kill -s SIGRTMIN+3 1",
+        ],
+        asRoot=True,
+        ignoreReturnCode=True,
+        stdout=Tac.DISCARD,
+        stderr=Tac.DISCARD,
+    )
+
+
+def _patch_reload_cli(mod):
+    guard = getattr(mod, "notCeosGuard", None)
+    if guard is None:
+        return
+    try:
+        if guard(None, None) is None:
+            return
+    except Exception:
+        pass
+    noop_guard = lambda mode, token: None
+    try:
+        guard.__code__ = noop_guard.__code__
+    except Exception:
+        pass
+    mod.notCeosGuard = noop_guard
+    for attr in ("reloadKwNode", "reloadShowKwNode"):
+        node = getattr(mod, attr, None)
+        if node is not None:
+            for gattr in ("guard_", "guard"):
+                if hasattr(node, gattr):
+                    setattr(node, gattr, None)
+    mod.doReload = _ceos_do_reload
+
+
+class _ReloadCliLoader(importlib.abc.Loader):
+    def __init__(self, orig_loader):
+        self._orig_loader = orig_loader
+
+    def create_module(self, spec):
+        if hasattr(self._orig_loader, "create_module"):
+            return self._orig_loader.create_module(spec)
+        return None
+
+    def exec_module(self, module):
+        self._orig_loader.exec_module(module)
+        _patch_reload_cli(module)
+
+
+class _ReloadCliFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if fullname != "CliPlugin.ReloadCli":
+            return None
+        spec = importlib.machinery.PathFinder.find_spec(fullname, path, target)
+        if spec is not None and spec.loader is not None:
+            spec.loader = _ReloadCliLoader(spec.loader)
+        return spec
+
+
+if not any(type(f).__name__ == "_ReloadCliFinder" for f in sys.meta_path):
+    sys.meta_path.insert(0, _ReloadCliFinder())
+`
 )
 
 var (
@@ -120,6 +213,9 @@ var (
 			ConfigFile:   "startup-config",
 			Image:        "ceos:latest",
 			InitImage:    node.DefaultInitContainerImage,
+			Env: map[string]string{
+				"PYTHONPATH": "/mnt/flash",
+			},
 			Cert: &tpb.CertificateCfg{
 				Config: &tpb.CertificateCfg_SelfSigned{
 					SelfSigned: &tpb.SelfSignedCertCfg{
@@ -203,21 +299,23 @@ func (n *Node) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	case *tpb.Config_Data:
 		data = v.Data
 	}
-	if data != nil {
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-config", pb.Name),
-			},
-			Data: map[string]string{
-				pb.Config.ConfigFile: string(data),
-			},
-		}
-		sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
-		if err != nil {
-			return nil, err
-		}
-		log.V(1).Infof("Server Config Map:\n%+v\n", sCM)
+	cmData := map[string]string{
+		userCustomizeFile: ceosRebootMonkeyPatch,
 	}
+	if data != nil {
+		cmData[pb.Config.ConfigFile] = string(data)
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-config", pb.Name),
+		},
+		Data: cmData,
+	}
+	sCM, err := n.KubeClient.CoreV1().ConfigMaps(n.Namespace).Create(ctx, cm, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	log.V(1).Infof("Server Config Map:\n%+v\n", sCM)
 	return nil, nil
 }
 
@@ -485,6 +583,15 @@ func defaults(pb *tpb.Node) *tpb.Node {
 	}
 	if pb.Config.Cert == nil {
 		pb.Config.Cert = defaultNodeClone.Config.Cert
+	}
+	if pb.Config.Env == nil {
+		pb.Config.Env = map[string]string{}
+	}
+	switch pyPath := pb.Config.Env["PYTHONPATH"]; {
+	case pyPath == "":
+		pb.Config.Env["PYTHONPATH"] = pb.Config.ConfigPath
+	case !strings.Contains(pyPath, pb.Config.ConfigPath):
+		pb.Config.Env["PYTHONPATH"] = fmt.Sprintf("%s:%s", pyPath, pb.Config.ConfigPath)
 	}
 	return pb
 }
