@@ -32,6 +32,7 @@ func (w *wireMap) GetHandle(key int64) (*os.File, bool) {
 func (w *wireMap) cleanupOldWireLocked(wire *GRPCWire) {
 	lk := linkKey{namespace: wire.LocalPodNetNS, linkUID: wire.UID}
 	if oldWire, exists := w.wires[lk]; exists && oldWire != wire {
+		stopCarrier(oldWire)
 		oldWire.CloseStopC()
 		oldWire.IsReady = false
 		if oldHandle, ok := w.handles[oldWire.LocalNodeIfaceID]; ok && oldHandle != nil {
@@ -45,6 +46,7 @@ func (w *wireMap) cleanupOldWireLocked(wire *GRPCWire) {
 			oldWire.LocalPodName == wire.LocalPodName &&
 			oldWire.UID == wire.UID &&
 			oldWire.LocalPodNetNS != wire.LocalPodNetNS {
+			stopCarrier(oldWire)
 			oldWire.CloseStopC()
 			oldWire.IsReady = false
 			if oldHandle, ok := w.handles[oldWire.LocalNodeIfaceID]; ok && oldHandle != nil {
@@ -100,6 +102,7 @@ func (w *wireMap) CloseAndRemoveHandle(key int64) error {
 
 // Clear the in-memory wire map
 func (w *wireMap) AtomicDelete(wire *GRPCWire) error {
+	stopCarrier(wire)
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	delete(w.wires, linkKey{

@@ -28,6 +28,9 @@ import (
 	topologyclientv1 "github.com/openconfig/kne/third_party/meshnet/api/clientset/v1beta1"
 )
 
+// vxlanCarrierWarning logs once that VXLAN links do not propagate link state.
+var vxlanCarrierWarning sync.Once
+
 // isNetNSValid returns true if the netns path exists on the host filesystem.
 func isNetNSValid(netNS string) bool {
 	if netNS == "" {
@@ -355,6 +358,9 @@ func (m *Meshnet) reconcilePodLinksInternal(ctx context.Context, topo *unstructu
 					LocalPodIp:         link.PeerIP,
 				})
 			} else {
+				vxlanCarrierWarning.Do(func() {
+					mnetdLogger.Warnf("ReconcilePodLinks: cross-node links use VXLAN, so the carrier of a link will not follow the admin state of its peer; use INTER_NODE_LINK_TYPE=GRPC for link-state propagation")
+				})
 				remotePod := &mpb.RemotePod{
 					NetNs:    netNS,
 					IntfName: link.LocalIntf,

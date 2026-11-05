@@ -563,6 +563,9 @@ func reconLocalGRPCWire(wireDef *mpb.WireDef) error {
 	aWire.IsReady = true
 	// reconciling, so add only in memory
 	wires.AddInMem(aWire, tapFile)
+	// Re-attaching the TAP turned its carrier on, so ask the peer for the
+	// admin state of its end.
+	startCarrier(aWire, true)
 
 	go RecvFrmLocalPodThread(aWire, aWire.LocalNodeIfaceName)
 

@@ -45,6 +45,7 @@ func CreateGRPCWireLocalWithMTU(ctx context.Context, wireDef *mpb.WireDef, mtu i
 
 	// Add the newly created wire in the in memory wire-map and k8S data store
 	AddWireInMemNDataStore(aWire, tapFile)
+	startCarrier(aWire, false)
 
 	log.WithFields(log.Fields{
 		"daemon":  "meshnetd",
@@ -94,6 +95,7 @@ func CreateUpdateGRPCWireRemoteTriggeredWithMTU(wireDef *mpb.WireDef, stopC chan
 
 	// Add the created wire in the in memory wire-map and k8S data store
 	AddWireInMemNDataStore(aWire, tapFile)
+	startCarrier(aWire, false)
 
 	return aWire, true, nil
 }

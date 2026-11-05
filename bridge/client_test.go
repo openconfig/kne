@@ -43,6 +43,7 @@ func TestBridgeClientBidirectionalForwarding(t *testing.T) {
 	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
 		return serverIO, nil
 	})
+	server.SetLinkOpener(nil)
 
 	lis := bufconn.Listen(1024 * 1024)
 	grpcServer := grpc.NewServer()
@@ -69,6 +70,7 @@ func TestBridgeClientBidirectionalForwarding(t *testing.T) {
 		SocketOpener: func(ifaceName string) (ReadWriter, error) {
 			return clientIO, nil
 		},
+		LinkOpener: noLink,
 	})
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
@@ -121,6 +123,7 @@ func TestBridgeClientShutdown(t *testing.T) {
 		SocketOpener: func(ifaceName string) (ReadWriter, error) {
 			return clientIO, nil
 		},
+		LinkOpener: noLink,
 	})
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
@@ -204,6 +207,7 @@ func TestClientIngressNonFatalError(t *testing.T) {
 	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
 		return serverIO, nil
 	})
+	server.SetLinkOpener(nil)
 
 	lis := bufconn.Listen(1024 * 1024)
 	grpcServer := grpc.NewServer()
@@ -232,6 +236,7 @@ func TestClientIngressNonFatalError(t *testing.T) {
 		SocketOpener: func(ifaceName string) (ReadWriter, error) {
 			return clientIO, nil
 		},
+		LinkOpener: noLink,
 	})
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)

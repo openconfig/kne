@@ -97,10 +97,11 @@ type GRPCWire struct {
 	stopOnce sync.Once
 
 	mu                    sync.Mutex
-	IsReady               bool          // Is this wire ready.
-	WireIfaceIDOnPeerNode int64         // Peer end of the wire interface ID which is present in peer node
-	PeerNodeIP            string        // Peer node IP
-	StopC                 chan struct{} // the channel to send stop signal to the receive thread.
+	IsReady               bool           // Is this wire ready.
+	WireIfaceIDOnPeerNode int64          // Peer end of the wire interface ID which is present in peer node
+	PeerNodeIP            string         // Peer node IP
+	StopC                 chan struct{}  // the channel to send stop signal to the receive thread.
+	carrier               *carrierPusher // lifts the local end's admin state to the peer; see carrier.go.
 }
 
 // CloseStopC safely closes the wire's StopC channel at most once.
@@ -147,6 +148,15 @@ func CreateGWire(locIfIndex int, locIfNm string, stopC chan struct{}, wireDef *m
 
 // update the wire with the given input and mark the wire ready
 func (wire *GRPCWire) UpdateWire(peerIntfId int64, peerNodeIP string, stopC chan struct{}) {
+	// The peer may have re-created its end, so send it the local admin state
+	// again. This runs after wire.mu is released, since the pusher takes its
+	// own lock before wire.mu.
+	var p *carrierPusher
+	defer func() {
+		if p != nil {
+			p.resend(false)
+		}
+	}()
 	wire.mu.Lock()
 	defer wire.mu.Unlock()
 	if wire.StopC == nil {
@@ -167,6 +177,7 @@ func (wire *GRPCWire) UpdateWire(peerIntfId int64, peerNodeIP string, stopC chan
 		wire.PeerNodeIP = peerNodeIP
 	}
 	wire.IsReady = true
+	p = wire.carrier
 	go wire.K8sStoreGWire()
 }
 
@@ -271,6 +282,7 @@ func RemoveWireAcrosAll(wire *GRPCWire, inMem bool) error {
 	}
 
 	// stop the packet receive thread for this pod
+	stopCarrier(wire)
 	wire.mu.Lock()
 	wire.CloseStopC()
 	wire.IsReady = false

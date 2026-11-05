@@ -30,6 +30,8 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/srl-labs/srl-controller v0.7.1
 	github.com/srl-labs/srlinux-scrapli v0.6.0
+	github.com/vishvananda/netlink v1.3.1
+	github.com/vishvananda/netns v0.0.5
 	github.com/wI2L/jsondiff v0.7.1
 	go.universe.tf/metallb v0.16.1
 	golang.org/x/oauth2 v0.37.0
