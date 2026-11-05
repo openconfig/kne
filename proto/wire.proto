@@ -24,7 +24,24 @@ service Wire {
   rpc Transmit(stream Packet) returns (stream Packet);
 }
 
-// Packet is a wrapper around bytes.
+// LinkState is the carrier state of the interface at one end of a Wire.
+enum LinkState {
+  // No link-state information. Receivers ignore it.
+  LINK_STATE_UNKNOWN = 0;
+  LINK_STATE_UP = 1;
+  LINK_STATE_DOWN = 2;
+}
+
+// Packet carries a raw L2 frame, a link-state update, or both.
+//
+// Receivers write data to the interface only when it is non-empty, and act on
+// link_state only when it is not LINK_STATE_UNKNOWN. A bridge that receives
+// LINK_STATE_UP or LINK_STATE_DOWN sets its interface administratively up or
+// down, which the device at the other end of the link sees as a carrier
+// change. A bridge sends LINK_STATE_UP or LINK_STATE_DOWN when the carrier of
+// its interface changes while the interface is administratively up, and sends
+// the current state once the stream is established.
 message Packet {
   bytes data = 1;
+  LinkState link_state = 2;
 }

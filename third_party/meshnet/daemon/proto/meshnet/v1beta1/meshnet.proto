@@ -116,6 +116,27 @@ message Packet {
   bytes frame = 2;
 }
 
+// WireCarrier tells the peer daemon the admin state of the sender's end of a
+// grpc-wire, so that the peer can mirror it as the carrier of its own end. This
+// gives grpc-wires the carrier semantics of a veth pair: an end has carrier
+// only while the other end is administratively up.
+message WireCarrier {
+  // The receiver's local wire interface id (the sender's
+  // wire_if_id_on_peer_node), used for O(1) lookup.
+  int64 wire_if_id = 1;
+  // The link uid of the wire, used to reject stale interface ids, since a
+  // restarted daemon allocates interface ids from 1 again.
+  int64 link_uid = 2;
+  // The K8s namespace of the topology the wire belongs to.
+  string topo_ns = 3;
+  // The admin state (IFF_UP) of the sender's pod-side interface.
+  bool peer_admin_up = 4;
+  // When set, the receiver pushes its own current admin state back to the
+  // sender. A daemon sets this after it re-creates its end of a wire, for
+  // example after a restart, when its end has lost the peer's state.
+  bool request_sync = 5;
+}
+
 message GenerateNodeInterfaceNameRequest {
   string pod_intf_name = 1;
   string pod_name = 2;
@@ -156,6 +177,9 @@ service Remote {
   rpc AddGRPCWireRemote(WireDef) returns (WireCreateResponse);
   rpc AddGRPCWiresRemoteBatch(WireDefBatch) returns (WireCreateResponseBatch);
   rpc GRPCWireDownRemote(WireDef) returns (WireDownResponse);
+  // SetWireCarrier sets the carrier of the receiver's end of a grpc-wire to
+  // the admin state of the sender's end.
+  rpc SetWireCarrier(WireCarrier) returns (BoolResponse);
 }
 
 service WireProtocol {
