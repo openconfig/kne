@@ -13,6 +13,10 @@ import (
 var createWireMu sync.Mutex
 
 func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolResponse, error) {
+	return CreateGRPCWireLocalWithMTU(ctx, wireDef, 0)
+}
+
+func CreateGRPCWireLocalWithMTU(ctx context.Context, wireDef *mpb.WireDef, mtu int) (*mpb.BoolResponse, error) {
 	createWireMu.Lock()
 	defer createWireMu.Unlock()
 
@@ -23,7 +27,7 @@ func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolRe
 		return &mpb.BoolResponse{Response: true}, nil
 	}
 
-	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
+	tapFile, err := wireutil.CreateOrAttachTAPWithMTU(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp, mtu)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"daemon":  "meshnetd",
@@ -59,6 +63,10 @@ func CreateGRPCWireLocal(ctx context.Context, wireDef *mpb.WireDef) (*mpb.BoolRe
 // a pod from node A to node B dynamically.
 // Returns the wire, whether it was freshly created (true) or updated (false), and any error.
 func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct{}) (*GRPCWire, bool, error) {
+	return CreateUpdateGRPCWireRemoteTriggeredWithMTU(wireDef, stopC, 0)
+}
+
+func CreateUpdateGRPCWireRemoteTriggeredWithMTU(wireDef *mpb.WireDef, stopC chan struct{}, mtu int) (*GRPCWire, bool, error) {
 	createWireMu.Lock()
 	defer createWireMu.Unlock()
 
@@ -72,7 +80,7 @@ func CreateUpdateGRPCWireRemoteTriggered(wireDef *mpb.WireDef, stopC chan struct
 		return grpcWire, false, nil
 	}
 
-	tapFile, err := wireutil.CreateOrAttachTAP(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp)
+	tapFile, err := wireutil.CreateOrAttachTAPWithMTU(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp, mtu)
 	if err != nil {
 		grpcOvrlyLogger.Errorf("[ADD-WIRE:REMOTE-END] Error creating/attaching TAP interface %s in netns %s: %v",
 			wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)

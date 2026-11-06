@@ -152,6 +152,7 @@ build {
       "  us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga \\",
       "  us-west1-docker.pkg.dev/kne-external/kne/bridge:ga \\",
       "  us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga \\",
+      "  us-west1-docker.pkg.dev/kne-external/kne/alpine/socat:1.8.1.3 \\",
       "  us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga \\",
       "  us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga \\",
       "  us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga \\",
@@ -257,6 +258,25 @@ build {
     inline = [
       "echo Installing network diagnosis tools...",
       "sudo apt-get install net-tools iptables nftables -y",
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo Removing unused libheif1 package and verifying KNE host dependencies...",
+      "if dpkg -l libheif1 2>/dev/null | grep -q '^ii'; then sudo apt-get -o DPkg::Lock::Timeout=120 purge -y libheif1; fi",
+      "if dpkg -l libheif1 2>/dev/null | grep -q '^ii'; then echo 'ERROR: libheif1 is still installed' >&2; exit 1; fi",
+      "export PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "go version && gcc --version && make --version && pcap-config --version",
+      "sudo docker version && containerd --version",
+      "sudo ovs-vsctl --version && sudo ovs-vswitchd --version && sudo conntrack --version",
+      "kubelet --version && kubeadm version -o short && kubectl version --client",
+      "test -x /etc/kubernetes/bin/auth-provider-gcp",
+      "/usr/local/bin/kind version && /usr/local/bin/kne --help > /dev/null",
+      "test -x /home/$USER/kne-internal/proxy/server/server && test -x /home/$USER/kne-internal/kneproxy/kneproxy",
+      "git --version && tree --version && gnmic version && gribic version && gnoic version",
+      "dpkg -l google-cloud-ops-agent | grep -q '^ii'",
+      "sudo iptables --version && sudo nft --version && sudo netstat --version",
     ]
   }
 }

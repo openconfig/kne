@@ -41,6 +41,10 @@ spec:
                       local_ip:
                         description: "(Optional) Peer IP address"
                         type: string
+                      mtu:
+                        description: "(Optional) MTU of the local interface"
+                        type: integer
+                        minimum: 0
                     type: object
                   type: array
               type: object
