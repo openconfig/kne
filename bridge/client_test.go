@@ -270,3 +270,72 @@ func TestClientIngressNonFatalError(t *testing.T) {
 		t.Fatalf("Timed out waiting for packet after non-fatal error")
 	}
 }
+
+func TestBridgeClientSurvivesENETDOWN(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 1. Setup Server
+	server := NewServer(ctx)
+	defer func() {
+		_ = server.Close()
+	}()
+
+	serverIO := newFakeReadWriter()
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		return serverIO, nil
+	})
+	server.SetLinkOpener(nil)
+
+	lis := bufconn.Listen(1024 * 1024)
+	grpcServer := grpc.NewServer()
+	wpb.RegisterWireServer(grpcServer, server)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	defer grpcServer.Stop()
+
+	// 2. Setup Client with an enetdownReader so the first read yields ENETDOWN.
+	clientIO := newFakeReadWriter()
+	client, err := NewClient(ClientConfig{
+		PeerAddress:     "passthrough://bufnet",
+		LocalInterface:  "eth1",
+		RemoteInterface: "eth1",
+		RetryInterval:   100 * time.Millisecond,
+		DialOpts: []grpc.DialOption{
+			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+				return lis.Dial()
+			}),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+		SocketOpener: func(ifaceName string) (ReadWriter, error) {
+			return &enetdownReader{fakeReadWriter: clientIO}, nil
+		},
+		LinkOpener: noLink,
+	})
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+
+	clientCtx, clientCancel := context.WithCancel(ctx)
+	defer clientCancel()
+
+	go func() {
+		_ = client.Run(clientCtx)
+	}()
+
+	// 3. Send packet from client to server. The first read returns ENETDOWN,
+	// which should be ignored, and the next read should send the packet across.
+	pktClientToServer := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+	clientIO.sendPacket(pktClientToServer)
+
+	select {
+	case received := <-serverIO.writeChan:
+		if !bytes.Equal(received, pktClientToServer) {
+			t.Fatalf("Server write mismatch: got %v, want %v", received, pktClientToServer)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("Timed out waiting for Client -> Server packet after ENETDOWN")
+	}
+}
