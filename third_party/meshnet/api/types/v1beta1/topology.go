@@ -54,6 +54,9 @@ type Link struct {
 	PeerIP    string `json:"peer_ip"`
 	PeerPod   string `json:"peer_pod"`
 	UID       int    `json:"uid"`
+	// MTU is the MTU of the local interface. meshnet gives both ends of a link
+	// the larger of the MTUs their two Link entries request. Zero means unset.
+	MTU int `json:"mtu,omitempty"`
 }
 
 // Topology is the Schema for the topologies API.
