@@ -26,6 +26,13 @@ type ifreq struct {
 // with the given ifName inside the specified network namespace at podNsPath.
 // Returns the open *os.File handle to the TAP device.
 func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File, error) {
+	return CreateOrAttachTAPWithMTU(podNsPath, ifName, ipCIDR, 0)
+}
+
+// CreateOrAttachTAPWithMTU opens an existing persistent TAP device or creates a new persistent TAP device
+// with the given ifName inside the specified network namespace at podNsPath and sets its MTU if > 0.
+// Returns the open *os.File handle to the TAP device.
+func CreateOrAttachTAPWithMTU(podNsPath string, ifName string, ipCIDR string, mtu int) (*os.File, error) {
 	podNs, err := ns.GetNS(podNsPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not open netns %s: %w", podNsPath, err)
@@ -67,6 +74,13 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 		txqLen := GetLinkTxQLen()
 		if err := netlink.LinkSetTxQLen(link, txqLen); err != nil {
 			log.Warnf("CreateOrAttachTAP: failed to set txqueuelen %d on %s in netns %s: %v", txqLen, ifName, podNsPath, err)
+		}
+
+		if mtu > 0 {
+			if err := netlink.LinkSetMTU(link, mtu); err != nil {
+				unix.Close(fd)
+				return fmt.Errorf("failed to set MTU %d on %s in netns %s: %w", mtu, ifName, podNsPath, err)
+			}
 		}
 
 		if err := netlink.LinkSetUp(link); err != nil {

@@ -1077,6 +1077,7 @@ func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
 			PeerPod:   ifc.PeerName,
 			LocalIP:   "",
 			PeerIP:    "",
+			MTU:       int(ifc.Mtu),
 		})
 	}
 	return links, nil

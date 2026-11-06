@@ -31,7 +31,8 @@ func InitLogger() {
 }
 
 // CreateOrUpdate creates or updates the vxlan on the node.
-func CreateOrUpdate(v *mpb.RemotePod) error {
+// Returns whether the VXLAN interface was created or recreated (true), and any error.
+func CreateOrUpdate(v *mpb.RemotePod) (bool, error) {
 	var srcIntf string
 	var err error
 	srcIntf = v.NodeIntf
@@ -39,7 +40,7 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 		/// Looking up default interface
 		_, srcIntf, err = getSource()
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
@@ -47,7 +48,7 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 	if v.IntfIp != "" {
 		ipAddr, ipSubnet, err := net.ParseCIDR(v.IntfIp)
 		if err != nil {
-			return fmt.Errorf(" MESHNETD: Error parsing CIDR %s: %s", v.IntfIp, err)
+			return false, fmt.Errorf(" MESHNETD: Error parsing CIDR %s: %s", v.IntfIp, err)
 		}
 		ipNet = &net.IPNet{
 			IP:   ipAddr,
@@ -69,6 +70,7 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 	// Check if interface already exists
 	vxlanLink, ok := link.(*netlink.Vxlan)
 	vxLanOvrlyLogger.Infof("Is link %+v a VXLAN?: %s", vxlanLink, strconv.FormatBool(ok))
+	created := false
 	if ok { // the link we've found is a vxlan link
 
 		if !(vxlanLink.VxlanId == vxlan.ID && vxlanLink.Group.Equal(vxlan.IPAddr)) { // If Vxlan attrs are different
@@ -76,15 +78,17 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 			// We remove the existing link and add a new one
 			vxLanOvrlyLogger.Infof("Vxlan attrs are different: %d!=%d or %v!=%v", vxlanLink.VxlanId, vxlan.ID, vxlanLink.Group, vxlan.IPAddr)
 			if err = removeLink(v.NetNs, v.IntfName); err != nil {
-				return fmt.Errorf(" MESHNETD: Error when removing an old Vxlan interface: %s", err)
+				return false, fmt.Errorf(" MESHNETD: Error when removing an old Vxlan interface: %s", err)
 			}
 
 			if err = makeVxLan(v.NetNs, v.IntfName, ipNet, vxlan); err != nil {
 				if strings.Contains(err.Error(), "file exists") {
 					vxLanOvrlyLogger.Infof(" MESHNETD: Error when creating a Vxlan interface, file exists")
 				} else {
-					return fmt.Errorf(" MESHNETD: Error when re-creating a Vxlan interface: %s", err)
+					return false, fmt.Errorf(" MESHNETD: Error when re-creating a Vxlan interface: %s", err)
 				}
+			} else {
+				created = true
 			}
 		} // If Vxlan attrs are the same, do nothing
 
@@ -95,7 +99,7 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 		if link != nil {
 			vxLanOvrlyLogger.Infof("Attempting to remove link %s from %s", v.IntfName, v.NetNs)
 			if err = removeLink(v.NetNs, v.IntfName); err != nil {
-				return fmt.Errorf(" MESHNETD: Error when removing an old non-Vxlan interface: %s", err)
+				return false, fmt.Errorf(" MESHNETD: Error when removing an old non-Vxlan interface: %s", err)
 			}
 		}
 
@@ -103,8 +107,9 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 		vxLanOvrlyLogger.Infof("Creating a VXLAN link: %v; inside the pod: %s in %s", vxlan, v.IntfName, v.NetNs)
 		if err = makeVxLan(v.NetNs, v.IntfName, ipNet, vxlan); err != nil {
 			vxLanOvrlyLogger.Errorf(" MESHNETD: Error when creating a new Vxlan interface: %s", err)
-			return err
+			return false, err
 		}
+		created = true
 	}
 
 	// Tune txqueuelen inside the container netns (configurable via LINK_TXQUEUELEN)
@@ -121,7 +126,7 @@ func CreateOrUpdate(v *mpb.RemotePod) error {
 		podNs.Close()
 	}
 
-	return nil
+	return created, nil
 }
 
 // makeVxLan creates a VXLAN interface on the host and moves it into the container network namespace.
