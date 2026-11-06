@@ -16,12 +16,14 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
 	"time"
 
 	wpb "github.com/openconfig/kne/proto/wire"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/alts"
 	"google.golang.org/grpc/credentials/insecure"
@@ -231,6 +233,12 @@ func (c *Client) runStream(ctx context.Context, conn *grpc.ClientConn) error {
 			if err != nil {
 				if streamCtx.Err() != nil {
 					return
+				}
+				if errors.Is(err, unix.ENETDOWN) {
+					// An AF_PACKET socket reports ENETDOWN once when its interface goes down, which
+					// happens when link state DOWN is propagated, and resumes when it comes back up.
+					klog.V(1).Infof("[%s] Interface went down; waiting for it to come back up", c.cfg.LocalInterface)
+					continue
 				}
 				select {
 				case errChan <- fmt.Errorf("read from %s error: %w", c.cfg.LocalInterface, err):
