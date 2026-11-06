@@ -152,6 +152,7 @@ build {
       "  us-west1-docker.pkg.dev/kne-external/kne/meshnet:ga \\",
       "  us-west1-docker.pkg.dev/kne-external/kne/bridge:ga \\",
       "  us-west1-docker.pkg.dev/kne-external/kne/init-wait:ga \\",
+      "  us-west1-docker.pkg.dev/kne-external/kne/alpine/socat:1.8.1.3 \\",
       "  us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga \\",
       "  us-west1-docker.pkg.dev/gep-kne/cisco/xrd:ga \\",
       "  us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga \\",
