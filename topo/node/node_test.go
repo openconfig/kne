@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/gnmi/errdiff"
 	topopb "github.com/openconfig/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -1142,5 +1143,28 @@ func TestExternalIPv6DaemonSet(t *testing.T) {
 
 	if _, err := kClient.AppsV1().DaemonSets("test").Get(ctx, "v6proxy-dev-v6proxy", metav1.GetOptions{}); err == nil {
 		t.Errorf("expected daemonset to be deleted, but still found")
+	}
+}
+
+func TestGetNodeLinks(t *testing.T) {
+	n := &topopb.Node{
+		Name: "r1",
+		Interfaces: map[string]*topopb.Interface{
+			"eth0": {},
+			"eth1": {PeerName: "r2", PeerIntName: "eth1", Uid: 1},
+			"eth2": {PeerName: "r3", PeerIntName: "eth5", Uid: 2, Mtu: 9216},
+		},
+	}
+	got, err := GetNodeLinks(n)
+	if err != nil {
+		t.Fatalf("GetNodeLinks() failed: %v", err)
+	}
+	want := []topologyv1.Link{
+		{UID: 1, LocalIntf: "eth1", PeerIntf: "eth1", PeerPod: "r2"},
+		{UID: 2, LocalIntf: "eth2", PeerIntf: "eth5", PeerPod: "r3", MTU: 9216},
+	}
+	sortLinks := cmpopts.SortSlices(func(a, b topologyv1.Link) bool { return a.UID < b.UID })
+	if s := cmp.Diff(want, got, sortLinks); s != "" {
+		t.Errorf("GetNodeLinks() unexpected diff (-want +got):\n%s", s)
 	}
 }

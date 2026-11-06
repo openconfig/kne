@@ -15,8 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"
 
-	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 	tpb "github.com/openconfig/kne/proto/topo"
+	topologyv1 "github.com/openconfig/kne/third_party/meshnet/api/types/v1beta1"
 )
 
 var (
@@ -218,6 +218,7 @@ func (n *Node) TopologySpecs(ctx context.Context) ([]*topologyv1.Topology, error
 			PeerPod:   nodeIfc.PeerName,
 			LocalIP:   "",
 			PeerIP:    "",
+			MTU:       int(nodeIfc.Mtu),
 		})
 	}
 

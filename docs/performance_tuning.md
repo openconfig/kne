@@ -98,7 +98,42 @@ traffic:
 KNE and Meshnet support standard MTU (`1500`) as well as Jumbo frames (`9216`
 bytes) for IS-IS LSPs, BGP Jumbo frames, and encapsulated overlay traffic:
 
-- Interface MTU can be specified per-link in the KNE topology definition (under
-  `interfaces.mtu`).
+- Interface MTU can be specified per-interface in the KNE topology definition
+  (under `interfaces.mtu`). KNE passes it to Meshnet, which sets it on the
+  Linux interface in the pod:
+
+  ```textproto
+  nodes: {
+    name: "r1"
+    interfaces: {
+      key: "eth1"
+      value: { mtu: 9500 }
+    }
+  }
+  ```
+
+- Both ends of a link always get the same MTU, because a veth pair drops frames
+  larger than the MTU of either end. If the two ends request different MTUs,
+  the larger one wins, so setting it on one end is enough.
+- Links whose topology sets no MTU get the value of the `LINK_MTU` environment
+  variable on the `meshnet` daemon pod, or the kernel default (`1500`) if it is
+  not set:
+
+  ```yaml
+  env:
+    - name: LINK_MTU
+      value: "9500"
+  ```
+
+- Meshnet sets the MTU when it creates an interface and does not reset it
+  afterwards, so a NOS may change the MTU of its own interfaces.
+- Same-node (veth) and gRPC (`INTER_NODE_LINK_TYPE: "GRPC"`) links carry any
+  MTU. A vxLAN link cannot exceed the MTU of the node interface less the
+  vxLAN overhead (about 50 bytes); Meshnet logs a warning and keeps the default
+  MTU when the requested one does not fit. Use gRPC links for Jumbo frames
+  across nodes.
 - Meshnet internal packet buffers allocate up to `65535` bytes, fully preventing
   frame truncation for Jumbo frames.
+- The MTU is the Linux interface MTU, i.e. the largest IP packet, excluding the
+  Ethernet header. Set it at least as large as the largest IP MTU configured on
+  the devices of the link.

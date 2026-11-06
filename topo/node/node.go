@@ -575,7 +575,9 @@ func serviceNameForType(nodeName string, svcType corev1.ServiceType) string {
 
 var (
 	// DefaultV6ProxyImage is the default container image used for the IPv6 NodePort socat proxy.
-	DefaultV6ProxyImage = "alpine/socat:1.8.0.0"
+	// It is a mirror of docker.io/alpine/socat in the public KNE Artifact Registry, so clusters
+	// without Docker Hub egress can still pull it (and internal VM images pre-pull it).
+	DefaultV6ProxyImage = "us-west1-docker.pkg.dev/kne-external/kne/alpine/socat:1.8.1.3"
 )
 
 const (
@@ -1077,6 +1079,7 @@ func GetNodeLinks(n *tpb.Node) ([]topologyv1.Link, error) {
 			PeerPod:   ifc.PeerName,
 			LocalIP:   "",
 			PeerIP:    "",
+			MTU:       int(ifc.Mtu),
 		})
 	}
 	return links, nil

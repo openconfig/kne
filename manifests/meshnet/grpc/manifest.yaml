@@ -160,6 +160,10 @@ spec:
                       local_ip:
                         description: (Optional) Peer IP address
                         type: string
+                      mtu:
+                        description: (Optional) MTU of the local interface
+                        minimum: 0
+                        type: integer
                       peer_intf:
                         description: Peer interface name
                         type: string
