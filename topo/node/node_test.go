@@ -1201,7 +1201,7 @@ func TestDeleteConfig(t *testing.T) {
 				t.Fatalf("CreateConfig() failed: %v", err)
 			}
 			vol.Name = volName
-			cfgPath := vol.VolumeSource.HostPath.Path
+			cfgPath := vol.HostPath.Path
 			subDir := filepath.Dir(cfgPath)
 
 			pod := &corev1.Pod{
@@ -1245,7 +1245,7 @@ func TestDeleteConfig(t *testing.T) {
 			t.Fatalf("CreateConfig() failed: %v", err)
 		}
 		vol.Name = ConfigSrcVolumeName
-		cmName := vol.VolumeSource.ConfigMap.LocalObjectReference.Name
+		cmName := vol.ConfigMap.Name
 
 		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{Name: "dev-cm", Namespace: "test"},
