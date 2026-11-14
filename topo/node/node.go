@@ -426,7 +426,7 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 	default: // size greater than 1MB, use hostPath
 		path, err := hostdir.CreateConfigFile(tempCfgDir, n.Proto.Name, data)
 		if err != nil {
-			return nil, fmt.Errorf("node %q: failed to write %d byte startup config to a HostPath file: %w", n.Proto.Name, len(data), err)
+			return nil, fmt.Errorf("failed to write %d byte startup config to a HostPath file: %w", len(data), err)
 		}
 		log.V(1).Infof("Created config file %s", path)
 		vs = corev1.VolumeSource{
@@ -803,7 +803,7 @@ func (n *Impl) DeleteConfig(ctx context.Context) error {
 		case vs.HostPath != nil:
 			path := vs.HostPath.Path
 			if err := hostdir.RemoveConfigFile(tempCfgDir, path); err != nil {
-				return fmt.Errorf("node %q: failed to remove startup config HostPath file: %w", n.Name(), err)
+				return fmt.Errorf("failed to remove startup config HostPath file: %w", err)
 			}
 			log.V(1).Infof("Deleted config file %s", path)
 		case vs.ConfigMap != nil:
