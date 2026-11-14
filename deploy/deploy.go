@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/kne/cluster/kubeadm"
 	"github.com/openconfig/kne/events"
 	"github.com/openconfig/kne/exec/run"
+	"github.com/openconfig/kne/hostdir"
 	"github.com/openconfig/kne/load"
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
@@ -76,6 +77,7 @@ var (
 	kindSetupGARAccess     = kind.SetupGARAccess
 	homeDir                = homedir.HomeDir
 	kindLoadContainerImage = loadContainerImageWithFallback
+	kindTempDir            = hostdir.DefaultDir
 )
 
 type Cluster interface {
@@ -825,7 +827,7 @@ func (k *KindSpec) checkDependencies() error {
 
 func (k *KindSpec) create() error {
 	// Create a KNE dir under /tmp intended to hold files to be mounted into the kind cluster.
-	if err := os.MkdirAll("/tmp/kne", os.ModePerm); err != nil {
+	if err := hostdir.EnsureDir(kindTempDir); err != nil {
 		return err
 	}
 	if k.Recycle {
