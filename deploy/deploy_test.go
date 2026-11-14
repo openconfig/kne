@@ -228,14 +228,20 @@ func TestKindSpec(t *testing.T) {
 	}()
 	pullRetryDelay = time.Millisecond
 
+	origKindTempDir := kindTempDir
+	defer func() {
+		kindTempDir = origKindTempDir
+	}()
+
 	tests := []struct {
-		desc        string
-		k           *KindSpec
-		resp        []fexec.Response
-		execPathErr bool
-		setupGARErr bool
-		hasCtr      bool
-		wantErr     string
+		desc           string
+		k              *KindSpec
+		resp           []fexec.Response
+		execPathErr    bool
+		setupGARErr    bool
+		hasCtr         bool
+		symlinkTempDir bool
+		wantErr        string
 	}{{
 		desc: "create cluster with cli",
 		k: &KindSpec{
@@ -704,9 +710,27 @@ func TestKindSpec(t *testing.T) {
 			{Cmd: "kind", Args: []string{"version"}, Stdout: "kind v0.15.1 go1.18.2 linux/amd64"},
 			{Cmd: "kind", Args: []string{"create", "cluster", "--name", "test", "--image", defaultKindNodeImage}},
 		},
+	}, {
+		desc: "failed kind temp dir is symlink",
+		k: &KindSpec{
+			Name: "test",
+		},
+		symlinkTempDir: true,
+		wantErr:        "must not be a symlink",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			subTmp := t.TempDir()
+			kindTempDir = filepath.Join(subTmp, "kne")
+			if tt.symlinkTempDir {
+				symTarget := filepath.Join(subTmp, "target")
+				if err := os.Mkdir(symTarget, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(symTarget, kindTempDir); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if verbose {
 				fexec.LogCommand = func(s string) {
 					t.Logf("%s: %s", tt.desc, s)
@@ -2856,6 +2880,10 @@ func TestDeployComponentsLabelsCommands(t *testing.T) {
 
 func TestKindSpecSetPIDMaxScriptFail(t *testing.T) {
 	tmpDir := t.TempDir()
+	origKindTempDir := kindTempDir
+	defer func() { kindTempDir = origKindTempDir }()
+	kindTempDir = filepath.Join(tmpDir, "kne")
+
 	fakeScript := filepath.Join(tmpDir, "set_pid_max.sh")
 	if err := os.WriteFile(fakeScript, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatal(err)

@@ -81,7 +81,7 @@ func TestCreateConfig(t *testing.T) {
 	defer func() {
 		tempCfgDir = origTempCfgDir
 	}()
-	tempCfgDir = t.TempDir()
+	tempCfgDir = filepath.Join(t.TempDir(), "kne")
 
 	tests := []struct {
 		desc    string
@@ -167,7 +167,7 @@ func TestCreateConfig(t *testing.T) {
 			Name: ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: filepath.Join(tempCfgDir, "kne-dev1-config-*.cfg"),
+					Path: filepath.Join(tempCfgDir, "kne-dev1-config-*", "config.cfg"),
 				},
 			},
 		},
@@ -1167,4 +1167,129 @@ func TestGetNodeLinks(t *testing.T) {
 	if s := cmp.Diff(want, got, sortLinks); s != "" {
 		t.Errorf("GetNodeLinks() unexpected diff (-want +got):\n%s", s)
 	}
+}
+
+func TestDeleteConfig(t *testing.T) {
+	ctx := context.Background()
+
+	origTempCfgDir := tempCfgDir
+	defer func() {
+		tempCfgDir = origTempCfgDir
+	}()
+	baseTmp := t.TempDir()
+	tempCfgDir = filepath.Join(baseTmp, "kne")
+
+	t.Run("deletes 2-part HostPath for ConfigVolumeName and ConfigSrcVolumeName", func(t *testing.T) {
+		for _, volName := range []string{ConfigVolumeName, ConfigSrcVolumeName} {
+			kClient := kfake.NewSimpleClientset()
+			n := &Impl{
+				Namespace:  "test",
+				KubeClient: kClient,
+				RestConfig: &rest.Config{},
+				Proto: &topopb.Node{
+					Name: "dev1",
+					Config: &topopb.Config{
+						ConfigFile: "test.cfg",
+						ConfigData: &topopb.Config_File{
+							File: "testdata/large.cfg",
+						},
+					},
+				},
+			}
+			vol, err := n.CreateConfig(ctx)
+			if err != nil {
+				t.Fatalf("CreateConfig() failed: %v", err)
+			}
+			vol.Name = volName
+			cfgPath := vol.VolumeSource.HostPath.Path
+			subDir := filepath.Dir(cfgPath)
+
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "dev1", Namespace: "test"},
+				Spec:       corev1.PodSpec{Volumes: []corev1.Volume{*vol}},
+			}
+			if _, err := kClient.CoreV1().Pods("test").Create(ctx, pod, metav1.CreateOptions{}); err != nil {
+				t.Fatalf("failed to create fake pod: %v", err)
+			}
+
+			if err := n.DeleteConfig(ctx); err != nil {
+				t.Fatalf("DeleteConfig() for %s failed: %v", volName, err)
+			}
+			if _, err := os.Lstat(cfgPath); !os.IsNotExist(err) {
+				t.Errorf("expected config file %q to be removed, got err=%v", cfgPath, err)
+			}
+			if _, err := os.Lstat(subDir); !os.IsNotExist(err) {
+				t.Errorf("expected config subdirectory %q to be removed, got err=%v", subDir, err)
+			}
+		}
+	})
+
+	t.Run("deletes ConfigMap for ConfigSrcVolumeName", func(t *testing.T) {
+		kClient := kfake.NewSimpleClientset()
+		n := &Impl{
+			Namespace:  "test",
+			KubeClient: kClient,
+			RestConfig: &rest.Config{},
+			Proto: &topopb.Node{
+				Name: "dev-cm",
+				Config: &topopb.Config{
+					ConfigFile: "test.cfg",
+					ConfigData: &topopb.Config_Data{
+						Data: []byte("small config\n"),
+					},
+				},
+			},
+		}
+		vol, err := n.CreateConfig(ctx)
+		if err != nil {
+			t.Fatalf("CreateConfig() failed: %v", err)
+		}
+		vol.Name = ConfigSrcVolumeName
+		cmName := vol.VolumeSource.ConfigMap.LocalObjectReference.Name
+
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "dev-cm", Namespace: "test"},
+			Spec:       corev1.PodSpec{Volumes: []corev1.Volume{*vol}},
+		}
+		if _, err := kClient.CoreV1().Pods("test").Create(ctx, pod, metav1.CreateOptions{}); err != nil {
+			t.Fatalf("failed to create fake pod: %v", err)
+		}
+
+		if err := n.DeleteConfig(ctx); err != nil {
+			t.Fatalf("DeleteConfig() failed: %v", err)
+		}
+		if _, err := kClient.CoreV1().ConfigMaps("test").Get(ctx, cmName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
+			t.Errorf("expected ConfigMap %q to be deleted, got err=%v", cmName, err)
+		}
+	})
+
+	t.Run("refuses HostPath outside tempCfgDir", func(t *testing.T) {
+		outsideFile := filepath.Join(baseTmp, "keep.cfg")
+		if err := os.WriteFile(outsideFile, []byte("do not delete"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		kClient := kfake.NewSimpleClientset(&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "dev-evil", Namespace: "test"},
+			Spec: corev1.PodSpec{
+				Volumes: []corev1.Volume{{
+					Name: ConfigVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{Path: outsideFile},
+					},
+				}},
+			},
+		})
+		n := &Impl{
+			Namespace:  "test",
+			KubeClient: kClient,
+			Proto:      &topopb.Node{Name: "dev-evil"},
+		}
+		err := n.DeleteConfig(ctx)
+		if s := errdiff.Substring(err, "outside"); s != "" {
+			t.Errorf("DeleteConfig(outside path) unexpected error: %s", s)
+		}
+		if _, err := os.Lstat(outsideFile); err != nil {
+			t.Errorf("outside file %q was modified or deleted: %v", outsideFile, err)
+		}
+	})
 }

@@ -749,10 +749,10 @@ fi
 	if vol, err := n.CreateConfig(ctx); err != nil {
 		return err
 	} else if vol != nil {
-		vol.Name = "startup-config-src-volume"
+		vol.Name = node.ConfigSrcVolumeName
 		pod.Spec.Volumes = append(pod.Spec.Volumes, *vol)
 		initVolumeMounts = append(initVolumeMounts, corev1.VolumeMount{
-			Name:      "startup-config-src-volume",
+			Name:      node.ConfigSrcVolumeName,
 			MountPath: configSrcPath,
 			ReadOnly:  true,
 		})
