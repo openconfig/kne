@@ -44,6 +44,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -610,6 +611,9 @@ func (m *Manager) load() error {
 		if err != nil {
 			return fmt.Errorf("failed to load topology: %w", err)
 		}
+		if err := validateResourceConstraints(nn.GetProto()); err != nil {
+			return err
+		}
 		m.nodes[k] = nn
 	}
 	for _, l := range m.topo.Links {
@@ -618,6 +622,22 @@ func (m *Manager) load() error {
 		loop := aNode.BackToBackLoop() && zNode.BackToBackLoop()
 		if !loop && l.ANode == l.ZNode {
 			return fmt.Errorf("invalid link: back to back loop %s:%s %s:%s not supported", l.ANode, l.AInt, l.ZNode, l.ZInt)
+		}
+	}
+	return nil
+}
+
+// validateResourceConstraints returns an error if the cpu or memory constraint
+// of the node is not a valid Kubernetes resource quantity, as the pod resource
+// requests are built from them with resource.MustParse.
+func validateResourceConstraints(pb *tpb.Node) error {
+	for _, k := range []string{"cpu", "memory"} {
+		v, ok := pb.GetConstraints()[k]
+		if !ok {
+			continue
+		}
+		if _, err := resource.ParseQuantity(v); err != nil {
+			return fmt.Errorf("invalid topology: node %q has invalid %s constraint %q: %w", pb.GetName(), k, v, err)
 		}
 	}
 	return nil
