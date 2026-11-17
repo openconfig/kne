@@ -87,8 +87,7 @@ func writeConfigFile(dir, nodeName string, data []byte) (string, error) {
 	}
 	path := filepath.Join(subDir, configFileName)
 	if err := writeReadOnly(path, data); err != nil {
-		os.RemoveAll(subDir)
-		return "", err
+		return "", errors.Join(err, os.RemoveAll(subDir))
 	}
 	return path, nil
 }
@@ -99,14 +98,12 @@ func writeReadOnly(path string, data []byte) error {
 		return err
 	}
 	if _, err := f.Write(data); err != nil {
-		f.Close()
-		return err
+		return errors.Join(err, f.Close())
 	}
 	// Set the mode explicitly so the umask can't hide the file from
 	// non-root processes in the node container.
 	if err := f.Chmod(0o444); err != nil {
-		f.Close()
-		return err
+		return errors.Join(err, f.Close())
 	}
 	return f.Close()
 }
