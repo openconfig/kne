@@ -179,7 +179,7 @@ func (n *Node) CreatePod(ctx context.Context) error {
 		}
 
 		if len(alpineConfig.Containers) == 0 {
-			log.Infof("Node %q: no custom containers specified in AlpineConfig.containers; creating pod with only the primary container (any AlpineConfig.files mounts will not be attached).", pb.Name)
+			log.Infof("Node %q: no custom containers specified in AlpineConfig.containers; creating pod with only the primary container.", pb.Name)
 		}
 		// Custom containers include containers like dataplane container, MCU-RMD containers, etc.
 		for _, customContainer := range alpineConfig.Containers {
@@ -195,9 +195,11 @@ func (n *Node) CreatePod(ctx context.Context) error {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
 				},
-				VolumeMounts: extraMounts,
 			}
 			alpineContainers = append(alpineContainers, containerSpec)
+		}
+		for i := range alpineContainers {
+			alpineContainers[i].VolumeMounts = append(alpineContainers[i].VolumeMounts, extraMounts...)
 		}
 	}
 
