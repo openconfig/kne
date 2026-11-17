@@ -214,6 +214,10 @@ func TestKubectlApply(t *testing.T) {
 }
 
 func TestKindSpec(t *testing.T) {
+	origKindConfigDir := kindConfigDir
+	defer func() { kindConfigDir = origKindConfigDir }()
+	kindConfigDir = filepath.Join(t.TempDir(), "kne")
+
 	ctx := context.Background()
 
 	origSetPIDMaxScript := setPIDMaxScript
@@ -2855,6 +2859,10 @@ func TestDeployComponentsLabelsCommands(t *testing.T) {
 }
 
 func TestKindSpecSetPIDMaxScriptFail(t *testing.T) {
+	origKindConfigDir := kindConfigDir
+	defer func() { kindConfigDir = origKindConfigDir }()
+	kindConfigDir = filepath.Join(t.TempDir(), "kne")
+
 	tmpDir := t.TempDir()
 	fakeScript := filepath.Join(tmpDir, "set_pid_max.sh")
 	if err := os.WriteFile(fakeScript, []byte("#!/bin/sh\n"), 0755); err != nil {

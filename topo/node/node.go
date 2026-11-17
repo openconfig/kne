@@ -100,7 +100,8 @@ const (
 	StatusFailed  Status = "FAILED"
 	StatusUnknown Status = "UNKNOWN"
 
-	ConfigVolumeName = "startup-config-volume"
+	ConfigVolumeName    = "startup-config-volume"
+	ConfigSrcVolumeName = "startup-config-src-volume"
 
 	OndatraRoleLabel = "ondatra-role"
 	OndatraRoleDUT   = "DUT"
@@ -112,7 +113,7 @@ type NewNodeFn func(n *Impl) (Node, error)
 var (
 	mu          sync.Mutex
 	vendorTypes = map[tpb.Vendor]NewNodeFn{}
-	tempCfgDir  = "/tmp/kne"
+	tempCfgDir  = DefaultConfigDir
 )
 
 // Constraints struct holds the values for node constraints like CPU, Memory.
@@ -422,25 +423,9 @@ func (n *Impl) CreateConfig(ctx context.Context) (*corev1.Volume, error) {
 			},
 		}
 	default: // size greater than 1MB, use hostPath
-		if err := os.MkdirAll(tempCfgDir, 0666); err != nil {
-			return nil, err
-		}
-		f, err := os.CreateTemp(tempCfgDir, fmt.Sprintf("kne-%s-config-*.cfg", n.Proto.Name))
+		path, err := writeConfigFile(tempCfgDir, n.Proto.Name, data)
 		if err != nil {
-			return nil, err
-		}
-		path := f.Name()
-		if _, err := f.Write(data); err != nil {
-			os.Remove(path)
-			return nil, err
-		}
-		if err := f.Chmod(0444); err != nil {
-			os.Remove(path)
-			return nil, err
-		}
-		if err := f.Close(); err != nil {
-			os.Remove(path)
-			return nil, err
+			return nil, fmt.Errorf("failed to write startup config file: %w", err)
 		}
 		log.V(1).Infof("Created config file %s", path)
 		vs = corev1.VolumeSource{
@@ -810,13 +795,13 @@ func (n *Impl) DeleteConfig(ctx context.Context) error {
 		return err
 	}
 	for _, vol := range pod.Spec.Volumes {
-		if vol.Name != ConfigVolumeName {
+		if vol.Name != ConfigVolumeName && vol.Name != ConfigSrcVolumeName {
 			continue
 		}
 		switch vs := vol.VolumeSource; {
 		case vs.HostPath != nil:
 			path := vs.HostPath.Path
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			if err := removeConfigFile(tempCfgDir, path); err != nil {
 				return err
 			}
 			log.V(1).Infof("Deleted config file %s", path)
