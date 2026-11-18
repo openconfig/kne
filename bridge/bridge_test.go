@@ -186,7 +186,7 @@ func TestDemuxerSlowSubscriberDoesNotDeadlock(t *testing.T) {
 
 	// Fill sub1 channel to capacity
 	for i := 0; i < channelBufferCap; i++ {
-		sub1 <- []byte{byte(i)}
+		sub1 <- queuedFrame{data: []byte{byte(i)}}
 	}
 
 	// Send new packet through raw socket
@@ -196,8 +196,8 @@ func TestDemuxerSlowSubscriberDoesNotDeadlock(t *testing.T) {
 	// sub2 should receive testPkt without blocking
 	select {
 	case pkt := <-sub2:
-		if !bytes.Equal(pkt, testPkt) {
-			t.Fatalf("sub2 packet mismatch: got %v, want %v", pkt, testPkt)
+		if !bytes.Equal(pkt.data, testPkt) {
+			t.Fatalf("sub2 packet mismatch: got %v, want %v", pkt.data, testPkt)
 		}
 	case <-time.After(1 * time.Second):
 		t.Fatalf("sub2 timed out waiting for packet (demuxer deadlocked)")
@@ -386,7 +386,7 @@ func TestDemuxMaxSubscribers(t *testing.T) {
 	fakeIO := newFakeReadWriter()
 	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
 
-	var subs []chan []byte
+	var subs []chan queuedFrame
 	for i := 0; i < maxSubscribersPerDemux; i++ {
 		sub, err := demux.subscribe()
 		if err != nil {
@@ -804,4 +804,81 @@ func TestDemuxConcurrentFanOutStress(t *testing.T) {
 	_ = fakeIO.Close()
 	wg.Wait()
 	_ = demux.wait()
+}
+
+func TestRetryOnENOBUFS(t *testing.T) {
+	tests := []struct {
+		name      string
+		errs      []error // returned by successive writes; the last one repeats
+		wantErr   error
+		wantCalls int // 0 means at least 2
+	}{
+		{
+			name:      "success",
+			errs:      []error{nil},
+			wantCalls: 1,
+		},
+		{
+			name:      "success after transient ENOBUFS",
+			errs:      []error{unix.ENOBUFS, unix.ENOBUFS, unix.ENOBUFS, nil},
+			wantCalls: 4,
+		},
+		{
+			name:      "other error is not retried",
+			errs:      []error{unix.EMSGSIZE},
+			wantErr:   unix.EMSGSIZE,
+			wantCalls: 1,
+		},
+		{
+			name:    "persistent ENOBUFS gives up",
+			errs:    []error{unix.ENOBUFS},
+			wantErr: unix.ENOBUFS,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			start := time.Now()
+			err := retryOnENOBUFS(func() error {
+				err := tc.errs[min(calls, len(tc.errs)-1)]
+				calls++
+				return err
+			})
+			if err != tc.wantErr {
+				t.Errorf("retryOnENOBUFS() = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantCalls != 0 && calls != tc.wantCalls {
+				t.Errorf("retryOnENOBUFS() made %d writes, want %d", calls, tc.wantCalls)
+			}
+			if tc.wantCalls == 0 {
+				if calls < 2 {
+					t.Errorf("retryOnENOBUFS() made %d writes, want retries", calls)
+				}
+				if elapsed := time.Since(start); elapsed < writeRetryTimeout {
+					t.Errorf("retryOnENOBUFS() gave up after %v, want at least %v", elapsed, writeRetryTimeout)
+				}
+			}
+		})
+	}
+}
+
+func TestQueuedFrameExpired(t *testing.T) {
+	queuedAt := time.Unix(1000, 0)
+	f := queuedFrame{data: []byte{1}, queuedAt: queuedAt}
+	tests := []struct {
+		name string
+		now  time.Time
+		want bool
+	}{
+		{name: "just queued", now: queuedAt, want: false},
+		{name: "at max delay", now: queuedAt.Add(maxQueueDelay), want: false},
+		{name: "past max delay", now: queuedAt.Add(maxQueueDelay + time.Nanosecond), want: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := f.expired(tc.now); got != tc.want {
+				t.Errorf("expired(queuedAt + %v) = %t, want %t", tc.now.Sub(queuedAt), got, tc.want)
+			}
+		})
+	}
 }

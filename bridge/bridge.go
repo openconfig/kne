@@ -26,6 +26,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
@@ -37,10 +38,25 @@ import (
 )
 
 const (
-	maxFrameSize           = 65535
-	channelBufferCap       = 1000
+	maxFrameSize = 65535
+	// channelBufferCap is how many frames captured from an interface are queued for each Wire.Transmit
+	// client while its gRPC stream cannot take them, beyond which the frames are dropped. The stream stalls
+	// whenever the path to the client cannot keep up for a moment: when traffic starts, while TCP and HTTP/2
+	// flow control open up across a WAN path with tens of milliseconds of RTT, and during hiccups of the path
+	// that can last most of a second. The queue holds about a second of frames at 30k frames/s.
+	channelBufferCap = 32768
+	// maxQueueDelay bounds how long a frame may wait in a client's queue. A frame that waited longer is
+	// dropped rather than sent, so that a long stall of the stream does not deliver stale frames late
+	// instead of losing them.
+	maxQueueDelay          = time.Second
 	maxSubscribersPerDemux = 32
 	socketBufferSizeBytes  = 4 * 1024 * 1024 // 4 MB
+
+	// writeRetryMinBackoff, writeRetryMaxBackoff and writeRetryTimeout bound how long WritePacket waits for
+	// an interface that reports ENOBUFS to accept a frame before dropping it.
+	writeRetryMinBackoff = 20 * time.Microsecond
+	writeRetryMaxBackoff = 1 * time.Millisecond
+	writeRetryTimeout    = 100 * time.Millisecond
 )
 
 // htons converts host byte order to network byte order in an endian-safe manner.
@@ -166,19 +182,42 @@ func (s *SocketHandler) WritePacket(pkt []byte) error {
 	if len(pkt) > maxFrameSize {
 		return fmt.Errorf("packet size %d exceeds max frame size %d", len(pkt), maxFrameSize)
 	}
-	var serr error
-	if werr := s.rc.Write(func(fd uintptr) bool {
-		for {
-			_, serr = unix.Write(int(fd), pkt)
-			if serr == unix.EINTR {
-				continue
+	return retryOnENOBUFS(func() error {
+		var serr error
+		if werr := s.rc.Write(func(fd uintptr) bool {
+			for {
+				_, serr = unix.Write(int(fd), pkt)
+				if serr == unix.EINTR {
+					continue
+				}
+				return serr != unix.EAGAIN
 			}
-			return serr != unix.EAGAIN
+		}); werr != nil {
+			return werr
 		}
-	}); werr != nil {
-		return werr
+		return serr
+	})
+}
+
+// retryOnENOBUFS calls write until it returns anything other than ENOBUFS, backing off between attempts, and
+// returns ENOBUFS only if the interface still reports it after writeRetryTimeout.
+//
+// ENOBUFS means the device could not take the frame right now. On a veth whose peer runs in NAPI mode (e.g.
+// because an XDP program is attached to it, as the Keysight OTG traffic engine does), the frame goes through a
+// 256-entry ring that overflows when a burst of frames arrives faster than the peer drains it. That is
+// transient, so wait for the peer to catch up rather than dropping the frame. Blocking here also pushes back
+// on the gRPC stream the frames come from.
+func retryOnENOBUFS(write func() error) error {
+	backoff := writeRetryMinBackoff
+	deadline := time.Now().Add(writeRetryTimeout)
+	for {
+		err := write()
+		if !errors.Is(err, unix.ENOBUFS) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(backoff)
+		backoff = min(2*backoff, writeRetryMaxBackoff)
 	}
-	return serr
 }
 
 // Close closes the underlying raw socket file descriptor once.
@@ -191,6 +230,17 @@ func (s *SocketHandler) Close() error {
 	return err
 }
 
+// queuedFrame is a captured frame queued for a Wire.Transmit client.
+type queuedFrame struct {
+	data     []byte
+	queuedAt time.Time
+}
+
+// expired reports whether the frame has been queued for longer than maxQueueDelay at now.
+func (f queuedFrame) expired(now time.Time) bool {
+	return now.Sub(f.queuedAt) > maxQueueDelay
+}
+
 // InterfaceDemux coordinates a single raw socket reader per interface with multiple gRPC clients.
 // This design prevents socket buffer race conditions and distributes captured frames to all active subscribers.
 // It also distributes the link state of the interface to all subscribers and applies link state received from
@@ -200,9 +250,10 @@ type InterfaceDemux struct {
 	handler            ReadWriter
 	onClose            func(ifaceName string)
 	mu                 sync.RWMutex
-	listeners          map[chan []byte]struct{}
+	listeners          map[chan queuedFrame]struct{}
 	closed             bool
 	droppedFrames      atomic.Uint64
+	expiredFrames      atomic.Uint64
 	droppedWriteFrames atomic.Uint64
 	ctx                context.Context
 	cancel             context.CancelFunc
@@ -225,7 +276,7 @@ func newInterfaceDemux(parentCtx context.Context, ifaceName string, handler Read
 		ifaceName:     ifaceName,
 		handler:       handler,
 		onClose:       onClose,
-		listeners:     make(map[chan []byte]struct{}),
+		listeners:     make(map[chan queuedFrame]struct{}),
 		linkListeners: make(map[chan wpb.LinkState]struct{}),
 		ctx:           ctx,
 		cancel:        cancel,
@@ -277,7 +328,7 @@ func (d *InterfaceDemux) readLoop() {
 		for ch := range d.listeners {
 			close(ch)
 		}
-		d.listeners = make(map[chan []byte]struct{})
+		d.listeners = make(map[chan queuedFrame]struct{})
 		d.mu.Unlock()
 		d.closeLink()
 		if d.onClose != nil {
@@ -309,9 +360,10 @@ func (d *InterfaceDemux) readLoop() {
 			d.mu.RUnlock()
 			return
 		}
+		f := queuedFrame{data: pkt, queuedAt: time.Now()}
 		for ch := range d.listeners {
 			select {
-			case ch <- pkt:
+			case ch <- f:
 			default:
 				total := d.droppedFrames.Add(1)
 				if total%1000 == 1 {
@@ -325,9 +377,9 @@ func (d *InterfaceDemux) readLoop() {
 }
 
 // subscribe registers a new channel to receive captured frames from this interface.
-// Note: The returned channel receives slices sharing the same underlying packet data array across all
-// concurrent subscribers; callers must treat received []byte slices as immutable.
-func (d *InterfaceDemux) subscribe() (chan []byte, error) {
+// Note: The frames received on the returned channel share the same underlying packet data array across all
+// concurrent subscribers; callers must treat their data slices as immutable.
+func (d *InterfaceDemux) subscribe() (chan queuedFrame, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.closed || d.ctx.Err() != nil {
@@ -336,13 +388,13 @@ func (d *InterfaceDemux) subscribe() (chan []byte, error) {
 	if len(d.listeners) >= maxSubscribersPerDemux {
 		return nil, fmt.Errorf("demux for %s reached maximum subscribers limit (%d)", d.ifaceName, maxSubscribersPerDemux)
 	}
-	ch := make(chan []byte, channelBufferCap)
+	ch := make(chan queuedFrame, channelBufferCap)
 	d.listeners[ch] = struct{}{}
 	return ch, nil
 }
 
 // unsubscribe removes a previously registered subscriber channel and closes it.
-func (d *InterfaceDemux) unsubscribe(ch chan []byte) {
+func (d *InterfaceDemux) unsubscribe(ch chan queuedFrame) {
 	d.mu.Lock()
 	if _, ok := d.listeners[ch]; ok {
 		delete(d.listeners, ch)
@@ -594,7 +646,7 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 				return
 			case ls := <-linkChan:
 				msg = &wpb.Packet{LinkState: ls}
-			case pkt, ok := <-pktChan:
+			case f, ok := <-pktChan:
 				if !ok {
 					select {
 					case errChan <- io.EOF:
@@ -602,7 +654,15 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 					}
 					return
 				}
-				msg = &wpb.Packet{Data: pkt}
+				if f.expired(time.Now()) {
+					total := demux.expiredFrames.Add(1)
+					if total%1000 == 1 {
+						klog.Warningf("[%s] Dropping egress frame queued for more than %v (total dropped: %d)",
+							ifaceName, maxQueueDelay, total)
+					}
+					continue
+				}
+				msg = &wpb.Packet{Data: f.data}
 			}
 			if err := stream.Send(msg); err != nil {
 				select {
