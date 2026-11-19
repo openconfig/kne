@@ -418,6 +418,42 @@ func TestNew(t *testing.T) {
 			},
 		},
 		wantNodes: []string{"r1"},
+	}, {
+		desc: "valid resource constraints",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:        "r1",
+					Vendor:      tpb.Vendor_HOST,
+					Constraints: map[string]string{"cpu": "500m", "memory": "1Gi"},
+				},
+			},
+		},
+		wantNodes: []string{"r1"},
+	}, {
+		desc: "invalid memory constraint",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:        "r1",
+					Vendor:      tpb.Vendor_HOST,
+					Constraints: map[string]string{"memory": "1GB"},
+				},
+			},
+		},
+		wantErr: `node "r1" has invalid memory constraint "1GB"`,
+	}, {
+		desc: "invalid cpu constraint",
+		topo: &tpb.Topology{
+			Nodes: []*tpb.Node{
+				{
+					Name:        "r1",
+					Vendor:      tpb.Vendor_HOST,
+					Constraints: map[string]string{"cpu": "2 cores"},
+				},
+			},
+		},
+		wantErr: `node "r1" has invalid cpu constraint "2 cores"`,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
