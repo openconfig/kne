@@ -202,6 +202,7 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+			VolumeMounts: []corev1.VolumeMount{{Name: "files", MountPath: "/files"}},
 		},
 		wantCustomContainers: []corev1.Container{{
 			Name:    "dp",
@@ -249,6 +250,9 @@ func TestCreatePod(t *testing.T) {
 				Privileged: pointer.Bool(true),
 			},
 			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "files",
+				MountPath: "/files",
+			}, {
 				Name:      "startup-config-volume",
 				ReadOnly:  true,
 				MountPath: "/etc/sonic/config_db.json",
@@ -299,6 +303,47 @@ func TestCreatePod(t *testing.T) {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: pointer.Bool(true),
 			},
+		},
+	}, {
+		desc: "get only alpine container with files",
+		nImpl: &node.Impl{
+			Proto: &tpb.Node{
+				Name: "alpine",
+				Config: &tpb.Config{
+					Image:   "alpineImage",
+					Command: []string{"alpineCommand"},
+					Args:    []string{"alpineArgs"},
+					VendorData: func() *anypb.Any {
+						vd, err := anypb.New(&apb.AlpineConfig{
+							Files: &apb.Files{
+								MountDir: "/etc/files",
+								Files: map[string]*apb.Files_FileData{
+									"attributes.json": {FileData: &apb.Files_FileData_Data{
+										Data: []byte("{}"),
+									}},
+								},
+							},
+						})
+						if err != nil {
+							t.Fatalf("cannot marshal AlpineConfig: %v", err)
+						}
+						return vd
+					}(),
+				},
+			},
+		},
+		wantAlpineCtr: corev1.Container{
+			Name:    "alpine",
+			Image:   "alpineImage",
+			Command: []string{"alpineCommand"},
+			Args:    []string{"alpineArgs"},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{}},
+			ImagePullPolicy: "IfNotPresent",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: pointer.Bool(true),
+			},
+			VolumeMounts: []corev1.VolumeMount{{Name: "files", MountPath: "/etc/files"}},
 		},
 	}, {
 		desc: "get multiple custom containers",
