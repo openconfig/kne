@@ -10,6 +10,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/testutils"
 	"github.com/openconfig/kne/third_party/meshnet/utils/wireutil"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 func TestConfigurePodLinks(t *testing.T) {
@@ -132,5 +133,65 @@ func TestConfigurePodLinks(t *testing.T) {
 	}
 	if err := wireutil.ConfigurePodLinks(ns2.Path(), links2); err != nil {
 		t.Fatalf("Idempotent ConfigurePodLinks(p2) failed: %v", err)
+	}
+}
+
+// TestConfigurePodLinksPreservesAdminDown checks that re-running ConfigurePodLinks, as every
+// reconcile does, leaves an interface that the workload shut down administratively down, so
+// that its veth peer keeps seeing no carrier.
+func TestConfigurePodLinksPreservesAdminDown(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("Test requires root privileges. Run test with sudo")
+	}
+
+	ns1, err := testutils.NewNS()
+	if err != nil {
+		t.Fatalf("Failed to create ns1: %v", err)
+	}
+	defer func() { _ = ns1.Close() }()
+	ns2, err := testutils.NewNS()
+	if err != nil {
+		t.Fatalf("Failed to create ns2: %v", err)
+	}
+	defer func() { _ = ns2.Close() }()
+
+	links1 := []wireutil.PodLinkConfig{{
+		PodName: "p1", PeerPodName: "p2", LinkUID: 1, KubeNs: "testns", LocalIntf: "eth1",
+	}}
+	links2 := []wireutil.PodLinkConfig{{
+		PodName: "p2", PeerPodName: "p1", LinkUID: 1, KubeNs: "testns", LocalIntf: "eth1",
+	}}
+	reconcile := func() {
+		t.Helper()
+		if err := wireutil.ConfigurePodLinks(ns1.Path(), links1); err != nil {
+			t.Fatalf("ConfigurePodLinks(p1) failed: %v", err)
+		}
+		if err := wireutil.ConfigurePodLinks(ns2.Path(), links2); err != nil {
+			t.Fatalf("ConfigurePodLinks(p2) failed: %v", err)
+		}
+	}
+	const upAndCarrier = unix.IFF_UP | unix.IFF_LOWER_UP
+
+	reconcile()
+	if got := linkFlags(t, ns1, "eth1") & upAndCarrier; got != upAndCarrier {
+		t.Fatalf("after plumbing, p1 eth1 flags&(UP|LOWER_UP) = %#x, want %#x", got, upAndCarrier)
+	}
+
+	// The workload in p1 shuts the port down; reconciles must not bring it back up.
+	setAdmin(t, ns1, "eth1", false)
+	reconcile()
+	reconcile()
+	if got := linkFlags(t, ns1, "eth1") & unix.IFF_UP; got != 0 {
+		t.Errorf("after reconcile, p1 eth1 is admin up, want it left admin down")
+	}
+	if got := linkFlags(t, ns2, "eth1") & upAndCarrier; got != unix.IFF_UP {
+		t.Errorf("after reconcile, p2 eth1 flags&(UP|LOWER_UP) = %#x, want %#x (admin up, no carrier)", got, unix.IFF_UP)
+	}
+
+	// The workload brings the port back up; the peer regains carrier.
+	setAdmin(t, ns1, "eth1", true)
+	reconcile()
+	if got := linkFlags(t, ns2, "eth1") & upAndCarrier; got != upAndCarrier {
+		t.Errorf("after admin up, p2 eth1 flags&(UP|LOWER_UP) = %#x, want %#x", got, upAndCarrier)
 	}
 }
