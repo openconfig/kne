@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/openconfig/gnmi/errlist"
@@ -34,6 +35,17 @@ var packetPool = sync.Pool{
 		return &b
 	},
 }
+
+const (
+	// largeFrameLen is the largest untagged Ethernet frame at the default
+	// 1500-byte MTU. Larger TAP reads are logged at debug verbosity.
+	largeFrameLen = 1518
+	// largeFrameLogInterval caps how often large frames are decoded and
+	// logged, so the debug log cannot become a per-packet cost.
+	largeFrameLogInterval = 10 * time.Second
+)
+
+var largeFrameLogLimiter = newLogLimiter(largeFrameLogInterval)
 
 func init() {
 	InitLogger()
@@ -428,9 +440,14 @@ func forwardPackets(reader io.Reader, sender packetSender, wire *GRPCWire, locIf
 				Frame:       frame,
 			}
 
-			if n > 1518 {
-				pktType := DecodeFrame(payload.Frame)
-				grpcOvrlyLogger.Infof("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s", n, pktType)
+			// Decoding is for logging only. With jumbo MTUs every packet
+			// can exceed largeFrameLen, so only decode at debug verbosity,
+			// and at most once per largeFrameLogInterval across all wires.
+			if n > largeFrameLen && grpcOvrlyLogger.Logger.IsLevelEnabled(log.DebugLevel) {
+				if ok, skipped := largeFrameLogLimiter.allow(time.Now()); ok {
+					pktType := DecodeFrame(payload.Frame)
+					grpcOvrlyLogger.Debugf("RecvFrmLocalPodThread: unusually large packet received from local pod (may be GRO enabled). size: %d, pkt:%s (%d more large packets since last report)", n, pktType, skipped)
+				}
 			}
 
 			sent := false
