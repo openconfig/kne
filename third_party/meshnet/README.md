@@ -96,7 +96,9 @@ carrier (`LOWER_UP`) only while the interface at the other end of the link is
 administratively up. Running `ip link set eth1 down` in one pod therefore shows
 `NO-CARRIER` on the peer's interface, and setting it up again restores carrier.
 
-- **veth** (same node): the kernel provides this.
+- **veth** (same node): the kernel provides this. `meshnetd` sets a veth up only
+  when it first plumbs it into the pod, so its periodic reconcile never undoes
+  an admin down set by the workload.
 - **gRPC** (different nodes): each end is a TAP device. `meshnetd` watches the
   admin state of the TAP in the pod's network namespace and sends it to the
   peer node's `meshnetd` (`Remote.SetWireCarrier`), which sets the carrier of

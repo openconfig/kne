@@ -162,7 +162,11 @@ func ConfigurePodLinks(podNsPath string, links []PodLinkConfig) error {
 				}
 			}
 
-			if link.Attrs().Name != cfg.LocalIntf {
+			// An interface that already has its target name was plumbed by an earlier pass, and
+			// from then on its admin state belongs to the workload: a NOS that shuts the port down
+			// must not see it come back up on the next reconcile.
+			plumbed := link.Attrs().Name != cfg.LocalIntf
+			if plumbed {
 				if err := netlink.LinkSetName(link, cfg.LocalIntf); err != nil {
 					if strings.Contains(err.Error(), "file exists") || os.IsExist(err) {
 						log.Warnf("ConfigurePodLinks: %s already exists in %s, removing duplicate/stale %s", cfg.LocalIntf, podNsPath, link.Attrs().Name)
@@ -179,8 +183,13 @@ func ConfigurePodLinks(podNsPath string, links []PodLinkConfig) error {
 				log.Warnf("ConfigurePodLinks: failed to set txqueuelen %d on %s inside %s: %v", txqLen, cfg.LocalIntf, podNsPath, err)
 			}
 
-			if err := netlink.LinkSetUp(link); err != nil {
-				return fmt.Errorf("failed to set %s UP inside %s: %w", cfg.LocalIntf, podNsPath, err)
+			// Bring the interface up only when it is first plumbed. Linux does not allow renaming an
+			// interface that is up, so a rename always precedes this, and a pass interrupted between
+			// the two leaves the interface down.
+			if plumbed {
+				if err := netlink.LinkSetUp(link); err != nil {
+					return fmt.Errorf("failed to set %s UP inside %s: %w", cfg.LocalIntf, podNsPath, err)
+				}
 			}
 
 			if cfg.LocalIP != "" {
