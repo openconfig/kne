@@ -40,10 +40,11 @@ import (
 const (
 	maxFrameSize = 65535
 	// channelBufferCap is how many frames captured from an interface are queued for each Wire.Transmit
-	// client while its gRPC stream cannot take them, beyond which the frames are dropped. The stream stalls
-	// whenever the path to the client cannot keep up for a moment: when traffic starts, while TCP and HTTP/2
-	// flow control open up across a WAN path with tens of milliseconds of RTT, and during hiccups of the path
-	// that can last most of a second. The queue holds about a second of frames at 30k frames/s.
+	// client while its gRPC stream cannot take them, beyond which the oldest queued frames are dropped. The
+	// stream stalls whenever the path to the client cannot keep up for a moment: when traffic starts, while
+	// TCP and HTTP/2 flow control open up across a WAN path with tens of milliseconds of RTT, and during
+	// hiccups of the path that can last most of a second. The queue holds about a second of frames at
+	// 30k frames/s.
 	channelBufferCap = 32768
 	// maxQueueDelay bounds how long a frame may wait in a client's queue. A frame that waited longer is
 	// dropped rather than sent, so that a long stall of the stream does not deliver stale frames late
@@ -241,6 +242,29 @@ func (f queuedFrame) expired(now time.Time) bool {
 	return now.Sub(f.queuedAt) > maxQueueDelay
 }
 
+// enqueueFrame sends f to ch without blocking. If ch is full, it evicts the oldest queued
+// frame so ch retains a sliding window of the freshest frames, and reports whether a frame
+// was dropped. It must only be called by ch's single sender while ch cannot be closed.
+func enqueueFrame(ch chan queuedFrame, f queuedFrame) bool {
+	select {
+	case ch <- f:
+		return false
+	default:
+	}
+	var dropped bool
+	select {
+	case <-ch:
+		dropped = true
+	default:
+	}
+	select {
+	case ch <- f:
+	default:
+		dropped = true
+	}
+	return dropped
+}
+
 // InterfaceDemux coordinates a single raw socket reader per interface with multiple gRPC clients.
 // This design prevents socket buffer race conditions and distributes captured frames to all active subscribers.
 // It also distributes the link state of the interface to all subscribers and applies link state received from
@@ -362,12 +386,10 @@ func (d *InterfaceDemux) readLoop() {
 		}
 		f := queuedFrame{data: pkt, queuedAt: time.Now()}
 		for ch := range d.listeners {
-			select {
-			case ch <- f:
-			default:
+			if enqueueFrame(ch, f) {
 				total := d.droppedFrames.Add(1)
 				if total%1000 == 1 {
-					klog.Warningf("[%s] Demux subscriber queue full (buffer %d)! Dropping egress frame (total dropped: %d)",
+					klog.Warningf("[%s] Demux subscriber queue full (buffer %d)! Dropped oldest egress frame (total dropped: %d)",
 						d.ifaceName, channelBufferCap, total)
 				}
 			}
@@ -657,7 +679,7 @@ func (s *Server) Transmit(stream wpb.Wire_TransmitServer) error {
 				if f.expired(time.Now()) {
 					total := demux.expiredFrames.Add(1)
 					if total%1000 == 1 {
-						klog.Warningf("[%s] Dropping egress frame queued for more than %v (total dropped: %d)",
+						klog.Warningf("[%s] Dropping egress frame queued for more than %v (total expired: %d)",
 							ifaceName, maxQueueDelay, total)
 					}
 					continue
