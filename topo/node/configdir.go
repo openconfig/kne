@@ -45,6 +45,10 @@ func EnsureConfigDir(dir string) error {
 	return checkConfigDir(dir)
 }
 
+func repairConfigDirHint(dir string) string {
+	return fmt.Sprintf("repair with: sudo chown root:root %s && sudo chmod 1777 %s", dir, dir)
+}
+
 func checkConfigDir(dir string) error {
 	fi, err := os.Lstat(dir)
 	if err != nil {
@@ -59,7 +63,7 @@ func checkConfigDir(dir string) error {
 	}
 	euid := os.Geteuid()
 	mode := fi.Mode()
-	repair := fmt.Sprintf("repair with: sudo chown root:root %s && sudo chmod 1777 %s", dir, dir)
+	repair := repairConfigDirHint(dir)
 	switch {
 	case uid == euid && euid != 0:
 		if mode.Perm() != 0o700 || mode&(fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky) != 0 {
@@ -83,6 +87,9 @@ func writeConfigFile(dir, nodeName string, data []byte) (string, error) {
 	}
 	subDir, err := os.MkdirTemp(dir, fmt.Sprintf("kne-%s-config-*", nodeName))
 	if err != nil {
+		if errors.Is(err, fs.ErrPermission) {
+			return "", fmt.Errorf("%w; %s", err, repairConfigDirHint(dir))
+		}
 		return "", err
 	}
 	path := filepath.Join(subDir, configFileName)
@@ -117,38 +124,59 @@ func removeConfigFile(dir, path string) error {
 	switch {
 	case err != nil || !filepath.IsLocal(rel) || !strings.HasPrefix(parts[0], "kne-"):
 	case len(parts) == 1 && strings.HasSuffix(parts[0], ".cfg"): // Older KNE versions.
-		return removeIn(dir, path, "")
+		return removeIn(dir, path, rel, "")
 	case len(parts) == 2 && parts[1] == configFileName:
-		return removeIn(dir, path, filepath.Join(dir, parts[0]))
+		return removeIn(dir, path, rel, parts[0])
 	}
 	return fmt.Errorf("refusing to remove %s: not a KNE config file in %s", path, dir)
 }
 
-func removeIn(dir, path, subDir string) error {
+func checkSubDir(path, subPath string, fi fs.FileInfo, euid int) error {
+	if !fi.IsDir() {
+		return fmt.Errorf("refusing to remove %s: %s is not a directory", path, subPath)
+	}
+	if uid, ok := fileOwner(fi); ok && uid != euid {
+		return fmt.Errorf("refusing to remove %s: %s is owned by uid %d", path, subPath, uid)
+	}
+	return nil
+}
+
+func removeIn(dir, path, rel, subName string) (retErr error) {
 	if err := checkConfigDir(dir); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		return err
 	}
-	if subDir != "" {
-		fi, err := os.Lstat(subDir)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	defer func() {
+		if cerr := root.Close(); cerr != nil {
+			retErr = errors.Join(retErr, cerr)
+		}
+	}()
+	if subName != "" {
+		fi, err := root.Lstat(subName)
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		if !fi.IsDir() {
-			return fmt.Errorf("refusing to remove %s: %s is not a directory", path, subDir)
+		if err := checkSubDir(path, filepath.Join(dir, subName), fi, os.Geteuid()); err != nil {
+			return err
 		}
 	}
-	// os.Remove never follows a symlink in the final path element.
-	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := root.Remove(rel); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	if subDir != "" {
-		if err := os.Remove(subDir); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if subName != "" {
+		if err := root.Remove(subName); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
 	}

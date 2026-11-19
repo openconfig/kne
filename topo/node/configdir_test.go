@@ -203,6 +203,71 @@ func TestRemoveConfigFile(t *testing.T) {
 	}
 }
 
+func TestWriteConfigFilePermissionRepairHint(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can write to 0755 directories")
+	}
+	const dir = "/usr/bin"
+	fi, err := os.Lstat(dir)
+	if err != nil || fi.Sys().(*syscall.Stat_t).Uid != 0 || fi.Mode().Perm()&0o022 != 0 {
+		t.Skipf("skipping: %s is not a root-owned read-only directory on this host", dir)
+	}
+	_, err = writeConfigFile(dir, "r1", []byte("cfg"))
+	want := "repair with: sudo chown root:root /usr/bin && sudo chmod 1777 /usr/bin"
+	if s := errdiff.Substring(err, want); s != "" {
+		t.Fatalf("writeConfigFile(%q) unexpected error: %s", dir, s)
+	}
+}
+
+func TestCheckSubDirOwner(t *testing.T) {
+	euid := os.Geteuid()
+	if euid == 0 {
+		t.Skip("ownership check needs a non-root euid to test uid 0 mismatch")
+	}
+	fi, err := os.Lstat("/usr/bin")
+	if err != nil || fi.Sys().(*syscall.Stat_t).Uid != 0 {
+		t.Skip("skipping: /usr/bin is not a root-owned directory on this host")
+	}
+	err = checkSubDir("/tmp/kne/kne-r1-config-1/config.cfg", "/tmp/kne/kne-r1-config-1", fi, euid)
+	if s := errdiff.Substring(err, "owned by uid 0"); s != "" {
+		t.Fatalf("checkSubDir() unexpected error: %s", s)
+	}
+}
+
+func TestRemoveConfigFilePartialAndIntraDirSymlink(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "kne")
+	path, err := writeConfigFile(dir, "r1", []byte("cfg1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// If config.cfg is already gone, removeConfigFile still removes the empty subdir.
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeConfigFile(dir, path); err != nil {
+		t.Fatalf("removeConfigFile() with missing config.cfg failed: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Dir(path)); !os.IsNotExist(err) {
+		t.Errorf("removeConfigFile() left %s behind: %v", filepath.Dir(path), err)
+	}
+
+	// A relative symlink inside dir pointing to another subdir must be refused.
+	keepPath, err := writeConfigFile(dir, "r2", []byte("keep"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	symSub := filepath.Join(dir, "kne-r3-config-sym")
+	if err := os.Symlink(filepath.Base(filepath.Dir(keepPath)), symSub); err != nil {
+		t.Fatal(err)
+	}
+	if s := errdiff.Substring(removeConfigFile(dir, filepath.Join(symSub, configFileName)), "not a directory"); s != "" {
+		t.Errorf("removeConfigFile(intra-dir symlink) unexpected error: %s", s)
+	}
+	if _, err := os.Lstat(keepPath); err != nil {
+		t.Errorf("target file %s was affected: %v", keepPath, err)
+	}
+}
+
 func TestDeleteConfigSrcVolume(t *testing.T) {
 	ctx := context.Background()
 	origTempCfgDir := tempCfgDir
