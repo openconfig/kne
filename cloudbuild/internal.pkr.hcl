@@ -114,9 +114,11 @@ build {
       "echo Installing multinode cluster dependencies...",
       "git clone https://github.com/flannel-io/flannel.git",
       "sudo modprobe br_netfilter",
+      "echo tcp_bbr | sudo tee /etc/modules-load.d/tcp_bbr.conf", # load BBR at boot so tcp_congestion_control = bbr in 99-kne.conf applies
+      "sudo modprobe tcp_bbr",
       "echo \"1\" > sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables",
       "echo \"1\" > sudo tee /proc/sys/net/ipv4/ip_forward",
-      "echo 'net.core.netdev_max_backlog = 10000\nnet.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216' | sudo tee /etc/sysctl.d/99-kne.conf",
+      "echo 'net.core.netdev_max_backlog = 10000\nnet.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr' | sudo tee /etc/sysctl.d/99-kne.conf",
       "sudo sysctl --system",
       "sudo sysctl -p",
       "sudo mkdir -p /etc/containerd",

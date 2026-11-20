@@ -186,7 +186,7 @@ func TestDemuxerSlowSubscriberDoesNotDeadlock(t *testing.T) {
 
 	// Fill sub1 channel to capacity
 	for i := 0; i < channelBufferCap; i++ {
-		sub1 <- []byte{byte(i)}
+		sub1 <- queuedFrame{data: []byte{byte(i)}}
 	}
 
 	// Send new packet through raw socket
@@ -196,8 +196,8 @@ func TestDemuxerSlowSubscriberDoesNotDeadlock(t *testing.T) {
 	// sub2 should receive testPkt without blocking
 	select {
 	case pkt := <-sub2:
-		if !bytes.Equal(pkt, testPkt) {
-			t.Fatalf("sub2 packet mismatch: got %v, want %v", pkt, testPkt)
+		if !bytes.Equal(pkt.data, testPkt) {
+			t.Fatalf("sub2 packet mismatch: got %v, want %v", pkt.data, testPkt)
 		}
 	case <-time.After(1 * time.Second):
 		t.Fatalf("sub2 timed out waiting for packet (demuxer deadlocked)")
@@ -386,7 +386,7 @@ func TestDemuxMaxSubscribers(t *testing.T) {
 	fakeIO := newFakeReadWriter()
 	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
 
-	var subs []chan []byte
+	var subs []chan queuedFrame
 	for i := 0; i < maxSubscribersPerDemux; i++ {
 		sub, err := demux.subscribe()
 		if err != nil {
@@ -804,4 +804,239 @@ func TestDemuxConcurrentFanOutStress(t *testing.T) {
 	_ = fakeIO.Close()
 	wg.Wait()
 	_ = demux.wait()
+}
+
+func TestRetryOnENOBUFS(t *testing.T) {
+	tests := []struct {
+		name      string
+		errs      []error // returned by successive writes; the last one repeats
+		wantErr   error
+		wantCalls int // 0 means at least 2
+	}{
+		{
+			name:      "success",
+			errs:      []error{nil},
+			wantCalls: 1,
+		},
+		{
+			name:      "success after transient ENOBUFS",
+			errs:      []error{unix.ENOBUFS, unix.ENOBUFS, unix.ENOBUFS, nil},
+			wantCalls: 4,
+		},
+		{
+			name:      "other error is not retried",
+			errs:      []error{unix.EMSGSIZE},
+			wantErr:   unix.EMSGSIZE,
+			wantCalls: 1,
+		},
+		{
+			name:    "persistent ENOBUFS gives up",
+			errs:    []error{unix.ENOBUFS},
+			wantErr: unix.ENOBUFS,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			start := time.Now()
+			err := retryOnENOBUFS(func() error {
+				err := tc.errs[min(calls, len(tc.errs)-1)]
+				calls++
+				return err
+			})
+			if err != tc.wantErr {
+				t.Errorf("retryOnENOBUFS() = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantCalls != 0 && calls != tc.wantCalls {
+				t.Errorf("retryOnENOBUFS() made %d writes, want %d", calls, tc.wantCalls)
+			}
+			if tc.wantCalls == 0 {
+				if calls < 2 {
+					t.Errorf("retryOnENOBUFS() made %d writes, want retries", calls)
+				}
+				if elapsed := time.Since(start); elapsed < writeRetryTimeout {
+					t.Errorf("retryOnENOBUFS() gave up after %v, want at least %v", elapsed, writeRetryTimeout)
+				}
+			}
+		})
+	}
+}
+
+func TestQueuedFrameExpired(t *testing.T) {
+	queuedAt := time.Unix(1000, 0)
+	f := queuedFrame{data: []byte{1}, queuedAt: queuedAt}
+	tests := []struct {
+		name string
+		now  time.Time
+		want bool
+	}{
+		{name: "just queued", now: queuedAt, want: false},
+		{name: "at max delay", now: queuedAt.Add(maxQueueDelay), want: false},
+		{name: "past max delay", now: queuedAt.Add(maxQueueDelay + time.Nanosecond), want: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := f.expired(tc.now); got != tc.want {
+				t.Errorf("expired(queuedAt + %v) = %t, want %t", tc.now.Sub(queuedAt), got, tc.want)
+			}
+		})
+	}
+}
+
+func TestEnqueueFrame(t *testing.T) {
+	ch := make(chan queuedFrame, 3)
+
+	// Filling up to capacity does not drop any frames.
+	for i := byte(1); i <= 3; i++ {
+		if dropped := enqueueFrame(ch, queuedFrame{data: []byte{i}}); dropped {
+			t.Fatalf("enqueueFrame(%d) dropped = true, want false", i)
+		}
+	}
+
+	// Overflowing evicts the oldest frames while keeping FIFO order of the newest ones.
+	for i := byte(4); i <= 5; i++ {
+		if dropped := enqueueFrame(ch, queuedFrame{data: []byte{i}}); !dropped {
+			t.Fatalf("enqueueFrame(%d) dropped = false, want true", i)
+		}
+	}
+
+	want := []byte{3, 4, 5}
+	for idx, w := range want {
+		got := <-ch
+		if !bytes.Equal(got.data, []byte{w}) {
+			t.Errorf("frame[%d] = %v, want [%d]", idx, got.data, w)
+		}
+	}
+	if len(ch) != 0 {
+		t.Errorf("remaining queued frames = %d, want 0", len(ch))
+	}
+}
+
+func TestDemuxOverflowEvictsOldest(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	fakeIO := newFakeReadWriter()
+	demux := newInterfaceDemux(ctx, "eth1", fakeIO, nil)
+
+	sub, err := demux.subscribe()
+	if err != nil {
+		t.Fatalf("subscribe failed: %v", err)
+	}
+
+	// Fill sub to capacity with identifiable frames.
+	for i := 0; i < channelBufferCap; i++ {
+		sub <- queuedFrame{data: []byte{byte(i >> 8), byte(i)}}
+	}
+
+	// Send two fresh frames and close fakeIO so readLoop processes both and exits cleanly.
+	pktA := []byte{0xAA, 0x01}
+	pktB := []byte{0xBB, 0x02}
+	fakeIO.readChan <- pktA
+	fakeIO.readChan <- pktB
+	_ = fakeIO.Close()
+	_ = demux.wait()
+
+	if got := demux.droppedFrames.Load(); got != 2 {
+		t.Errorf("droppedFrames = %d, want 2", got)
+	}
+
+	var drained [][]byte
+	for f := range sub {
+		drained = append(drained, f.data)
+	}
+	if len(drained) != channelBufferCap {
+		t.Fatalf("drained %d frames, want %d", len(drained), channelBufferCap)
+	}
+	// Frames 0 and 1 were evicted; frame 2 is now at the head and pktA, pktB are at the tail.
+	wantHead := []byte{0x00, 0x02}
+	if !bytes.Equal(drained[0], wantHead) {
+		t.Errorf("head frame = %x, want %x", drained[0], wantHead)
+	}
+	if !bytes.Equal(drained[len(drained)-2], pktA) {
+		t.Errorf("second-to-last frame = %x, want %x", drained[len(drained)-2], pktA)
+	}
+	if !bytes.Equal(drained[len(drained)-1], pktB) {
+		t.Errorf("last frame = %x, want %x", drained[len(drained)-1], pktB)
+	}
+}
+
+func TestTransmitDropsExpiredFrame(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	server := NewServer(ctx)
+	defer func() { _ = server.Close() }()
+
+	fakeIO := newFakeReadWriter()
+	server.SetSocketOpener(func(ifaceName string) (ReadWriter, error) {
+		return fakeIO, nil
+	})
+	server.SetLinkOpener(nil)
+
+	lis := bufconn.Listen(1024 * 1024)
+	grpcServer := grpc.NewServer()
+	wpb.RegisterWireServer(grpcServer, server)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	defer grpcServer.Stop()
+
+	conn, err := grpc.NewClient("passthrough://bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return lis.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	client := wpb.NewWireClient(conn)
+	streamCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("interface", "eth1"))
+	stream, err := client.Transmit(streamCtx)
+	if err != nil {
+		t.Fatalf("Transmit RPC failed: %v", err)
+	}
+	if _, err := stream.Header(); err != nil {
+		t.Fatalf("Failed to receive stream header: %v", err)
+	}
+
+	server.mu.Lock()
+	demux := server.demuxers["eth1"]
+	server.mu.Unlock()
+	if demux == nil {
+		t.Fatalf("expected demux for eth1")
+	}
+
+	var pktChan chan queuedFrame
+	demux.mu.RLock()
+	for ch := range demux.listeners {
+		pktChan = ch
+	}
+	demux.mu.RUnlock()
+	if pktChan == nil {
+		t.Fatalf("expected subscriber channel on demux")
+	}
+
+	// Queue two expired frames directly before sending a fresh frame via the socket.
+	expiredTime := time.Now().Add(-2 * maxQueueDelay)
+	pktChan <- queuedFrame{data: []byte{0xDE, 0xAD}, queuedAt: expiredTime}
+	pktChan <- queuedFrame{data: []byte{0xBE, 0xEF}, queuedAt: expiredTime}
+
+	freshPkt := []byte{0xCA, 0xFE}
+	fakeIO.readChan <- freshPkt
+
+	resp, err := stream.Recv()
+	if err != nil {
+		t.Fatalf("stream.Recv() failed: %v", err)
+	}
+	if !bytes.Equal(resp.GetData(), freshPkt) {
+		t.Errorf("stream.Recv() data = %x, want %x", resp.GetData(), freshPkt)
+	}
+	if got := demux.expiredFrames.Load(); got != 2 {
+		t.Errorf("expiredFrames = %d, want 2", got)
+	}
 }
