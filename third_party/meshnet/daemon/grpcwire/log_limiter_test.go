@@ -39,14 +39,16 @@ func TestLogLimiterConcurrent(t *testing.T) {
 
 	const goroutines, perGoroutine = 8, 1000
 	var allowed atomic.Int64
+	var suppressed atomic.Uint64
 	var wg sync.WaitGroup
 	for range goroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for range perGoroutine {
-				if ok, _ := l.allow(now); ok {
+				if ok, s := l.allow(now); ok {
 					allowed.Add(1)
+					suppressed.Add(s)
 				}
 			}
 		}()
@@ -56,8 +58,12 @@ func TestLogLimiterConcurrent(t *testing.T) {
 	if got := allowed.Load(); got != 1 {
 		t.Errorf("allowed %d events within one interval, want 1", got)
 	}
-	ok, suppressed := l.allow(now.Add(time.Hour))
-	if want := uint64(goroutines*perGoroutine - 1); !ok || suppressed != want {
-		t.Errorf("allow after interval = (%v, %d), want (true, %d)", ok, suppressed, want)
+	ok, s := l.allow(now.Add(time.Hour))
+	if !ok {
+		t.Fatalf("allow after interval = (false, %d), want ok=true", s)
+	}
+	suppressed.Add(s)
+	if got, want := suppressed.Load(), uint64(goroutines*perGoroutine-1); got != want {
+		t.Errorf("total suppressed = %d, want %d", got, want)
 	}
 }

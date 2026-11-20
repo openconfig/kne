@@ -19,7 +19,11 @@ func newLogLimiter(interval time.Duration) *logLimiter {
 }
 
 // allow reports whether an event at now may be logged. If it may, allow also
-// returns how many events were suppressed since the last allowed one.
+// returns how many events were suppressed since the last allowed one. Because
+// advancing next and draining suppressed are separate atomic operations,
+// concurrent events suppressed right at an interval boundary may be attributed
+// to either the triggering call or the next allowed call; the total suppressed
+// count is conserved across calls.
 func (l *logLimiter) allow(now time.Time) (ok bool, suppressed uint64) {
 	n := now.UnixNano()
 	next := l.next.Load()
