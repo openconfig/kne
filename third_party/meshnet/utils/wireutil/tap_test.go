@@ -1,6 +1,7 @@
 package wireutil_test
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -117,4 +118,71 @@ func TestTAPCarrierAndAdminWatch(t *testing.T) {
 
 	stop()
 	stop() // stop is idempotent
+}
+
+// TestCreateOrAttachTAPNonBlocking checks that the TAP is opened O_NONBLOCK, so
+// that Go's poller parks readers instead of pinning an OS thread per wire, and
+// that Close unblocks a pending Read.
+func TestCreateOrAttachTAPNonBlocking(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("Test requires root privileges. Run test with sudo")
+	}
+	netNS, err := testutils.NewNS()
+	if err != nil {
+		t.Fatalf("Failed to create netns: %v", err)
+	}
+	defer func() { _ = netNS.Close() }()
+
+	tap, err := wireutil.CreateOrAttachTAP(netNS.Path(), "eth1", "")
+	if err != nil {
+		t.Fatalf("CreateOrAttachTAP() failed: %v", err)
+	}
+
+	// Use SyscallConn rather than Fd(): Fd() would put the fd back in blocking mode.
+	rc, err := tap.SyscallConn()
+	if err != nil {
+		t.Fatalf("SyscallConn() failed: %v", err)
+	}
+	var flags int
+	var flagsErr error
+	if err := rc.Control(func(fd uintptr) {
+		flags, flagsErr = unix.FcntlInt(fd, unix.F_GETFL, 0)
+	}); err != nil {
+		t.Fatalf("Control() failed: %v", err)
+	}
+	if flagsErr != nil {
+		t.Fatalf("fcntl(F_GETFL) failed: %v", flagsErr)
+	}
+	if flags&unix.O_NONBLOCK == 0 {
+		t.Errorf("TAP fd flags %#x lack O_NONBLOCK", flags)
+	}
+
+	// The kernel may emit frames (e.g. IPv6 neighbor discovery) once the link
+	// is up, so keep reading until Read fails.
+	readErr := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 65535)
+		for {
+			if _, err := tap.Read(buf); err != nil {
+				readErr <- err
+				return
+			}
+		}
+	}()
+	select {
+	case err := <-readErr:
+		t.Fatalf("Read() on open TAP failed: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := tap.Close(); err != nil {
+		t.Fatalf("Close() failed: %v", err)
+	}
+	select {
+	case err := <-readErr:
+		if !errors.Is(err, os.ErrClosed) {
+			t.Errorf("Read() after Close() = %v, want %v", err, os.ErrClosed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close() did not unblock a pending Read()")
+	}
 }

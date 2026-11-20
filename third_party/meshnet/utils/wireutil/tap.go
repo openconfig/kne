@@ -42,7 +42,12 @@ func CreateOrAttachTAPWithMTU(podNsPath string, ifName string, ipCIDR string, mt
 	var tapFile *os.File
 
 	err = podNs.Do(func(_ ns.NetNS) error {
-		fd, err := unix.Open(tunDevice, unix.O_RDWR, 0)
+		// Open the TAP non-blocking so that os.NewFile registers it with the Go
+		// runtime poller. Reads and writes then park the calling goroutine on
+		// EAGAIN instead of holding an OS thread for each wire, and Close
+		// unblocks a pending Read. Do not call Fd() on the returned file: it
+		// switches the descriptor back to blocking mode.
+		fd, err := unix.Open(tunDevice, unix.O_RDWR|unix.O_NONBLOCK, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open %s in netns %s: %w", tunDevice, podNsPath, err)
 		}
