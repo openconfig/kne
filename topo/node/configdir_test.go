@@ -19,6 +19,7 @@ package node
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -219,18 +220,24 @@ func TestWriteConfigFilePermissionRepairHint(t *testing.T) {
 	}
 }
 
-func TestCheckSubDirOwner(t *testing.T) {
-	euid := os.Geteuid()
-	if euid == 0 {
-		t.Skip("ownership check needs a non-root euid to test uid 0 mismatch")
+func TestRemoveInSubDirOwner(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "kne")
+	path, err := writeConfigFile(dir, "r1", []byte("keep"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	fi, err := os.Lstat("/usr/bin")
-	if err != nil || fi.Sys().(*syscall.Stat_t).Uid != 0 {
-		t.Skip("skipping: /usr/bin is not a root-owned directory on this host")
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		t.Fatal(err)
 	}
-	err = checkSubDir("/tmp/kne/kne-r1-config-1/config.cfg", "/tmp/kne/kne-r1-config-1", fi, euid)
-	if s := errdiff.Substring(err, "owned by uid 0"); s != "" {
-		t.Fatalf("checkSubDir() unexpected error: %s", s)
+	subName := filepath.Base(filepath.Dir(path))
+	err = removeIn(dir, path, rel, subName, os.Geteuid()+1)
+	want := fmt.Sprintf("owned by uid %d", os.Geteuid())
+	if s := errdiff.Substring(err, want); s != "" {
+		t.Fatalf("removeIn() unexpected error: %s", s)
+	}
+	if _, err := os.Lstat(path); err != nil {
+		t.Errorf("config file %s was affected: %v", path, err)
 	}
 }
 

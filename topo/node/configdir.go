@@ -124,9 +124,9 @@ func removeConfigFile(dir, path string) error {
 	switch {
 	case err != nil || !filepath.IsLocal(rel) || !strings.HasPrefix(parts[0], "kne-"):
 	case len(parts) == 1 && strings.HasSuffix(parts[0], ".cfg"): // Older KNE versions.
-		return removeIn(dir, path, rel, "")
+		return removeIn(dir, path, rel, "", os.Geteuid())
 	case len(parts) == 2 && parts[1] == configFileName:
-		return removeIn(dir, path, rel, parts[0])
+		return removeIn(dir, path, rel, parts[0], os.Geteuid())
 	}
 	return fmt.Errorf("refusing to remove %s: not a KNE config file in %s", path, dir)
 }
@@ -141,7 +141,7 @@ func checkSubDir(path, subPath string, fi fs.FileInfo, euid int) error {
 	return nil
 }
 
-func removeIn(dir, path, rel, subName string) (retErr error) {
+func removeIn(dir, path, rel, subName string, euid int) (retErr error) {
 	if err := checkConfigDir(dir); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
@@ -168,7 +168,7 @@ func removeIn(dir, path, rel, subName string) (retErr error) {
 		if err != nil {
 			return err
 		}
-		if err := checkSubDir(path, filepath.Join(dir, subName), fi, os.Geteuid()); err != nil {
+		if err := checkSubDir(path, filepath.Join(dir, subName), fi, euid); err != nil {
 			return err
 		}
 	}
