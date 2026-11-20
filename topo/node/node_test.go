@@ -167,7 +167,7 @@ func TestCreateConfig(t *testing.T) {
 			Name: ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: filepath.Join(tempCfgDir, "kne-dev1-config-*.cfg"),
+					Path: filepath.Join(tempCfgDir, "kne-dev1-config-*", configFileName),
 				},
 			},
 		},

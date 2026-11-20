@@ -114,9 +114,11 @@ build {
       "echo Installing multinode cluster dependencies...",
       "git clone https://github.com/flannel-io/flannel.git",
       "sudo modprobe br_netfilter",
+      "echo tcp_bbr | sudo tee /etc/modules-load.d/tcp_bbr.conf", # load BBR at boot so tcp_congestion_control = bbr in 99-kne.conf applies
+      "sudo modprobe tcp_bbr",
       "echo \"1\" > sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables",
       "echo \"1\" > sudo tee /proc/sys/net/ipv4/ip_forward",
-      "echo 'net.core.netdev_max_backlog = 10000\nnet.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216' | sudo tee /etc/sysctl.d/99-kne.conf",
+      "echo 'net.core.netdev_max_backlog = 10000\nnet.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr' | sudo tee /etc/sysctl.d/99-kne.conf",
       "sudo sysctl --system",
       "sudo sysctl -p",
       "sudo mkdir -p /etc/containerd",
@@ -266,6 +268,8 @@ build {
       "echo Removing unused libheif1 package and verifying KNE host dependencies...",
       "if dpkg -l libheif1 2>/dev/null | grep -q '^ii'; then sudo apt-get -o DPkg::Lock::Timeout=120 purge -y libheif1; fi",
       "if dpkg -l libheif1 2>/dev/null | grep -q '^ii'; then echo 'ERROR: libheif1 is still installed' >&2; exit 1; fi",
+      "echo 'd /tmp/kne 1777 root root -' | sudo tee /etc/tmpfiles.d/kne.conf > /dev/null",
+      "sudo systemd-tmpfiles --create /etc/tmpfiles.d/kne.conf",
       "export PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
       "go version && gcc --version && make --version && pcap-config --version",
       "sudo docker version && containerd --version",
@@ -277,6 +281,7 @@ build {
       "git --version && tree --version && gnmic version && gribic version && gnoic version",
       "dpkg -l google-cloud-ops-agent | grep -q '^ii'",
       "sudo iptables --version && sudo nft --version && sudo netstat --version",
+      "test \"$(stat -c '%u:%g:%a' /tmp/kne)\" = '0:0:1777'",
     ]
   }
 }

@@ -24,13 +24,23 @@ net.core.netdev_max_backlog = 10000
 # Increase maximum OS socket receive and send buffer sizes to 16 MB
 net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
+
+# Use BBR congestion control, paced by the fq qdisc
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
 ```
 
-Apply the configuration immediately:
+Load the BBR module at boot, and apply the configuration immediately:
 
 ```bash
+echo tcp_bbr | sudo tee /etc/modules-load.d/tcp_bbr.conf
+sudo modprobe tcp_bbr
 sudo sysctl --system
 ```
+
+`net.core.default_qdisc` only applies to queueing disciplines created after it is
+set, so it takes effect for existing interfaces after a reboot (or after
+replacing their root qdisc, e.g. `sudo tc qdisc replace dev ens4 root mq`).
 
 ### Why These Tunables Matter
 
@@ -48,6 +58,14 @@ sudo sysctl --system
   consumption for every socket. Default buffer sizes (`rmem_default` and `wmem_default`)
   remain at standard Linux defaults (~212 KB) to prevent microservices containers
   from exhausting memory when opening numerous internal IPC sockets.
+- **`net.ipv4.tcp_congestion_control = bbr` / `net.core.default_qdisc = fq`**:
+  gRPC Wire streams to peers outside the cluster (e.g. to a FORWARD node's
+  packet bridge) can cross a WAN path with tens of milliseconds of RTT, with
+  the node as the TCP sender for frames leaving the emulation. With the default
+  CUBIC, slow start occasionally ends early and the stream takes well over a
+  second to reach the offered rate, which can overflow the packet bridge's
+  queue. BBR ramps up consistently on such paths, and `fq` is the qdisc BBR is
+  designed to be paced by.
 
 > **Note**: These sysctl settings are pre-baked into KNE GCE VM images built via
 > CloudBuild/Packer (`cloudbuild/internal.pkr.hcl` and

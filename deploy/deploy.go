@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/kne/metrics"
 	"github.com/openconfig/kne/pods"
 	epb "github.com/openconfig/kne/proto/event"
+	"github.com/openconfig/kne/topo/node"
 	"github.com/pborman/uuid"
 	metallbv1 "go.universe.tf/metallb/api/v1beta1"
 	"golang.org/x/sync/errgroup"
@@ -76,6 +77,7 @@ var (
 	kindSetupGARAccess     = kind.SetupGARAccess
 	homeDir                = homedir.HomeDir
 	kindLoadContainerImage = loadContainerImageWithFallback
+	kindConfigDir          = node.DefaultConfigDir
 )
 
 type Cluster interface {
@@ -825,7 +827,7 @@ func (k *KindSpec) checkDependencies() error {
 
 func (k *KindSpec) create() error {
 	// Create a KNE dir under /tmp intended to hold files to be mounted into the kind cluster.
-	if err := os.MkdirAll("/tmp/kne", os.ModePerm); err != nil {
+	if err := node.EnsureConfigDir(kindConfigDir); err != nil {
 		return err
 	}
 	if k.Recycle {
