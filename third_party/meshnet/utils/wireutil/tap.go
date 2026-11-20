@@ -30,18 +30,34 @@ func CreateOrAttachTAP(podNsPath string, ifName string, ipCIDR string) (*os.File
 }
 
 // CreateOrAttachTAPWithMTU opens an existing persistent TAP device or creates a new persistent TAP device
-// with the given ifName inside the specified network namespace at podNsPath and sets its MTU if > 0.
-// Returns the open *os.File handle to the TAP device.
+// with the given ifName inside the specified network namespace at podNsPath and sets its MTU if > 0
+// when created. Returns the open *os.File handle to the TAP device.
 func CreateOrAttachTAPWithMTU(podNsPath string, ifName string, ipCIDR string, mtu int) (*os.File, error) {
+	f, _, err := OpenOrCreateTAPWithMTU(podNsPath, ifName, ipCIDR, mtu)
+	return f, err
+}
+
+// OpenOrCreateTAPWithMTU opens an existing persistent TAP device or creates a new persistent TAP device
+// with the given ifName inside the specified network namespace at podNsPath and sets its MTU if > 0
+// when created. Returns the open *os.File handle to the TAP device and whether it was newly created.
+func OpenOrCreateTAPWithMTU(podNsPath string, ifName string, ipCIDR string, mtu int) (*os.File, bool, error) {
 	podNs, err := ns.GetNS(podNsPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not open netns %s: %w", podNsPath, err)
+		return nil, false, fmt.Errorf("could not open netns %s: %w", podNsPath, err)
 	}
 	defer podNs.Close()
 
 	var tapFile *os.File
+	var created bool
 
 	err = podNs.Do(func(_ ns.NetNS) error {
+		_, err := netlink.LinkByName(ifName)
+		var notFound netlink.LinkNotFoundError
+		if err != nil && !errors.As(err, &notFound) {
+			return fmt.Errorf("failed to check link %s in netns %s: %w", ifName, podNsPath, err)
+		}
+		created = err != nil
+
 		// Open the TAP non-blocking so that os.NewFile registers it with the Go
 		// runtime poller. Reads and writes then park the calling goroutine on
 		// EAGAIN instead of holding an OS thread for each wire, and Close
@@ -62,49 +78,52 @@ func CreateOrAttachTAPWithMTU(podNsPath string, ifName string, ipCIDR string, mt
 			return fmt.Errorf("TUNSETIFF failed for %s in netns %s: %v", ifName, podNsPath, errno)
 		}
 
-		// Make device persistent so it survives process crashes/restarts
+		if created {
+			link, err := netlink.LinkByName(ifName)
+			if err != nil {
+				unix.Close(fd)
+				return fmt.Errorf("failed to find link %s inside netns %s: %w", ifName, podNsPath, err)
+			}
+
+			// Increase txqueuelen for high-throughput packet processing (configurable via LINK_TXQUEUELEN)
+			txqLen := GetLinkTxQLen()
+			if err := netlink.LinkSetTxQLen(link, txqLen); err != nil {
+				log.Warnf("CreateOrAttachTAP: failed to set txqueuelen %d on %s in netns %s: %v", txqLen, ifName, podNsPath, err)
+			}
+
+			if mtu > 0 {
+				if err := netlink.LinkSetMTU(link, mtu); err != nil {
+					unix.Close(fd)
+					return fmt.Errorf("failed to set MTU %d on %s in netns %s: %w", mtu, ifName, podNsPath, err)
+				}
+			}
+
+			if err := netlink.LinkSetUp(link); err != nil {
+				unix.Close(fd)
+				return fmt.Errorf("failed to set %s UP in netns %s: %w", ifName, podNsPath, err)
+			}
+
+			if ipCIDR != "" {
+				addr, err := netlink.ParseAddr(ipCIDR)
+				if err != nil {
+					unix.Close(fd)
+					return fmt.Errorf("failed to parse CIDR %q for %s: %w", ipCIDR, ifName, err)
+				}
+				if err := netlink.AddrAdd(link, addr); err != nil {
+					if !os.IsExist(err) && !strings.Contains(err.Error(), "file exists") && !errors.Is(err, unix.EEXIST) {
+						unix.Close(fd)
+						return fmt.Errorf("failed to add IP %s to %s inside netns %s: %w", ipCIDR, ifName, podNsPath, err)
+					}
+				}
+			}
+		}
+
+		// Make device persistent only after initial setup succeeds so a failed
+		// creation cleans up the TAP when fd is closed.
 		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETPERSIST), 1)
 		if errno != 0 {
 			unix.Close(fd)
 			return fmt.Errorf("TUNSETPERSIST failed for %s in netns %s: %v", ifName, podNsPath, errno)
-		}
-
-		link, err := netlink.LinkByName(ifName)
-		if err != nil {
-			unix.Close(fd)
-			return fmt.Errorf("failed to find link %s inside netns %s: %w", ifName, podNsPath, err)
-		}
-
-		// Increase txqueuelen for high-throughput packet processing (configurable via LINK_TXQUEUELEN)
-		txqLen := GetLinkTxQLen()
-		if err := netlink.LinkSetTxQLen(link, txqLen); err != nil {
-			log.Warnf("CreateOrAttachTAP: failed to set txqueuelen %d on %s in netns %s: %v", txqLen, ifName, podNsPath, err)
-		}
-
-		if mtu > 0 {
-			if err := netlink.LinkSetMTU(link, mtu); err != nil {
-				unix.Close(fd)
-				return fmt.Errorf("failed to set MTU %d on %s in netns %s: %w", mtu, ifName, podNsPath, err)
-			}
-		}
-
-		if err := netlink.LinkSetUp(link); err != nil {
-			unix.Close(fd)
-			return fmt.Errorf("failed to set %s UP in netns %s: %w", ifName, podNsPath, err)
-		}
-
-		if ipCIDR != "" {
-			addr, err := netlink.ParseAddr(ipCIDR)
-			if err != nil {
-				unix.Close(fd)
-				return fmt.Errorf("failed to parse CIDR %q for %s: %w", ipCIDR, ifName, err)
-			}
-			if err := netlink.AddrAdd(link, addr); err != nil {
-				if !os.IsExist(err) && !strings.Contains(err.Error(), "file exists") && !errors.Is(err, unix.EEXIST) {
-					unix.Close(fd)
-					return fmt.Errorf("failed to add IP %s to %s inside netns %s: %w", ipCIDR, ifName, podNsPath, err)
-				}
-			}
 		}
 
 		tapFile = os.NewFile(uintptr(fd), ifName)
@@ -112,15 +131,17 @@ func CreateOrAttachTAPWithMTU(podNsPath string, ifName string, ipCIDR string, mt
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	// Disable tx offload inside the netns (log warning if non-fatal)
-	if err := SetTxChecksumOff(ifName, podNsPath); err != nil {
-		log.Warnf("CreateOrAttachTAP: failed to disable tx checksum on %s inside netns %s: %v", ifName, podNsPath, err)
+	if created {
+		// Disable tx offload inside the netns (log warning if non-fatal)
+		if err := SetTxChecksumOff(ifName, podNsPath); err != nil {
+			log.Warnf("CreateOrAttachTAP: failed to disable tx checksum on %s inside netns %s: %v", ifName, podNsPath, err)
+		}
 	}
 
-	return tapFile, nil
+	return tapFile, created, nil
 }
 
 // SetTAPCarrier sets the carrier (IFF_LOWER_UP) of the TAP device behind f.

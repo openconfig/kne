@@ -186,3 +186,113 @@ func TestCreateOrAttachTAPNonBlocking(t *testing.T) {
 		t.Fatal("Close() did not unblock a pending Read()")
 	}
 }
+
+func TestCreateOrAttachTAPPreservesAdminDown(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("Test requires root privileges. Run test with sudo")
+	}
+	netNS, err := testutils.NewNS()
+	if err != nil {
+		t.Fatalf("Failed to create netns: %v", err)
+	}
+	defer func() { _ = netNS.Close() }()
+
+	const ifName = "eth1"
+	tap, created, err := wireutil.OpenOrCreateTAPWithMTU(netNS.Path(), ifName, "", 0)
+	if err != nil {
+		t.Fatalf("OpenOrCreateTAPWithMTU() failed: %v", err)
+	}
+	if !created {
+		t.Fatalf("initial OpenOrCreateTAPWithMTU() created = false, want true")
+	}
+	if got := linkFlags(t, netNS, ifName); got&unix.IFF_UP == 0 {
+		t.Fatalf("after initial OpenOrCreateTAPWithMTU(): flags %#x lack IFF_UP", got)
+	}
+
+	// Simulate NOS shutting the port down and meshnetd exiting while TUNSETPERSIST keeps the TAP.
+	setAdmin(t, netNS, ifName, false)
+	if err := tap.Close(); err != nil {
+		t.Fatalf("tap.Close() failed: %v", err)
+	}
+
+	// Re-attaching via CreateOrAttachTAP must preserve admin-down state.
+	reattached, err := wireutil.CreateOrAttachTAP(netNS.Path(), ifName, "")
+	if err != nil {
+		t.Fatalf("re-attach CreateOrAttachTAP() failed: %v", err)
+	}
+	defer func() { _ = reattached.Close() }()
+	if got := linkFlags(t, netNS, ifName); got&unix.IFF_UP != 0 {
+		t.Errorf("after re-attach: flags %#x unexpectedly have IFF_UP set", got)
+	}
+
+	// Simulate NOS bringing the port back up, then another daemon restart via OpenOrCreateTAPWithMTU.
+	setAdmin(t, netNS, ifName, true)
+	if err := reattached.Close(); err != nil {
+		t.Fatalf("reattached.Close() failed: %v", err)
+	}
+	reattached2, created, err := wireutil.OpenOrCreateTAPWithMTU(netNS.Path(), ifName, "", 9000)
+	if err != nil {
+		t.Fatalf("re-attach OpenOrCreateTAPWithMTU() failed: %v", err)
+	}
+	defer func() { _ = reattached2.Close() }()
+	if created {
+		t.Fatalf("re-attach OpenOrCreateTAPWithMTU() created = true, want false")
+	}
+	if got := linkFlags(t, netNS, ifName); got&unix.IFF_UP == 0 {
+		t.Errorf("after re-attach of admin-up TAP: flags %#x lack IFF_UP", got)
+	}
+	if err := netNS.Do(func(ns.NetNS) error {
+		l, err := netlink.LinkByName(ifName)
+		if err != nil {
+			return err
+		}
+		if l.Attrs().MTU == 9000 {
+			t.Errorf("re-attach overwrote MTU to %d", l.Attrs().MTU)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("inspecting link failed: %v", err)
+	}
+}
+
+func TestOpenOrCreateTAPFailureLeavesNoDevice(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("Test requires root privileges. Run test with sudo")
+	}
+	netNS, err := testutils.NewNS()
+	if err != nil {
+		t.Fatalf("Failed to create netns: %v", err)
+	}
+	defer func() { _ = netNS.Close() }()
+
+	const ifName = "eth1"
+	if _, _, err := wireutil.OpenOrCreateTAPWithMTU(netNS.Path(), ifName, "not-a-cidr", 0); err == nil {
+		t.Fatal("OpenOrCreateTAPWithMTU(invalid CIDR) succeeded, want error")
+	}
+	if _, _, err := wireutil.OpenOrCreateTAPWithMTU(netNS.Path(), ifName, "", 1<<30); err == nil {
+		t.Fatal("OpenOrCreateTAPWithMTU(invalid MTU) succeeded, want error")
+	}
+
+	if err := netNS.Do(func(ns.NetNS) error {
+		_, err := netlink.LinkByName(ifName)
+		var notFound netlink.LinkNotFoundError
+		if !errors.As(err, &notFound) {
+			return errors.New("expected TAP device not to persist after failed creation")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	tap, created, err := wireutil.OpenOrCreateTAPWithMTU(netNS.Path(), ifName, "", 0)
+	if err != nil {
+		t.Fatalf("retry OpenOrCreateTAPWithMTU() failed: %v", err)
+	}
+	defer func() { _ = tap.Close() }()
+	if !created {
+		t.Fatal("retry OpenOrCreateTAPWithMTU() created = false, want true")
+	}
+	if got := linkFlags(t, netNS, ifName); got&unix.IFF_UP == 0 {
+		t.Errorf("after retry: flags %#x lack IFF_UP", got)
+	}
+}

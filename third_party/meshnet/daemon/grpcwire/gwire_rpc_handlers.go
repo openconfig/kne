@@ -27,7 +27,7 @@ func CreateGRPCWireLocalWithMTU(ctx context.Context, wireDef *mpb.WireDef, mtu i
 		return &mpb.BoolResponse{Response: true}, nil
 	}
 
-	tapFile, err := wireutil.CreateOrAttachTAPWithMTU(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp, mtu)
+	tapFile, created, err := wireutil.OpenOrCreateTAPWithMTU(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp, mtu)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"daemon":  "meshnetd",
@@ -45,7 +45,7 @@ func CreateGRPCWireLocalWithMTU(ctx context.Context, wireDef *mpb.WireDef, mtu i
 
 	// Add the newly created wire in the in memory wire-map and k8S data store
 	AddWireInMemNDataStore(aWire, tapFile)
-	startCarrier(aWire, false)
+	startCarrier(aWire, !created)
 
 	log.WithFields(log.Fields{
 		"daemon":  "meshnetd",
@@ -80,7 +80,7 @@ func CreateUpdateGRPCWireRemoteTriggeredWithMTU(wireDef *mpb.WireDef, stopC chan
 		return grpcWire, false, nil
 	}
 
-	tapFile, err := wireutil.CreateOrAttachTAPWithMTU(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp, mtu)
+	tapFile, created, err := wireutil.OpenOrCreateTAPWithMTU(wireDef.LocalPodNetNs, wireDef.IntfNameInPod, wireDef.LocalPodIp, mtu)
 	if err != nil {
 		grpcOvrlyLogger.Errorf("[ADD-WIRE:REMOTE-END] Error creating/attaching TAP interface %s in netns %s: %v",
 			wireDef.IntfNameInPod, wireDef.LocalPodNetNs, err)
@@ -95,7 +95,7 @@ func CreateUpdateGRPCWireRemoteTriggeredWithMTU(wireDef *mpb.WireDef, stopC chan
 
 	// Add the created wire in the in memory wire-map and k8S data store
 	AddWireInMemNDataStore(aWire, tapFile)
-	startCarrier(aWire, false)
+	startCarrier(aWire, !created)
 
 	return aWire, true, nil
 }
