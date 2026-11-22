@@ -36,7 +36,8 @@ const (
 	scrapliPlatformName = "nokia_srl"
 	// srl-controller v0.6.0+ creates a named checkpoint "initial" on node startup
 	// configuration reset is therefore done by reverting to this checkpoint
-	configResetCmd = "/tools system configuration checkpoint initial revert"
+	configResetCmdLegacy = "/tools system configuration checkpoint initial revert"
+	configResetCmd       = "/tools system configuration revert-checkpoint name initial"
 	pushCfgFile    = "/home/admin/kne-push-config"
 )
 
@@ -250,7 +251,7 @@ func (n *Node) ConfigPush(ctx context.Context, r io.Reader) error {
 
 // escapeConfig escapes special characters in cfgBytes.
 func escapeConfig(cfgBytes []byte) string {
-	return configEscaper.Replace(string(cfgBytes))
+	return strings.ReplaceAll(string(cfgBytes), `"`, `\"`)
 }
 
 // Create creates a Nokia SR Linux node by interfacing with srl-labs/srl-controller
@@ -475,24 +476,34 @@ func defaults(pb *tpb.Node) *tpb.Node {
 func (n *Node) ResetCfg(ctx context.Context) error {
 	log.Infof("%s resetting config", n.Name())
 
-	err := n.SpawnCLIConn()
+	if err := n.SpawnCLIConn(); err != nil {
+		return err
+	}
+	defer func() {
+		_ = n.cliConn.Close()
+	}()
+
+	resp, err := n.cliConn.SendConfig(configResetCmd)
 	if err != nil {
 		return err
 	}
+	if resp.Failed == nil {
+		log.Infof("%s - finished resetting config", n.Name())
+		return nil
+	}
 
-	resp, err := n.cliConn.SendConfig(
-		configResetCmd,
-	)
+	log.Infof("%s - modern checkpoint revert rejected (%v), trying legacy syntax", n.Name(), resp.Failed)
+
+	resp, err = n.cliConn.SendConfig(configResetCmdLegacy)
 	if err != nil {
 		return err
 	}
-
 	if resp.Failed != nil {
 		return resp.Failed
 	}
-	log.Infof("%s - finished resetting config", n.Name())
 
-	return n.cliConn.Close()
+	log.Infof("%s - finished resetting config", n.Name())
+	return nil
 }
 
 // SpawnCLIConn spawns a CLI connection towards a Network OS using `kubectl exec` terminal and ensures CLI is ready
