@@ -411,14 +411,15 @@ func (m *Manager) Delete(ctx context.Context) error {
 		return nil
 	}
 
-	// Watch for namespace deletion.
-	c := make(chan error)
-	defer close(c)
-	go func() {
-		tCtx, cancel := context.WithTimeout(ctx, deleteWatchTimeout)
-		defer cancel()
-		waitNSDeleted(tCtx, m.kClient, m.topo.Name, c)
-	}()
+	// Watch for namespace deletion before initiating the delete so we cannot
+	// miss the Deleted event.
+	tCtx, cancel := context.WithTimeout(ctx, deleteWatchTimeout)
+	defer cancel()
+	w, err := m.kClient.CoreV1().Namespaces().Watch(tCtx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to wait for namespace %q deletion: %w", m.topo.Name, err)
+	}
+	defer w.Stop()
 
 	// Delete the namespace.
 	prop := metav1.DeletePropagationForeground
@@ -428,29 +429,21 @@ func (m *Manager) Delete(ctx context.Context) error {
 
 	// Wait for namespace deletion.
 	log.Infof("Waiting for namespace %q to be deleted", m.topo.Name)
-	if err := <-c; err != nil {
+	if err := waitNSDeleted(tCtx, w, m.topo.Name); err != nil {
 		return fmt.Errorf("failed to wait for namespace %q deletion: %w", m.topo.Name, err)
 	}
 	return nil
 }
 
-// waitNSDeleted waits for a namespace to be deleted. Write a non-nil error to the errCh
-// if waiting is unsuccessful. Else write a nil error to errCh and then return.
-func waitNSDeleted(ctx context.Context, kClient kubernetes.Interface, ns string, errCh chan error) {
-	w, err := kClient.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		errCh <- err
-		return
-	}
+// waitNSDeleted waits for a namespace to be deleted on the given watch.
+func waitNSDeleted(ctx context.Context, w watch.Interface, ns string) error {
 	for {
 		select {
 		case <-ctx.Done():
-			errCh <- fmt.Errorf("context canceled before namespace deleted")
-			return
+			return fmt.Errorf("context canceled before namespace deleted")
 		case e, ok := <-w.ResultChan():
 			if !ok {
-				errCh <- fmt.Errorf("no more watch events")
-				return
+				return fmt.Errorf("no more watch events")
 			}
 			n, ok := e.Object.(*corev1.Namespace)
 			if !ok {
@@ -461,8 +454,7 @@ func waitNSDeleted(ctx context.Context, kClient kubernetes.Interface, ns string,
 			}
 			if e.Type == watch.Deleted {
 				log.Infof("Namespace %q deleted", ns)
-				errCh <- nil
-				return
+				return nil
 			}
 		}
 	}

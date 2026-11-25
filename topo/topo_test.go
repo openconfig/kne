@@ -20,7 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -907,12 +910,17 @@ func TestCreateWatcherNamespaceScope(t *testing.T) {
 }
 
 type fakeWatch struct {
-	ch   chan watch.Event
-	done chan struct{}
+	ch       chan watch.Event
+	done     chan struct{}
+	stopOnce sync.Once
+	stopped  atomic.Bool
 }
 
 func (f *fakeWatch) Stop() {
-	close(f.done)
+	f.stopOnce.Do(func() {
+		f.stopped.Store(true)
+		close(f.done)
+	})
 }
 
 func (f *fakeWatch) ResultChan() <-chan watch.Event {
@@ -940,7 +948,7 @@ func TestDelete(t *testing.T) {
 			},
 		},
 	}
-	passWatchEvents := append(failWatchEvents,
+	passWatchEvents := append(slices.Clone(failWatchEvents),
 		watch.Event{
 			Type: watch.Deleted,
 			Object: &corev1.Namespace{
@@ -952,18 +960,23 @@ func TestDelete(t *testing.T) {
 	)
 
 	origDeleteWatchTimeout := deleteWatchTimeout
-	defer func() {
+	t.Cleanup(func() {
 		deleteWatchTimeout = origDeleteWatchTimeout
-	}()
-	deleteWatchTimeout = time.Millisecond
+	})
 
 	tests := []struct {
-		desc        string
-		topo        *tpb.Topology
-		k8sObjects  []runtime.Object
-		skipWait    bool
-		watchEvents []watch.Event
-		wantErr     string
+		desc                  string
+		topo                  *tpb.Topology
+		k8sObjects            []runtime.Object
+		skipWait              bool
+		watchTimeout          time.Duration
+		watchEvents           []watch.Event
+		watchErr              error
+		closeWatch            bool
+		deleteNSErr           error
+		wantWatchStopped      bool
+		wantWatchBeforeDelete bool
+		wantErr               string
 	}{{
 		desc: "delete a non-existent topo",
 		topo: &tpb.Topology{
@@ -1101,7 +1114,9 @@ func TestDelete(t *testing.T) {
 				},
 			},
 		},
-		watchEvents: passWatchEvents,
+		watchEvents:           passWatchEvents,
+		wantWatchStopped:      true,
+		wantWatchBeforeDelete: true,
 	}, {
 		desc: "delete with watch - bad events",
 		topo: &tpb.Topology{
@@ -1151,8 +1166,11 @@ func TestDelete(t *testing.T) {
 				},
 			},
 		},
-		watchEvents: failWatchEvents,
-		wantErr:     "context canceled before namespace deleted",
+		watchTimeout:          10 * time.Millisecond,
+		watchEvents:           failWatchEvents,
+		wantWatchStopped:      true,
+		wantWatchBeforeDelete: true,
+		wantErr:               "context canceled before namespace deleted",
 	}, {
 		desc: "delete without watch - bad events",
 		topo: &tpb.Topology{
@@ -1204,27 +1222,98 @@ func TestDelete(t *testing.T) {
 		},
 		skipWait:    true,
 		watchEvents: failWatchEvents,
+	}, {
+		desc: "delete with watch - namespace delete error",
+		topo: &tpb.Topology{
+			Name: "test",
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+		watchEvents:           passWatchEvents,
+		deleteNSErr:           errors.New("delete failed"),
+		wantWatchStopped:      true,
+		wantWatchBeforeDelete: true,
+		wantErr:               `failed to delete namespace "test": delete failed`,
+	}, {
+		desc: "delete with watch - watch error",
+		topo: &tpb.Topology{
+			Name: "test",
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+		watchErr: errors.New("watch failed"),
+		wantErr:  `failed to wait for namespace "test" deletion: watch failed`,
+	}, {
+		desc: "delete with watch - closed watch channel",
+		topo: &tpb.Topology{
+			Name: "test",
+		},
+		k8sObjects: []runtime.Object{
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+		closeWatch:            true,
+		wantWatchStopped:      true,
+		wantWatchBeforeDelete: true,
+		wantErr:               "no more watch events",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			if tt.watchTimeout > 0 {
+				deleteWatchTimeout = tt.watchTimeout
+			} else {
+				deleteWatchTimeout = 5 * time.Second
+			}
+
 			tf := dfake.NewSimpleDynamicClient(topologyv1.Scheme)
 			kf := kfake.NewSimpleClientset(tt.k8sObjects...)
+			var (
+				fw         *fakeWatch
+				feederDone chan struct{}
+			)
 			kf.PrependWatchReactor("*", func(action ktest.Action) (bool, watch.Interface, error) {
-				f := &fakeWatch{
+				if tt.watchErr != nil {
+					return true, nil, tt.watchErr
+				}
+				fw = &fakeWatch{
 					ch:   make(chan watch.Event, 1),
 					done: make(chan struct{}),
 				}
+				feederDone = make(chan struct{})
 				go func() {
+					defer close(feederDone)
+					if tt.closeWatch {
+						close(fw.ch)
+						return
+					}
 					for _, e := range tt.watchEvents {
 						select {
-						case f.ch <- e:
-						case <-f.done:
+						case fw.ch <- e:
+						case <-fw.done:
 							return
 						}
 					}
 				}()
-				return true, f, nil
+				return true, fw, nil
 			})
+			if tt.deleteNSErr != nil {
+				kf.PrependReactor("delete", "namespaces", func(action ktest.Action) (bool, runtime.Object, error) {
+					return true, nil, tt.deleteNSErr
+				})
+			}
 			opts := []Option{
 				WithClusterConfig(&rest.Config{}),
 				WithKubeClient(kf),
@@ -1238,6 +1327,38 @@ func TestDelete(t *testing.T) {
 			err = m.Delete(ctx)
 			if s := errdiff.Check(err, tt.wantErr); s != "" {
 				t.Errorf("Delete() unexpected err: %s", s)
+			}
+			if tt.wantWatchStopped {
+				if fw == nil {
+					t.Fatalf("expected namespace watch to be created, got nil")
+				}
+				if !fw.stopped.Load() {
+					t.Errorf("expected namespace watch Stop() to be called")
+				}
+				select {
+				case <-feederDone:
+				case <-time.After(time.Second):
+					t.Errorf("watch feeder goroutine did not exit after Delete()")
+				}
+			} else if fw != nil {
+				t.Errorf("expected no namespace watch to be created")
+			}
+			if tt.wantWatchBeforeDelete {
+				watchIdx, deleteIdx := -1, -1
+				for i, a := range kf.Actions() {
+					if a.GetResource().Resource != "namespaces" {
+						continue
+					}
+					if a.GetVerb() == "watch" && watchIdx == -1 {
+						watchIdx = i
+					}
+					if a.GetVerb() == "delete" && deleteIdx == -1 {
+						deleteIdx = i
+					}
+				}
+				if watchIdx == -1 || deleteIdx == -1 || watchIdx >= deleteIdx {
+					t.Errorf("expected namespace watch before delete, got watchIdx=%d deleteIdx=%d", watchIdx, deleteIdx)
+				}
 			}
 		})
 	}
